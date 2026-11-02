@@ -93,16 +93,21 @@ Ask also answers questions about the context's own records, such as "give me con
 
 ### Context
 
-| Screen                        | Address                        |
-| ----------------------------- | ------------------------------ |
-| The list                      | `/context`                     |
-| A context item in the dock    | `/context?dock=context.<item>` |
-| A context item's page         | `/context/<item>`              |
-| New context                   | `/context/new`                 |
-| A draft from a Not found card | `/context/new?gap=<id>`        |
-| Edit                          | `/context/<item>/edit`         |
-| Suggest a change              | `/context/<item>/suggest`      |
-| Try it from the editor        | `/context/new?dock=try.editor` |
+| Screen                                 | Address                                |
+| -------------------------------------- | -------------------------------------- |
+| The list                               | `/context`                             |
+| The list, only the items in a conflict | `/context?show=conflicts`              |
+| A context item in the dock             | `/context?dock=context.<item>`         |
+| A context item's page                  | `/context/<item>`                      |
+| New context                            | `/context/new`                         |
+| A draft from a Not found card          | `/context/new?gap=<id>`                |
+| Edit                                   | `/context/<item>/edit`                 |
+| Suggest a change                       | `/context/<item>/suggest`              |
+| Try it from the editor                 | `/context/new?dock=try.editor`         |
+| A conflict, to compare and decide      | `/context/conflicts/<item>.<item>`     |
+| A conflict in the dock                 | `/context?dock=conflict.<item>.<item>` |
+
+Conflicts is a filter of the list, not a list of its own: All or Conflicts above the list (with how many conflicts there are), or In a conflict in the Filter menu, shows the same table with only the items in a conflict. Every item in one carries a **Conflict** chip, filtered or not; the chip, or Compare and decide in the row's menu, opens the pair. The old address of the Conflicts list, `/context/conflicts`, leads to the filtered list.
 
 ### Definitions
 
@@ -324,7 +329,7 @@ The job specs, one line each:
 | J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion.                                |
 | J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                                                   |
 | J33 | Threads on the source: C or + comments on a line or a field; reply, react, resolve, reopen; the rail counts them live.                                                          |
-| J36 | Conflicts: compare two items that disagree side by side; settle with a reason and Undo; rights across domains; every place it appears.                                          |
+| J36 | Conflicts: the Context list filtered to them; compare two items that disagree side by side; settle with a reason and Undo; rights across domains; every place it appears.       |
 | J38 | Publish without review: an admin allows it, an owner lets one agent publish low-risk new Rules, turns it off; on the service an agent's Rule publishes and the owner undoes it. |
 
 The first plan for the web app named J1 to J29. J30 (topics) was added after that, so the full set is J1 to J33, and J36.

@@ -37,10 +37,11 @@ const places = [
   // Marked text: the sentences that disagree, an item that disagrees, a failed read, a refused key.
   '/ask?example=conflict',
   '/context/itm_gift_store_credit',
-  // The conflict view: the list, a pair's page, the dock, a pair across two domains, a near copy.
-  '/context/conflicts?whose=all',
+  // Conflicts: the Context list filtered to them, a pair's page, the dock, a pair across two
+  // domains, a near copy.
+  '/context?show=conflicts',
   '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
-  '/context/conflicts?whose=all&dock=conflict.itm_gift_card_only.itm_gift_store_credit',
+  '/context?show=conflicts&dock=conflict.itm_gift_card_only.itm_gift_store_credit',
   '/context/conflicts/itm_spain_vat_in.itm_spain_vat_out',
   '/context/conflicts/itm_france_switch_12.itm_france_switch_21',
   '/settings/integrations?state=failed',

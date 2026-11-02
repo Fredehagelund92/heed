@@ -4,13 +4,17 @@ line: 'Two items that say different things: compare them, then keep one, narrow 
 group: Write and review
 order: 3
 minutes: 3
-reviewed: 2026-10-31
+reviewed: 2026-11-02
 open:
   label: Open Conflicts
-  href: /context/conflicts
+  href: /context?show=conflicts
 ---
 
 Two context items are in a conflict when an owner said they disagree, in the review or in the editor. The app never decides it by itself. Until someone settles it, agents give both and say that context disagrees.
+
+## Find them
+
+Every item in a conflict carries a **Conflict** chip in Context. To see only those, pick Conflicts above the list, or In a conflict in Filter: it is the same list, with its search, sort and selection, showing only the items in a conflict, and the number next to Conflicts says how many there are. The chip, or Compare and decide in the row's menu, opens the two side by side. When nothing disagrees, the list says No conflicts.
 
 ## Compare
 
@@ -19,8 +23,6 @@ Compare and decide shows the two side by side: what each says, where it comes fr
 - When the two are written apart, the words both share are grey, so the words where they part stand out.
 - When one is a near copy of the other, the words that differ are underlined.
 - When neither helps, one line says so. Read both and the check dates.
-
-Conflicts in Context lists every pair, most asked first, with yours first under Mine.
 
 ## Settle it
 

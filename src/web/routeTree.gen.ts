@@ -29,7 +29,6 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.ind
 import { Route as AppContextIdIndexRouteImport } from './routes/_app/context.$id.index'
 import { Route as AppContextIdEditRouteImport } from './routes/_app/context.$id.edit'
 import { Route as AppContextIdSuggestRouteImport } from './routes/_app/context.$id.suggest'
-import { Route as AppContextConflictsIndexRouteImport } from './routes/_app/context.conflicts.index'
 import { Route as AppContextConflictsKeyRouteImport } from './routes/_app/context.conflicts.$key'
 import { Route as AppDefinitionsNameIndexRouteImport } from './routes/_app/definitions.$name.index'
 import { Route as AppDefinitionsNameEditRouteImport } from './routes/_app/definitions.$name.edit'
@@ -157,14 +156,6 @@ const AppContextIdSuggestRoute = AppContextIdSuggestRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app/context.$id.suggest.lazy').then((d) => d.Route),
 )
-const AppContextConflictsIndexRoute =
-  AppContextConflictsIndexRouteImport.update({
-    id: '/context/conflicts/',
-    path: '/context/conflicts/',
-    getParentRoute: () => AppRoute,
-  } as any).lazy(() =>
-    import('./routes/_app/context.conflicts.index.lazy').then((d) => d.Route),
-  )
 const AppContextConflictsKeyRoute = AppContextConflictsKeyRouteImport.update({
   id: '/context/conflicts/$key',
   path: '/context/conflicts/$key',
@@ -244,7 +235,6 @@ export interface FileRoutesByFullPath {
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/context/$id/': typeof AppContextIdIndexRoute
-  '/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/settings/$section/': typeof AppSettingsSectionIndexRoute
   '/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -273,7 +263,6 @@ export interface FileRoutesByTo {
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/context/$id': typeof AppContextIdIndexRoute
-  '/context/conflicts': typeof AppContextConflictsIndexRoute
   '/definitions/$name': typeof AppDefinitionsNameIndexRoute
   '/settings/$section': typeof AppSettingsSectionIndexRoute
   '/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -304,7 +293,6 @@ export interface FileRoutesById {
   '/_app/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/_app/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/_app/context/$id/': typeof AppContextIdIndexRoute
-  '/_app/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/_app/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/_app/settings/$section/': typeof AppSettingsSectionIndexRoute
   '/_app/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -335,7 +323,6 @@ export interface FileRouteTypes {
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
     | '/context/$id/'
-    | '/context/conflicts/'
     | '/definitions/$name/'
     | '/settings/$section/'
     | '/settings/$section/$sub/$step'
@@ -364,7 +351,6 @@ export interface FileRouteTypes {
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
     | '/context/$id'
-    | '/context/conflicts'
     | '/definitions/$name'
     | '/settings/$section'
     | '/settings/$section/$sub/$step'
@@ -394,7 +380,6 @@ export interface FileRouteTypes {
     | '/_app/definitions/$name/edit'
     | '/_app/inbox/$id/review'
     | '/_app/context/$id/'
-    | '/_app/context/conflicts/'
     | '/_app/definitions/$name/'
     | '/_app/settings/$section/'
     | '/_app/settings/$section/$sub/$step'
@@ -552,13 +537,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContextIdSuggestRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/context/conflicts/': {
-      id: '/_app/context/conflicts/'
-      path: '/context/conflicts'
-      fullPath: '/context/conflicts/'
-      preLoaderRoute: typeof AppContextConflictsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/context/conflicts/$key': {
       id: '/_app/context/conflicts/$key'
       path: '/context/conflicts/$key'
@@ -629,7 +607,6 @@ interface AppRouteChildren {
   AppDefinitionsNameEditRoute: typeof AppDefinitionsNameEditRoute
   AppInboxIdReviewRoute: typeof AppInboxIdReviewRoute
   AppContextIdIndexRoute: typeof AppContextIdIndexRoute
-  AppContextConflictsIndexRoute: typeof AppContextConflictsIndexRoute
   AppDefinitionsNameIndexRoute: typeof AppDefinitionsNameIndexRoute
   AppSettingsSectionIndexRoute: typeof AppSettingsSectionIndexRoute
   AppSettingsSectionSubStepRoute: typeof AppSettingsSectionSubStepRoute
@@ -654,7 +631,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppDefinitionsNameEditRoute: AppDefinitionsNameEditRoute,
   AppInboxIdReviewRoute: AppInboxIdReviewRoute,
   AppContextIdIndexRoute: AppContextIdIndexRoute,
-  AppContextConflictsIndexRoute: AppContextConflictsIndexRoute,
   AppDefinitionsNameIndexRoute: AppDefinitionsNameIndexRoute,
   AppSettingsSectionIndexRoute: AppSettingsSectionIndexRoute,
   AppSettingsSectionSubStepRoute: AppSettingsSectionSubStepRoute,

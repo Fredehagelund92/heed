@@ -5,12 +5,23 @@ import { card, expect, go, onMockOnly, signInAs, test } from './go.ts'
 // comes from and what agents would say with only that one, and ways to settle it. Every choice asks
 // why and shows what agents will then say; the outcome stays in place with Undo. Someone who owns
 // one side sees which buttons cannot act and why. The same view is a page under Context and the
-// conflict dock, and the Conflicts view of the Context list leads to it.
+// conflict dock. The conflicts are found in the Context list: Conflicts filters the one table to
+// the items in a conflict, and each such item carries the Conflict chip, which leads to the pair.
 
-/** Opens the Norway pair from the Conflicts list, as a person finds it, in either mode. */
+/** The Conflict chip of the item that disagrees with this one, in the Context list. */
+const chipWith = (page: Page, other: string | RegExp) =>
+  page.getByRole('link', {
+    name: typeof other === 'string' ? `Conflict with “${other}”` : other,
+  })
+
+/** The Context list's rows, by title. */
+const rowOf = (page: Page, title: string) =>
+  page.getByRole('row').filter({ has: page.getByRole('button', { name: title, exact: true }) })
+
+/** Opens the Norway pair from the Context list filtered to Conflicts, as a person finds it. */
 async function openNorway(page: Page) {
-  await go(page, '/context/conflicts?whose=all')
-  await page.getByRole('link', { name: 'Orders in Norway' }).click()
+  await go(page, '/context?show=conflicts')
+  await chipWith(page, 'Norway orders count store credit').click()
   await expect(page).toHaveURL(/dock=conflict\./)
   const dock = page.getByRole('region', { name: 'Conflict', exact: true })
   await expect(
@@ -19,13 +30,62 @@ async function openNorway(page: Page) {
   return dock
 }
 
-test('the Conflicts view lists the pairs, most asked first, and opens one in the dock', async ({
+test('Conflicts filters the one Context table to the items in a conflict, in the address', async ({
   page,
 }) => {
   await go(page, '/context')
+  // Every item in a conflict carries the chip, filtered or not.
+  await expect(chipWith(page, 'Norway orders count store credit')).toBeVisible()
+  await expect(rowOf(page, 'Online sales to Norway stopped on 4 August 2026')).toBeVisible()
   await page.getByRole('radio', { name: /^Conflicts/ }).click()
-  await expect(page).toHaveURL(/\/context\/conflicts/)
-  await expect(page.getByRole('cell', { name: 'Orders in Norway' })).toBeVisible()
+  await expect(page).toHaveURL(/\/context\?show=conflicts$/)
+  // The same table, columns and count, showing only what is in a conflict, each with its chip.
+  await expect(page.getByRole('button', { name: 'Remove the filter: In a conflict' })).toBeVisible()
+  await expect(rowOf(page, 'Online sales to Norway stopped on 4 August 2026')).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Checked' })).toBeVisible()
+  const rows = page.locator('tbody [data-row-open]')
+  const chips = page.locator('tbody').getByRole('link', { name: /^Conflict with “/ })
+  await expect(rows.first()).toBeVisible()
+  expect(await chips.count()).toBe(await rows.count())
+  await expect(page.getByText(/^\d+ of \d+ context items$/)).toBeVisible()
+  // Search narrows it like any filter, and the filter lasts a reload.
+  await page.getByRole('textbox', { name: 'Search context' }).fill('Norway')
+  await expect(rows).toHaveCount(2)
+  await page.reload()
+  await expect(page.getByRole('radio', { name: /^Conflicts/ })).toBeChecked()
+  await expect(rowOf(page, 'Online sales to Norway stopped on 4 August 2026')).toHaveCount(0)
+  // The Filter menu holds the same filter.
+  await page.getByRole('button', { name: /^Filter/ }).click()
+  await page.getByRole('menuitemcheckbox', { name: /^In a conflict/ }).click()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(/\/context$/)
+  await expect(page.getByRole('radio', { name: 'All' })).toBeChecked()
+  await expect(rowOf(page, 'Online sales to Norway stopped on 4 August 2026')).toBeVisible()
+})
+
+test('the old Conflicts list lands on the Context list filtered to conflicts', async ({ page }) => {
+  await go(page, '/context/conflicts?whose=all')
+  await expect(page).toHaveURL(/\/context\?show=conflicts$/)
+  await expect(page.getByRole('radio', { name: /^Conflicts/ })).toBeChecked()
+  await expect(chipWith(page, 'Norway orders count store credit')).toBeVisible()
+})
+
+test("a row's Conflict chip and its Compare and decide open the pair in the dock", async ({
+  page,
+}) => {
+  await go(page, '/context?show=conflicts')
+  const row = rowOf(page, 'Norway orders are card and cash payments only')
+  await row.hover()
+  await row.getByRole('button', { name: /^More for / }).click()
+  await page.getByRole('menuitem', { name: 'Compare and decide' }).click()
+  await expect(page).toHaveURL(/dock=conflict\./)
+  await expect(
+    page
+      .getByRole('region', { name: 'Conflict', exact: true })
+      .getByRole('heading', { name: 'Two items say different things about Orders in Norway.' }),
+  ).toBeVisible()
+  // The two items compared are marked in the list behind the dock.
+  await expect(row).toHaveAttribute('data-peeked', 'true')
   const dock = await openNorway(page)
   // Grey words come with a legend and, for a screen reader, the words in both.
   await expect(
@@ -63,11 +123,46 @@ test('keep both: the reason box shows what agents will then say, the outcome sta
     .filter({ hasText: 'Kept both. Agents keep saying Conflict' })
   await expect(outcome).toBeVisible()
   await expect(outcome).toContainText('Reason: Both hold until Finance rules on it.')
-  // Off the list behind the dock until either item changes; Undo brings it back.
-  const row = page.getByTestId('page').getByRole('cell', { name: 'Orders in Norway', exact: true })
+  // Off the conflicts behind the dock until either item changes; Undo brings it back.
+  const row = rowOf(page, 'Norway orders count store credit')
   await expect(row).toHaveCount(0)
   await outcome.getByRole('button', { name: 'Undo' }).click()
   await expect(row).toBeVisible()
+  await expect(chipWith(page, 'Norway orders are card and cash payments only')).toBeVisible()
+})
+
+test('when nothing disagrees any more, Conflicts says so and leads back to all the context', async ({
+  page,
+}) => {
+  await go(page, '/context?show=conflicts')
+  await page
+    .locator('tbody')
+    .getByRole('link', { name: /^Conflict with “/ })
+    .first()
+    .click()
+  const dock = page.getByRole('region', { name: 'Conflict', exact: true })
+  // Keep both on each pair in turn, as someone working through them does.
+  for (;;) {
+    await dock.getByRole('button', { name: 'Keep both' }).click()
+    const box = page.getByRole('dialog', { name: 'Keep both' })
+    await box.getByLabel('Why do both stay?').fill('Both hold until Finance rules on it.')
+    await box.getByRole('button', { name: 'Keep both' }).click()
+    const outcome = page.getByRole('status').filter({ hasText: 'Kept both.' })
+    await expect(outcome).toBeVisible()
+    const next = dock.getByRole('button', { name: 'Next conflict' })
+    const last = dock.getByText('Nothing else disagrees.')
+    await expect(next.or(last)).toBeVisible()
+    if (await last.isVisible()) break
+    await next.click()
+    await expect(outcome).toHaveCount(0)
+  }
+  await dock.getByRole('button', { name: 'All conflicts' }).click()
+  await expect(page).toHaveURL(/\/context\?show=conflicts$/)
+  await expect(page.getByText('No conflicts', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Nothing disagrees\./)).toBeVisible()
+  await page.getByRole('button', { name: 'Show all context' }).click()
+  await expect(page).toHaveURL(/\/context$/)
+  await expect(page.locator('tbody [data-row-open]').first()).toBeVisible()
 })
 
 test('keep one: needs a reason, archives the other, says what agents now say, and Undo puts both back', async ({
@@ -120,9 +215,9 @@ test('a near copy is underlined where the two differ', async ({ page }) => {
 test('the item page and its peek say what it disagrees with, and lead to the comparison', async ({
   page,
 }) => {
-  await go(page, '/context/conflicts?whose=all')
-  const row = page.getByRole('link', { name: 'Orders in Norway' })
-  const pairPath = await row.getAttribute('href')
+  await go(page, '/context?show=conflicts')
+  const chip = chipWith(page, 'Norway orders count store credit')
+  const pairPath = await chip.getAttribute('href')
   const holder = pairPath!.split('/').pop()!.split('.')[0]!
   await go(page, `/context/${holder}`)
   await expect(page.getByRole('heading', { name: 'Disagrees with' })).toBeVisible()
@@ -183,8 +278,10 @@ test('edit this one: saving returns to the conflict at Not a conflict, and it is
     await box.getByLabel('Why is this not a conflict?').fill('Narrowed to cards.')
     await box.getByRole('button', { name: 'Not a conflict' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Narrowed to cards.' })).toBeVisible()
-    await go(page, '/context/conflicts?whose=all')
-    await expect(page.getByRole('link', { name: 'Orders in France' })).toHaveCount(0)
+    await go(page, '/context?show=conflicts')
+    await expect(chipWith(page, /^Conflict with “Payment provider switched in France/)).toHaveCount(
+      0,
+    )
   })
 })
 
@@ -197,8 +294,10 @@ test('a typo fix saved from a conflict settles nothing, and cancelling leaves it
     await expect(box).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(box).toBeHidden()
-    await go(page, '/context/conflicts?whose=all')
-    await expect(page.getByRole('cell', { name: 'Orders in France', exact: true })).toBeVisible()
+    await go(page, '/context?show=conflicts')
+    await expect(chipWith(page, /^Conflict with “Payment provider switched in France/)).toHaveCount(
+      2,
+    )
   })
 })
 
@@ -207,8 +306,14 @@ test.describe('on a phone', () => {
   test('one pile per item, no sideways scroll, and Settle it opens the choices', async ({
     page,
   }) => {
-    await go(page, '/context/conflicts?whose=all')
-    await page.getByRole('link', { name: 'Orders in Norway' }).click()
+    await go(page, '/context?show=conflicts')
+    await expect(
+      page.getByRole('button', { name: 'Remove the filter: In a conflict' }),
+    ).toBeVisible()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true)
+    await chipWith(page, 'Norway orders count store credit').click()
     await page.getByRole('button', { name: 'Open the page' }).click()
     await expect(page.getByRole('region', { name: /^First item/ })).toBeVisible()
     expect(

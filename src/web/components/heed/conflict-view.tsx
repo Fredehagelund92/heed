@@ -49,6 +49,7 @@ import { useOnline, useSend } from '@/lib/send'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/lib/workspace'
 import {
+  CONFLICTS_LIST,
   SAID_NOW,
   sideTitle,
   sublineOf,
@@ -515,7 +516,7 @@ function Outcome({
             Next conflict
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => navigate('/context/conflicts')}>
+          <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
             All conflicts
           </Button>
         )}
@@ -750,7 +751,7 @@ export function ConflictView({
               <p className="font-medium">These two no longer disagree.</p>
               <p className="text-muted-foreground">There is nothing left to decide.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/context/conflicts')}>
+            <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
               All conflicts
             </Button>
           </div>

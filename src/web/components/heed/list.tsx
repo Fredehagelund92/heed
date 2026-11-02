@@ -136,20 +136,29 @@ export function FilterChip({
   onRemove,
 }: {
   field: string
-  values: string[]
+  /** None for a filter that is one sentence by itself ("In a conflict"). */
+  values?: string[]
   onRemove: () => void
 }) {
-  const shown = values.slice(0, 2).join(', ')
-  const rest = values.length - 2
-  const label = `${field} ${values.length > 1 ? 'is any of' : 'is'} ${values.join(', ')}`
+  const shown = values?.slice(0, 2).join(', ')
+  const rest = (values?.length ?? 0) - 2
+  const label = values
+    ? `${field} ${values.length > 1 ? 'is any of' : 'is'} ${values.join(', ')}`
+    : field
   return (
     <span className="inline-flex h-6 max-w-full items-center gap-1 rounded-md border bg-background pr-0.5 pl-2 text-xs">
       <span className="truncate">
-        <span className="text-muted-foreground">
-          {field} {values.length > 1 ? 'is any of' : 'is'}
-        </span>{' '}
-        {shown}
-        {rest > 0 && <span className="text-muted-foreground"> +{rest}</span>}
+        {values ? (
+          <>
+            <span className="text-muted-foreground">
+              {field} {values.length > 1 ? 'is any of' : 'is'}
+            </span>{' '}
+            {shown}
+            {rest > 0 && <span className="text-muted-foreground"> +{rest}</span>}
+          </>
+        ) : (
+          field
+        )}
       </span>
       <button
         type="button"

@@ -83,12 +83,15 @@ export const askSearch = lenient(
   z.object({ example: text, chat: text, n: text, setup: text, q: text }),
 )
 
+/** The Context list, filtered from a link: a domain, what is due, archived, or what is in a conflict. */
 export const contextSearch = lenient(
-  z.object({ domain: text, due: text, status: oneOf(['archived']) }),
+  z.object({
+    domain: text,
+    due: text,
+    status: oneOf(['archived']),
+    show: oneOf(['conflicts']),
+  }),
 )
-
-/** The Conflicts view: mine, or every pair the person may read. */
-export const conflictsSearch = lenient(z.object({ whose: oneOf(['all']) }))
 
 /** A new context item starts from a draft, a gap or a metric and market; setup leads back to the Inbox. */
 export const contextEditorSearch = lenient(

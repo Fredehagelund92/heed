@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { href, redirectFrom } from '@/lib/router'
-import { inboxSearch, rootSearch, settingsSearch, shellSearch } from '@/lib/search'
+import { contextSearch, inboxSearch, rootSearch, settingsSearch, shellSearch } from '@/lib/search'
 
 const at = (pathname: string, search = '', hash = '') => ({ pathname, searchStr: search, hash })
 
@@ -38,6 +38,25 @@ describe('old addresses', () => {
     expect(redirectFrom(at('/observability/overview', '?range=30'))).toBeNull()
   })
 
+  it('take the old Conflicts list to the Context list filtered to conflicts, keeping the rest', () => {
+    expect(redirectFrom(at('/context/conflicts'))).toBe('/context?show=conflicts')
+    expect(redirectFrom(at('/context/conflicts/'))).toBe('/context?show=conflicts')
+    // Mine and All went with the list; a peek and the theme stay.
+    expect(redirectFrom(at('/context/conflicts', '?whose=all'))).toBe('/context?show=conflicts')
+    expect(redirectFrom(at('/context/conflicts', '?whose=all&dock=conflict.a.b&theme=dark'))).toBe(
+      '/context?dock=conflict.a.b&theme=dark&show=conflicts',
+    )
+    expect(redirectFrom(at('/', '', '/context/conflicts?whose=all'))).toBe(
+      '/context?show=conflicts',
+    )
+  })
+
+  it("leave a conflict's own page where it is", () => {
+    expect(redirectFrom(at('/context/conflicts/a.b'))).toBeNull()
+    expect(redirectFrom(at('/context/conflicts/a.b', '?settle=not_conflict'))).toBeNull()
+    expect(redirectFrom(at('/context', '?show=conflicts'))).toBeNull()
+  })
+
   it('leave a current address and a link to a place on the page alone', () => {
     expect(redirectFrom(at('/inbox', '?tab=all'))).toBeNull()
     expect(redirectFrom(at('/docs/privacy', '', 'on-this-page'))).toBeNull()
@@ -71,6 +90,14 @@ describe('search params', () => {
     expect(shellSearch({ dock: 'context.itm_1' }).dock).toBe('context.itm_1')
     expect(shellSearch({ dock: 'ask' }).dock).toBe('ask')
     expect(shellSearch({ dock: 'sidebar.x' }).dock).toBeUndefined()
+  })
+
+  it('know the Context list filtered to conflicts, and drop any other view', () => {
+    expect(contextSearch({ show: 'conflicts', domain: 'sales' })).toEqual({
+      show: 'conflicts',
+      domain: 'sales',
+    })
+    expect(contextSearch({ show: 'mine' })).toEqual({ show: undefined })
   })
 
   it("never touch another place's params", () => {

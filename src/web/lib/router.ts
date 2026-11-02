@@ -20,9 +20,10 @@ const SUMMARY = /^\/observability\/summary(\/[^/]*)?\/?$/
 /**
  * Old addresses keep working: a #/ link from the hash router, the Library that became Context and
  * Definitions, the Definitions tab that became the Cube integration, About our business that became
- * General, a peek's `fact` that became `context`, and Observability's Summary and its monthly
- * digests, which went: they land on Overview, without the Summary's own `period`. Returns where to
- * go instead, or null.
+ * General, a peek's `fact` that became `context`, Observability's Summary and its monthly
+ * digests, which went: they land on Overview, without the Summary's own `period`, and the Conflicts
+ * list that became the Context list filtered to what is in a conflict. Returns where to go
+ * instead, or null.
  */
 export function redirectFrom(
   location: Pick<ParsedLocation, 'pathname' | 'searchStr' | 'hash'>,
@@ -32,7 +33,7 @@ export function redirectFrom(
     : [location.pathname, location.searchStr.replace(/^\?/, '')]
   const search = fromSearch ?? ''
   const summary = SUMMARY.test(fromPath)
-  const path = fromPath
+  let path = fromPath
     .replace(/^\/library\/(definitions|metrics)(?=\/|$)/, '/definitions')
     .replace(/^\/library\/fact\/([^/]+)/, '/context/$1')
     .replace(/^\/library(?=\/|$)/, '/context')
@@ -45,7 +46,15 @@ export function redirectFrom(
         .filter((p) => p && !/^(period|snapshot)=/.test(p))
         .join('&')
     : search
-  const query = kept.replace(/(^|&)dock=fact\./, '$1dock=context.')
+  let query = kept.replace(/(^|&)dock=fact\./, '$1dock=context.')
+  // The Conflicts list became a filter of the Context list; its Mine and All went with it.
+  if (/^\/context\/conflicts\/?$/.test(path)) {
+    const q = new URLSearchParams(query)
+    q.delete('whose')
+    q.set('show', 'conflicts')
+    path = '/context'
+    query = q.toString()
+  }
   if (!location.hash.startsWith('/') && path === fromPath && query === search) return null
   return `${path}${query ? `?${query}` : ''}`
 }
