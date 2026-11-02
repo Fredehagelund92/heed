@@ -24,6 +24,20 @@ describe('old addresses', () => {
     )
   })
 
+  it("take Observability's Summary and its digests to Overview, keeping the domain", () => {
+    expect(redirectFrom(at('/observability/summary'))).toBe('/observability/overview')
+    expect(
+      redirectFrom(at('/observability/summary', '?period=quarter&domain=area_marketing')),
+    ).toBe('/observability/overview?domain=area_marketing')
+    expect(redirectFrom(at('/observability/summary/e37374a8-c76b-4356-8102-453f81531986'))).toBe(
+      '/observability/overview',
+    )
+    expect(redirectFrom(at('/', '', '/observability/summary?theme=dark'))).toBe(
+      '/observability/overview?theme=dark',
+    )
+    expect(redirectFrom(at('/observability/overview', '?range=30'))).toBeNull()
+  })
+
   it('leave a current address and a link to a place on the page alone', () => {
     expect(redirectFrom(at('/inbox', '?tab=all'))).toBeNull()
     expect(redirectFrom(at('/docs/privacy', '', 'on-this-page'))).toBeNull()

@@ -103,10 +103,6 @@ import {
   familyOf,
   obsAgentsOf,
   obsFeedbackOf,
-  obsSnapshotItemOf,
-  obsSnapshotOf,
-  obsSnapshotTakeOf,
-  obsSummaryOf,
   obsUsageOf,
   replayOf,
   savedViewOf,
@@ -258,10 +254,6 @@ export const wiredMethods = [
   'reportAnswer',
   'getMyReports',
   'observabilityPage',
-  'observabilitySummary',
-  'observabilitySnapshots',
-  'observabilitySnapshot',
-  'takeObservabilitySnapshot',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -2140,23 +2132,6 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         return emptyObs(range, raised.length ? 'normal' : 'empty')
       }
       return emptyObs(range)
-    },
-    observabilitySummary: async ({ period, domain }) =>
-      obsSummaryOf(
-        await read(() => client.obs.summary({ period, ...(domain ? { areaId: domain } : {}) })),
-      ),
-    observabilitySnapshots: async ({ domain }) =>
-      (await read(() => client.obs.snapshots.list(domain ? { areaId: domain } : {}))).map(
-        obsSnapshotItemOf,
-      ),
-    observabilitySnapshot: async (id) => {
-      if (!isUuid(id)) return null
-      const found = await orNull(() => read(() => client.obs.snapshots.get({ id })))
-      return found && obsSnapshotOf(found)
-    },
-    takeObservabilitySnapshot: async () => {
-      const taken = await write('obs.snapshots.take', {}, (o) => client.obs.snapshots.take({}, o))
-      return obsSnapshotTakeOf(taken)
     },
     replayTopic: async ({ topic, when }) => {
       const named = listedTopics.get(topic)

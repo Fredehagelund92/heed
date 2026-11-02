@@ -1,8 +1,14 @@
 ---
 title: What's new
 line: Changes people notice, newest first.
-reviewed: 2026-10-31
+reviewed: 2026-11-02
 ---
+
+## Observability opens on Overview
+
+2026-11-02
+
+Observability no longer has a Summary page or its monthly digests. It opens on Overview, and an old link to Summary or a digest lands there.
 
 ## Publish without review
 

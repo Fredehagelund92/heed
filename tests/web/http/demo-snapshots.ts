@@ -7,7 +7,7 @@ import { snapshotJob } from '../../../src/server/modules/observability/index.ts'
 /*
   Summary's monthly snapshots on the demo week (FR-620): August and September, taken by the
   snapshot job itself on the first of the month after, as the nightly job would have, once the
-  week is seeded. The mock keeps the same two months (src/web/api/mock/obs-snapshots.ts).
+  week is seeded.
 */
 
 export async function takeDemoSnapshots(databaseUrl: string) {

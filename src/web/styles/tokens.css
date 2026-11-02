@@ -302,9 +302,6 @@
   --dist-1: 4px;
   --dist-2: 8px;
   --dist-3: 16px;
-
-  /* Paper: the margin of a printed sheet, inside the printer's own. */
-  --print-margin: 10mm;
 }
 
 /* Paper is always light: the dark theme is for screens, so a printed page reads in any theme. */

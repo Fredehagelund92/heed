@@ -11,10 +11,9 @@ import { QualityPage } from '@/pages/observability/quality'
 import { FeedbackPage } from '@/pages/observability/feedback'
 import { UsagePage } from '@/pages/observability/usage'
 import { AlertsPage } from '@/pages/observability/alerts'
-import { DigestPage, SummaryPage } from '@/pages/observability/summary'
 
 // Observability: what agents asked and what they got, as counts and scopes, never the words of a
-// question or who asked. Seven pages in four groups (components/obs/obs-nav.tsx), Summary first,
+// question or who asked. Six pages in three groups (components/obs/obs-nav.tsx), Overview first,
 // for admins and, for their own domains, owners. Usage and spend are for admins.
 
 // A topic's answer panel, the dock these pages open (App.tsx): it loads with them.
@@ -31,7 +30,7 @@ export function ObsCrumbs({
   return (
     <SettingsCrumbs
       trail={[
-        { label: 'Observability', href: '/observability/summary' },
+        { label: 'Observability', href: '/observability/overview' },
         { label: OBS_TITLES[section], href: `/observability/${section}` },
         ...rest,
       ]}
@@ -59,10 +58,10 @@ export function ObsPage({
   )
 }
 
-/** A page of Observability, or with `snapshot` the digest of one of Summary's monthly snapshots. */
-export function ObservabilityPage({ section, snapshot }: { section?: string; snapshot?: string }) {
+/** A page of Observability; Overview when the address names none, or one that is not a page. */
+export function ObservabilityPage({ section }: { section?: string }) {
   const me = useMe()
-  const current = (section && section in OBS_TITLES ? section : 'summary') as ObsSection
+  const current = (section && section in OBS_TITLES ? section : 'overview') as ObsSection
   if (!seesObservability(me) || (current === 'usage' && !me.admin))
     return (
       <Page title="Observability">
@@ -75,14 +74,13 @@ export function ObservabilityPage({ section, snapshot }: { section?: string; sna
             </EmptyTitle>
             <EmptyDescription>
               {current === 'usage'
-                ? 'Owners see Summary, Overview, Questions, Quality, Feedback and Alerts for their domains.'
+                ? 'Owners see Overview, Questions, Quality, Feedback and Alerts for their domains.'
                 : 'It shows what agents asked and what they got. Ask an owner of your domain, or an admin.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       </Page>
     )
-  if (current === 'summary') return snapshot ? <DigestPage id={snapshot} /> : <SummaryPage />
   if (current === 'overview') return <OverviewPage />
   if (current === 'questions') return <QuestionsPage />
   if (current === 'quality') return <QualityPage />

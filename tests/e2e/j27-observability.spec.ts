@@ -34,7 +34,6 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   await expect(page).toHaveURL(/\/observability/)
   for (const name of [
     'Back to app',
-    'Summary',
     'Overview',
     'Questions',
     'Quality',
@@ -43,10 +42,31 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
     'Alerts',
   ])
     await expect(sidebar.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
+  await expect(sidebar.getByRole('link', { name: /^Summary/ })).toHaveCount(0)
   // Quality's badge counts what needs a look, from the saved questions.
   await expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2')
   await sidebar.getByRole('link', { name: 'Back to app' }).click()
   await expect(page).toHaveURL(/\/inbox/)
+})
+
+test('it opens on Overview, and an old link to Summary or one of its digests lands there too', async ({
+  page,
+}) => {
+  await go(page, '/observability')
+  const sidebar = page.locator('[data-sidebar=sidebar]').first()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
+  await expect(page).toHaveTitle(/^Overview - /)
+  await expect(sidebar.getByRole('link', { name: /^Overview/ })).toHaveAttribute('data-active')
+  await expect(page.getByRole('link', { name: /^Checked answers/ })).toBeVisible()
+  // The Summary's own period goes; the domain stays.
+  await go(page, `/observability/summary?period=quarter&domain=${domainId('marketing')}`)
+  await expect(page).toHaveURL(
+    new RegExp(`/observability/overview\\?domain=${domainId('marketing')}$`),
+  )
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
+  await go(page, '/observability/summary/0b6e3c3e-5d8f-4f0c-9a51-7b0d7a3a9f10')
+  await expect(page).toHaveURL(/\/observability\/overview$/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
 })
 
 test('owners see it for their domains without Usage; someone who only suggests has no row', async ({

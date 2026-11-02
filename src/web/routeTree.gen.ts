@@ -34,7 +34,6 @@ import { Route as AppContextConflictsKeyRouteImport } from './routes/_app/contex
 import { Route as AppDefinitionsNameIndexRouteImport } from './routes/_app/definitions.$name.index'
 import { Route as AppDefinitionsNameEditRouteImport } from './routes/_app/definitions.$name.edit'
 import { Route as AppInboxIdReviewRouteImport } from './routes/_app/inbox.$id.review'
-import { Route as AppObservabilitySummaryIdRouteImport } from './routes/_app/observability.summary.$id'
 import { Route as AppSettingsSectionIndexRouteImport } from './routes/_app/settings.$section.index'
 import { Route as AppSettingsSectionSubIndexRouteImport } from './routes/_app/settings.$section.$sub.index'
 import { Route as AppSettingsSectionSubStepRouteImport } from './routes/_app/settings.$section.$sub.$step'
@@ -194,14 +193,6 @@ const AppInboxIdReviewRoute = AppInboxIdReviewRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app/inbox.$id.review.lazy').then((d) => d.Route),
 )
-const AppObservabilitySummaryIdRoute =
-  AppObservabilitySummaryIdRouteImport.update({
-    id: '/observability/summary/$id',
-    path: '/observability/summary/$id',
-    getParentRoute: () => AppRoute,
-  } as any).lazy(() =>
-    import('./routes/_app/observability.summary.$id.lazy').then((d) => d.Route),
-  )
 const AppSettingsSectionIndexRoute = AppSettingsSectionIndexRouteImport.update({
   id: '/settings/$section/',
   path: '/settings/$section/',
@@ -252,7 +243,6 @@ export interface FileRoutesByFullPath {
   '/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
-  '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id/': typeof AppContextIdIndexRoute
   '/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/definitions/$name/': typeof AppDefinitionsNameIndexRoute
@@ -282,7 +272,6 @@ export interface FileRoutesByTo {
   '/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
-  '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id': typeof AppContextIdIndexRoute
   '/context/conflicts': typeof AppContextConflictsIndexRoute
   '/definitions/$name': typeof AppDefinitionsNameIndexRoute
@@ -314,7 +303,6 @@ export interface FileRoutesById {
   '/_app/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/_app/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/_app/inbox/$id/review': typeof AppInboxIdReviewRoute
-  '/_app/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/_app/context/$id/': typeof AppContextIdIndexRoute
   '/_app/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/_app/definitions/$name/': typeof AppDefinitionsNameIndexRoute
@@ -346,7 +334,6 @@ export interface FileRouteTypes {
     | '/context/conflicts/$key'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
-    | '/observability/summary/$id'
     | '/context/$id/'
     | '/context/conflicts/'
     | '/definitions/$name/'
@@ -376,7 +363,6 @@ export interface FileRouteTypes {
     | '/context/conflicts/$key'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
-    | '/observability/summary/$id'
     | '/context/$id'
     | '/context/conflicts'
     | '/definitions/$name'
@@ -407,7 +393,6 @@ export interface FileRouteTypes {
     | '/_app/context/conflicts/$key'
     | '/_app/definitions/$name/edit'
     | '/_app/inbox/$id/review'
-    | '/_app/observability/summary/$id'
     | '/_app/context/$id/'
     | '/_app/context/conflicts/'
     | '/_app/definitions/$name/'
@@ -602,13 +587,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxIdReviewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/observability/summary/$id': {
-      id: '/_app/observability/summary/$id'
-      path: '/observability/summary/$id'
-      fullPath: '/observability/summary/$id'
-      preLoaderRoute: typeof AppObservabilitySummaryIdRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/settings/$section/': {
       id: '/_app/settings/$section/'
       path: '/settings/$section'
@@ -650,7 +628,6 @@ interface AppRouteChildren {
   AppContextConflictsKeyRoute: typeof AppContextConflictsKeyRoute
   AppDefinitionsNameEditRoute: typeof AppDefinitionsNameEditRoute
   AppInboxIdReviewRoute: typeof AppInboxIdReviewRoute
-  AppObservabilitySummaryIdRoute: typeof AppObservabilitySummaryIdRoute
   AppContextIdIndexRoute: typeof AppContextIdIndexRoute
   AppContextConflictsIndexRoute: typeof AppContextConflictsIndexRoute
   AppDefinitionsNameIndexRoute: typeof AppDefinitionsNameIndexRoute
@@ -676,7 +653,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppContextConflictsKeyRoute: AppContextConflictsKeyRoute,
   AppDefinitionsNameEditRoute: AppDefinitionsNameEditRoute,
   AppInboxIdReviewRoute: AppInboxIdReviewRoute,
-  AppObservabilitySummaryIdRoute: AppObservabilitySummaryIdRoute,
   AppContextIdIndexRoute: AppContextIdIndexRoute,
   AppContextConflictsIndexRoute: AppContextConflictsIndexRoute,
   AppDefinitionsNameIndexRoute: AppDefinitionsNameIndexRoute,

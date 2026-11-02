@@ -42,13 +42,6 @@ import type { Connected, LivePhase } from '@/lib/connect'
 import type { AutoPublish, DomainPolicies, Policy } from '@/lib/policies'
 import type { Filters, SavedView } from '@/lib/obs-views'
 import type { ObsData, Range } from '@/model/observability'
-import type {
-  Period,
-  Snapshot,
-  SnapshotItem,
-  SummaryData,
-  SummaryPeriod,
-} from '@/model/obs-summary'
 import type { Replay, When } from '@/model/replay'
 import type { Domain, Person } from '@/model/people'
 import type { Relation, Review } from '@/model/review'
@@ -100,8 +93,6 @@ export type Activity = { what: string; when: string }
 
 /** What an Observability page reads: its page, its range, and a domain or a kind of agent. */
 export type ObsPageInput = { section: string; range: Range; domain?: DomainId; agent?: string }
-/** What Summary reads: the last whole month or quarter, and a domain. */
-export type ObsSummaryInput = { period: SummaryPeriod; domain?: DomainId }
 
 /** The result of a write that can be taken back: pass `undo` to `HeedApi.undo`. */
 export type Undoable = { undo: string }
@@ -515,23 +506,6 @@ export interface HeedApi {
    * it: a count under 5 is null, and none gives a hidden one away (FR-614).
    */
   observabilityPage: (input: ObsPageInput) => Promise<ObsData>
-  /**
-   * Summary's read: the last whole calendar month or quarter against the one before, its weekly
-   * trend, what is still open and what changed, every count through one disclosure pass (FR-614).
-   */
-  observabilitySummary: (input: ObsSummaryInput) => Promise<SummaryData>
-  /**
-   * Summary's monthly snapshots, the latest month first: every domain's together for an admin, or
-   * one domain's for its owners and admins.
-   */
-  observabilitySnapshots: (input: { domain?: DomainId }) => Promise<SnapshotItem[]>
-  /** One snapshot as it was taken; null when there is none, or it counts a domain not owned. */
-  observabilitySnapshot: (id: string) => Promise<Snapshot | null>
-  /**
-   * Admins: take the last whole month's snapshot now, for every domain together and each one,
-   * wherever it is not kept yet and agents asked anything, as the nightly job does.
-   */
-  takeObservabilitySnapshot: () => Promise<{ now: Period; taken: number }>
   /** The views people saved on Questions, beyond the five every workspace starts with. */
   getSavedViews: () => Promise<SavedView[]>
   saveView: (input: { name: string; filters: Filters }) => Promise<{ id: string }>
@@ -805,10 +779,6 @@ export const heedApiMethods = [
   'reportAnswer',
   'getMyReports',
   'observabilityPage',
-  'observabilitySummary',
-  'observabilitySnapshots',
-  'observabilitySnapshot',
-  'takeObservabilitySnapshot',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -884,9 +854,6 @@ export const pageReads = [
   'getDefinitionHistory',
   'inboxPage',
   'observabilityPage',
-  'observabilitySummary',
-  'observabilitySnapshots',
-  'observabilitySnapshot',
   'advancedPage',
   'integrationsPage',
   'integrationPage',
