@@ -1,6 +1,8 @@
 import * as React from 'react'
-import { ContextViews } from '@/components/heed/context-views'
+import { ConflictBadge } from '@/components/heed/conflict-badge'
+import { TextSwitch } from '@/components/heed/switches'
 import {
+  ArrowLeftRightIcon,
   EyeIcon,
   ListChecksIcon,
   ListFilterIcon,
@@ -65,25 +67,28 @@ import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
 import { clicked, flipped, startOf, type SortKey, type Sorting } from '@/lib/sort'
 import { inForce, parseWhen, timeShort, trustOf } from '@/lib/timeframe'
 import { FreshDot, KindIcon, StatusIcon, TimeGlyph } from '@/components/heed/columns'
-import { href, navigate } from '@/lib/router'
+import { href, navigate, setQuery } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { contextPageQuery, useVocabulary } from '@/api/queries'
+import { conflictsQuery, contextPageQuery, useVocabulary } from '@/api/queries'
+import { conflictsByItem } from '@/model/conflicts'
 import { useDomainList, useDomains } from '@/lib/workspace'
 import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
-import { Loadable, TableSkeleton } from '@/components/heed/load-state'
+import { allLoaded, Loadable, TableSkeleton } from '@/components/heed/load-state'
 import { useLeavingRows } from '@/lib/presence'
 import { WhereChip } from '@/components/heed/tag-chip'
 import { useRoute } from '@/lib/router'
 import { useSelection } from '@/hooks/use-selection'
 import { ContextBulk } from '@/components/heed/context-bulk'
 
-// Context: what agents should know, as a compact list like the Heed app's. One quiet bar (Filter,
-// Sort, Group, the archived note, search, count), the filters that are on as sentences under it, a
-// thin header, and rows of one line at one density, in the list columns' design B: the kind
-// as an icon before the title, the scope in its own column at wide widths, the status as a circle
-// icon, the time frame as a glyph and a short date, and how fresh the check is as one dot.
+// Context: what agents should know, as a compact list like the Heed app's. One quiet bar (All or
+// Conflicts, Filter, Sort, Group, the archived note, search, count), the filters that are on as
+// sentences under it, a thin header, and rows of one line at one density, in the list columns'
+// design B: the kind as an icon before the title, the scope in its own column at wide widths, the
+// status as a circle icon, the time frame as a glyph and a short date, and how fresh the check is as
+// one dot. An item in a conflict carries the Conflict chip after its title (FR-220); Conflicts is a
+// filter of this list, kept in the address (?show=conflicts), not a list of its own.
 
 const STATUSES: Status[] = ['Draft', 'Live', 'Needs checking', 'Archived']
 const KINDS = Object.keys(kindLabel) as Kind[]
@@ -124,6 +129,9 @@ const COLS = 8
 export function ContextPage() {
   const load = useQuery(contextPageQuery())
   const facts = load.data ?? NO_FACTS
+  // The pairs the person may read, most asked first: each item's conflict, and the Conflicts filter.
+  const conflicts = useQuery(conflictsQuery('all'))
+  const conflictOf = React.useMemo(() => conflictsByItem(conflicts.data ?? []), [conflicts.data])
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
   const { metrics } = useVocabulary()
@@ -140,6 +148,9 @@ export function ContextPage() {
     query.get('due') ? ['Needs checking'] : query.get('status') === 'archived' ? ['Archived'] : [],
   )
   const [kind, setKind] = React.useState<Kind[]>([])
+  // In the address, so a link (the old Conflicts list, a help page) lands on it and a reload keeps it.
+  const onlyConflicts = query.get('show') === 'conflicts'
+  const setOnlyConflicts = (on: boolean) => setQuery({ show: on ? 'conflicts' : undefined })
   const [chosenSort, setSort] = React.useState<Sorting<Sort> | null>(null)
   const [group, setGroup] = React.useState<Group>('none')
   const [folded, setFolded] = React.useState<string[]>([])
@@ -153,11 +164,12 @@ export function ContextPage() {
   const haystack = (f: Fact) =>
     `${f.title} ${plainText(f.summary)} ${f.where.join(' ')} ${domains[f.domain]?.name} ${f.checkedBy}`
   // The rows a value would show if it were ticked: everything the other filters and the search let through.
-  const pass = (f: Fact, skip?: 'domain' | 'status' | 'kind') =>
+  const pass = (f: Fact, skip?: 'domain' | 'status' | 'kind' | 'conflict') =>
     (showArchived || status.includes('Archived') || skip === 'status' || f.status !== 'Archived') &&
     (skip === 'domain' || !domain.length || domain.includes(f.domain)) &&
     (skip === 'status' || !status.length || status.includes(f.status)) &&
     (skip === 'kind' || !kind.length || kind.includes(f.kind)) &&
+    (skip === 'conflict' || !onlyConflicts || conflictOf.has(f.id)) &&
     matches(text, haystack(f))
   const titleHits = (f: Fact) => words(text).filter((w) => f.title.toLowerCase().includes(w)).length
   const filtered = facts
@@ -191,8 +203,10 @@ export function ContextPage() {
   // On a phone the checkboxes come with Select, or once a row is ticked.
   const boxes = sel.picking || sel.count > 0
 
-  const filters = domain.length + status.length + kind.length
+  const filters = domain.length + status.length + kind.length + Number(onlyConflicts)
   const peeked = dock?.kind === 'context' ? dock.id : undefined
+  // The two items of the conflict open in the dock are marked as a peeked row is.
+  const compared = dock?.kind === 'conflict' ? (dock.id?.split('.') ?? []) : []
   const rowKeys = useRowKeys({
     onMove: (id) => peeked && openDock('context', id),
     // Escape closes the peek first, then clears the selection, as in the Heed app.
@@ -204,17 +218,24 @@ export function ContextPage() {
     },
   })
 
-  const clearAll = () => {
+  const clearFilters = () => {
     setDomain([])
     setStatus([])
     setKind([])
+    if (onlyConflicts) setOnlyConflicts(false)
+  }
+  const clearAll = () => {
+    clearFilters()
     setText('')
   }
   const on = [
     domain.length && `Domain is ${domain.map((d) => domains[d]?.name).join(' or ')}`,
     status.length && `Status is ${status.join(' or ')}`,
     kind.length && `Kind is ${kind.map((k) => kindLabel[k]).join(' or ')}`,
+    onlyConflicts && 'In a conflict',
   ].filter(Boolean)
+  // Nothing to show under Conflicts because nothing disagrees, not because of a search or a filter.
+  const noConflicts = onlyConflicts && !facts.some((f) => conflictOf.has(f.id))
 
   // Rows that leave (archived or deleted in bulk) fade out first.
   const leaving = useLeavingRows()
@@ -225,12 +246,13 @@ export function ContextPage() {
         ? `${f.where.slice(0, 2).join(', ')} +${f.where.length - 2}`
         : f.where.join(', ')
     const time = parseWhen(f.when)
+    const pair = conflictOf.get(f.id)
     return (
       <tr
         key={f.id}
         aria-selected={isSel}
         data-state={isSel ? 'selected' : undefined}
-        data-peeked={peeked === f.id || undefined}
+        data-peeked={peeked === f.id || compared.includes(f.id) || undefined}
         data-leaving={leaving.has(f.id) || undefined}
         className="group/row h-9 cursor-pointer border-b text-sm row-fade hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
@@ -263,7 +285,7 @@ export function ContextPage() {
           <StatusIcon status={f.status} className="@xl/main:hidden" />
         </td>
         <td className="max-w-0 px-1.5 align-middle @max-xl/main:px-3 @max-xl/main:py-2">
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="flex min-w-0 items-center gap-1.5 @max-xl/main:items-start">
             <button
               type="button"
               data-row-open={f.id}
@@ -283,6 +305,7 @@ export function ContextPage() {
                 <Highlight text={f.title} query={text} />
               </TruncatedText>
             </button>
+            {pair && <ConflictBadge pair={pair} itemId={f.id} />}
             {f.origin && (
               <span
                 title={`From ${f.origin.tool}: ${f.origin.doc}`}
@@ -333,6 +356,15 @@ export function ContextPage() {
             title={f.title}
             page={href(`/context/${f.id}`)}
             link={`${APP_URL}/context/${f.id}`}
+            extra={
+              pair && [
+                {
+                  label: pair.canSettle ? 'Compare and decide' : 'Compare the two',
+                  icon: <ArrowLeftRightIcon />,
+                  onSelect: () => openDock('conflict', pair.key),
+                },
+              ]
+            }
           />
         </td>
       </tr>
@@ -364,7 +396,9 @@ export function ContextPage() {
           what="the context"
           skeleton={<TableSkeleton />}
           errorClassName="border-b"
-          query={load}
+          // Filtered to conflicts, the rows wait for the pairs too, so the list never says "No
+          // conflicts" before it knows.
+          query={onlyConflicts ? allLoaded(load, conflicts) : load}
         >
           {facts.length === 0 ? (
             <div className="p-4 md:p-6">
@@ -389,7 +423,15 @@ export function ContextPage() {
           ) : (
             <>
               <ListBar>
-                <ContextViews value="items" />
+                <TextSwitch
+                  label="Show"
+                  value={onlyConflicts ? 'conflicts' : 'all'}
+                  onChange={(v) => setOnlyConflicts(v === 'conflicts')}
+                  options={[
+                    { value: 'all', label: 'All' },
+                    { value: 'conflicts', label: 'Conflicts', count: conflicts.data?.length },
+                  ]}
+                />
                 <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -455,6 +497,22 @@ export function ContextPage() {
                           </FilterValue>
                         </DropdownMenuCheckboxItem>
                       ))}
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Conflict</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={onlyConflicts}
+                        onCheckedChange={() => setOnlyConflicts(!onlyConflicts)}
+                      >
+                        <FilterValue
+                          count={
+                            facts.filter((f) => conflictOf.has(f.id) && pass(f, 'conflict')).length
+                          }
+                        >
+                          In a conflict
+                        </FilterValue>
+                      </DropdownMenuCheckboxItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -539,10 +597,7 @@ export function ContextPage() {
                   )}
                 </Count>
               </ListBar>
-              <FilterRow
-                count={filters}
-                onClear={() => (setDomain([]), setStatus([]), setKind([]))}
-              >
+              <FilterRow count={filters} onClear={clearFilters}>
                 {domain.length > 0 && (
                   <FilterChip
                     field="Domain"
@@ -559,6 +614,9 @@ export function ContextPage() {
                     values={kind.map((k) => kindLabel[k])}
                     onRemove={() => setKind([])}
                   />
+                )}
+                {onlyConflicts && (
+                  <FilterChip field="In a conflict" onRemove={() => setOnlyConflicts(false)} />
                 )}
               </FilterRow>
               <div className="min-w-0 shrink-0">
@@ -607,21 +665,41 @@ export function ContextPage() {
                       rowKeys(e)
                     }}
                   >
-                    {filtered.length === 0 && (
+                    {noConflicts ? (
                       <tr>
                         <td colSpan={COLS} className="px-6 py-10 text-center text-sm">
-                          <p className="font-medium">No context matches</p>
+                          <p className="font-medium">No conflicts</p>
                           <p className="mt-1 text-muted-foreground">
-                            {[text.trim() && `Searching for “${text.trim()}”`, ...on]
-                              .filter(Boolean)
-                              .join(', ')}
-                            .
+                            Nothing disagrees. A conflict shows here when an owner marks two items
+                            as disagreeing.
                           </p>
-                          <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
-                            Clear search and filters
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-3"
+                            onClick={() => setOnlyConflicts(false)}
+                          >
+                            Show all context
                           </Button>
                         </td>
                       </tr>
+                    ) : (
+                      filtered.length === 0 && (
+                        <tr>
+                          <td colSpan={COLS} className="px-6 py-10 text-center text-sm">
+                            <p className="font-medium">No context matches</p>
+                            <p className="mt-1 text-muted-foreground">
+                              {[text.trim() && `Searching for “${text.trim()}”`, ...on]
+                                .filter(Boolean)
+                                .join(', ')}
+                              .
+                            </p>
+                            <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
+                              Clear search and filters
+                            </Button>
+                          </td>
+                        </tr>
+                      )
                     )}
                     {groups.map((g) => {
                       const open = !folded.includes(g.key)

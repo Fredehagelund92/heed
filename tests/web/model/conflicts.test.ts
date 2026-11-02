@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pairOfItems, pairOfKey } from '@/model/conflicts'
+import { conflictsByItem, pairOfItems, pairOfKey } from '@/model/conflicts'
 
 // Which conflict pair an alert or a topic's answer is about: found by the ids of its two items,
 // never by the words of a topic, so topics that share a beginning keep their own pairs.
@@ -36,5 +36,27 @@ describe('pairOfKey', () => {
     expect(pairOfKey(rows, 'c.d')?.key).toBe('d.c')
     expect(pairOfKey(rows, 'a.b')?.key).toBe('a.b')
     expect(pairOfKey(rows, undefined)).toBeUndefined()
+  })
+})
+
+describe('conflictsByItem', () => {
+  it('finds the conflict of either item of a pair, and nothing for an item in none', () => {
+    const byItem = conflictsByItem(rows)
+    expect(byItem.get('a')?.key).toBe('a.b')
+    expect(byItem.get('b')?.key).toBe('a.b')
+    expect(byItem.get('c')?.key).toBe('d.c')
+    expect(byItem.has('z')).toBe(false)
+    expect(byItem.size).toBe(6)
+  })
+  it('gives an item in several pairs the first, the most asked as the list comes', () => {
+    const byItem = conflictsByItem([
+      row('a.b', 'a', 'b', 'Orders'),
+      row('c.a', 'c', 'a', 'Returns'),
+    ])
+    expect(byItem.get('a')?.key).toBe('a.b')
+    expect(byItem.get('c')?.key).toBe('c.a')
+  })
+  it('finds nothing when nothing disagrees', () => {
+    expect(conflictsByItem([]).size).toBe(0)
   })
 })

@@ -113,6 +113,9 @@ export const sideTitle = (s: Pick<ConflictSide, 'title'>) => s.title ?? 'An item
 /** A pair's own page. */
 export const conflictPath = (key: string) => `/context/conflicts/${key}`
 
+/** Every conflict: the Context list, showing only the items in one. */
+export const CONFLICTS_LIST = '/context?show=conflicts'
+
 /** The row for the pair of these two items, whichever of them holds the link. */
 export const pairOfItems = <T extends { holder: { id: string }; other: { id: string } }>(
   rows: T[],
@@ -127,3 +130,17 @@ export const pairOfKey = <T extends { holder: { id: string }; other: { id: strin
   rows: T[],
   key: string | undefined,
 ) => pairOfItems(rows, key?.split('.'))
+
+/**
+ * The conflict each item is in, by item id: the most asked pair it belongs to, as the conflict
+ * list comes most asked first. An item in no pair is not in the map, so the Context list's
+ * Conflicts filter keeps exactly the items found here.
+ */
+export function conflictsByItem<T extends { holder: { id: string }; other: { id: string } }>(
+  rows: readonly T[],
+): Map<string, T> {
+  const byItem = new Map<string, T>()
+  for (const r of rows)
+    for (const id of [r.holder.id, r.other.id]) if (!byItem.has(id)) byItem.set(id, r)
+  return byItem
+}
