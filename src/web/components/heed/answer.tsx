@@ -639,8 +639,10 @@ function AnswerWords({
         className={cn(
           sentenceClass,
           'rounded-mark box-decoration-clone transition-colors outline-none',
+          // py-1: an inline box is its font's height (about 19px), so one that fits a line is under the
+          // 24px target size; the padding makes it 24px or more and leaves the line height alone.
           opens &&
-            'cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
+            'cursor-pointer py-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
         )}
       >
         {words}
