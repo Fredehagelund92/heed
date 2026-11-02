@@ -16,7 +16,7 @@
 **The three radius rules.**
 
 1. **Containers are square.** Cards, dialogs, popovers, the palette, empty states, alerts, items, panels, tables, callouts, sheets and the editor frame use `--radius-frame` (0).
-2. **Conversational surfaces are soft.** The Ask composer, a question bubble, a suggestion chip and the comment box use `--radius-surface` (10 px).
+2. **Conversational surfaces are soft.** A question bubble, a suggestion chip and the comment box use `--radius-surface` (10 px). The Ask composer, the one box a chat is typed in, uses `--radius-composer` (14 px).
 3. **Small controls are round** on shadcn's scale from `--radius` 0.625rem: sm 6, md 8, lg 10, xl 14 px. That is buttons, inputs, selects, toggles, checkboxes, switches, badges, chips, avatars, logo tiles, keys, tooltips and menus.
 
 **The numbers to remember.**
@@ -175,6 +175,8 @@ The chart tokens are the same in light and dark. One value differs from the mock
   | Wrong              | Something that failed                     | Destructive ink, an icon, and the word Failed           |
   | Good               | Something that worked, where that is news | A check and the word, in `--good-ink`                   |
 
+  In an Ask answer, the sentences from two items that disagree are not marked word by word: they sit together behind a 2 px amber rule (`--caution-icon`) at their start, the words plain. The rule says nothing alone: the answer's Conflict badge names the two items in its card, and a screen reader hears that each sentence says something different from another item.
+
   A name or a term is a chip, not a mark. Edits in a review keep their own marks (added, removed, formatting). Mark only text the app wrote from a known place, never words found by searching a person's text; never a document body or anything agents read; never kinds, domains, counts or badges. Mark the exceptions: one Needs you per card or row, about three marks in a block at most, and none when every row of a list would carry the same one. A number's move says its direction with an arrow and words; amber there means "look here", not "worse".
 
 - A raw palette colour (`bg-red-500`), a numeric z-index and an arbitrary colour are reported by lint.
@@ -185,6 +187,7 @@ The chart tokens are the same in light and dark. One value differs from the mock
 --radius: 0.625rem; /* the scale: sm 6, md 8, lg 10, xl 14 px */
 --radius-frame: 0px; /* containers */
 --radius-surface: var(--radius); /* conversational surfaces, 10 px */
+--radius-composer: var(--radius-xl); /* the Ask composer, 14 px */
 ```
 
 One token per rule, so the whole app can change a rule in one line. The chip is the one exception to the scale: 6 px.
@@ -203,6 +206,8 @@ The font is Nunito Sans (variable) for all text. The wordmark is outlined in the
 | A document title from `sm` up                  | `text-3xl`            | 30 px     |
 
 Weights are 400 (text), 500 (labels, buttons), 600 (titles, headings) and 700 (document titles). The page title in the header is 14 px. Prose is set at a 60ch measure.
+
+**Ask.** A question and an answer are `text-base` on 26 px lines (`leading-chat`), as the chat apps people know set theirs. An answer's words keep the 60ch measure (`max-w-reading`) inside the 44rem thread, about 76 characters a line.
 
 ### 2.4 Spacing
 
@@ -284,7 +289,7 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 1. **Frame.** An 80rem square frame with a 24 px gutter, a header row per section divided by hairlines, and tables edge to edge with the thin header band. Settings, Integrations, the Inbox list and Observability use it (`components/heed/frame.tsx`).
 2. **Document editor shell.** The page header, the formatting toolbar as a fixed 40 px row, the tinted canvas with the 56rem sheet as the only scroller, an optional side panel, and one footer bar. The context editor, the term editor, About our business and a domain all use it (`document-shell.tsx`).
 3. **Inbox mail layout.** A list in the middle and a detail pane at the right, resizable. The dock takes the pane's place.
-4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline. Suggestion chips show only on the empty thread, before the first message; once a message is sent, nothing in the thread suggests a question to ask.
+4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline, on the empty thread too. The composer is one surface: the words, then a 44 px row with @ on the left and a 32 px Send on the right, with no hairline between and no keys written in it (they are in Send's tooltip). Stop takes Send's place until the last word of an answer shows. Under each answer, its sources are numbered chips with what was looked up beside them, then one row of icons (Copy, Good, Bad, Ask again on the last answer, and More with Something wrong?, Save question and Share), always on the last answer and on hover or focus for the earlier ones. Suggestion chips show only on the empty thread, before the first message; once a message is sent, nothing in the thread suggests a question to ask.
 5. **Full-screen review.** The queue, the change, and the decision and Try it on the right, inside the app with the sidebar folded.
 
 ## 4. Components
@@ -363,6 +368,7 @@ A thread under each suggestion in the review and inside each context item's page
 ### 5.8 State line, loading, empty, failed, offline
 
 - **The state line** starts every answer: one answer line (section 6 of [the product page](../product.md)) with its icon and tint, and one sentence under it unless Checked. Hover gives the long form. A click opens a card saying what it means and what to do.
+- **In the Ask chat the state is the badge, its meaning is the card.** An answer in the chat starts with its badge alone: the state's one or two words with its icon and tint, and no sentence beside or under it. The badge is a button. On hover (after 120 ms, gone 100 ms after the pointer leaves), on keyboard focus and on a tap, it opens a card, 280 px wide and 8 px away, that never covers the words it explains: beside the words when the thread has room to their right for all of it, above the badge when it fits there, and otherwise in the thread under the badge, moving the words down (an answer at the very top of the view, and a phone). The card holds the state in plain words, what it means, what to do, and for a Conflict the two items that disagree, as chips that open them. Escape closes it and focus stays on the badge.
 - **Loading.** Nothing shows before 150 ms. Then the page's own shape (a skeleton of rows, a sheet) is held at least 300 ms. Content fades in. A button shows a spinner in its icon slot after 150 ms. See [Motion](motion.md).
 - **Empty.** shadcn Empty with what it means and the next step. A new install shows a setup checklist. An absence is not an empty list: a question with nothing written down says Not found in the state line.
 - **Failed.** One calm line and Retry. A save that fails keeps the text ("Couldn't publish. Your text is kept.").

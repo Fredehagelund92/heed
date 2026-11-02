@@ -33,6 +33,9 @@ export default defineConfig({
     /\/j8-states\.spec\.ts$/,
     // J29 times saves the mock delays on purpose (docs/design/motion.md).
     /\/j29-motion\.spec\.ts$/,
+    // J3 states asks the mock for each of the six answer states by its example question; the
+    // service's demo week has no check that fails to run.
+    /\/j3-ask-states\.spec\.ts$/,
   ],
   outputDir: 'test-results/golden-http/output',
   globalSetup: './tests/e2e/http/global-setup.ts',

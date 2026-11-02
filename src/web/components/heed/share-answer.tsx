@@ -1,75 +1,59 @@
 import * as React from 'react'
-import { LinkIcon, MessageSquareTextIcon, ReceiptTextIcon, ShareIcon } from '@/components/icons'
+import { LinkIcon, MessageSquareTextIcon, ReceiptTextIcon } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverContent } from '@/components/ui/popover'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
 import type { Answer } from '@/model/ask'
 import type { Fact } from '@/model/items'
 import { useWorkspace } from '@/api/queries'
 import { cardFooter, plainAnswer, slackText, sourceLine, stateLineOf } from '@/lib/share'
-import { closeDock, openDock, useDock } from '@/lib/dock'
+import { closeDock } from '@/lib/dock'
 import { useShownAnswer } from '@/lib/shown-answers'
 import { useMe } from '@/lib/workspace'
 
-// Share, under an answer: one button, two ways for the answer to travel with its state and its
+// Share, in More under an answer: two ways for the answer to travel with its state and its
 // sources. A Slack message, previewed exactly as it pastes, and a card that fits a screenshot. A
 // link is drawn as Later: it would show the context to whoever opens it.
 
 type Way = 'slack' | 'card'
 const LINK_REASON = 'Later. A link shows the context to whoever opens it.'
 
-const quiet =
-  'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground pointer-coarse:h-9'
-
 /**
- * Share, in the action row. In Ask it opens the right panel beside the answer, so the answer stays
- * in view; where Ask is itself in that panel, it opens as a popover.
+ * Share, from More under an answer, where Ask is itself in the right panel: a popover beside the
+ * More button it was chosen from. Elsewhere Share opens the right panel beside the answer, so the
+ * answer stays in view.
  */
-export function ShareButton({
+export function SharePopover({
   answer,
   facts,
-  answerId,
-  docked,
+  from,
+  onClose,
 }: {
   answer: Answer
   facts: Fact[]
-  answerId: string
-  docked?: boolean
+  from: React.RefObject<HTMLElement | null>
+  onClose: () => void
 }) {
   const workspace = useWorkspace().name
-  const dock = useDock()
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(true)
   const [way, setWay] = React.useState<Way>('slack')
   // Opened, focus lands on Copy: the one thing most people came to do.
   const copyRef = React.useRef<HTMLButtonElement>(null)
-  if (!docked)
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-expanded={dock?.kind === 'share' && dock.id === answerId}
-        className={quiet}
-        onClick={() =>
-          dock?.kind === 'share' && dock.id === answerId ? closeDock() : openDock('share', answerId)
-        }
-      >
-        <ShareIcon data-icon="inline-start" />
-        Share
-      </Button>
-    )
+  const close = (o: boolean) => {
+    setOpen(o)
+    if (!o) onClose()
+  }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant="ghost" size="sm" className={quiet} />}>
-        <ShareIcon data-icon="inline-start" />
-        Share
-      </PopoverTrigger>
+    <Popover open={open} onOpenChange={close}>
       <PopoverContent
         align="start"
         side="bottom"
         sideOffset={10}
+        anchor={from}
+        finalFocus={from}
         aria-label="Share this answer"
         initialFocus={copyRef}
         className="max-h-popup w-share gap-3 overflow-y-auto rounded-lg p-4"
@@ -79,7 +63,7 @@ export function ShareButton({
         <Button
           ref={copyRef}
           className="w-full"
-          onClick={() => void copyShare(way, answer, facts, workspace).then(() => setOpen(false))}
+          onClick={() => void copyShare(way, answer, facts, workspace).then(() => close(false))}
         >
           {way === 'slack' ? 'Copy for Slack' : 'Copy card'}
         </Button>

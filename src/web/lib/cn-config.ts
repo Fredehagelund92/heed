@@ -10,9 +10,9 @@ export default {
   extend: {
     theme: {
       text: ['dense', 'reading', 'code', 'code-sm', 'control-sm', 'hero', 'hero-lg'],
-      leading: ['hero', 'hero-lg'],
+      leading: ['chat', 'hero', 'hero-lg'],
       tracking: ['hero'],
-      radius: ['mark', 'tile', 'inset', 'inset-sm'],
+      radius: ['composer', 'mark', 'tile', 'inset', 'inset-sm'],
       shadow: [
         'hairline',
         'hairline-top',
@@ -26,7 +26,6 @@ export default {
         'safe',
         'safe-sm',
         'safe-area',
-        'ask-foot',
         'palette',
         'bottom-sheet',
         'bottom-sheet-tall',

@@ -58,7 +58,7 @@ test('Stop leaves an unfinished answer, said as such', async ({ page }) => {
   // The notice and Ask again come into view; no source count is claimed.
   await expect(log.getByRole('button', { name: 'Ask again', exact: true })).toBeInViewport()
   await expect(log.getByText(STATE)).toHaveCount(0)
-  await expect(log.getByText(/\d+ sources?$/)).toHaveCount(0)
+  await expect(log.getByRole('button', { name: /^Source \d+: / })).toHaveCount(0)
   await log.getByRole('button', { name: 'Ask again', exact: true }).click()
   await until(page, log.getByText(STATE).first())
 })
@@ -112,7 +112,7 @@ test('the question shows the moment it is sent, and the words before the answer 
   // The look-up's own steps, then the engine's answer: its state and sources before any words.
   await until(page, log.getByText(/Reading 1 context item…/))
   await until(page, log.getByText(STATE).first())
-  await expect(log.getByText(/^1 source$/)).toBeVisible()
+  await expect(log.getByRole('button', { name: /^Source \d+: / })).toHaveCount(1)
   await expect(words(log, FIRST)).toHaveCount(0)
   // The first sentence while the answer is still being written: the rest has not come yet.
   await until(page, words(log, FIRST))
@@ -146,7 +146,7 @@ test('the first question of a new chat arrives as a follow-up does, one that is 
     // The look-up's steps, the state and sources, then the words before the answer is done.
     await until(page, log.getByText(/Reading 1 context item…/))
     await until(page, log.getByText(STATE).first())
-    await expect(log.getByText(/^1 source$/)).toBeVisible()
+    await expect(log.getByRole('button', { name: /^Source \d+: / })).toHaveCount(1)
     await until(page, words(log, FIRST))
     await expect(words(log, SECOND)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
@@ -190,7 +190,7 @@ test('Stop while the words are written finishes the sentence on screen, keeps th
   await expect(page.getByRole('status').filter({ hasText: 'Stopped.' })).toBeAttached()
   // The state and the sources are the engine's, in before the words: they stay.
   await expect(log.getByText(STATE).first()).toBeVisible()
-  await expect(log.getByText(/^1 source$/)).toBeVisible()
+  await expect(log.getByRole('button', { name: /^Source \d+: / })).toHaveCount(1)
   // Nothing more comes, however long it waits, and Ask is ready.
   await page.clock.runFor(5000)
   await expect(words(log, FIRST)).toBeVisible()
@@ -283,7 +283,7 @@ test('with reduced motion each sentence comes in whole, with no fade, and the an
     expect(fade).toBe('0s')
   }
   await until(page, log.getByRole('button', { name: 'Good answer' }))
-  await expect(log.getByText(/^\d+ sources?$/)).toBeVisible()
+  await expect(log.getByRole('button', { name: /^Source \d+: / }).first()).toBeVisible()
   if (mode === 'mock') await expect(words(log, SECOND)).toBeVisible()
 })
 

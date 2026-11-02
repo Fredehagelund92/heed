@@ -56,7 +56,7 @@ import { useDraft } from '@/lib/draft'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, setQuery, useRoute } from '@/lib/router'
-import { inputSurface } from '@/lib/surfaces'
+import { composerSurface } from '@/lib/surfaces'
 import { findThread, useThreadActions, useThreads, type Day, type Thread } from '@/lib/threads'
 import { TruncatedText } from '@/components/heed/truncated'
 import { AskedThisWeek } from '@/components/heed/asked-week'
@@ -83,11 +83,11 @@ const AskComposer = React.lazy(() =>
 /** The box as it looks before its editor has loaded, so nothing shifts when it arrives. */
 function ComposerPlaceholder({ placeholder }: { placeholder: string }) {
   return (
-    <div aria-hidden className={cn('flex w-full flex-col', inputSurface)}>
-      <div className="min-h-14 px-3 py-3 text-base leading-6 text-muted-foreground">
+    <div aria-hidden className={cn('flex w-full flex-col', composerSurface)}>
+      <div className="min-h-10 px-4 pt-3 pb-1 text-base leading-6 text-muted-foreground">
         {placeholder}
       </div>
-      <div className="h-10 border-t" />
+      <div className="h-11" />
     </div>
   )
 }
@@ -392,7 +392,11 @@ export function AskChat({
       <div data-touch-targets className="@container flex h-full min-h-0 flex-col">
         {/* Positioned, so what is placed inside a turn (a citation's screen-reader words) stays in
             this scroll box and never makes the page around it taller. */}
-        <div ref={viewport} className="relative min-h-0 flex-1 scrollbar-stable overflow-y-auto">
+        <div
+          ref={viewport}
+          data-thread
+          className="relative min-h-0 flex-1 scrollbar-stable overflow-y-auto"
+        >
           <div ref={content} className={cn('mx-auto flex min-h-full w-full flex-col', width)}>
             {turns.length === 0 ? (
               <div className="flex flex-1 flex-col justify-center gap-5 py-10">
@@ -445,6 +449,7 @@ export function AskChat({
                       docked={compact}
                       onRetry={retry(i)}
                       onRevealing={onRevealing}
+                      latest={i === turns.length - 1}
                     />
                   </div>
                 ))}
@@ -458,9 +463,7 @@ export function AskChat({
         </p>
         {/* Docked to the bottom edge, part of the frame: a hairline above, the box at reading width. */}
         <div className="shrink-0 border-t bg-background">
-          {/* Under the box, the bar height less its control row (40) and edge (1): the hairline over the
-            controls then sits one bar from the bottom, in line with the sidebar's user block and the other bars. */}
-          <div className={cn('mx-auto flex w-full flex-col gap-2 pt-3 pb-ask-foot', width)}>
+          <div className={cn('mx-auto flex w-full flex-col gap-2 pt-3 pb-4', width)}>
             <React.Suspense fallback={<ComposerPlaceholder placeholder={placeholder} />}>
               <AskComposer
                 ref={composer}

@@ -1,15 +1,17 @@
 import * as React from 'react'
 import {
   ArrowLeftRightIcon,
+  BookmarkIcon,
   CheckIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   CircleStopIcon,
+  EllipsisIcon,
   FileTextIcon,
   FlagIcon,
   PencilIcon,
   RefreshCwIcon,
+  ShareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from '@/components/icons'
@@ -17,9 +19,10 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { marksExceptions } from '@/lib/marks'
 import { TypeGlyph } from '@/components/heed/definition'
+import { kindIcons } from '@/components/heed/kind-icons'
 import { ComingSoon } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
-import { ShareButton } from '@/components/heed/share-answer'
+import { SharePopover } from '@/components/heed/share-answer'
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
@@ -34,6 +37,12 @@ import {
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
@@ -75,9 +84,10 @@ import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/he
 import { useRelated } from '@/hooks/use-related'
 import { relLabel } from '@/lib/links'
 
-// One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
-// bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
-// collapsible tool card, sources as small cards, and an action bar under the answer.
+// One turn of Ask, drawn the way the chat apps people know draw a thread: the question as a quiet
+// muted bubble on the right, the answer as plain 16/26 text at a reading measure under its state
+// badge, its sources as numbered chips with what was looked up beside them, and one row of icons
+// under the answer, the rest in More.
 
 function IconButton({
   label,
@@ -142,7 +152,7 @@ export function Question({
   const showReadAs = !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
-      <div className="max-w-17/20 min-w-0 rounded-surface bg-muted px-4 py-2 text-reading leading-relaxed wrap-anywhere whitespace-pre-line [&_.mention-chip]:bg-background">
+      <div className="max-w-22/25 min-w-0 rounded-surface bg-muted px-4 py-2.5 text-base leading-chat wrap-anywhere whitespace-pre-line @lg:max-w-4/5 [&_.mention-chip]:bg-background">
         {answer.parts
           ? answer.parts.map((p, i) =>
               typeof p === 'string' ? (
@@ -236,17 +246,24 @@ function ScopeLine({ answer }: { answer: Answer }) {
 /** An answer that says nothing of links follows none. */
 const NO_LINKS: AnswerLinks = { on: true, followed: [], notFollowed: [] }
 
+/**
+ * What the look-up is doing, then what it did. While it works, one line where the state line will
+ * be; once the answer is in, a quiet line at the end of the sources row (`children`, the chips) that
+ * opens What agents get.
+ */
 function LookupCard({
   answer,
   facts,
   turn,
   shown,
+  children,
 }: {
   answer: Answer
   facts: Fact[]
   turn: Turn
   /** The stage on screen: the look-up's own steps, each label held long enough to read. */
   shown: ShownStage
+  children?: React.ReactNode
 }) {
   const { stage, stopped } = turn
   const answered = shown === 'answered'
@@ -289,22 +306,29 @@ function LookupCard({
             : facts.length
               ? `Looked up ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}${linkWords}`
               : 'Looked up: no context items'
+  if (!answered)
+    return (
+      <p className="flex min-h-6 items-center">
+        <ReadingLine running={running} className="text-sm">
+          {line}
+        </ReadingLine>
+      </p>
+    )
   return (
-    <Collapsible className="text-sm">
-      <CollapsibleTrigger
-        disabled={!answered}
-        className="group/lookup -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <ReadingLine running={running}>{line}</ReadingLine>
-        {answered && (
+    <Collapsible className="flex flex-col gap-2 text-sm">
+      {/* On a touch screen the rows sit a finger apart: 24 px chips 20 px apart. */}
+      <div className="flex flex-wrap items-center gap-1.5 pointer-coarse:gap-y-5">
+        {children}
+        <CollapsibleTrigger className="group/lookup inline-flex h-6 items-center gap-1 rounded-sm px-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+          {line}
           <ChevronDownIcon
             className="size-3.5 shrink-0 transition-transform group-aria-expanded/lookup:rotate-180"
             aria-hidden
           />
-        )}
-      </CollapsibleTrigger>
+        </CollapsibleTrigger>
+      </div>
       <CollapsibleContent>
-        <div className="mt-1 flex flex-col gap-2 rounded-surface border border-input bg-background px-3 py-3 text-muted-foreground">
+        <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-muted-foreground">
           <p className="text-xs font-medium text-foreground">What agents get</p>
           <p>
             <span className="text-foreground">Read:</span> {scope}.
@@ -410,7 +434,6 @@ function LookupCard({
 
 /** One citation: a small marker; hovered or pressed, a card with the context item and a way to open it. */
 function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean }) {
-  const domains = useDomains()
   const marker =
     // 24px to see, 44px to tap: the hit area grows, the marker doesn't.
     'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -433,22 +456,32 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
         {n}
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-80 gap-1.5 p-3">
-        <p className="text-sm leading-snug font-medium">{fact.title}</p>
-        <p className="text-xs text-muted-foreground">
-          {domains[fact.domain]?.name} - checked by {fact.checkedBy}, {fact.checkedOn}
-        </p>
-        <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(fact.summary)}</p>
-        <SourceLinks fact={fact} />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 w-fit text-primary"
-          onClick={() => openDock('context', fact.id)}
-        >
-          Open it
-        </Button>
+        <SourceCard fact={fact} />
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** A source's card, from its marker or its chip: the item, who checked it and when, and a way to open it. */
+function SourceCard({ fact }: { fact: Fact }) {
+  const domains = useDomains()
+  return (
+    <>
+      <p className="text-sm leading-snug font-medium">{fact.title}</p>
+      <p className="text-xs text-muted-foreground">
+        {domains[fact.domain]?.name} - checked by {fact.checkedBy}, {fact.checkedOn}
+      </p>
+      <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(fact.summary)}</p>
+      <SourceLinks fact={fact} />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 w-fit text-primary"
+        onClick={() => openDock('context', fact.id)}
+      >
+        Open it
+      </Button>
+    </>
   )
 }
 
@@ -506,7 +539,7 @@ const sentenceIn = 'animate-in fade-in-0 duration-(--dur-3)'
  * drawn again when it ends. Only the first `revealed` characters show, word by word; a sentence's
  * citation markers come with its last word. With `where`, once finished, each sentence opens where
  * it says that in the right panel; and the sentences from two items that disagree sit together
- * under a line that says so, as they arrive.
+ * behind an amber rule, as they arrive.
  */
 function AnswerWords({
   sentences,
@@ -606,8 +639,10 @@ function AnswerWords({
         className={cn(
           sentenceClass,
           'rounded-mark box-decoration-clone transition-colors outline-none',
+          // py-1: an inline box is its font's height (about 19px), so one that fits a line is under the
+          // 24px target size; the padding makes it 24px or more and leaves the line height alone.
           opens &&
-            'cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
+            'cursor-pointer py-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
         )}
       >
         {words}
@@ -624,7 +659,7 @@ function AnswerWords({
     )
   }
   const run = (from: number, to: number) => (
-    <p className="text-reading leading-relaxed">
+    <p>
       {shown.slice(from, to).map((s, j) => (
         <React.Fragment key={from + j}>
           {j > 0 && ' '}
@@ -635,10 +670,11 @@ function AnswerWords({
   )
   if (first < 0) return run(0, shown.length)
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {first > 0 && run(0, first)}
-      <div className="flex flex-col gap-1 border-l-2 pl-3">
-        <p className="text-xs font-medium text-caution-text">These two disagree</p>
+      {/* The one mark on the sentences that differ: an amber rule, the words plain. The badge's card
+          says which two items disagree. */}
+      <div data-differ className="border-l-2 border-caution-icon pl-3.5">
         {run(first, last + 1)}
       </div>
       {last < shown.length - 1 && run(last + 1, shown.length)}
@@ -666,43 +702,75 @@ function AliasChip({ alias }: { alias: NonNullable<Answer['alias']> }) {
   )
 }
 
-/** The full list of sources, closed: one quiet line under the answer that opens compact rows. */
-function SourceList({ facts, draft }: { facts: Fact[]; draft?: boolean }) {
-  const domains = useDomains()
+/**
+ * One source under the words: the one chip, numbered as its markers, with its kind's icon and its
+ * title. Hovered or focused, its card; pressed, the item opens in the right panel. An answer from a
+ * draft has nothing to open.
+ */
+function SourceChip({
+  n,
+  fact,
+  draft,
+  card: hasCard = true,
+}: {
+  n: number
+  fact: Fact
+  draft?: boolean
+  /** Its card on hover; off inside another card. */
+  card?: boolean
+}) {
+  const [card, setCard] = React.useState(false)
+  const Icon = kindIcons[fact.kind]
+  const chip =
+    'inline-flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded-sm bg-muted pr-2 pl-1.5 text-xs font-medium @lg:max-w-70'
+  const label = (
+    <>
+      <span className="text-muted-foreground tabular-nums">{n}</span>
+      <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />{' '}
+      <span className="truncate">{fact.title}</span>
+    </>
+  )
+  if (draft) return <span className={chip}>{label}</span>
+  const press = cn(
+    chip,
+    'transition-colors outline-none hover:bg-foreground/10 focus-visible:ring-3 focus-visible:ring-ring/50',
+  )
+  if (!hasCard)
+    return (
+      <button
+        type="button"
+        aria-label={`Source ${n}: ${fact.title}`}
+        onClick={() => openDock('context', fact.id)}
+        className={press}
+      >
+        {label}
+      </button>
+    )
   return (
-    <Collapsible className="text-sm">
-      <CollapsibleTrigger className="group/src -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-        <ChevronRightIcon
-          className="size-3.5 transition-transform group-aria-expanded/src:rotate-90"
-          aria-hidden
-        />
-        {facts.length} {facts.length === 1 ? 'source' : 'sources'}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <ol className="mt-1 flex flex-col border-y">
-          {facts.map((f, i) => (
-            <li key={f.id} className="border-t first:border-t-0">
-              <button
-                type="button"
-                disabled={draft}
-                onClick={() => openDock('context', f.id)}
-                className="grid w-full grid-cols-(--cols-lead-5) gap-x-2 py-2 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none"
-              >
-                <span className="pt-px text-xs text-muted-foreground tabular-nums">{i + 1}</span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm">{f.title}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {draft
-                      ? `${domains[f.domain]?.name}, the draft`
-                      : `${domains[f.domain]?.name}, checked by ${f.checkedBy}, ${f.checkedOn}`}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </CollapsibleContent>
-    </Collapsible>
+    <Popover
+      open={card}
+      // A press opens the item itself; the card is for a look on the way.
+      onOpenChange={(open, { reason }) => reason !== 'trigger-press' && setCard(open)}
+    >
+      <PopoverTrigger
+        openOnHover
+        delay={120}
+        closeDelay={80}
+        render={
+          <button
+            type="button"
+            aria-label={`Source ${n}: ${fact.title}`}
+            onClick={() => openDock('context', fact.id)}
+            className={press}
+          />
+        }
+      >
+        {label}
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-80 gap-1.5 p-3">
+        <SourceCard fact={fact} />
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -1086,6 +1154,8 @@ type AnswerBodyProps = {
   onRetry?: () => void
   /** Told while the turn's words are still on their way to the screen, and when the last shows. */
   onRevealing?: (id: string, revealing: boolean) => void
+  /** The chat's last answer: its actions always show, and it can be asked again from them. */
+  latest?: boolean
 }
 
 /** A records answer's own body, loaded with the first one: most chats never need it. */
@@ -1128,7 +1198,7 @@ function Unanswered({ error, onRetry }: { error: string; onRetry?: () => void })
   )
 }
 
-function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: AnswerBodyProps) {
+function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }: AnswerBodyProps) {
   const { answer, stopped } = turn
   // A Conflict's pair is read while the answer is still being written, so it shows with the rest
   // of the finished answer and nothing below it moves once it is in view.
@@ -1152,8 +1222,6 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
           }),
     [draft, answer.sources, answer.cited, all],
   )
-  const [rated, setRated] = React.useState<'up' | 'down' | null>(null)
-  const [copied, copy] = useCopied()
   const [wrong, setWrong] = React.useState(!!answer.correction)
   const [sentNow, setSentNow] = React.useState(answer.report)
   // A report the person sent about this answer, here or before: what the owners did comes back.
@@ -1161,11 +1229,6 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
     (r) => r.question.toLowerCase() === answer.question.toLowerCase(),
   )
   const report = mine ? { on: mine.on, outcome: mine.outcome } : sentNow
-  // Saving a question is for the owners of the domain it is about, and admins.
-  const me = useMe()
-  const domainsById = useDomains()
-  const saveDomain = facts[0]?.domain ?? me.owns.find((d) => !domainsById[d]?.sandbox) ?? 'sales'
-  const canSave = me.admin || me.owns.includes(saveDomain)
 
   // Where the answer has got to, from the look-up's events: its labels held long enough to read,
   // then the engine's answer, then a model's checked sentences revealed as `ASK_CADENCE` says.
@@ -1225,16 +1288,38 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
   // by word; the words on screen are read once finished.
   const whole = sentences.filter((_, i) => ends[i]! <= revealed)
 
+  // The words, which the state's card goes beside when the thread has room.
+  const wordsRef = React.useRef<HTMLDivElement>(null)
+  // The two items that disagree, as the answer numbers them: named in the state's card.
+  const disagree =
+    answer.state === 'conflict'
+      ? facts.flatMap((f, i) => (answer.conflict?.includes(f.id) ? [{ n: i + 1, fact: f }] : []))
+      : []
+
   return (
     // Busy only until the engine's answer is in: from then on its words are read as they come.
-    <div className="group/msg flex min-w-0 flex-col gap-3" aria-busy={isLive(turn) && !answered}>
-      <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />
+    <div className="group/msg flex min-w-0 flex-col gap-4" aria-busy={isLive(turn) && !answered}>
+      {/* While it works, what the look-up is doing, where the state will be. */}
+      {!answered && <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />}
       {answered && (answer.state !== null || note || !!answer.scope?.length) && (
-        <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
+        <div className="flex animate-in flex-col gap-2 duration-(--dur-3) fade-in-0">
           <ScopeLine answer={answer} />
-          {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
-          {answer.state && <StateHelp state={answer.state} draft={!!draft} />}
-          {note && <p className="-mt-1 text-sm text-muted-foreground">{note}</p>}
+          {/* The badge alone; what it means is its card, on hover, focus or a tap. */}
+          {answer.state && (
+            <StateHelp state={answer.state} draft={!!draft} words={wordsRef}>
+              {disagree.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-medium">These two disagree</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {disagree.map(({ n, fact }) => (
+                      <SourceChip key={fact.id} n={n} fact={fact} draft={!!draft} card={false} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </StateHelp>
+          )}
+          {note && <p className="text-sm text-muted-foreground">{note}</p>}
         </div>
       )}
       {/* What the metric means, from its source: first, since that is what was asked. */}
@@ -1245,13 +1330,23 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
       )}
       {/* The words: a model's checked sentences as they come, revealed word by word, or the
             engine's own whole; drawn the same way from the first word to the end. */}
-      {writing && <ReadingLine running>Writing the answer…</ReadingLine>}
+      {writing && (
+        <p className="flex min-h-6 items-center">
+          <ReadingLine running className="text-sm">
+            Writing the answer…
+          </ReadingLine>
+        </p>
+      )}
       {revealed > 0 && (
         <div
+          ref={wordsRef}
           data-answer-words
           aria-hidden={revealing || undefined}
           aria-live="off"
-          className={cn(!streamed && turn.asked > 0 && sentenceIn)}
+          className={cn(
+            'max-w-reading text-base leading-chat',
+            !streamed && turn.asked > 0 && sentenceIn,
+          )}
         >
           <AnswerWords
             sentences={sentences}
@@ -1272,12 +1367,14 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
           ))}
         </p>
       )}
-      {/* The sources are the engine's, in with its answer; a model's words never change them. */}
-      {answered && facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
-      {finished && where && (
-        <p className="-mt-1.5 text-xs text-muted-foreground">
-          Select a sentence to see where it says that.
-        </p>
+      {/* The sources are the engine's, in with its answer; a model's words never change them. Then
+            what was looked up, which opens What agents get. */}
+      {answered && (
+        <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage}>
+          {facts.map((f, i) => (
+            <SourceChip key={f.id} n={i + 1} fact={f} draft={!!draft} />
+          ))}
+        </LookupCard>
       )}
       {/* The chat's own status line says it was stopped (src/web/pages/ask.tsx). */}
       {stopped && (
@@ -1295,7 +1392,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
         </div>
       )}
       {finished && (
-        <div className="flex animate-in flex-col gap-3 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
+        <div className="flex animate-in flex-col gap-4 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
           {answer.state === 'failed' && onRetry && (
             <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
               <RefreshCwIcon data-icon="inline-start" />
@@ -1328,71 +1425,175 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: Answer
               }}
             />
           )}
-          <div className="-ml-1.5 flex flex-wrap items-center gap-0.5 pointer-coarse:gap-2.5">
-            {answer.state !== 'failed' && (
-              <>
-                <IconButton
-                  label="Good answer"
-                  active={rated === 'up'}
-                  onClick={() => setRated(rated === 'up' ? null : 'up')}
-                >
-                  {rated === 'up' ? <CheckIcon /> : <ThumbsUpIcon />}
-                </IconButton>
-                {/* One way to say it is wrong: a bad answer asks what was wrong, in the same form. */}
-                <IconButton
-                  label="Bad answer"
-                  active={rated === 'down'}
-                  onClick={() => {
-                    setRated(rated === 'down' ? null : 'down')
-                    if (rated !== 'down' && !draft && facts.length > 0 && !report) setWrong(true)
-                  }}
-                >
-                  <ThumbsDownIcon />
-                </IconButton>
-              </>
-            )}
-            {!draft && facts.length > 0 && !report && (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-pressed={wrong}
-                onClick={() => setWrong((w) => !w)}
-                className={cn(
-                  'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground pointer-coarse:h-9',
-                  wrong && 'bg-accent text-foreground',
-                )}
-              >
-                <FlagIcon data-icon="inline-start" />
+          <AnswerActions
+            answer={answer}
+            facts={facts}
+            answerId={key}
+            draft={!!draft}
+            docked={docked}
+            latest={latest}
+            onRetry={onRetry}
+            wrong={wrong}
+            onWrong={(w) => !draft && facts.length > 0 && !report && setWrong(w)}
+            canReport={!draft && facts.length > 0 && !report}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One row of icons under a finished answer: Copy, Good, Bad, Ask again on the chat's last answer,
+ * and More with the rest (Something wrong?, Save question, Share). The last answer always shows
+ * them; an earlier one on hover or focus, and always on a touch screen.
+ */
+function AnswerActions({
+  answer,
+  facts,
+  answerId,
+  draft,
+  docked,
+  latest,
+  onRetry,
+  wrong,
+  onWrong,
+  canReport,
+}: {
+  answer: Answer
+  facts: Fact[]
+  answerId: string
+  draft: boolean
+  docked?: boolean
+  latest?: boolean
+  onRetry?: () => void
+  wrong: boolean
+  onWrong: (wrong: boolean) => void
+  canReport: boolean
+}) {
+  const [rated, setRated] = React.useState<'up' | 'down' | null>(null)
+  const [copied, copy] = useCopied()
+  // Saving a question is for the owners of the domain it is about, and admins.
+  const me = useMe()
+  const domainsById = useDomains()
+  const saveDomain = facts[0]?.domain ?? me.owns.find((d) => !domainsById[d]?.sandbox) ?? 'sales'
+  const canSave = me.admin || me.owns.includes(saveDomain)
+  // What More opened that needs a card of its own, beside the More button.
+  const more = React.useRef<HTMLButtonElement>(null)
+  const [opened, setOpened] = React.useState<'save' | 'share' | null>(null)
+  const stated = !draft && !!answer.state && answer.state !== 'failed'
+  const save = stated && canSave
+  const hasMore = canReport || save || stated
+  // A check that did not run has its own Ask again above, and nothing to rate, copy or report.
+  if (answer.state === 'failed' && !answer.text && !hasMore) return null
+  return (
+    <div
+      role="group"
+      aria-label="Answer actions"
+      className={cn(
+        '-ml-1.5 flex flex-wrap items-center gap-0.5 pointer-coarse:gap-2.5',
+        !latest &&
+          !opened &&
+          'opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
+      )}
+    >
+      {answer.text && (
+        <IconButton
+          label="Copy"
+          onClick={() => {
+            copy(answer.text.replace(/\[\d+\]/g, ''))
+            toast('Copied')
+          }}
+        >
+          <CopiedIcon copied={copied} />
+        </IconButton>
+      )}
+      {answer.state !== 'failed' && (
+        <>
+          <IconButton
+            label="Good answer"
+            active={rated === 'up'}
+            onClick={() => setRated(rated === 'up' ? null : 'up')}
+          >
+            {rated === 'up' ? <CheckIcon /> : <ThumbsUpIcon />}
+          </IconButton>
+          {/* One way to say it is wrong: a bad answer asks what was wrong, in the same form. */}
+          <IconButton
+            label="Bad answer"
+            active={rated === 'down'}
+            onClick={() => {
+              setRated(rated === 'down' ? null : 'down')
+              if (rated !== 'down') onWrong(true)
+            }}
+          >
+            <ThumbsDownIcon />
+          </IconButton>
+        </>
+      )}
+      {latest && onRetry && answer.state !== 'failed' && (
+        <IconButton label="Ask again" onClick={onRetry}>
+          <RefreshCwIcon />
+        </IconButton>
+      )}
+      {hasMore && (
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  ref={more}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="More"
+                      className="size-7 text-muted-foreground hover:text-foreground pointer-coarse:size-9"
+                    />
+                  }
+                />
+              }
+            >
+              <EllipsisIcon />
+            </TooltipTrigger>
+            <TooltipContent>More</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-auto">
+            {canReport && (
+              <DropdownMenuItem onClick={() => onWrong(!wrong)}>
+                <FlagIcon />
                 Something wrong?
-              </Button>
+              </DropdownMenuItem>
             )}
             {/* Keep checking this answer after every change: for the owners of its domain and admins. */}
-            {!draft && answer.state && answer.state !== 'failed' && canSave && (
-              <SaveQuestion quiet question={answer.question} domain={saveDomain} answer={answer} />
+            {save && (
+              <DropdownMenuItem onClick={() => setOpened('save')}>
+                <BookmarkIcon />
+                Save question
+              </DropdownMenuItem>
             )}
-            {/* The answer travels with its state and its sources. */}
-            {!draft && answer.state && answer.state !== 'failed' && (
-              <ShareButton answer={answer} facts={facts} answerId={key} docked={docked} />
-            )}
-            {/* The rest on hover or focus. */}
-            <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
-              <IconButton
-                label="Copy"
-                onClick={() => {
-                  copy(answer.text.replace(/\[\d+\]/g, ''))
-                  toast('Copied')
-                }}
+            {/* The answer travels with its state and its sources: beside it in the right panel. */}
+            {stated && (
+              <DropdownMenuItem
+                onClick={() => (docked ? setOpened('share') : openDock('share', answerId))}
               >
-                <CopiedIcon copied={copied} />
-              </IconButton>
-              {onRetry && (
-                <IconButton label="Ask again" onClick={onRetry}>
-                  <RefreshCwIcon />
-                </IconButton>
-              )}
-            </span>
-          </div>
-        </div>
+                <ShareIcon />
+                Share
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {opened === 'save' && (
+        <SaveQuestion
+          question={answer.question}
+          domain={saveDomain}
+          answer={answer}
+          from={more}
+          onClose={() => setOpened(null)}
+        />
+      )}
+      {opened === 'share' && (
+        <SharePopover answer={answer} facts={facts} from={more} onClose={() => setOpened(null)} />
       )}
     </div>
   )
@@ -1414,7 +1615,7 @@ function ConflictNextStep({ pairKey }: { pairKey: string }) {
   const can = Object.values(pair.rights).some(Boolean)
   return (
     <div className="flex flex-col gap-3">
-      <ConflictPairCompact pair={pair} label="These two disagree" />
+      <ConflictPairCompact pair={pair} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button size="sm" variant="outline" onClick={() => openDock('conflict', pair.key)}>
           <ArrowLeftRightIcon data-icon="inline-start" />

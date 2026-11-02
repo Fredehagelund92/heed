@@ -57,7 +57,7 @@ Each list below is one source in the code (a map or a constant), drawn by every 
 
 ### Answer lines
 
-The six states of an answer. One or two words, an icon and a tint, one short sentence under every line but Checked.
+The six states of an answer. One or two words, an icon and a tint, one short sentence under every line but Checked. In the Ask chat the badge stands alone and its sentence opens in its card.
 
 | State key | Label           | Sentence                           | Long form (tooltip, Help) |
 | --------- | --------------- | ---------------------------------- | ------------------------- |

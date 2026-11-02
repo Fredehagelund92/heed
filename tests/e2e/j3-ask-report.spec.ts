@@ -8,7 +8,9 @@ test('someone asks, then reports a wrong part', async ({ page }) => {
   await box.pressSequentially('Do Norway orders include gift-card money?')
   await box.press('Enter')
   await expect(page.getByText('Conflict', { exact: true }).first()).toBeVisible()
-  await page.getByRole('button', { name: 'Something wrong?' }).click()
+  // Something wrong? is in More, under the answer.
+  await page.getByRole('button', { name: 'More' }).last().click()
+  await page.getByRole('menuitem', { name: 'Something wrong?' }).click()
   await page
     .getByRole('textbox', { name: "What's wrong?" })
     .fill('Gift cards are paid out separately since October.')
@@ -84,8 +86,6 @@ test('a question that was looked up and found nothing still gets Not found', asy
   await box.pressSequentially('Why did conversion drop in Sweden last month?')
   await box.press('Enter')
   await expect(
-    page
-      .getByRole('log')
-      .getByRole('button', { name: /^Not found\W+Nothing is written about this yet\.$/ }),
+    page.getByRole('log').getByRole('button', { name: 'Not found', exact: true }),
   ).toBeVisible()
 })

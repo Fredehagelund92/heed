@@ -70,9 +70,8 @@ test('the Help page searches its own words, and sends the rest to the documentat
 test('the answer line explains itself', async ({ page }) => {
   await inMockUntil('P10', "Ask's answers from the service", async () => {
     await go(page, '/ask?example=missing')
-    await page
-      .getByRole('button', { name: /^Not found\W+Nothing is written about this yet\.$/ })
-      .click()
+    await page.getByRole('log').getByRole('button', { name: 'Not found', exact: true }).click()
+    await expect(page.getByText('Nothing is written about this yet.')).toBeVisible()
     await expect(page.getByText('What you do.')).toBeVisible()
     await expect(page.getByRole('link', { name: /All answer lines/ })).toHaveAttribute(
       'href',
