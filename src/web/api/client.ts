@@ -19,6 +19,7 @@ import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
 import type { Link } from '@/lib/links'
 import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@/model/ask'
+import type { AskLive } from '@/model/ask-turn'
 import type { CommentAnchor, Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
@@ -471,8 +472,12 @@ export interface HeedApi {
   // Ask
   /** What a question is read as, the way get_context reads it, with no model: a metric and markets. */
   readQuestion: (input: { question: string }) => Promise<{ metric: string; markets: string[] }>
-  /** The answer Ask gives: from checked context, the way an agent gets it, with its state. */
-  ask: (input: AskInput) => Promise<Answer>
+  /**
+   * The answer Ask gives: from checked context, the way an agent gets it, with its state. Given
+   * `live`, the look-up's events as it runs (what it found, the engine's answer, each sentence of
+   * a model's words), and its `signal` stops it.
+   */
+  ask: (input: AskInput, live?: AskLive) => Promise<Answer>
   /** What agents asked about most this week, each topic with the state Ask gives it now. */
   askedThisWeek: () => Promise<AskedWeek>
   /** The curated example questions, one for each state an answer can have. */

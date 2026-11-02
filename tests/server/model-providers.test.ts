@@ -290,6 +290,31 @@ describe('the Vercel AI Gateway entry (OpenAI-compatible)', () => {
     expect(JSON.stringify(request!.body)).not.toContain(key)
   })
 
+  it("asks for no reasoning for Ask's words, so their first sentence is not held up", async () => {
+    const requests = answering('anthropic/claude-haiku-5.5')
+    const words = createModelPort({
+      mode: 'live',
+      env: { VERCEL_AI_GATEWAY_API_KEY: key, ANTHROPIC_API_KEY: key },
+    })
+    const viaGateway = words.choose('assistant', {
+      provider: 'vercel-gateway',
+      model: 'anthropic/claude-haiku-5.5',
+    })
+    expect(viaGateway.effort).toBe('none')
+    await generateText({
+      model: viaGateway.model,
+      prompt: 'Words.',
+      providerOptions: viaGateway.options,
+    })
+    expect(requests[0]!.body.reasoning).toEqual({ enabled: false })
+    // Claude itself thinks only when asked: it gets its lowest effort and no thinking.
+    const direct = words.choose('assistant', {
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5',
+    })
+    expect(direct.options).toEqual({ anthropic: { effort: 'low' } })
+  })
+
   it("marks an eval answer's instructions and its newest message for the prompt cache", async () => {
     // Round 5: the eval answers sent no breakpoint, so the gateway's Claude read nothing from
     // its prompt cache while the assistant, on the same gateway, read about 85% of its input.

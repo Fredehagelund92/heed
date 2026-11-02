@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { MockLanguageModelV4 } from 'ai/test'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { seedPersonId } from '../../db/seed/bulk.ts'
 import type { AnswerResult, Asked, LookupEvent, Replay } from '../../src/contract/answer.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
@@ -12,7 +13,11 @@ import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadServingBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { deliver } from '../../src/server/modules/evals/index.ts'
-import { scriptedWordsModel, type ModelPort } from '../../src/server/modules/models/index.ts'
+import {
+  fixedWordsModel,
+  scriptedWordsModel,
+  type ModelPort,
+} from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { labCases, phrasings } from '../server/domain/topics-lab.ts'
@@ -353,11 +358,13 @@ describe('Ask: a look-up', () => {
 })
 
 describe('Ask with a real model (FR-701)', () => {
+  /** The assistant's words model: the scripted one, unless a test writes its own words. */
+  let wordsModel = () => scriptedWordsModel()
   /** A service whose model port is live, serving the scripted words model for the assistant. */
   const livePort: ModelPort = {
     mode: 'live',
-    choose: () => scriptedWordsModel(),
-    otherLine: () => scriptedWordsModel(),
+    choose: () => wordsModel(),
+    otherLine: () => wordsModel(),
     check: () => undefined,
     creditsUsed: () => Promise.resolve(null),
   }
@@ -403,22 +410,124 @@ describe('Ask with a real model (FR-701)', () => {
     }
   })
   afterAll(() => withModel.close())
+  afterEach(() => {
+    wordsModel = () => scriptedWordsModel()
+  })
 
-  it("writes the words from the engine's items after the answer, and changes nothing the engine decided", async () => {
+  const kinds = (sent: LookupEvent[]) => sent.map((e) => (e.type === 'step' ? e.step.step : e.type))
+  const answerOf = (sent: LookupEvent[]) =>
+    sent.find((e): e is Extract<LookupEvent, { type: 'answer' }> => e.type === 'answer')!.answer
+  const sentencesOf = (sent: LookupEvent[]) =>
+    sent.flatMap((e) => (e.type === 'sentence' ? [e.text] : []))
+
+  it("writes the words from the engine's items a sentence at a time after the answer, and changes nothing the engine decided", async () => {
     const question = 'What were orders in Norway in August 2026?'
     const sent = await lookup(question)
-    expect(sent.map((e) => (e.type === 'step' ? e.step.step : e.type)).slice(-2)).toEqual([
-      'answer',
-      'words',
-    ])
-    const answer = (sent.at(-2) as Extract<LookupEvent, { type: 'answer' }>).answer
-    const words = (sent.at(-1) as Extract<LookupEvent, { type: 'words' }>).text
+    const after = kinds(sent).slice(kinds(sent).indexOf('answer'))
+    expect(after[0]).toBe('answer')
+    expect(after.at(-1)).toBe('words-end')
+    expect(new Set(after.slice(1, -1))).toEqual(new Set(['sentence']))
+    const answer = answerOf(sent)
     expect(untimed(answer)).toEqual(
       untimed(engine({ kind: 'live' }, live, { question }, { today })),
     )
-    expect(words).toMatch(/\[1\]/)
-    for (const [, n] of words.matchAll(/\[(\d+)\]/g))
-      expect(Number(n)).toBeLessThanOrEqual(answer.items.length)
+    const words = sentencesOf(sent)
+    // Each sentence on its own: the scripted writer's, one for each item, in order.
+    expect(words).toHaveLength(answer.items.length)
+    expect(words.join(' ')).toMatch(/\[1\]/)
+    for (const [i, sentence] of words.entries())
+      expect(sentence).toMatch(new RegExp(`\\[${i + 1}\\]\\.$`))
+  })
+
+  it('ends the words at a sentence that fails the check, and keeps what the engine decided', async () => {
+    wordsModel = () =>
+      fixedWordsModel('Orders stopped [1]. They fell 47 percent [1]. Nothing else changed [1].')
+    const question = 'What were orders in Norway in August 2026?'
+    const lines = modelLogs.length
+    const sent = await lookup(question)
+    expect(sentencesOf(sent)).toEqual(['Orders stopped [1].'])
+    expect(kinds(sent).at(-1)).toBe('words-end')
+    expect(untimed(answerOf(sent))).toEqual(
+      untimed(engine({ kind: 'live' }, live, { question }, { today })),
+    )
+    // The log says which check refused it, never the words.
+    const line = modelLogs.slice(lines).find((l) => l.includes('ask words not written'))!
+    expect(JSON.parse(line)).toMatchObject({
+      reason: 'failed the check',
+      why: 'a number it was not given',
+    })
+    expect(modelLogs.join('\n')).not.toContain('47 percent')
+  })
+
+  it('sends no sentence when the first fails, so Ask keeps its own words', async () => {
+    wordsModel = () => fixedWordsModel('- Orders stopped [1].')
+    const sent = await lookup('What were orders in Norway in August 2026?')
+    expect(sentencesOf(sent)).toEqual([])
+    expect(kinds(sent).slice(-2)).toEqual(['answer', 'words-end'])
+  })
+
+  it('ends the model call when the person stops the answer, and still counts it', async () => {
+    const calls = async () =>
+      Number(
+        (
+          await client.query<{ n: string }>(
+            "select coalesce(sum(calls),0)::text as n from llm_spend_monthly where feature='assistant'",
+          )
+        ).rows[0]!.n,
+      )
+    const spent = await calls()
+    let written = 0
+    // Priced, as a provider's model is: a stopped call costs what it sent and what came back.
+    const choice = fixedWordsModel(
+      `Orders stopped [1]. ${'Online sales to Norway stopped [1]. '.repeat(40)}`,
+      { pace: 20 },
+    )
+    choice.prices = { input: 3, output: 15, cacheRead: 0.3 }
+    const model = choice.model as MockLanguageModelV4
+    const doStream = model.doStream.bind(model)
+    model.doStream = async (options) => {
+      const result = await doStream(options)
+      return {
+        ...result,
+        stream: result.stream.pipeThrough(
+          new TransformStream({
+            transform(part, controller) {
+              if (part.type === 'text-delta') written++
+              controller.enqueue(part)
+            },
+          }),
+        ),
+      }
+    }
+    wordsModel = () => choice
+    const address = await withModel.listen({ port: 0, host: '127.0.0.1' })
+    const stop = new AbortController()
+    const response = await fetch(`${address}/api/v1/ask/lookup`, {
+      method: 'POST',
+      headers: {
+        ...signedIn,
+        // Sent from the address it is served at, as the app's own page sends it.
+        origin: address,
+        'content-type': 'application/json',
+        'idempotency-key': randomUUID(),
+      },
+      body: JSON.stringify({ question: 'What were orders in Norway in August 2026?' }),
+      signal: stop.signal,
+    })
+    const reader = response.body!.getReader()
+    let seen = ''
+    while (!seen.includes('"sentence"')) {
+      const next = await reader.read()
+      if (next.done) expect.fail(`the words ended before a sentence: ${seen}`)
+      seen += new TextDecoder().decode(next.value as Uint8Array)
+    }
+    stop.abort()
+    // The call ends: the model writes no more, and it is still counted in the ledger.
+    await expect.poll(calls, { timeout: 5000 }).toBe(spent + 1)
+    const at = written
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(written).toBe(at)
+    expect(written).toBeLessThan(200)
   })
 
   it('writes no words for an answer with nothing written down', async () => {
@@ -440,7 +549,7 @@ describe('Ask with a real model (FR-701)', () => {
       )
     const spent = await calls()
     const sent = await lookup(`What were orders in Norway in August 2026 after the ${marker} sale?`)
-    expect(sent.at(-1)?.type).toBe('words')
+    expect(sent.at(-1)?.type).toBe('words-end')
     expect(await calls()).toBe(spent + 1)
     const after = await tableContents(client, ['auth.sessions', 'public.setup_marks'])
     expect(

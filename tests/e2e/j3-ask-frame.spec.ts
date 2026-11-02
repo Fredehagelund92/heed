@@ -23,6 +23,7 @@ test('Three answers with sources leave the page frame where it was', async ({ pa
     await ask(page, question)
     // Each answer is finished, with its sources, before the next question.
     await expect(log.getByText(/^\d+ sources?$/)).toHaveCount(i + 1)
+    await expect(log.getByRole('button', { name: 'Good answer' })).toHaveCount(i + 1)
   }
   // The page holds nothing below the screen, so nothing can scroll it, and nothing has.
   const main = page.locator('main')

@@ -100,18 +100,22 @@ const result = (a: Answer, target: Target): AnswerResult => {
 /**
  * Ask's look-up (FR-701): the question on the live edition as get_context answers an agent, with
  * no model, each step as it is done and then the answer; then, given `words`, what a real model
- * wrote from the answer's items. The question is read in memory and never
- * stored or logged (FR-602); the bundle is read before the first step, so the steps need no
- * database. Given `records`, a question about the context's own records is answered from them
- * instead, in one event (FR-718), and nothing is looked up.
+ * writes from the answer's items, a checked sentence at a time as it is written, and `words-end`
+ * once it is done. The question is read in memory and never stored or logged (FR-602); the bundle
+ * is read before the first step, so the steps need no database. Given `records`, a question about
+ * the context's own records is answered from them instead, in one event (FR-718), and nothing is
+ * looked up.
  */
 export async function lookupQuestion(
   tx: Queryable,
   clock: Clock,
   cache: BundleCache,
   input: LookupInput,
-  /** The words a real model writes from the answer, or null (no model, or none that passed). */
-  words?: (answer: AnswerResult) => Promise<string | null>,
+  /**
+   * The words a real model writes from the answer, each sentence once it has passed the check, or
+   * null when the model writes none for it.
+   */
+  words?: (answer: AnswerResult) => AsyncIterable<string> | null,
   records?: RecordsReads,
 ): Promise<AsyncGenerator<LookupEvent>> {
   const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
@@ -149,10 +153,10 @@ export async function lookupQuestion(
       yield event
       // Let the stream send this step before the next one runs.
       await new Promise<void>((done) => setImmediate(done))
-      if (event.type === 'answer' && words) {
-        const text = await words(event.answer)
-        if (text) yield { type: 'words', text }
-      }
+      const sentences = event.type === 'answer' ? words?.(event.answer) : null
+      if (!sentences) continue
+      for await (const text of sentences) yield { type: 'sentence', text }
+      yield { type: 'words-end' }
     }
   })()
 }

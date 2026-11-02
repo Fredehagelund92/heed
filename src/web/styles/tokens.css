@@ -297,6 +297,7 @@
   --dur-4: 320ms; /* arrival only: chart bars, the settle after a staged answer */
   --dur-highlight: 600ms; /* a changed value's tint fading out; it comes in at once */
   --dur-fade: 150ms; /* the one fade that explains a change: content arriving after a wait */
+  --ask-word-fade: var(--dur-fade); /* a word of an Ask answer coming in as it is revealed */
   --stagger: 30ms; /* arrival after a wait only, at most 6 items */
   --dist-1: 4px;
   --dist-2: 8px;
@@ -383,6 +384,7 @@
     --dur-4: 0ms;
     --dur-highlight: 0ms;
     --dur-fade: 90ms;
+    --ask-word-fade: 0ms;
     --stagger: 0ms;
     --dist-1: 0px;
     --dist-2: 0px;

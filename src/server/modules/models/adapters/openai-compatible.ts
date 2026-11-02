@@ -9,7 +9,9 @@ import type { ProviderAdapter } from '../types.ts'
 /**
  * Any API that speaks OpenAI's Chat Completions, such as an AI gateway. One adapter serves every
  * such provider; the entry's `adapterOptions` say where the API differs:
- * - `effort`: `reasoning_effort` (OpenAI's field, the default) or `reasoning` (`{ effort }`).
+ * - `effort`: `reasoning_effort` (OpenAI's field, the default) or `reasoning` (`{ effort }`, a
+ *   gateway's, which turns reasoning off for effort `none` with `{ enabled: false }`). OpenAI's
+ *   field has no value every model takes for no reasoning, so `none` is sent there as `low`.
  * - `promptCache`: `cache_control` marks the system instructions as a prompt cache breakpoint;
  *   `none` (the default) sends no breakpoint.
  * - `onlyVendor`: ask the gateway to serve each model from its vendor only
@@ -97,7 +99,9 @@ export const openAiCompatibleAdapter: ProviderAdapter = {
     return (name, listed, effort) => {
       // Fields under the provider's own key that the adapter does not know go into the request body.
       const body: JSONObject =
-        settings.effort === 'reasoning' ? { reasoning: { effort } } : { reasoningEffort: effort }
+        settings.effort === 'reasoning'
+          ? { reasoning: effort === 'none' ? { enabled: false } : { effort } }
+          : { reasoningEffort: effort === 'none' ? 'low' : effort }
       if (settings.onlyVendor) body.providerOptions = { gateway: { only: [listed.vendor] } }
       // Message fields under `openaiCompatible` are sent on the message itself.
       const cacheBreakpoint: SharedV4ProviderOptions =

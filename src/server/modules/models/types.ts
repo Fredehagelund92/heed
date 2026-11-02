@@ -10,7 +10,8 @@ import type { JSONValue, LanguageModelV4, SharedV4ProviderOptions } from '@ai-sd
 /** Every role that calls a model, each assigned a provider and a model in `models.<role>`. */
 export const modelRoles = ['eval_answer', 'judge', 'assistant', 'test_authoring'] as const
 export type ModelRole = (typeof modelRoles)[number]
-export type Effort = 'low' | 'medium' | 'high'
+/** How hard a model may think before it writes; `none` asks it not to reason at all. */
+export type Effort = 'none' | 'low' | 'medium' | 'high'
 
 /**
  * US dollars per million tokens. A model without a cache read price bills tokens read from a

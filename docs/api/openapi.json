@@ -91680,7 +91680,7 @@
                               "type": "object",
                               "properties": {
                                 "type": {
-                                  "const": "words"
+                                  "const": "sentence"
                                 },
                                 "text": {
                                   "type": "string"
@@ -91689,6 +91689,17 @@
                               "required": [
                                 "type",
                                 "text"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "words-end"
+                                }
+                              },
+                              "required": [
+                                "type"
                               ]
                             },
                             {

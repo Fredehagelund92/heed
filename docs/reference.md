@@ -745,14 +745,18 @@ and `next` as before.
   question that names values and no metric and finds nothing, `valueMetrics` names the metrics the
   context about those values is written for, most items first, at most three. Neither changes the
   state or the items, and agents never get them. With real models
-  (`MODELS=live`), a `words` event follows an answer that gives items: the words of
-  `models.assistant`, written from those items only, each sentence that uses one ending with its
-  number. The model decides nothing: the state, the items and what agents are told are the
-  engine's. Its words are kept only when they pass a check (one paragraph of at most 1,200
-  characters, citing only the items given and at least one, with no list, heading, link or number
-  it was not given); otherwise, and when the spending limits leave no room, the provider takes
-  over 12 seconds or fails, no `words` event comes and Ask writes its own words from the items.
-  The call counts under `assistant` in the spend ledger, for the person who asked. The question
+  (`MODELS=live`), the words of `models.assistant` follow an answer that gives items, written from
+  those items only, each sentence that uses one ending with its number. They stream: each
+  sentence is a `sentence` event, sent once it is complete and passes the check (citing only the
+  items given, with no list, heading, link or number it was not given), and `words-end` closes
+  them. The first sentence that fails ends the words there, and nothing after it is sent;
+  sentences that cite no item wait until one that does has passed, and the words run to at most
+  1,200 characters. When no sentence passes, the spending limits leave no room, or the provider
+  fails, no `sentence` event comes and Ask writes its own words from the items. Words cut off by
+  the output limit or by 12 seconds keep the sentences already sent and leave out the unfinished
+  one. The model decides nothing: the state, the items and what agents are told are the engine's.
+  Closing the request (Stop in Ask) ends the model's call. The call counts under `assistant` in the
+  spend ledger, for the person who asked, a stopped call at what it sent and received. The question
   goes to the model's provider for that call; it is read in memory and never stored or logged
   (FR-602), and with `MODELS=mock` nothing at all is recorded. The cases of Ask's words
   (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and

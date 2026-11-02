@@ -38,6 +38,7 @@ import {
   readQuestion,
 } from './data/ask'
 import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
+import { playAnswer } from './ask-live'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
@@ -733,8 +734,8 @@ export function createMockApi() {
         const read = readQuestion(question)
         return { metric: read.metric, markets: read.markets }
       }),
-    ask: (input) =>
-      now(() => {
+    ask: (input, live) => {
+      const answered = now(() => {
         const a = answer(input)
         // What an agent follows from the answer's items, with the switch as it is now.
         const links = answerLinks(
@@ -747,7 +748,10 @@ export function createMockApi() {
           settings.read(scenario.address()).links,
         )
         return { ...a, links }
-      }),
+      })
+      // In a live chat it arrives as it would from the service, a sentence at a time.
+      return live?.onEvent ? answered.then((a) => playAnswer(a, live)) : answered
+    },
     askedThisWeek: () => now(() => askedThisWeek(factsOf(state))),
     getAskExamples: () => now(() => examples),
     listChats: () =>
