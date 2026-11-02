@@ -4,6 +4,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CircleAlertIcon,
   CircleStopIcon,
   FileTextIcon,
   FlagIcon,
@@ -14,13 +15,11 @@ import {
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { markText } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { TypeGlyph } from '@/components/heed/definition'
-import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
+import { ComingSoon } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
-import { Answering, Suggestions, suggestionClass } from '@/components/heed/suggestions'
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
@@ -33,7 +32,6 @@ import {
   type ShownStage,
 } from '@/lib/ask-motion'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
-import { LogoSymbol } from '@/components/heed/logo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
@@ -63,10 +61,10 @@ import {
   definitionsPageQuery,
   figureQuery,
   myReportsQuery,
-  useAskExamples,
   useWrite,
 } from '@/api/queries'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
+import { listOf } from '@/model/people'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
@@ -139,28 +137,24 @@ export function Question({
   onRescope?: (parts: QuestionPart[]) => void
   onEdit?: (parts: QuestionPart[]) => void
 }) {
-  const me = useMe()
   const [copied, copy] = useCopied()
   // Scoped with '@', the answer's header says how; otherwise one quiet line, only when the reading differs from the words.
   const showReadAs = !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
-      <div className="flex max-w-17/20 min-w-0 items-end gap-2">
-        <div className="min-w-0 rounded-surface bg-muted px-4 py-2 text-reading leading-relaxed wrap-anywhere whitespace-pre-line [&_.mention-chip]:bg-background">
-          {answer.parts
-            ? answer.parts.map((p, i) =>
-                typeof p === 'string' ? (
-                  <React.Fragment key={i}>{p}</React.Fragment>
-                ) : (
-                  <MentionChip key={i} mention={p} />
-                ),
-              )
-            : answer.question}
-        </div>
-        <PersonAvatar name={me.name} size={28} className="hidden shrink-0 @md:flex" />
+      <div className="max-w-17/20 min-w-0 rounded-surface bg-muted px-4 py-2 text-reading leading-relaxed wrap-anywhere whitespace-pre-line [&_.mention-chip]:bg-background">
+        {answer.parts
+          ? answer.parts.map((p, i) =>
+              typeof p === 'string' ? (
+                <React.Fragment key={i}>{p}</React.Fragment>
+              ) : (
+                <MentionChip key={i} mention={p} />
+              ),
+            )
+          : answer.question}
       </div>
       {/* Copy, and Edit to put the question back in the box: under the bubble, so it keeps its width; always there on a touch screen. */}
-      <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 @md:pr-9 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
+      <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
         <IconButton
           label="Copy"
           onClick={() => {
@@ -180,7 +174,7 @@ export function Question({
         )}
       </div>
       {showReadAs && (
-        <p className="flex flex-wrap items-center justify-end gap-x-2 text-xs text-muted-foreground @md:pr-9">
+        <p className="flex flex-wrap items-center justify-end gap-x-2 text-xs text-muted-foreground">
           <span>Understood as {scopeText(answer)}</span>
           {onRescope && (
             <button
@@ -419,7 +413,7 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
   const domains = useDomains()
   const marker =
     // 24px to see, 44px to tap: the hit area grows, the marker doesn't.
-    'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-2xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
+    'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
   if (!fact || draft)
     return (
       <span className={marker} aria-label={`Source ${n}`}>
@@ -573,7 +567,7 @@ function AnswerWords({
               key={n}
               aria-hidden
               className={cn(
-                'ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums',
+                'ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-xs font-medium text-foreground tabular-nums',
                 live && fade,
               )}
             >
@@ -609,16 +603,11 @@ function AnswerWords({
               }
             : undefined
         }
-        data-mark={marked[i] ? 'differs' : undefined}
         className={cn(
           sentenceClass,
-          'rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none',
+          'rounded-mark box-decoration-clone transition-colors outline-none',
           opens &&
-            'cursor-pointer hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
-          marked[i] && [
-            markText('differs'),
-            'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
-          ],
+            'cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
         )}
       >
         {words}
@@ -880,33 +869,13 @@ function SomethingWrong({
   )
 }
 
-/** Questions from the workspace to try instead, other than the one asked. */
-function useInsteadExamples(answer: Answer) {
-  const asked = answer.question.toLowerCase()
-  return useAskExamples()
-    .map((e) => e.question)
-    .filter((q) => q.toLowerCase() !== asked)
-    .slice(0, 2)
-}
-
 /**
- * A question that looked nothing up: the three kinds of question Ask answers, each with one to
- * try, the one about a metric or a market made from the names closest to the words (else from the
- * workspace), and where every definition is listed. Nothing here says whether anything is written
- * down.
+ * A question that looked nothing up: the three kinds of question Ask answers, in words, the names
+ * closest to the question's words, and where every definition is listed. It suggests no question
+ * to ask, and nothing here says whether anything is written down.
  */
-function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
-  const answering = React.use(Answering)
-  const workspace = useInsteadExamples(answer)[0]
-  const close = answer.closest?.[0]
-  const kinds = [
-    {
-      kind: 'About a metric or a market',
-      question: close ? `What should I know about ${close}?` : workspace,
-    },
-    { kind: 'About the records', question: 'What changed this week?' },
-    { kind: 'About what Definitions lists', question: 'What dimensions are there?' },
-  ].filter((k): k is { kind: string; question: string } => !!k.question)
+function AskableKinds({ answer }: { answer: Answer }) {
+  const close = answer.closest ?? []
   const definitions = useQuery(definitionsPageQuery()).data?.filter(
     (d) => !d.sameAs && (d.type === 'metric' || d.type === 'dimension'),
   )
@@ -916,24 +885,13 @@ function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) =
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Ask answers three kinds of question. Type @ to scope one to a metric or a market.
+        Ask answers three kinds of question: about a metric or a market, about the workspace&apos;s
+        records, and about what Definitions lists. Type @ to scope one to a metric or a market.
       </p>
-      {onAsk && (
-        <ul aria-label="Questions Ask can answer" className="flex flex-col gap-2">
-          {kinds.map((k) => (
-            <li key={k.kind} className="flex flex-col items-start gap-1">
-              <span className="text-xs text-muted-foreground">{k.kind}</span>
-              <button
-                type="button"
-                aria-disabled={answering || undefined}
-                onClick={() => !answering && onAsk(k.question)}
-                className={suggestionClass}
-              >
-                {k.question}
-              </button>
-            </li>
-          ))}
-        </ul>
+      {close.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          The names closest to your words: <span className="text-foreground">{listOf(close)}</span>.
+        </p>
       )}
       {definitions && definitions.length > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -983,17 +941,6 @@ function AnswerDefinitions({ definitions }: { definitions: AskedDefinition[] }) 
   )
 }
 
-/**
- * Questions to try after a Not found answer: for a market on its own, the same market with the
- * metrics its context is written for; otherwise two from the workspace.
- */
-function TryInstead({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
-  const workspace = useInsteadExamples(answer)
-  const examples = answer.instead?.length ? answer.instead : workspace
-  if (!onAsk || examples.length === 0) return null
-  return <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />
-}
-
 /** The next step that fits the state: for the owner, or for everyone else. */
 function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const me = useMe()
@@ -1007,6 +954,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
         {owns ? (
           <Button
             size="sm"
+            variant="outline"
             nativeButton={false}
             render={
               <a
@@ -1115,17 +1063,6 @@ function Related({ ids }: { ids: string[] }) {
   )
 }
 
-function AssistantAvatar() {
-  return (
-    <span
-      aria-hidden
-      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background"
-    >
-      <LogoSymbol className="h-3.5" />
-    </span>
-  )
-}
-
 /** The note says what the answer shows of the numbers: shown, a link to them, or not shown here. */
 function noteFor(note: string | undefined, view: FigureView | null) {
   if (!note) return note
@@ -1144,11 +1081,11 @@ type AnswerBodyProps = {
   /** The question and its answer, as far as the look-up has got. */
   turn: Turn
   draft?: Fact
-  /** Ask another question in this chat: one of those an answer that looked nothing up offers. */
-  onAsk?: (question: string) => void
   /** Ask is itself in the right panel: what would open there opens in place. */
   docked?: boolean
   onRetry?: () => void
+  /** Told while the turn's words are still on their way to the screen, and when the last shows. */
+  onRevealing?: (id: string, revealing: boolean) => void
 }
 
 /** A records answer's own body, loaded with the first one: most chats never need it. */
@@ -1162,20 +1099,36 @@ const RecordsAnswerBody = React.lazy(() =>
  */
 export function AnswerBody(props: AnswerBodyProps) {
   const { records } = props.turn.answer
+  if (props.turn.error) return <Unanswered error={props.turn.error} onRetry={props.onRetry} />
   if (!records) return <ContextAnswerBody {...props} />
   return (
-    <div className="flex gap-3">
-      <AssistantAvatar />
-      <React.Suspense
-        fallback={<ReadingLine running>Counting from the workspace&apos;s records…</ReadingLine>}
-      >
-        <RecordsAnswerBody parts={recordsParts} records={records} onAsk={props.onAsk} />
-      </React.Suspense>
+    <React.Suspense
+      fallback={<ReadingLine running>Counting from the workspace&apos;s records…</ReadingLine>}
+    >
+      <RecordsAnswerBody parts={recordsParts} records={records} />
+    </React.Suspense>
+  )
+}
+
+/** A question that got nothing back: it says so, and can be asked again. */
+function Unanswered({ error, onRetry }: { error: string; onRetry?: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+      <span className="flex items-center gap-2">
+        <CircleAlertIcon className="size-4 shrink-0" aria-hidden />
+        {error}
+      </span>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RefreshCwIcon data-icon="inline-start" />
+          Ask again
+        </Button>
+      )}
     </div>
   )
 }
 
-function ContextAnswerBody({ turn, draft, onRetry, onAsk, docked }: AnswerBodyProps) {
+function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing }: AnswerBodyProps) {
   const { answer, stopped } = turn
   // A Conflict's pair is read while the answer is still being written, so it shows with the rest
   // of the finished answer and nothing below it moves once it is in view.
@@ -1240,7 +1193,15 @@ function ContextAnswerBody({ turn, draft, onRetry, onAsk, docked }: AnswerBodyPr
   const upTo = stopped ? (started < 0 ? total : started ? ends[started - 1]! : 0) : total
   if (upTo !== limit) setLimit(upTo)
   const revealing = isLive(turn) || revealed < limit
-  const finished = turn.stage === 'done' && answered && !revealing
+  // The chat holds Stop and Escape until the last word shows, not only until the answer is in.
+  // Before paint, so Ask never flashes in Stop's place as the answer comes in.
+  const id = answer.id
+  React.useLayoutEffect(() => {
+    if (!revealing || !onRevealing) return
+    onRevealing(id, true)
+    return () => onRevealing(id, false)
+  }, [revealing, onRevealing, id])
+  const finished = turn.stage === 'done' && answered && !revealing && !stopped
   const writing = answered && isLive(turn) && !revealed
   const where = !draft && !docked && facts.length > 0
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
@@ -1266,187 +1227,173 @@ function ContextAnswerBody({ turn, draft, onRetry, onAsk, docked }: AnswerBodyPr
 
   return (
     // Busy only until the engine's answer is in: from then on its words are read as they come.
-    <div className="group/msg flex gap-3" aria-busy={isLive(turn) && !answered}>
-      <AssistantAvatar />
-      <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />
-        {answered && (answer.state !== null || note || !!answer.scope?.length) && (
-          <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
-            <ScopeLine answer={answer} />
-            {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
-            {answer.state && <StateHelp state={answer.state} draft={!!draft} />}
-            {note && <p className="-mt-1 text-sm text-muted-foreground">{note}</p>}
-          </div>
-        )}
-        {/* What the metric means, from its source: first, since that is what was asked. */}
-        {answered && answer.definitions && (
-          <div className="animate-in duration-(--dur-3) fade-in-0">
-            <AnswerDefinitions definitions={answer.definitions} />
-          </div>
-        )}
-        {/* The words: a model's checked sentences as they come, revealed word by word, or the
+    <div className="group/msg flex min-w-0 flex-col gap-3" aria-busy={isLive(turn) && !answered}>
+      <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />
+      {answered && (answer.state !== null || note || !!answer.scope?.length) && (
+        <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
+          <ScopeLine answer={answer} />
+          {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
+          {answer.state && <StateHelp state={answer.state} draft={!!draft} />}
+          {note && <p className="-mt-1 text-sm text-muted-foreground">{note}</p>}
+        </div>
+      )}
+      {/* What the metric means, from its source: first, since that is what was asked. */}
+      {answered && answer.definitions && (
+        <div className="animate-in duration-(--dur-3) fade-in-0">
+          <AnswerDefinitions definitions={answer.definitions} />
+        </div>
+      )}
+      {/* The words: a model's checked sentences as they come, revealed word by word, or the
             engine's own whole; drawn the same way from the first word to the end. */}
-        {writing && <ReadingLine running>Writing the answer…</ReadingLine>}
-        {revealed > 0 && (
-          <div
-            data-answer-words
-            aria-hidden={revealing || undefined}
-            aria-live="off"
-            className={cn(!streamed && turn.asked > 0 && sentenceIn)}
-          >
-            <AnswerWords
-              sentences={sentences}
-              revealed={revealed}
+      {writing && <ReadingLine running>Writing the answer…</ReadingLine>}
+      {revealed > 0 && (
+        <div
+          data-answer-words
+          aria-hidden={revealing || undefined}
+          aria-live="off"
+          className={cn(!streamed && turn.asked > 0 && sentenceIn)}
+        >
+          <AnswerWords
+            sentences={sentences}
+            revealed={revealed}
+            facts={facts}
+            conflict={answer.state === 'conflict' ? answer.conflict : undefined}
+            answerId={key}
+            where={where}
+            live={revealing}
+            draft={!!draft}
+          />
+        </div>
+      )}
+      {revealing && (
+        <p className="sr-only" aria-live="polite">
+          {whole.map((sentence, i) => (
+            <span key={i}>{sentence.text} </span>
+          ))}
+        </p>
+      )}
+      {/* The sources are the engine's, in with its answer; a model's words never change them. */}
+      {answered && facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
+      {finished && where && (
+        <p className="-mt-1.5 text-xs text-muted-foreground">
+          Select a sentence to see where it says that.
+        </p>
+      )}
+      {/* The chat's own status line says it was stopped (src/web/pages/ask.tsx). */}
+      {stopped && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <CircleStopIcon className="size-4 shrink-0" aria-hidden />
+            Stopped{answered ? '. This is not a finished answer.' : ' before an answer.'}
+          </span>
+          {onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              <RefreshCwIcon data-icon="inline-start" />
+              Ask again
+            </Button>
+          )}
+        </div>
+      )}
+      {finished && (
+        <div className="flex animate-in flex-col gap-3 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
+          {answer.state === 'failed' && onRetry && (
+            <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
+              <RefreshCwIcon data-icon="inline-start" />
+              Ask again
+            </Button>
+          )}
+          {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
+          {view?.kind === 'against' && (
+            <FigureAgainst view={view} answer={answer} contact={figures.contact(view.source)} />
+          )}
+          {view?.kind === 'none' && <NoFigure view={view} />}
+          {view?.kind === 'link' && <FigureLink view={view} />}
+          {answer.alias && <AliasChip alias={answer.alias} />}
+          {answer.related?.length ? <Related ids={answer.related} /> : null}
+          {answer.state === null ? (
+            <AskableKinds answer={answer} />
+          ) : (
+            !draft && <NextStep answer={answer} facts={facts} />
+          )}
+          {!draft && report && <ReportLine report={report} />}
+          {!draft && wrong && !report && facts.length > 0 && (
+            <SomethingWrong
+              answer={answer}
               facts={facts}
-              conflict={answer.state === 'conflict' ? answer.conflict : undefined}
-              answerId={key}
-              where={where}
-              live={revealing}
-              draft={!!draft}
+              figure={view?.kind === 'line' || view?.kind === 'against' ? view.source : undefined}
+              onClose={() => setWrong(false)}
+              onSent={() => {
+                setWrong(false)
+                setSentNow({ on: 'just now' })
+              }}
             />
-          </div>
-        )}
-        {revealing && (
-          <p className="sr-only" aria-live="polite">
-            {whole.map((sentence, i) => (
-              <span key={i}>{sentence.text} </span>
-            ))}
-          </p>
-        )}
-        {/* The sources are the engine's, in with its answer; a model's words never change them. */}
-        {answered && facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
-        {finished && where && (
-          <p className="-mt-1.5 text-xs text-muted-foreground">
-            {answer.state === 'conflict' &&
-              differingSentences(sentences, facts, answer.conflict).some(Boolean) &&
-              'The sentences in bold say different things. '}
-            Select a sentence to see where it says that.
-          </p>
-        )}
-        {/* The chat's own status line says it was stopped (src/web/pages/ask.tsx). */}
-        {stopped && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <CircleStopIcon className="size-4 shrink-0" aria-hidden />
-              Stopped{answered ? '. This is not a finished answer.' : ' before an answer.'}
-            </span>
-            {onRetry && (
-              <Button variant="outline" size="sm" onClick={onRetry}>
-                <RefreshCwIcon data-icon="inline-start" />
-                Ask again
-              </Button>
-            )}
-          </div>
-        )}
-        {finished && (
-          <div className="flex animate-in flex-col gap-3 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
-            {answer.state === 'failed' && onRetry && (
-              <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
-                <RefreshCwIcon data-icon="inline-start" />
-                Ask again
-              </Button>
-            )}
-            {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
-            {view?.kind === 'against' && (
-              <FigureAgainst view={view} answer={answer} contact={figures.contact(view.source)} />
-            )}
-            {view?.kind === 'none' && <NoFigure view={view} />}
-            {view?.kind === 'link' && <FigureLink view={view} />}
-            {answer.alias && <AliasChip alias={answer.alias} />}
-            {answer.related?.length ? <Related ids={answer.related} /> : null}
-            {answer.state === null ? (
-              <AskableKinds answer={answer} onAsk={onAsk} />
-            ) : (
+          )}
+          <div className="-ml-1.5 flex flex-wrap items-center gap-0.5 pointer-coarse:gap-2.5">
+            {answer.state !== 'failed' && (
               <>
-                {!draft && <NextStep answer={answer} facts={facts} />}
-                {answer.state === 'missing' && <TryInstead answer={answer} onAsk={onAsk} />}
-              </>
-            )}
-            {!draft && report && <ReportLine report={report} />}
-            {!draft && wrong && !report && facts.length > 0 && (
-              <SomethingWrong
-                answer={answer}
-                facts={facts}
-                figure={view?.kind === 'line' || view?.kind === 'against' ? view.source : undefined}
-                onClose={() => setWrong(false)}
-                onSent={() => {
-                  setWrong(false)
-                  setSentNow({ on: 'just now' })
-                }}
-              />
-            )}
-            <div className="-ml-1.5 flex flex-wrap items-center gap-0.5 pointer-coarse:gap-2.5">
-              {answer.state !== 'failed' && (
-                <>
-                  <IconButton
-                    label="Good answer"
-                    active={rated === 'up'}
-                    onClick={() => setRated(rated === 'up' ? null : 'up')}
-                  >
-                    {rated === 'up' ? <CheckIcon /> : <ThumbsUpIcon />}
-                  </IconButton>
-                  {/* One way to say it is wrong: a bad answer asks what was wrong, in the same form. */}
-                  <IconButton
-                    label="Bad answer"
-                    active={rated === 'down'}
-                    onClick={() => {
-                      setRated(rated === 'down' ? null : 'down')
-                      if (rated !== 'down' && !draft && facts.length > 0 && !report) setWrong(true)
-                    }}
-                  >
-                    <ThumbsDownIcon />
-                  </IconButton>
-                </>
-              )}
-              {!draft && facts.length > 0 && !report && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={wrong}
-                  onClick={() => setWrong((w) => !w)}
-                  className={cn(
-                    'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground pointer-coarse:h-9',
-                    wrong && 'bg-accent text-foreground',
-                  )}
-                >
-                  <FlagIcon data-icon="inline-start" />
-                  Something wrong?
-                </Button>
-              )}
-              {/* Keep checking this answer after every change: for the owners of its domain and admins. */}
-              {!draft && answer.state && answer.state !== 'failed' && canSave && (
-                <SaveQuestion
-                  quiet
-                  question={answer.question}
-                  domain={saveDomain}
-                  answer={answer}
-                />
-              )}
-              {/* The answer travels with its state and its sources. */}
-              {!draft && answer.state && answer.state !== 'failed' && (
-                <ShareButton answer={answer} facts={facts} answerId={key} docked={docked} />
-              )}
-              {/* The rest on hover or focus. */}
-              <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
                 <IconButton
-                  label="Copy"
+                  label="Good answer"
+                  active={rated === 'up'}
+                  onClick={() => setRated(rated === 'up' ? null : 'up')}
+                >
+                  {rated === 'up' ? <CheckIcon /> : <ThumbsUpIcon />}
+                </IconButton>
+                {/* One way to say it is wrong: a bad answer asks what was wrong, in the same form. */}
+                <IconButton
+                  label="Bad answer"
+                  active={rated === 'down'}
                   onClick={() => {
-                    copy(answer.text.replace(/\[\d+\]/g, ''))
-                    toast('Copied')
+                    setRated(rated === 'down' ? null : 'down')
+                    if (rated !== 'down' && !draft && facts.length > 0 && !report) setWrong(true)
                   }}
                 >
-                  <CopiedIcon copied={copied} />
+                  <ThumbsDownIcon />
                 </IconButton>
-                {onRetry && (
-                  <IconButton label="Ask again" onClick={onRetry}>
-                    <RefreshCwIcon />
-                  </IconButton>
+              </>
+            )}
+            {!draft && facts.length > 0 && !report && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-pressed={wrong}
+                onClick={() => setWrong((w) => !w)}
+                className={cn(
+                  'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground pointer-coarse:h-9',
+                  wrong && 'bg-accent text-foreground',
                 )}
-              </span>
-            </div>
+              >
+                <FlagIcon data-icon="inline-start" />
+                Something wrong?
+              </Button>
+            )}
+            {/* Keep checking this answer after every change: for the owners of its domain and admins. */}
+            {!draft && answer.state && answer.state !== 'failed' && canSave && (
+              <SaveQuestion quiet question={answer.question} domain={saveDomain} answer={answer} />
+            )}
+            {/* The answer travels with its state and its sources. */}
+            {!draft && answer.state && answer.state !== 'failed' && (
+              <ShareButton answer={answer} facts={facts} answerId={key} docked={docked} />
+            )}
+            {/* The rest on hover or focus. */}
+            <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
+              <IconButton
+                label="Copy"
+                onClick={() => {
+                  copy(answer.text.replace(/\[\d+\]/g, ''))
+                  toast('Copied')
+                }}
+              >
+                <CopiedIcon copied={copied} />
+              </IconButton>
+              {onRetry && (
+                <IconButton label="Ask again" onClick={onRetry}>
+                  <RefreshCwIcon />
+                </IconButton>
+              )}
+            </span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1469,7 +1416,7 @@ function ConflictNextStep({ pairKey }: { pairKey: string }) {
     <div className="flex flex-col gap-3">
       <ConflictPairCompact pair={pair} label="These two disagree" />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" onClick={() => openDock('conflict', pair.key)}>
+        <Button size="sm" variant="outline" onClick={() => openDock('conflict', pair.key)}>
           <ArrowLeftRightIcon data-icon="inline-start" />
           {can ? 'Compare and decide' : 'Compare the two'}
         </Button>

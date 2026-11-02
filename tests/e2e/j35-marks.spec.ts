@@ -2,8 +2,8 @@ import type { Locator, Page } from '@playwright/test'
 import { card, expect, go, onMockOnly, test } from './go.ts'
 
 // J35, marked text: colour that means something, and only that (components/heed/mark.tsx). The
-// Inbox marks what a suggestion needs on its row, once; a review's clash says what to do; Ask marks
-// the sentences from the items that disagree; Quality marks the words that changed; Related marks
+// Inbox marks what a suggestion needs on its row, once; a review's clash says what to do; Ask sets
+// the sentences from the items that disagree apart under a line, unmarked; Quality marks the words that changed; Related marks
 // an item that disagrees; Integrations marks a failed read and a refused key, never a healthy tool.
 // A mark is ink, weight and an underline, never a fill.
 
@@ -53,18 +53,24 @@ test("a review's clash says what to do, marked once", async ({ page }) => {
   await expect(clash).toHaveCount(1)
 })
 
-test('Ask marks the sentences from the items that disagree, and says what the marks mean', async ({
+test('Ask sets the sentences from the items that disagree apart under a line, as plain words', async ({
   page,
 }) => {
   await ask(page, 'Do Norway orders include gift-card money?', 'Conflict')
   const log = page.getByRole('log')
   const sentences = log.locator('[aria-pressed]')
-  const differ = log.locator('[data-mark=differs]')
+  // The line that says so, and the sentences under it: fewer than all of them.
+  const apart = log.getByText('These two disagree', { exact: true }).first().locator('..')
+  const differ = apart.locator('[aria-pressed]')
   await expect(differ.first()).toBeVisible()
   expect(await differ.count()).toBeLessThan(await sentences.count())
-  await expect(differ.first()).toHaveCSS('text-decoration-style', 'solid')
-  await expect(differ.first()).toHaveCSS('font-weight', '600')
-  await expect(log.getByText(/^The sentences in bold say different things\./)).toBeVisible()
+  // No sentence carries a mark of its own: no underline, no weight, and nothing says "in bold".
+  await expect(log.locator('[data-mark]')).toHaveCount(0)
+  for (const sentence of [differ.first(), sentences.first()]) {
+    await expect(sentence).toHaveCSS('text-decoration-line', 'none')
+    await expect(sentence).toHaveCSS('font-weight', '400')
+  }
+  await expect(log.getByText(/in bold/)).toHaveCount(0)
 })
 
 test('a grounded answer marks nothing', async ({ page }) => {

@@ -110,7 +110,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | Reading         | `components/heed/reading.tsx`, `lib/stages.ts`            | The staged look-up where an agent works                                                               |
 | Figure          | `components/heed/answer-figure.tsx`                       | One figure, apart from the context, never changing the state                                          |
 | Asked this week | `components/heed/asked-week.tsx`, `data/asked-week.ts`    | Topics with their state now and a count                                                               |
-| Suggestions     | `components/heed/suggestions.tsx`                         | Questions to ask as soft chips: the empty page's starters, and what a dead-end answer offers          |
+| Suggestions     | `components/heed/suggestions.tsx`                         | Questions to ask as soft chips: the empty page's starters only, never in the thread                   |
 | Records answer  | `components/heed/records-answer.tsx`, `domain/records.ts` | A question about the records: the Records chip, one sentence, five rows or a table of counts          |
 | Where           | `components/heed/where-panel.tsx`, `lib/where.ts`         | "Show me where it says that"                                                                          |
 | Share           | `components/heed/share-answer.tsx`, `lib/share.ts`        | A Slack message or a card, with state and sources                                                     |

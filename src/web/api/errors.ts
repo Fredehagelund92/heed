@@ -79,7 +79,8 @@ const clashesOf = (data: unknown): Clash[] =>
 
 /**
  * Reads an error from either binding: an `ApiError` passes through; an answer with a status is
- * mapped by it; anything else (a failed fetch, a thrown string) means no answer.
+ * mapped by it; anything else (a failed fetch, a thrown string) means no answer, said in a
+ * sentence rather than the browser's words ("Failed to fetch").
  */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
@@ -88,8 +89,7 @@ export function toApiError(error: unknown): ApiError {
       status: error.status,
       clashes: clashesOf(error.data),
     })
-  const message = error instanceof Error ? error.message : "We didn't get an answer."
-  return new ApiError('unanswered', message)
+  return new ApiError('unanswered', "The service didn't reply.")
 }
 
 export const isSignedOut = (error: unknown) => toApiError(error).kind === 'signed-out'

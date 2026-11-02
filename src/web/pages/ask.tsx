@@ -118,7 +118,14 @@ export function AskChat({
     setTurns((ts) => ts.map((t) => (t.answer.id === id ? turnReducer(t, action) : t)))
   const viewport = React.useRef<HTMLDivElement>(null)
 
-  const busy = turns.some(isLive)
+  // The turn whose last words are still on their way to the screen, after its answer is in: Stop
+  // and Escape stay until the last word shows.
+  const [revealing, setRevealing] = React.useState<string | null>(null)
+  const onRevealing = React.useCallback(
+    (id: string, on: boolean) => setRevealing((r) => (on ? id : r === id ? null : r)),
+    [],
+  )
+  const busy = turns.some(isLive) || revealing !== null
   // One question at a time, as in any chat: from the moment one is sent until its answer is in (or
   // has failed, or was stopped), nothing else is asked. The ref holds it at once, before React shows
   // it: a second click in the same moment finds it held.
@@ -160,7 +167,7 @@ export function AskChat({
 
   // Stop cancels: the answer keeps what it showed, says it isn't finished, and that comes into view.
   const stop = () => {
-    const turn = turns.find(isLive)
+    const turn = turns.find(isLive) ?? turns.find((t) => t.answer.id === revealing)
     if (!turn) return
     live.current?.abort()
     update(turn.answer.id, { type: 'stop' })
@@ -247,10 +254,8 @@ export function AskChat({
         if (index === 0 && !scope.length && (parts ?? []).every((p) => typeof p === 'string'))
           queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
       } catch (e) {
-        // Nothing came back: the question leaves the chat and goes back in an empty box, to send again.
-        setTurns((ts) => ts.filter((t) => t.answer.id !== id))
-        composer.current?.refill(parts ?? [q])
-        toast("Couldn't ask that", { description: toApiError(e).message })
+        // Nothing came back: the question stays in the chat, saying so, with Ask again.
+        update(id, { type: 'error', message: `Couldn't get an answer. ${toApiError(e).message}` })
       }
     })
 
@@ -343,11 +348,13 @@ export function AskChat({
     ? ''
     : asked.stopped
       ? 'Stopped. The answer is not finished.'
-      : asked.stage === 'done'
-        ? 'Answer written.'
-        : asked.answered
-          ? 'Writing the answer.'
-          : 'Looking up the answer.'
+      : asked.error
+        ? asked.error
+        : asked.stage === 'done'
+          ? 'Answer written.'
+          : asked.answered
+            ? 'Writing the answer.'
+            : 'Looking up the answer.'
 
   // Anchored at the top, the newest question keeps room under it, the view's height less a little,
   // so it can reach the top while its answer is still short.
@@ -408,7 +415,7 @@ export function AskChat({
               <div
                 role="log"
                 aria-label="Questions and answers"
-                className="flex flex-col gap-y-8 pt-6 pb-10"
+                className="flex flex-col gap-y-12 pt-6 pb-10"
               >
                 {draft && <DraftBanner />}
                 {turns.map((t, i) => (
@@ -416,7 +423,7 @@ export function AskChat({
                     key={t.answer.id}
                     data-turn={i}
                     data-turn-id={t.answer.id}
-                    className="flex scroll-mt-4 flex-col gap-y-6"
+                    className="flex scroll-mt-4 flex-col gap-y-2.5"
                     style={
                       i === turns.length - 1 && room
                         ? { minHeight: room - ASK_ROOM_GAP_PX }
@@ -434,7 +441,7 @@ export function AskChat({
                       draft={draft}
                       docked={compact}
                       onRetry={retry(i)}
-                      onAsk={draft ? undefined : (q) => void add(q)}
+                      onRevealing={onRevealing}
                     />
                   </div>
                 ))}
@@ -891,7 +898,7 @@ function ThreadList({
               <section key={day} aria-labelledby={`chats-${day}`} className="pt-3 first:pt-2">
                 <h2
                   id={`chats-${day}`}
-                  className="px-2.5 pb-1.5 text-dense leading-none font-semibold tracking-wide text-muted-foreground all-small-caps"
+                  className="px-2.5 pb-1.5 text-xs font-medium text-muted-foreground"
                 >
                   {day}
                 </h2>
