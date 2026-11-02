@@ -25,7 +25,14 @@ import { pairOfKey } from '@/model/conflicts'
 import { connectorById } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
 import { QuickHead, QuickReview } from '@/pages/review'
-import { cardIcon, PaneFoot, PaneHead, PrimaryAction } from '@/components/heed/inbox-pane'
+import {
+  AskedAbout,
+  cardIcon,
+  Fold,
+  PaneFoot,
+  PaneHead,
+  PrimaryAction,
+} from '@/components/heed/inbox-pane'
 import { Panel } from '@/components/heed/panel'
 import { follows, paneState, primaryLabel } from '@/model/inbox-pane'
 import { TOUCH } from '@/lib/touch'
@@ -666,56 +673,65 @@ function CardDetail({
           <>
             {note && <MentionBlock note={note} href={`/inbox/${card.id}/review`} />}
             <NewReply id={card.id} />
-            <QuickReview r={review} />
+            <QuickReview
+              r={review}
+              asked={card.gap && <AskedAbout scope={card.gap.scope} times={card.gap.times} />}
+            />
           </>
         ) : (
-          <div className="flex flex-col gap-4 text-sm leading-relaxed">
-            <p className="text-muted-foreground">{card.detail}</p>
-            {card.flag && (
-              <p className="text-muted-foreground">
-                {card.flag.by
-                  ? 'Only what was sent is kept: their words and the question.'
-                  : 'Only the words that were sent are kept, not who sent them.'}
-              </p>
-            )}
-            {s?.note && (
-              <blockquote className="border-l-2 pl-3 text-muted-foreground italic">
-                “{s.note}”
-              </blockquote>
-            )}
-            {s && (
-              <div className="border-y py-3">
-                {(s.factId
-                  ? changed
-                  : s.changes.filter((c) =>
-                      ['What agents should know', 'Where', 'When'].includes(c.label),
-                    )
-                ).map((c) => (
-                  <FieldDiff key={c.label} {...c} />
-                ))}
-              </div>
-            )}
+          // No answers to compare: the point and its decision, with the evidence folded (D's layout).
+          <div className="flex flex-col gap-5 text-sm leading-relaxed">
+            <p className="text-muted-foreground">
+              {card.detail}
+              {card.flag &&
+                (card.flag.by
+                  ? ' Only what was sent is kept: their words and the question.'
+                  : ' Only the words that were sent are kept, not who sent them.')}
+            </p>
             {card.look && <LookList ids={card.look.questions} />}
             {card.alert?.rule === 'disagree' && <AlertPair pair={card.alert.pair} />}
-            {card.gap && (
-              <div className="flex flex-col gap-3">
-                <p className="text-muted-foreground">
-                  {card.gap.times === 0
-                    ? `Agents asked about ${card.gap.scope.join(', ')} before this week, not since.`
-                    : `Agents asked about ${card.gap.scope.join(', ')}, ${card.gap.times} times this week.`}
-                </p>
-                <p>
-                  <span className="font-medium">Where the fix probably belongs:</span>{' '}
-                  {card.gap.belongs}.
-                </p>
-              </div>
-            )}
-            {fact && card.type !== 'suggestion' && (
-              <div className="flex flex-col gap-1 border-y py-3">
-                <div className="font-medium">{fact.title}</div>
-                <p className="text-muted-foreground">{plainText(fact.summary)}</p>
-              </div>
-            )}
+            <div className="border-b empty:hidden">
+              {card.gap && (
+                <Fold title="What agents asked">
+                  <p>
+                    {card.gap.times === 0
+                      ? `Agents asked about ${card.gap.scope.join(', ')} before this week, not since.`
+                      : `Agents asked about ${card.gap.scope.join(', ')}, ${card.gap.times} times this week.`}
+                  </p>
+                  <p>
+                    <span className="font-medium">Where the fix probably belongs:</span>{' '}
+                    {card.gap.belongs}.
+                  </p>
+                </Fold>
+              )}
+              {s && (
+                <Fold title="What changes">
+                  <div>
+                    {(s.factId
+                      ? changed
+                      : s.changes.filter((c) =>
+                          ['What agents should know', 'Where', 'When'].includes(c.label),
+                        )
+                    ).map((c) => (
+                      <FieldDiff key={c.label} {...c} />
+                    ))}
+                  </div>
+                </Fold>
+              )}
+              {s?.note && (
+                <Fold title={`Why ${s.from} suggested it`}>
+                  <blockquote className="border-l-2 pl-3 text-muted-foreground italic">
+                    “{s.note}”
+                  </blockquote>
+                </Fold>
+              )}
+              {fact && card.type !== 'suggestion' && (
+                <Fold title="The context item">
+                  <p className="font-medium">{fact.title}</p>
+                  <p className="text-muted-foreground">{plainText(fact.summary)}</p>
+                </Fold>
+              )}
+            </div>
           </div>
         )}
       </div>

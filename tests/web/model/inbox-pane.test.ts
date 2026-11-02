@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { cards } from '@/api/mock/data/inbox'
 import { reviewFor, reviews } from '@/api/mock/data/review'
-import { follows, paneState, primaryLabel, reviewFollows } from '@/model/inbox-pane'
+import {
+  ANSWER_SIDES,
+  answersOf,
+  follows,
+  paneState,
+  primaryLabel,
+  reviewFollows,
+} from '@/model/inbox-pane'
 import type { Review } from '@/model/review'
 
 // What the Inbox pane says before anyone opens the review, for every kind of card in the demo:
-// the state on its chip, the name of its one button, and the words beside that button.
+// the state on its chip, the name of its one button, the words beside that button, and what
+// agents answer today and after the decision.
 
 const card = (id: string) => cards.find((c) => c.id === id)!
 const r = (id: string) => reviewFor(id)!
@@ -86,5 +94,52 @@ describe('the words beside the button', () => {
       const words = follows(c, reviewFor(c.id))
       if (words) expect(words.split(' ').length, c.id).toBeLessThanOrEqual(10)
     }
+  })
+})
+
+describe('what agents answer today and after the decision', () => {
+  it("comes from the review's Try it, for every suggestion and every drafted Not found card", () => {
+    for (const c of cards.filter((c) => reviewFor(c.id))) {
+      const a = answersOf(reviewFor(c.id))!
+      expect(a, c.id).toBeDefined()
+      expect(a.today, c.id).toEqual(r(c.id).tryIt.before)
+      expect(a.after, c.id).toEqual(r(c.id).tryIt.after)
+    }
+  })
+
+  it('labels the after side by the decision', () => {
+    expect(answersOf(r('sug-ines'))!.afterLabel).toBe(ANSWER_SIDES.after)
+    expect(answersOf(r('sug-sofia-clash'))).toMatchObject({
+      afterLabel: 'If you publish as it is',
+      after: { state: 'conflict' },
+    })
+    expect(answersOf(r('sug-lars-retire'))).toMatchObject({
+      afterLabel: 'After you archive',
+      after: { state: 'missing' },
+    })
+  })
+
+  it("takes a Not found card's after answer from its draft", () => {
+    const a = answersOf(r('gap-spain'))!
+    expect(a.today.state).toBe('missing')
+    expect(a.after.state).toBe('grounded')
+    expect(a.after.text).toContain('Card payments failed')
+  })
+
+  it('says when both sides are the same', () => {
+    expect(answersOf(r('sug-ines-format'))!.same).toBe(true)
+    expect(answersOf(r('sug-ines'))!.same).toBe(false)
+  })
+
+  it('is left out where there is no pair: alerts, check dates, reports, saved questions', () => {
+    for (const id of [
+      'alert-orders-norway',
+      'check-returns',
+      'check-margin',
+      'flag-germany',
+      'look-sales',
+      'gap-germany',
+    ])
+      expect(answersOf(reviewFor(id)), id).toBeUndefined()
   })
 })

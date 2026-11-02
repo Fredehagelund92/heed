@@ -28,6 +28,8 @@ export default defineConfig({
     // Addresses, axe and the docs controls check the mock build's pages (playwright.config.ts).
     /\/addresses\.spec\.ts$/,
     /\/axe\.spec\.ts$/,
+    // The pane's screenshot baselines are of the mock's demo data.
+    /\/visual-inbox-pane\.spec\.ts$/,
     /\/docs-controls\.spec\.ts$/,
     // J8 asks the mock for a loading, failed or offline state (?state=), which the service has not.
     /\/j8-states\.spec\.ts$/,

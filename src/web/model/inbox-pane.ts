@@ -1,10 +1,20 @@
 import { cardTypeLabel, type CardType, type InboxCard } from './inbox'
-import { claimsToCheck, type Review } from './review'
+import { claimsToCheck, type Answer, type Review } from './review'
 
 // What the Inbox pane and the review's quick view say about a card before anyone opens the review:
-// the state its chip names, what its one button is called, and the few words beside that button
-// that say what follows. Pure rules over a card and its review, so every kind of card can be
-// checked without a screen.
+// the state its chip names, what its one button is called, the few words beside that button that
+// say what follows, and what agents answer today and after the decision. Pure rules over a card and
+// its review, so every kind of card can be checked without a screen.
+
+/** The words over the two sides of the answers. One list, read by every place that shows them. */
+export const ANSWER_SIDES = {
+  today: 'Agents say today',
+  after: 'After you publish',
+  /** A suggestion that clashes with live context: what agents would hear if it went out unchanged. */
+  asIs: 'If you publish as it is',
+  /** A suggestion that archives an item: the decision is Archive, not Publish. */
+  archive: 'After you archive',
+} as const
 
 /**
  * The state a card is in, as its chip says it: the kind's word, or Conflict when it clashes. A
@@ -68,4 +78,33 @@ export function follows(card: InboxCard, review?: Review): string | undefined {
     default:
       return undefined
   }
+}
+
+/** What agents answer today and after the decision, from the review's Try it. */
+export type Answers = {
+  question: string
+  today: Answer
+  after: Answer
+  /** The label over the after side, from ANSWER_SIDES. */
+  afterLabel: string
+  /** Both sides say the same words. */
+  same: boolean
+}
+
+/**
+ * The answers a card can show, from its review's Try it pair: suggestions and the drafts for Not
+ * found have one; a card without a review (an alert, a check date, a report) has none, and its pane
+ * keeps the folded layout.
+ */
+export function answersOf(review?: Review): Answers | undefined {
+  if (!review) return undefined
+  const { question, before, after } = review.tryIt
+  if (!question || !before.text || !after.text) return undefined
+  const afterLabel =
+    review.clash || after.state === 'conflict'
+      ? ANSWER_SIDES.asIs
+      : review.mode === 'retire'
+        ? ANSWER_SIDES.archive
+        : ANSWER_SIDES.after
+  return { question, today: before, after, afterLabel, same: before.text === after.text }
 }

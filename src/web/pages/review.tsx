@@ -10,8 +10,21 @@ import { careLine, type Review } from '@/model/review'
 import { Mark } from '@/components/heed/mark'
 import { navigate } from '@/lib/router'
 import { useInbox, useReviews } from '@/api/queries'
-import { PaneFoot, PaneHead, PrimaryAction } from '@/components/heed/inbox-pane'
-import { paneState, reviewAction, reviewFollows, type PaneState } from '@/model/inbox-pane'
+import {
+  AgentAnswers,
+  AskedAbout,
+  Fold,
+  PaneFoot,
+  PaneHead,
+  PrimaryAction,
+} from '@/components/heed/inbox-pane'
+import {
+  answersOf,
+  paneState,
+  reviewAction,
+  reviewFollows,
+  type PaneState,
+} from '@/model/inbox-pane'
 import type { DomainId } from '@/model/items'
 
 // Reviewing a suggestion, in two places. The quick view (in the Inbox pane and the dock) says what
@@ -168,16 +181,19 @@ const overlapsWords = (items: { title: string }[]) =>
   `${items[0]?.title ?? ''}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`
 
 /**
- * What the Inbox pane and the dock show under the card's head (which says the title, the summary
- * and who sent it): what needs care, the values that moved, the note and the first change. No
- * counts row: those belong to the review.
+ * What the Inbox pane and the dock show under the card's head: what agents answer today and after
+ * the decision, what needs care, then the evidence folded until it is wanted (what changes, and
+ * the sender's note). `asked` takes the question's place for a Not found card: what agents asked
+ * about, never their words.
  */
-export function QuickReview({ r }: { r: Review }) {
+export function QuickReview({ r, asked }: { r: Review; asked?: React.ReactNode }) {
   const first = r.blocks[0]
   const care = careLine(r)
+  const answers = answersOf(r)
   return (
-    <div className="flex flex-col gap-4">
-      {/* What needs care shows before Review, never only inside it. */}
+    <div className="flex flex-col gap-5">
+      {answers && <AgentAnswers answers={answers} asked={asked} />}
+      {/* What needs care shows before Review, never only inside it, and never folded. */}
       {care && (
         <p className="flex items-start gap-2 text-sm">
           <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
@@ -192,27 +208,31 @@ export function QuickReview({ r }: { r: Review }) {
           </span>
         </p>
       )}
-      {r.formattingOnly && (
-        <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">Formatting only. The words are the same.</span>
-        </p>
-      )}
-      <Moved r={r} />
-      {r.note && (
-        <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">
-          “{r.note}”
-        </blockquote>
-      )}
-      <div className="border-t pt-1">
-        {first ? (
-          <ChangeBlock block={first} index={0} total={r.blocks.length} />
-        ) : r.rewrite ? (
-          <p className="py-4 text-sm text-muted-foreground">
-            {r.rewrite.changes} changes across the text. The review shows them side by side.
-          </p>
-        ) : r.retire ? (
-          <p className="py-4 text-sm text-muted-foreground">{r.retire.reason}</p>
-        ) : null}
+      <div className="border-b">
+        <Fold title="What changes" defaultOpen={!answers}>
+          {r.formattingOnly && (
+            <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2">
+              <span className="font-medium">Formatting only. The words are the same.</span>
+            </p>
+          )}
+          <Moved r={r} />
+          {first ? (
+            <ChangeBlock block={first} index={0} total={r.blocks.length} />
+          ) : r.rewrite ? (
+            <p className="text-muted-foreground">
+              {r.rewrite.changes} changes across the text. The review shows them side by side.
+            </p>
+          ) : r.retire ? (
+            <p className="text-muted-foreground">{r.retire.reason}</p>
+          ) : null}
+        </Fold>
+        {r.note && (
+          <Fold title={r.drafted ? 'About the draft' : `Why ${r.from} suggested it`}>
+            <blockquote className="border-l-2 pl-3 text-muted-foreground italic">
+              “{r.note}”
+            </blockquote>
+          </Fold>
+        )}
       </div>
     </div>
   )
@@ -256,10 +276,11 @@ export function ReviewSheet({ cardId }: { cardId: string }) {
       </DockFrame>
     )
   const done = state.done[r.id]
-  const domain = state.cards.find((c) => c.id === r.id)?.domain
+  const card = state.cards.find((c) => c.id === r.id)
   return (
+    // The bar names what it is, quietly, as a peek's does; the title is in the head, once.
     <DockFrame
-      title={r.title}
+      title="Review"
       quietTitle
       foot={
         done ? (
@@ -275,9 +296,12 @@ export function ReviewSheet({ cardId }: { cardId: string }) {
         )
       }
     >
-      <QuickHead r={r} domain={domain} />
+      <QuickHead r={r} title={card?.title} domain={card?.domain} />
       <div className="px-4 pb-6 @md:px-7">
-        <QuickReview r={r} />
+        <QuickReview
+          r={r}
+          asked={card?.gap && <AskedAbout scope={card.gap.scope} times={card.gap.times} />}
+        />
       </div>
     </DockFrame>
   )

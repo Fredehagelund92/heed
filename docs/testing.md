@@ -49,6 +49,11 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   mode, and `calls.spec.ts` holds the calls one Inbox load makes.
 - **axe (Playwright).** WCAG 2.2 AA through axe on every place of the app, at 390 and 1440 wide,
   in light and dark (`tests/e2e/axe.spec.ts`).
+- **Screenshot baselines (Playwright).** The Inbox pane at 1440 and 390 wide, light and dark, for a
+  suggestion, a conflict, a Not found draft and a card with no answers to compare
+  (`tests/e2e/visual-inbox-pane.spec.ts`, mock build only). Each platform keeps its own baselines;
+  where one has none yet the check skips and says so, and `--update-snapshots` on that platform
+  writes them for review in a pull request.
 - **The demo install (Playwright).** `tests/e2e-seed` signs in on what `docker compose up` gives a
   new install and checks that every main screen draws on its data, with no call refused
   (`npm run test:e2e:seed`).
