@@ -46,7 +46,7 @@ limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
 (the weekly counts Observability keeps without limit, and what Heed caught each week, see [Observability](reference.md#observability)),
-`partitions.ensure`, `observability.snapshot` (Summary's monthly snapshot, kept without limit) and
+`partitions.ensure`, `observability.snapshot` (the monthly snapshot of the withdrawn Summary, kept without limit) and
 `retention.run` each night (UTC), in that order, `outbox.relay` every minute (a backstop for the relay, see
 [The outbox](reference.md#the-outbox-and-inbox-items)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
 alert rules raise Inbox cards, see [Alerts](reference.md#alerts)), `connectors.sync` every five minutes (reads each source that is

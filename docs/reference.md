@@ -852,7 +852,7 @@ over its months) found nothing at least the minimum times.
   by default), so the `observability.rollup` job keeps, each night before retention, every
   completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
   answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
-  Summary's trend is their reader. The same job keeps what Heed caught in `obs_caught_weekly`: for
+  `GET /observability/summary` is their reader. The same job keeps what Heed caught in `obs_caught_weekly`: for
   each week and domain, how many times a saved question's answer changed after a change, by the
   change (a publish, an archive, a restore, a sync, a check date passing), and the alerts each rule
   raised with how many an owner or administrator acted on within 14 days. Counts only, no words and

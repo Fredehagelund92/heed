@@ -114,7 +114,7 @@ the migration ran it once to count the weeks already held. Small counts are kept
 hidden when they are read (FR-614). The API role reads the table and runs only
 `cl_obs_weekly_rollup_due`; the serving and analytics roles reach neither.
 
-`obs_snapshots` (migration 0031) keeps Summary's monthly snapshots without limit, the same
+`obs_snapshots` (migration 0031) keeps the monthly snapshots of the withdrawn Summary without limit, the same
 exception: for each whole calendar month and scope (every domain, `area_id` null, or one), the
 page's counts as shown, already through the disclosure pass, and the sentences said over them, as
 one JSON object of bounded size. It holds no topic, no item, no words of a question and no person;
