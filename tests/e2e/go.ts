@@ -225,6 +225,21 @@ export const moveTo = (page: Page, route: string) =>
   }, route)
 
 /**
+ * Opens a folded section of a page, such as Tools and access keys, and waits for it to stand
+ * still: on a busy machine a click while it grows can land on a row sliding past, and do nothing.
+ */
+export async function unfold(page: Page, section: string) {
+  const fold = page.getByRole('button', { name: `Show or hide ${section}` })
+  await fold.click()
+  const panel = page.locator(`[id="${await fold.getAttribute('aria-controls')}"]`)
+  await expect
+    .poll(() =>
+      panel.evaluate((el) => !el.getAnimations().length && el.clientHeight === el.scrollHeight),
+    )
+    .toBe(true)
+}
+
+/**
  * Sign in as one of the demo's people, as a person does: sign out in the user menu, pick them on
  * the sign-in page, and land in their Inbox. A journey starts signed in, as Jon.
  */

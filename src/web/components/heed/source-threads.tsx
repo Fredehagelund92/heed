@@ -169,6 +169,7 @@ export function useSourceNotes({
   const threads = useSourceThreads(subject, versions)
   const commentActions = useCommentActions()
   const [composing, setComposing] = React.useState<string | null>(null)
+  const composer = React.useRef<HTMLDivElement>(null)
   // What was written where, kept when the composer closes with Esc or Cancel, or a post fails.
   const drafts = React.useRef<Record<string, JSONContent>>({})
   const [posting, setPosting] = React.useState(false)
@@ -183,8 +184,13 @@ export function useSourceNotes({
   }
   const close = (key: string) => {
     setComposing(null)
-    // Back to the line or field it was written on, so C and the arrows go on from there.
-    requestAnimationFrame(() => placeOn(key)?.focus({ preventScroll: true }))
+    // Back to the line or field it was written on, so C and the arrows go on from there; unless the
+    // person went on while it was saving (a thread in the rail), and the focus stays there.
+    requestAnimationFrame(() => {
+      const at = document.activeElement
+      if (at && at !== document.body && !composer.current?.contains(at)) return
+      placeOn(key)?.focus({ preventScroll: true })
+    })
   }
   const resolve = (thread: CommentItem, resolved: boolean) => {
     commentActions.resolve(subject, thread.id, resolved).then(
@@ -215,36 +221,38 @@ export function useSourceNotes({
             />
           ))}
           {composing === key && (
-            <Composer
-              author={me}
-              autoFocus
-              label={`Comment on ${placeLabel(at).toLowerCase()}`}
-              placeholder={'field' in at ? 'Comment on this field' : 'Comment on this line'}
-              initialContent={drafts.current[key]}
-              clearOnPost={false}
-              postDisabled={posting}
-              onDraft={(d) => {
-                if (d) drafts.current[key] = d
-                else delete drafts.current[key]
-              }}
-              onCancel={() => close(key)}
-              onPost={(content) => {
-                setPosting(true)
-                commentActions
-                  .post(subject, content, { anchor: { ...versions, ...at } })
-                  .then(
-                    () => {
-                      delete drafts.current[key]
-                      close(key)
-                    },
-                    () =>
-                      toast.error("Your comment wasn't saved", {
-                        description: 'Your words are still in the box. Try again.',
-                      }),
-                  )
-                  .finally(() => setPosting(false))
-              }}
-            />
+            <div ref={composer}>
+              <Composer
+                author={me}
+                autoFocus
+                label={`Comment on ${placeLabel(at).toLowerCase()}`}
+                placeholder={'field' in at ? 'Comment on this field' : 'Comment on this line'}
+                initialContent={drafts.current[key]}
+                clearOnPost={false}
+                postDisabled={posting}
+                onDraft={(d) => {
+                  if (d) drafts.current[key] = d
+                  else delete drafts.current[key]
+                }}
+                onCancel={() => close(key)}
+                onPost={(content) => {
+                  setPosting(true)
+                  commentActions
+                    .post(subject, content, { anchor: { ...versions, ...at } })
+                    .then(
+                      () => {
+                        delete drafts.current[key]
+                        close(key)
+                      },
+                      () =>
+                        toast.error("Your comment wasn't saved", {
+                          description: 'Your words are still in the box. Try again.',
+                        }),
+                    )
+                    .finally(() => setPosting(false))
+                }}
+              />
+            </div>
           )}
         </div>
       )
