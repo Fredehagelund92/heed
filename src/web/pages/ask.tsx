@@ -98,7 +98,7 @@ export function AskChat({
   compact,
   prefill,
   onFirstAsk,
-  onStarter,
+  onExample,
   onTurns,
 }: {
   initial?: Answer[]
@@ -107,8 +107,8 @@ export function AskChat({
   /** A question typed into the box, waiting to be sent. */
   prefill?: string
   onFirstAsk?: (question: string) => void
-  /** A starter that is already a chat opens that chat instead of asking it again; true when it did. */
-  onStarter?: (question: string) => boolean
+  /** An example's question opens that example instead of being asked; true when it did. */
+  onExample?: (question: string) => boolean
   /** Everything this chat has asked and answered so far, so the history search finds it. */
   onTurns?: (text: string) => void
 }) {
@@ -225,8 +225,9 @@ export function AskChat({
         reveal(id)
         return
       }
-      // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
-      if (index === 0 && onStarter?.(q)) return
+      // An example's question, typed or picked, opens the example. Any other is asked here, one that
+      // is already a chat too: once answered it joins that chat, so the history never has it twice.
+      if (index === 0 && onExample?.(q)) return
       // The question is in the chat at once; its answer follows as the look-up runs.
       setTurns((ts) => [...ts, askedTurn(id, q, { parts, scope })])
       keepFocus()
@@ -397,13 +398,9 @@ export function AskChat({
                 {/* What agents asked this week; a new workspace, with nothing asked yet, gets its starters instead. */}
                 {!draft &&
                   (fresh || (week && !week.rows.length) ? (
-                    <Suggestions
-                      grid
-                      items={starters.slice(0, 4)}
-                      onPick={(q) => onStarter?.(q) || void add(q)}
-                    />
+                    <Suggestions grid items={starters.slice(0, 4)} onPick={(q) => void add(q)} />
                   ) : (
-                    <AskedThisWeek onPick={(q) => onStarter?.(q) || void add(q)} />
+                    <AskedThisWeek onPick={(q) => void add(q)} />
                   ))}
               </div>
             ) : (
@@ -997,22 +994,24 @@ export function AskPage() {
   // chat or New chat changes `n`, which is what starts a thread afresh.
   const write = useWrite()
   const threadActions = useThreadActions()
-  // A starter already asked opens that chat, so the history never gets the same question twice.
-  const openExisting = (question: string) => {
-    const t = threads.find((x) => x.question.toLowerCase() === question.toLowerCase())
-    if (!t) return false
-    setQuery(
-      t.example
-        ? { example: t.example, chat: undefined, n: undefined }
-        : { example: undefined, chat: t.id, n: t.id },
-    )
+  // The chat that already asks a question, so the history never gets the same question twice.
+  const chatAsking = (question: string) =>
+    threads.find((x) => x.question.toLowerCase() === question.toLowerCase())
+  // An example's question opens the example: its answer is the example's own, not a look-up.
+  const openExample = (question: string) => {
+    const example = chatAsking(question)?.example
+    if (!example) return false
+    setQuery({ example, chat: undefined, n: undefined })
     return true
   }
   const setup = query.get('setup')
+  // A first question is answered in the thread as it is written, as a follow-up is; then its chat
+  // is the one on show, without starting the thread again: a new chat, or the one that asks it.
   const onFirstAsk = (q: string) => {
-    const id = `chat-${n ?? Date.now()}`
+    const asking = chatAsking(q)
+    const id = asking?.id ?? `chat-${n ?? Date.now()}`
     setStarted({ chat: id, n })
-    threadActions.add(id, q)
+    if (!asking) threadActions.add(id, q)
     setQuery({ chat: id, setup: undefined, q: undefined })
     // The setup step "Ask a question about it" is done by asking one.
     if (setup) {
@@ -1095,7 +1094,7 @@ export function AskPage() {
               initial={initial}
               prefill={query.get('q') ?? undefined}
               onFirstAsk={example || asked ? undefined : onFirstAsk}
-              onStarter={openExisting}
+              onExample={openExample}
               onTurns={setLive}
             />
           )}
