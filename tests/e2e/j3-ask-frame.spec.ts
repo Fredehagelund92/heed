@@ -45,15 +45,19 @@ test('A turn is the question in its bubble and the answer under it, with no avat
   }
   // No avatar beside the question or the answer: the answer starts at the thread's edge.
   await expect(log.locator('[data-slot=avatar]')).toHaveCount(0)
-  const box = async (selector: string) => (await log.locator(selector).first().boundingBox())!
-  const [thread, bubble, answer] = await Promise.all([
-    box('[data-turn="0"]'),
-    box('[data-turn="0"] .bg-muted.rounded-surface'),
-    box('[data-turn="0"] .group\\/msg'),
-  ])
-  expect(answer.x).toBe(thread.x)
+  // Measured in one pass: the thread scrolls to follow its last answer, so boxes read one at a time
+  // would each sit at a different scroll offset.
+  const m = await log.evaluate((el) => {
+    const rect = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
+    return {
+      thread: rect('[data-turn="0"]'),
+      bubble: rect('[data-turn="0"] .bg-muted.rounded-surface'),
+      answer: rect('[data-turn="0"] .group\\/msg'),
+      next: rect('[data-turn="1"]'),
+    }
+  })
+  expect(m.answer.x).toBe(m.thread.x)
   // 38 px from the question to its own answer, 48 px from the answer's actions to the next question.
-  expect(Math.round(answer.y - (bubble.y + bubble.height))).toBe(38)
-  const next = await box('[data-turn="1"]')
-  expect(Math.round(next.y - (thread.y + thread.height))).toBe(48)
+  expect(Math.round(m.answer.y - m.bubble.bottom)).toBe(38)
+  expect(Math.round(m.next.y - m.thread.bottom)).toBe(48)
 })
