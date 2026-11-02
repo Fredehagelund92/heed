@@ -1491,6 +1491,7 @@ function AnswerActions({
       className={cn(
         '-ml-1.5 flex flex-wrap items-center gap-0.5 pointer-coarse:gap-2.5',
         !latest &&
+          !opened &&
           'opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
       )}
     >
