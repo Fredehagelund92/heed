@@ -48,7 +48,9 @@ const isSet = (value: string | undefined) => value !== undefined && value !== ''
 /**
  * The environment with each new setting taken from its old name when only the old one is set (an
  * empty value counts as unset, as `.env` files write them), and the old names it took. A new name
- * that is set always wins.
+ * that is set always wins. When neither name is set, `HEED_DEFAULT_` plus the rest of the name
+ * supplies the value, so the image and compose.yaml can ship a default that an operator's old name
+ * still overrides, with its warning.
  */
 export function withRenamedSettings(environment: Environment): {
   environment: Environment
@@ -57,9 +59,14 @@ export function withRenamedSettings(environment: Environment): {
   const renamed = { ...environment }
   const oldNames: OldSettingName[] = []
   for (const [oldName, newName] of Object.entries(renamedSettings) as [OldSettingName, string][]) {
-    if (isSet(environment[newName]) || !isSet(environment[oldName])) continue
-    renamed[newName] = environment[oldName]
-    oldNames.push(oldName)
+    if (isSet(environment[newName])) continue
+    if (isSet(environment[oldName])) {
+      renamed[newName] = environment[oldName]
+      oldNames.push(oldName)
+      continue
+    }
+    const shipped = environment[newName.replace(/^HEED_/, 'HEED_DEFAULT_')]
+    if (isSet(shipped)) renamed[newName] = shipped
   }
   return { environment: renamed, oldNames }
 }

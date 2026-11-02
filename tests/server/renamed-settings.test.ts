@@ -31,6 +31,30 @@ describe('the renamed settings', () => {
       expect(newName).toBe(oldName.replace(/^CL_/, 'HEED_'))
   })
 
+  it('lets an old name override a shipped default, with its warning, and a new name win over both', () => {
+    const shipped = { HEED_DEFAULT_OAUTH_SIGNING_KEY_FILE: '/var/lib/heed/oauth-key.pem' }
+    expect(withRenamedSettings(shipped).environment.HEED_OAUTH_SIGNING_KEY_FILE).toBe(
+      '/var/lib/heed/oauth-key.pem',
+    )
+    expect(withRenamedSettings(shipped).oldNames).toEqual([])
+    expect(
+      withRenamedSettings({ ...shipped, CL_OAUTH_SIGNING_KEY_FILE: '/keys/mine.pem' }),
+    ).toMatchObject({
+      environment: { HEED_OAUTH_SIGNING_KEY_FILE: '/keys/mine.pem' },
+      oldNames: ['CL_OAUTH_SIGNING_KEY_FILE'],
+    })
+    expect(
+      withRenamedSettings({
+        ...shipped,
+        CL_OAUTH_SIGNING_KEY_FILE: '/keys/old.pem',
+        HEED_OAUTH_SIGNING_KEY_FILE: '/keys/new.pem',
+      }),
+    ).toMatchObject({
+      environment: { HEED_OAUTH_SIGNING_KEY_FILE: '/keys/new.pem' },
+      oldNames: [],
+    })
+  })
+
   it('lists every new name in .env.example', () => {
     const example = readFileSync(new URL('../../.env.example', import.meta.url), 'utf8')
     for (const newName of Object.values(renamedSettings)) expect(example).toContain(`${newName}=`)
