@@ -127,6 +127,50 @@ test('the question shows the moment it is sent, and the words before the answer 
   await expect(page.getByRole('status').filter({ hasText: 'Answer written.' })).toBeAttached()
 })
 
+test('the first question of a new chat arrives as a follow-up does, one that is already a chat too', async ({
+  page,
+}) => {
+  test.skip(mode === 'http', 'the service in the journeys has no model to write words')
+  // Ask as it opens, with no chat: the question at once, then the answer as it is written, in the
+  // same thread, which only moves to the chat once it has its answer.
+  await held(page, '/ask')
+  const rows = page.getByRole('navigation', { name: 'Chats' }).locator('[data-open]')
+  const log = page.getByRole('log')
+  const firstAsk = async () => {
+    await ask(page, QUESTION)
+    // No time has passed: the question is in the thread, Stop in Ask's place.
+    const question = log.getByText(QUESTION)
+    await expect(question).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    const shown = await question.elementHandle()
+    // The look-up's steps, the state and sources, then the words before the answer is done.
+    await until(page, log.getByText(/Reading 1 context item…/))
+    await until(page, log.getByText(STATE).first())
+    await expect(log.getByText(/^1 source$/)).toBeVisible()
+    await until(page, words(log, FIRST))
+    await expect(words(log, SECOND)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    await until(page, log.getByRole('button', { name: 'Good answer' }))
+    await expect(words(log, SECOND)).toBeVisible()
+    // The thread was never started again: the question shown at first is the one still there.
+    expect(await shown.evaluate((el) => el.isConnected)).toBe(true)
+    await expect(page).toHaveURL(/[?&]chat=chat-/)
+  }
+  await firstAsk()
+  const chat = new URL(page.url()).searchParams.get('chat')!
+  const count = await rows.count()
+  // A new chat with the same question, now a chat in the history: answered as it is written too,
+  // and it is that chat, not a second one.
+  await page.getByRole('button', { name: 'New chat' }).first().click()
+  await until(
+    page,
+    page.getByRole('heading', { name: 'What do you want to know about the numbers?' }),
+  )
+  await firstAsk()
+  expect(new URL(page.url()).searchParams.get('chat')).toBe(chat)
+  await expect(rows).toHaveCount(count)
+})
+
 test('Stop while the words are written finishes the sentence on screen, keeps the state and sources, and ends there', async ({
   page,
 }) => {
