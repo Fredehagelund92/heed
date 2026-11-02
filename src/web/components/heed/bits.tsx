@@ -40,7 +40,7 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-/** A person: 32 in chat, 28 in lists. */
+/** A person: 28 in lists, 32 in the user menu. */
 export function PersonAvatar({
   name,
   size = 28,

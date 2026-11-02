@@ -228,7 +228,7 @@ Motion tokens are in [Motion](motion.md). **Focus** is shadcn's: the control's b
 
 Icons come from Lucide at its default stroke (2), through one module. No Heed marks for kinds or states, and no second icon set. The kinds are Event (lightning), Warning (triangle), Rule (ruler) and Guide (route). The definition types are sigma (metric), split (dimension), whole-word (term) and equals (synonym).
 
-Avatars are a soft pastel tint picked from the person's name (dark initials, 6.4:1 or better, the same in dark mode). Sizes are 16, 20, 28 and 32 px (32 in chat, 28 in lists). The assistant's avatar is Heed blue. The hash input in the real app stays the person's id.
+Avatars are a soft pastel tint picked from the person's name (dark initials, 6.4:1 or better, the same in dark mode). Sizes are 16, 20, 28 and 32 px (28 in lists). The Ask chat has no avatars: a question is its bubble on the right, and an answer starts with its state. The hash input in the real app stays the person's id.
 
 ## 3. Shell and layout
 
@@ -284,7 +284,7 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 1. **Frame.** An 80rem square frame with a 24 px gutter, a header row per section divided by hairlines, and tables edge to edge with the thin header band. Settings, Integrations, the Inbox list and Observability use it (`components/heed/frame.tsx`).
 2. **Document editor shell.** The page header, the formatting toolbar as a fixed 40 px row, the tinted canvas with the 56rem sheet as the only scroller, an optional side panel, and one footer bar. The context editor, the term editor, About our business and a domain all use it (`document-shell.tsx`).
 3. **Inbox mail layout.** A list in the middle and a detail pane at the right, resizable. The dock takes the pane's place.
-4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline.
+4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline. Suggestion chips show only on the empty thread, before the first message; once a message is sent, nothing in the thread suggests a question to ask.
 5. **Full-screen review.** The queue, the change, and the decision and Try it on the right, inside the app with the sidebar folded.
 
 ## 4. Components
@@ -480,7 +480,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 | 22  | Focus: 2 px outline with an offset, never a fill                                                                                  | Border in the ring colour and a 3 px ring at 50 percent                                                 |
 | 23  | Two shadows, raised and overlay                                                                                                   | Mostly flat; shadcn's shadows where a layer floats                                                      |
 | 24  | Icons at stroke 1.5 (1.75 under 14 px), with Heed marks for kinds and states                                                      | Lucide at stroke 2, no Heed marks                                                                       |
-| 25  | Avatars: eight pastel pairs from the id; sizes 20, 28, 32, 36, 40                                                                 | A pastel tint from the name; sizes 16, 20, 28, 32; the assistant in Heed blue                           |
+| 25  | Avatars: eight pastel pairs from the id; sizes 20, 28, 32, 36, 40                                                                 | A pastel tint from the name; sizes 16, 20, 28, 32; no avatars in the Ask chat                           |
 | 26  | An empty library has no start block                                                                                               | A setup checklist on a new install                                                                      |
 | 27  | Templates: list, document, overview, first-run, workbench                                                                         | The five layouts of section 3.8; the workbench is withdrawn                                             |
 | 28  | Viewport variants only for the shell; container queries inside pages                                                              | Viewport variants allowed in pages; container queries inside anything that can sit in the dock          |

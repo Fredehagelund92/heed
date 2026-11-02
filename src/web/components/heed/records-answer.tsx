@@ -229,7 +229,6 @@ export function RecordsAnswerBody({
 }: {
   parts: RecordsParts
   records: RecordsAnswer
-  onAsk?: (question: string) => void
   onSettled?: () => void
 }) {
   return (
@@ -241,16 +240,13 @@ export function RecordsAnswerBody({
 
 function RecordsBody({
   records,
-  onAsk,
   onSettled,
 }: {
   records: RecordsAnswer
-  /** Ask one of the questions a refused question offers instead, in this chat. */
-  onAsk?: (question: string) => void
   /** Told once it is shown: a records answer is written at once, never word by word. */
   onSettled?: () => void
 }) {
-  const { Suggestions, SearchIcon, TableIcon } = useParts()
+  const { SearchIcon, TableIcon } = useParts()
   const settled = React.useRef(onSettled)
   React.useEffect(() => {
     settled.current?.()
@@ -264,9 +260,6 @@ function RecordsBody({
         </p>
         <p className="text-base font-semibold">{records.sentence}</p>
         <p className="text-sm text-muted-foreground">{records.detail}</p>
-        {onAsk && (
-          <Suggestions items={records.offers} onPick={onAsk} label="Questions Ask can answer" />
-        )}
       </div>
     )
   return (

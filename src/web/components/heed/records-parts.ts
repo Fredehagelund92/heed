@@ -1,6 +1,5 @@
 import { ArrowUpRightIcon, SearchIcon, TableIcon } from '@/components/icons'
 import { kindIcons } from '@/components/heed/kind-icons'
-import { Suggestions } from '@/components/heed/suggestions'
 import { openDock } from '@/lib/dock'
 import { href } from '@/lib/router'
 import { cn } from '@/lib/utils'
@@ -17,7 +16,6 @@ export const recordsParts = {
   TableIcon,
   kindIcons,
   kindLabel,
-  Suggestions,
   openDock,
   href,
   cn,

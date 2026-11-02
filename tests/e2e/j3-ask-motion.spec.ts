@@ -207,6 +207,37 @@ test('Stop while the words are written finishes the sentence on screen, keeps th
   ).toEqual([])
 })
 
+test('Stop and Escape stay until the last word shows, after the answer is in', async ({ page }) => {
+  test.skip(mode === 'http', 'the service in the journeys has no model to write words')
+  await held(page, '/ask?n=stop-reveal')
+  await ask(page, QUESTION)
+  const log = page.getByRole('log')
+  const stop = page.getByRole('button', { name: 'Stop', exact: true })
+  // The answer is in, and its last sentence is still on its way to the screen: Stop stays.
+  await until(page, page.getByRole('status').filter({ hasText: 'Answer written.' }))
+  await expect(words(log, SECOND)).toHaveCount(0)
+  await expect(stop).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toHaveCount(0)
+  // It goes with the last word, as the answer's actions come.
+  await until(page, words(log, SECOND))
+  await until(page, log.getByRole('button', { name: 'Good answer' }))
+  await expect(stop).toHaveCount(0)
+
+  // Escape in that moment stops it too: the sentence on screen ends, and it says it was stopped.
+  await ask(page, QUESTION)
+  const next = page.locator('[data-turn="1"]')
+  await until(page, words(next, FIRST))
+  await until(page, page.getByRole('status').filter({ hasText: 'Answer written.' }))
+  await expect(words(next, SECOND)).toHaveCount(0)
+  await expect(stop).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(next.getByText('Stopped. This is not a finished answer.')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Stopped.' })).toBeAttached()
+  await page.clock.runFor(1000)
+  await expect(stop).toHaveCount(0)
+  await expect(next.getByRole('button', { name: 'Good answer' })).toHaveCount(0)
+})
+
 test('scrolled up to read, the view stays put while an answer is written', async ({ page }) => {
   test.skip(mode === 'http', 'the service in the journeys has no model to write words')
   await page.setViewportSize({ width: 1440, height: 520 })

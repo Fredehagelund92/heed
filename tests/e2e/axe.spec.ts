@@ -189,15 +189,13 @@ for (const { name, width, height } of widths) {
         expect(await violations(page)).toEqual([])
       })
 
-      test('an answer that looked nothing up, with the questions Ask can answer', async ({
-        page,
-      }) => {
+      test('an answer that looked nothing up, with what Ask can answer', async ({ page }) => {
         await page.goto(withTheme('/ask?n=axe-unread', theme))
         const box = page.getByRole('textbox', { name: 'Ask a question' })
         await box.click()
         await box.pressSequentially('tell me a joke')
         await box.press('Enter')
-        await expect(page.getByRole('list', { name: 'Questions Ask can answer' })).toBeVisible()
+        await expect(page.getByText(/^Ask answers three kinds of question/)).toBeVisible()
         await expect(
           page.getByRole('log').getByRole('link', { name: 'Definitions', exact: true }),
         ).toBeVisible()

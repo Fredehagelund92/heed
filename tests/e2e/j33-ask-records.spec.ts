@@ -59,7 +59,7 @@ test('a question about the records gets a records answer, never Not found', asyn
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
 })
 
-test("a question about one person's work is refused, with what Ask can say instead", async ({
+test("a question about one person's work is refused, with what Ask can say instead in words", async ({
   page,
 }) => {
   await go(page, '/ask?n=j33p')
@@ -69,13 +69,12 @@ test("a question about one person's work is refused, with what Ask can say inste
     log.getByText("Ask does not answer questions about one person's work."),
   ).toBeVisible()
   await expect(log.getByText('Nothing was looked up')).toBeVisible()
-  // It offers who owns a domain instead: asking it names that domain's owners.
-  const owns = log
-    .getByRole('group', { name: 'Questions Ask can answer' })
-    .getByRole('button', { name: /^Who owns .+\?$/ })
-  const domain = /^Who owns (.+)\?$/.exec((await owns.textContent())!)![1]!
-  await owns.click()
-  await expect(log.getByText(new RegExp(`^.+ owns? ${domain}\\.$`))).toBeVisible()
+  // What it can say instead is in words: nothing in the chat suggests a question to ask.
+  await expect(
+    log.getByText(/^It can tell you what changed this week, and who owns a domain\./),
+  ).toBeVisible()
+  await expect(log.getByRole('button', { name: /^(?!Something wrong\?$).*\?$/ })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Questions Ask can answer' })).toHaveCount(0)
 })
 
 test('a question about what Definitions lists gets the names and exact counts, never Not found', async ({

@@ -141,46 +141,50 @@ test('Asked this week: topics with the state Ask gives now and a count; an owner
   await expect(log.getByText(shown, { exact: true }).first()).toBeVisible()
 })
 
-test('an answer suggests nothing to ask next; a question Ask could not read offers questions to try instead', async ({
+/**
+ * No question to ask is offered in the chat: no chip, button or list that sends one. A button named
+ * as a question would send one; "Something wrong?" opens the report form.
+ */
+async function suggestsNothing(page: Page) {
+  const log = page.getByRole('log')
+  await expect(log.getByRole('button', { name: /^(?!Something wrong\?$).*\?$/ })).toHaveCount(0)
+  await expect(
+    page.getByRole('group', { name: /Ask next|Questions Ask can answer|Suggested questions/ }),
+  ).toHaveCount(0)
+  await expect(page.getByRole('list', { name: 'Questions Ask can answer' })).toHaveCount(0)
+}
+
+test('once a message is sent, nothing in the chat suggests what to ask, whatever the answer', async ({
   page,
 }) => {
+  // Checked.
   await ask(page, world.share)
   const log = page.getByRole('log')
   await expect(log.getByText('Checked', { exact: true }).first()).toBeVisible()
   await expect(log.getByRole('button', { name: 'Good answer' })).toBeVisible()
-  // Like other chats, nothing under an ordinary answer: no questions, so nothing is looked up for them.
-  await expect(page.getByRole('group', { name: /Ask next|Questions Ask can answer/ })).toHaveCount(
-    0,
-  )
-  await expect(page.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0)
-
-  // A dead end, a question that names nothing to look up, offers one question to try of each kind
-  // Ask answers.
+  await suggestsNothing(page)
   const box = page.getByRole('textbox', { name: 'Ask a question' })
-  await box.click()
-  await box.pressSequentially('tell me a joke')
-  await box.press('Enter')
-  await expect(log.getByText('Nothing was looked up').last()).toBeVisible()
-  const instead = log.getByRole('list', { name: 'Questions Ask can answer' })
-  await expect(instead.getByRole('button')).toHaveCount(3)
-  // Trying one asks it in the same chat.
-  const pick = (await instead.getByRole('button').first().textContent())!
-  await instead.getByRole('button').first().click()
-  await expect(log.locator('[data-turn="2"]')).toContainText(pick)
-})
-
-test('a Not found answer offers two questions to try instead, beside its next step', async ({
-  page,
-}) => {
-  await ask(page, 'How did orders in Spain change in October 2026?')
-  const log = page.getByRole('log')
+  const follow = async (question: string) => {
+    await box.click()
+    await box.pressSequentially(question)
+    await box.press('Enter')
+  }
+  // Not found keeps its next step, and only that.
+  await follow('How did orders in Spain change in October 2026?')
   await expect(log.getByText('Not found', { exact: true }).first()).toBeVisible()
-  const instead = log.getByRole('group', { name: 'Questions Ask can answer' })
-  await expect(instead.getByRole('button')).toHaveCount(2)
   await expect(log.getByText(/Write context for|Tell the owner/).first()).toBeVisible()
-  const pick = (await instead.getByRole('button').first().textContent())!
-  await instead.getByRole('button').first().click()
-  await expect(log.locator('[data-turn="1"]')).toContainText(pick)
+  await suggestsNothing(page)
+  // A question that names nothing to look up says what Ask answers, in words.
+  await follow('tell me a joke')
+  await expect(log.getByText('Nothing was looked up').last()).toBeVisible()
+  await expect(log.getByText(/^Ask answers three kinds of question/).last()).toBeVisible()
+  await suggestsNothing(page)
+  // A question about one person's work is refused, and says what Ask can tell instead, in words.
+  await follow('what did Tomas Eriksen write this week?')
+  await expect(
+    log.getByText("Ask does not answer questions about one person's work."),
+  ).toBeVisible()
+  await suggestsNothing(page)
 })
 
 test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({

@@ -2,7 +2,8 @@ import type { Locator, Page } from '@playwright/test'
 import { expect, go, mode, test } from './go.ts'
 
 // J39, one question at a time, as in any chat: while a question is answered, a second click, Enter
-// or Send asks nothing, and Ask is ready again once the answer is in or has failed.
+// or Send asks nothing, and Ask is ready again once the answer is in or has failed; a question that
+// failed stays in the chat, saying why, with Ask again.
 
 /**
  * Answers stay on their way until the test lets them come: time stands still, so the mock's answer
@@ -94,22 +95,14 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   answers.release()
   await ready(page)
   await expect(turns).toHaveCount(2)
-  // Then it goes, once: a dead end, with questions to try instead.
+  // Then it goes, once.
   await box(page).press('Enter')
   await until(page, turns.nth(2))
   await ready(page)
   await expect(turns).toHaveCount(3)
-
-  // A double click on a question to try instead asks it once.
-  const instead = page.getByRole('log').getByRole('list', { name: 'Questions Ask can answer' })
-  await expect(instead.getByRole('button').first()).not.toHaveAttribute('aria-disabled')
-  await instead.getByRole('button').first().dblclick()
-  await until(page, turns.nth(3))
-  await ready(page)
-  await expect(turns).toHaveCount(4)
 })
 
-test('a question that fails leaves Ask ready to ask, the question back in the box', async ({
+test('a question that fails stays in the chat, says why, and leaves Ask ready to ask', async ({
   page,
 }) => {
   // The mock answers every question; a refusal is the service's.
@@ -122,25 +115,30 @@ test('a question that fails leaves Ask ready to ask, the question back in the bo
     }),
   )
   await go(page, '/ask?n=fails')
-  const question = 'Why did orders in Norway drop in August?'
+  // Said as a sentence, with the reason after the colon.
+  const why = /^Couldn't get an answer: [a-z]\S.*\.$/
+  // Not a chat yet, so it is asked rather than opened.
+  const question = 'What should I know about Orders in Germany?'
   await box(page).click()
   await box(page).pressSequentially(question)
   await box(page).press('Enter')
-  await expect(page.getByText("Couldn't ask that")).toBeVisible()
-  await expect(page.locator('[data-turn]')).toHaveCount(0)
-  // Nothing waits on it: the question is back, Ask and the questions on offer can be used.
-  await expect(box(page)).toContainText(question)
-  await expect(page.getByRole('button', { name: 'Ask', exact: true })).not.toHaveAttribute(
-    'aria-disabled',
-  )
+  // The question stays, with why nothing came back in a sentence, never the browser's words.
+  const log = page.getByRole('log')
+  await expect(log.getByText(why)).toBeVisible()
+  await expect(page.locator('[data-turn]')).toHaveCount(1)
+  await expect(log.getByText(question)).toBeVisible()
+  await expect(page.getByText(/Failed to fetch/)).toHaveCount(0)
   await expect(
-    page
-      .getByRole('region', { name: 'Asked this week' })
-      .getByRole('button', { name: /^Net revenue in Norway/ }),
-  ).not.toHaveAttribute('aria-disabled')
-  // Asked again, it is tried again rather than held.
-  await page.getByRole('button', { name: 'Ask', exact: true }).click()
-  await expect(page.getByText("Couldn't ask that")).toHaveCount(2)
+    page.getByRole('status').filter({ hasText: "Couldn't get an answer:" }),
+  ).toBeAttached()
+  // Nothing waits on it: the box is empty and Ask can be used.
+  await expect(box(page)).toHaveText('')
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0)
+  // Asked again, it is tried again rather than held, and stays one question.
+  await log.getByRole('button', { name: 'Ask again', exact: true }).click()
+  await expect(page.getByText("Couldn't ask that again")).toBeVisible()
+  await expect(page.locator('[data-turn]')).toHaveCount(1)
+  await expect(log.getByText(why)).toBeVisible()
 })
 
 test('offline, a chat in the history still opens, in Ask and in the assistant panel', async ({

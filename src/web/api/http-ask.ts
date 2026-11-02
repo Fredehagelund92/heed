@@ -241,7 +241,7 @@ function engineAnswerOf(
       note: "The check couldn't run just now. That is not the same as nothing written down: ask again in a minute.",
       text: '',
     }
-  // A market on its own: what it has is written for a metric, so say so and offer those.
+  // A market on its own: what it has is written for a metric, so say so, naming them.
   if (a.state === 'missing' && a.valueMetrics?.length) {
     const where = list(
       Object.values(scope?.filters ?? {})
@@ -252,7 +252,6 @@ function engineAnswerOf(
     return {
       ...base,
       text: `Nothing applies to ${where} on its own. Context about ${where} is written for a metric, such as ${list(metrics, 'or')}.`,
-      instead: metrics.map((m) => `What should I know about ${m} in ${where}?`),
     }
   }
   if (a.state === 'missing')

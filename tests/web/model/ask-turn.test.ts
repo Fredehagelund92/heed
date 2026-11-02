@@ -100,9 +100,35 @@ describe('a turn as its answer arrives', () => {
 
   it('opens an answer that is already in as finished', () => {
     const turn = doneTurn(engine)
-    expect(turn).toMatchObject({ stage: 'done', answered: true, found: 2 })
+    expect(turn).toMatchObject({ stage: 'done', answered: true, found: 2, error: null })
     expect(shownText(turn)).toBe(engine.text)
-    expect(run(turn, { type: 'stop' })).toBe(turn)
+    expect(run(turn, { type: 'sentence', text: 'More [1].' })).toBe(turn)
+  })
+
+  it('once done, takes only Stop, for words still on their way to the screen', () => {
+    const done = run(
+      asked(),
+      { type: 'answer', answer: engine },
+      { type: 'sentence', text: 'Online sales stopped [1].' },
+      { type: 'done', answer: engine },
+    )
+    expect(isLive(done)).toBe(false)
+    expect(run(done, { type: 'error', message: 'Too late.' })).toBe(done)
+    const stopped = run(done, { type: 'stop' })
+    expect(stopped).toMatchObject({ stopped: true, stage: 'done' })
+    expect(run(stopped, { type: 'stop' })).toBe(stopped)
+  })
+
+  it('keeps a question that got nothing back, saying why, and takes nothing after', () => {
+    const failed = run(
+      asked(),
+      { type: 'found', items: 2 },
+      { type: 'error', message: 'No reply.' },
+    )
+    expect(failed).toMatchObject({ error: 'No reply.', stage: 'reading', answered: false })
+    expect(failed.answer.question).toBe(engine.question)
+    expect(isLive(failed)).toBe(false)
+    expect(run(failed, { type: 'answer', answer: engine }, { type: 'stop' })).toBe(failed)
   })
 })
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, toApiError } from '@/api/errors'
 import { homeDomain, listOf, type Domain } from '@/model/people'
 
-// Where a person's new context starts, and how a list of names reads in a sentence; and a refusal
-// that names the live items a publish has to say it relates to.
+// Where a person's new context starts, and how a list of names reads in a sentence; a refusal
+// that names the live items a publish has to say it relates to; and a request that got no reply.
 
 const domain = (id: string, owners: string[] = [], sandbox = false): Domain => ({
   id,
@@ -65,5 +65,16 @@ describe('a refused publish', () => {
   it('names none when the service gave no list', () => {
     expect(toApiError({ status: 422, message: 'Choose an active domain.' }).clashes).toEqual([])
     expect(new ApiError('failed', 'No answer.').clashes).toEqual([])
+  })
+})
+
+describe('a request that got no reply', () => {
+  it("says a request that got no reply in a sentence, never the browser's words", () => {
+    const failed = toApiError(new TypeError('Failed to fetch'))
+    expect(failed.kind).toBe('unanswered')
+    expect(failed.message).toBe("The service didn't reply.")
+    expect(toApiError(new ApiError('unanswered', "You're offline.")).message).toBe(
+      "You're offline.",
+    )
   })
 })

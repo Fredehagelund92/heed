@@ -30,3 +30,34 @@ test('Three answers with sources leave the page frame where it was', async ({ pa
   expect(await main.evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0)
   expect(await main.evaluate((el) => el.scrollTop)).toBe(0)
 })
+
+test('A turn is the question in its bubble and the answer under it, with no avatars, set apart from the next', async ({
+  page,
+}) => {
+  await go(page, `/ask?n=${Date.now()}`)
+  const log = page.getByRole('log')
+  for (const [i, question] of [
+    'Why did orders in Norway drop in August?',
+    'Do Norway orders include gift-card money?',
+  ].entries()) {
+    await ask(page, question)
+    await expect(log.getByRole('button', { name: 'Good answer' })).toHaveCount(i + 1)
+  }
+  // No avatar beside the question or the answer: the answer starts at the thread's edge.
+  await expect(log.locator('[data-slot=avatar]')).toHaveCount(0)
+  // Measured in one pass: the thread scrolls to follow its last answer, so boxes read one at a time
+  // would each sit at a different scroll offset.
+  const m = await log.evaluate((el) => {
+    const rect = (selector: string) => el.querySelector(selector)!.getBoundingClientRect()
+    return {
+      thread: rect('[data-turn="0"]'),
+      bubble: rect('[data-turn="0"] .bg-muted.rounded-surface'),
+      answer: rect('[data-turn="0"] .group\\/msg'),
+      next: rect('[data-turn="1"]'),
+    }
+  })
+  expect(m.answer.x).toBe(m.thread.x)
+  // 38 px from the question to its own answer, 48 px from the answer's actions to the next question.
+  expect(Math.round(m.answer.y - m.bubble.bottom)).toBe(38)
+  expect(Math.round(m.next.y - m.thread.bottom)).toBe(48)
+})

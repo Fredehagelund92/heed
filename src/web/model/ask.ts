@@ -134,14 +134,9 @@ export type Answer = {
   definitions?: AskedDefinition[]
   /**
    * A question that looked nothing up because it named no metric and no market: the metrics and
-   * markets closest to its words (`closestNames`), offered as questions to ask.
+   * markets closest to its words (`closestNames`), named so a typo is never read as asked.
    */
   closest?: string[]
-  /**
-   * A question about a market alone that found nothing, while context about that market is
-   * written for metrics: those questions, each naming one of the metrics, to ask instead.
-   */
-  instead?: string[]
   /** What the asker scoped it to with '@'. */
   scope?: MentionRef[]
   /** What the agent followed from the answer's items with get_related, one step. */

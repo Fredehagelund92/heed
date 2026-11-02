@@ -313,7 +313,8 @@ describe("Ask's answer from the engine", () => {
     expect(a.text).toBe(
       'Nothing applies to Norway on its own. Context about Norway is written for a metric, such as Orders.',
     )
-    expect(a.instead).toEqual(['What should I know about Orders in Norway?'])
+    // It names the metrics in its words, and offers no question to ask.
+    expect(a).not.toHaveProperty('instead')
   })
 
   it('says what nothing is written for, and gives Not checked no words', () => {

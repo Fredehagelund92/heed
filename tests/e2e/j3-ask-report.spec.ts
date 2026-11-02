@@ -55,24 +55,17 @@ test('a question that names nothing says nothing was looked up, never Not found'
   await expect(log.getByText("The question doesn't name a metric or a market.")).toBeVisible()
   await expect(log.getByText('Not found', { exact: true })).toHaveCount(0)
   await expect(log.getByText('Nothing is written about this yet.')).toHaveCount(0)
-  // The three kinds of question Ask answers, one to try each, and where every definition is.
-  const kinds = log.getByRole('list', { name: 'Questions Ask can answer' })
-  await expect(kinds.getByRole('listitem')).toHaveCount(3)
-  await expect(kinds).toContainText('About the records')
-  await expect(kinds.getByRole('button', { name: 'What dimensions are there?' })).toBeVisible()
+  // The three kinds of question Ask answers, in words, and where every definition is; no question
+  // to ask is suggested.
+  await expect(log.getByText(/^Ask answers three kinds of question: about a metric/)).toBeVisible()
   await expect(
     log.getByText(/^Definitions lists \d+ definitions: \d+ metrics and \d+ dimensions\.$/),
   ).toBeVisible()
   await expect(log.getByRole('link', { name: 'Definitions', exact: true })).toBeVisible()
-  // The one about a metric or a market comes from the workspace: picking it asks it in the same chat.
-  const example = kinds.getByRole('button').first()
-  const question = (await example.textContent())!
-  await example.click()
-  await expect(log.getByText(question, { exact: true }).last()).toBeVisible()
-  await expect(log.getByRole('button', { name: /^Looked up \d+ context items?/ })).toBeVisible()
+  await expect(log.getByRole('button', { name: /^(?!Something wrong\?$).*\?$/ })).toHaveCount(0)
 })
 
-test('a typo in a name is offered the closest name, never read as it', async ({ page }) => {
+test('a typo in a name is told the closest name, never read as it', async ({ page }) => {
   await go(page, '/ask?n=j3t')
   const box = page.getByRole('textbox', { name: 'Ask a question' })
   await box.click()
@@ -80,11 +73,8 @@ test('a typo in a name is offered the closest name, never read as it', async ({ 
   await box.press('Enter')
   const log = page.getByRole('log')
   await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toBeVisible()
-  await expect(
-    log
-      .getByRole('list', { name: 'Questions Ask can answer' })
-      .getByRole('button', { name: 'What should I know about Churn rate?' }),
-  ).toBeVisible()
+  await expect(log.getByText(/^The names closest to your words: .*Churn rate.*\.$/)).toBeVisible()
+  await expect(log.getByRole('button', { name: /^(?!Something wrong\?$).*\?$/ })).toHaveCount(0)
 })
 
 test('a question that was looked up and found nothing still gets Not found', async ({ page }) => {

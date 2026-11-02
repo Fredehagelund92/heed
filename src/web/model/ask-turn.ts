@@ -31,6 +31,8 @@ export type Turn = {
   stage: Stage
   /** Stopped by the person: it keeps what it showed and says it is not finished. */
   stopped: boolean
+  /** Nothing came back: why, in a sentence. The question stays, to ask again. */
+  error: string | null
   /** How many context items the look-up found, once it has. */
   found: number | null
   /** A model's words so far, a sentence at a time; with none, the answer's own words show. */
@@ -58,6 +60,7 @@ export const askedTurn = (
   answered: false,
   stage: 'looking',
   stopped: false,
+  error: null,
   found: null,
   sentences: [],
 })
@@ -69,12 +72,13 @@ export const doneTurn = (answer: Answer): Turn => ({
   answered: true,
   stage: 'done',
   stopped: false,
+  error: null,
   found: answer.sources.length,
   sentences: [],
 })
 
-/** Whether the turn is still on its way: neither done nor stopped. */
-export const isLive = (turn: Turn) => turn.stage !== 'done' && !turn.stopped
+/** Whether the turn is still on its way: neither done, stopped nor failed. */
+export const isLive = (turn: Turn) => turn.stage !== 'done' && !turn.stopped && !turn.error
 
 export type TurnAction =
   | AskEvent
@@ -82,10 +86,17 @@ export type TurnAction =
   | { type: 'done'; answer: Answer }
   /** The person pressed Stop. */
   | { type: 'stop' }
+  /** Nothing came back: why, in a sentence. */
+  | { type: 'error'; message: string }
 
-/** The turn after one more event. Nothing changes a stopped or finished turn. */
+/**
+ * The turn after one more event. Nothing changes a stopped or failed turn, and a finished one
+ * takes only Stop: its last words can still be on their way to the screen.
+ */
 export function turnReducer(turn: Turn, action: TurnAction): Turn {
-  if (!isLive(turn)) return turn
+  if (turn.stopped || turn.error) return turn
+  if (action.type === 'stop') return { ...turn, stopped: true }
+  if (turn.stage === 'done') return turn
   // The question as it was sent: its id in the chat, and the mentions it was asked with.
   const { id, parts, scope } = turn.answer
   const keep = { id, ...(parts ? { parts } : {}), ...(scope ? { scope } : {}) }
@@ -110,8 +121,8 @@ export function turnReducer(turn: Turn, action: TurnAction): Turn {
         stage: 'done',
         found: action.answer.sources.length,
       }
-    case 'stop':
-      return { ...turn, stopped: true }
+    case 'error':
+      return { ...turn, error: action.message }
   }
 }
 
