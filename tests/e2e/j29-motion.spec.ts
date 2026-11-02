@@ -89,6 +89,8 @@ test("a slow load waits, shows the page's shape, then the content, without the l
 
 test('a skeleton sits where its table will be', async ({ page }) => {
   await go(page, '/context?state=loading')
+  // The page itself is in, its table loading: before that, the app's own page shape stands in.
+  await expect(page.getByRole('heading', { name: 'Context', level: 1 })).toBeVisible()
   const band = page.getByRole('status', { name: 'Loading' }).locator('> div').nth(1)
   await expect(band).toBeVisible()
   const sk = (await band.boundingBox())!
