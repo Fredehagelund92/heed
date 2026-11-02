@@ -255,7 +255,10 @@ export function AskChat({
           queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
       } catch (e) {
         // Nothing came back: the question stays in the chat, saying so, with Ask again.
-        update(id, { type: 'error', message: `Couldn't get an answer: ${reasonInWords(toApiError(e).message)}` })
+        update(id, {
+          type: 'error',
+          message: `Couldn't get an answer: ${reasonInWords(toApiError(e).message)}`,
+        })
       }
     })
 
@@ -1231,7 +1234,9 @@ export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolea
   return <DockFrame title="Try it">{chat}</DockFrame>
 }
 
+/** Why nothing came back, as plain words after the colon: an ordinary capitalised first word is lower-cased, an acronym is not. */
 function reasonInWords(message: string): string {
-  const reason = message.trim().replace(/[.!?]+$/, '')
-  return `${reason.charAt(0).toLowerCase()}${reason.slice(1)}.`
+  const reason = message.trim().replace(/[.!?]+$/, '') || "The service didn't reply"
+  const ordinary = /^[A-Z][a-z]/.test(reason)
+  return `${ordinary ? reason.charAt(0).toLowerCase() : reason.charAt(0)}${reason.slice(1)}.`
 }
