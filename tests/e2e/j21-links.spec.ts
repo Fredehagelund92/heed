@@ -1,12 +1,20 @@
 import type { Page } from '@playwright/test'
-import { expect, go, mode, test } from './go.ts'
+import { expect, go, mode, test, unfold } from './go.ts'
 
 // J21, following links (get_related): Related shows what an agent can follow both ways, the
 // owners' relations labelled, a retired item not followed, a definition from another domain
 // marked; Ask says what it followed, one step; the switch in Settings turns it off.
 
-const details = async (page: Page) =>
-  page.getByRole('button', { name: 'Details', exact: true }).click()
+/**
+ * Opens Details in the quick view once it shows the item: go moves inside the app and goes on at
+ * once, and a click before the new item is in would fold the last one's Details instead.
+ */
+async function details(page: Page, title: string) {
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Details', exact: true }).click()
+}
+
+const campaign = 'Norway launch campaign started on 24 March 2026'
 
 const grounded = 'Why did orders in Norway drop in August?'
 
@@ -34,16 +42,16 @@ test("Related in the quick view: another domain's definition, and the owners' re
   page,
 }) => {
   await go(page, '/context?dock=context.itm_eprlkrz2')
-  await details(page)
+  await details(page, campaign)
   const links = page.getByRole('list', { name: 'Links to' })
   await expect(links).toContainText('Orders')
   await expect(links).toContainText('from Sales')
   await go(page, '/context?dock=context.itm_0tmqp7o1')
-  await details(page)
+  await details(page, 'Orders lags by one day in the source tool')
   await expect(page.getByRole('list', { name: 'Links to' })).toContainText('replaces')
   await expect(page.getByRole('list', { name: 'Links to' })).toContainText('not followed')
   await go(page, '/context?dock=context.itm_gift_store_credit')
-  await details(page)
+  await details(page, 'Norway orders count store credit')
   await expect(page.getByRole('list', { name: 'Links to' })).toContainText('disagrees with')
 })
 
@@ -59,14 +67,16 @@ test('Ask says what it followed, one step, and what it left alone', async ({ pag
 
 test('switched off in Settings, Ask follows nothing and Related says so', async ({ page }) => {
   await go(page, '/settings/agents')
-  await page.getByRole('button', { name: /Show or hide Tools and access keys/ }).click()
-  await page.getByRole('switch', { name: /Let agents follow links/ }).click()
+  await unfold(page, 'Tools and access keys')
+  const toggle = page.getByRole('switch', { name: /Let agents follow links/ })
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
   await askGrounded(page)
   await expect(
     page.getByRole('button', { name: new RegExp(`^${looked}, didn't follow links`) }),
   ).toBeVisible()
   await go(page, '/context?dock=context.itm_eprlkrz2')
-  await details(page)
+  await details(page, campaign)
   await expect(
     page.getByText("Agents don't follow links: it is switched off in Agents and access."),
   ).toBeVisible()

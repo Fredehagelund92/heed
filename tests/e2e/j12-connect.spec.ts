@@ -1,4 +1,4 @@
-import { agentSignsIn, expect, go, test } from './go.ts'
+import { agentSignsIn, expect, go, test, unfold } from './go.ts'
 
 // J12, connect an agent: copy the prompt, the page waits and checks every 3 seconds, the agent
 // signs in and joins Connected agents; past 2 minutes it shows what usually helps, at 10 it stops
@@ -92,7 +92,7 @@ test('an admin makes a named access key, shown once, lists it, and revokes it', 
   page,
 }) => {
   await go(page, '/settings/agents')
-  await page.getByRole('button', { name: /Show or hide Tools and access keys/ }).click()
+  await unfold(page, 'Tools and access keys')
   await expect(
     page.getByText("For a bot or a scheduled job that can't sign in. None yet."),
   ).toBeVisible()
