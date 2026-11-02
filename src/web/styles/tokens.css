@@ -417,10 +417,14 @@
   --text-code-sm: 12.5px; /* 12.5 px: a command in the connect prompt */
   --text-control-sm: 0.8rem; /* a small button and the calendar */
   --text-dense: 0.8125rem; /* 13 px: sidebar rows, dense lists and controls */
-  --text-reading: 0.9375rem; /* 15 px: a question, a chat line */
+  --text-reading: 0.9375rem; /* 15 px: a review's text, a docs page, a peek */
   --text-hero: 2rem; /* a docs page's title */
   --text-hero-lg: 2.5rem; /* the docs home's title */
   --text-code: 0.85em; /* code inside a line of text */
+
+  /* An Ask question and answer: 16 px text (text-base) on 26 px lines, as the chat apps people
+     know set theirs. */
+  --leading-chat: 1.625rem;
   --leading-hero: 1.1;
   --leading-hero-lg: 1.05;
   --tracking-hero: -0.02em;
@@ -519,9 +523,10 @@
      and empty states. One token, so the whole app can go back to a soft corner in one line. */
   --radius-frame: 0px;
 
-  /* Conversational input surfaces are soft: the comment box, the Ask composer, a question and a
-     suggestion to ask. */
+  /* Conversational input surfaces are soft: the comment box, a question and a suggestion to ask.
+     The Ask composer, the one box a chat is typed in, is softer still: xl, 14 px. */
   --radius-surface: var(--radius);
+  --radius-composer: var(--radius-xl);
 
   /* One bar height: the page header, the sidebar's logo row and user block, and every bottom
      bar, so their hairlines line up. The editor's toolbar is a slimmer fixed row under the
@@ -561,7 +566,6 @@
   --spacing-safe: max(1rem, env(safe-area-inset-bottom));
   --spacing-safe-sm: max(0.75rem, env(safe-area-inset-bottom));
   --spacing-safe-area: env(safe-area-inset-bottom);
-  --spacing-ask-foot: calc(var(--spacing-bar) - 41px);
   --spacing-palette: max(1rem, 10vh);
   --spacing-bottom-sheet: 85svh;
   --spacing-bottom-sheet-tall: 90svh;

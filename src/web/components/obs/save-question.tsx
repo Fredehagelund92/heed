@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { BookmarkIcon, XIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
@@ -20,20 +19,29 @@ export function SaveQuestion({
   question,
   domain,
   answer,
-  quiet,
+  from: anchor,
+  onClose,
 }: {
   question: string
   domain: DomainId
   answer: Answer
-  /** Under an answer in Ask: a quiet text button, as Something wrong? is. */
-  quiet?: boolean
+  /**
+   * Under an answer in Ask, where More holds it: no button of its own, open from the start, beside
+   * the More button it was chosen from, and focus goes back there when it closes.
+   */
+  from?: React.RefObject<HTMLElement | null>
+  onClose?: () => void
 }) {
   const me = useMe()
   const domains = useDomains()
   const facts = useFacts()
   const factById = (id: string) => facts.find((f) => f.id === id)
   const write = useWrite()
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpenState] = React.useState(!!anchor)
+  const setOpen = (o: boolean) => {
+    setOpenState(o)
+    if (!o) onClose?.()
+  }
   const [q, setQ] = React.useState(question)
   const [from, setFrom] = React.useState<string[]>(answer.sources)
   const allowed = me.admin || me.owns.includes(domain)
@@ -52,27 +60,27 @@ export function SaveQuestion({
         }
       }}
     >
-      <PopoverTrigger
-        render={
-          <Button
-            variant={quiet ? 'ghost' : 'outline'}
-            size="sm"
-            aria-disabled={reason ? true : undefined}
-            aria-description={reason}
-            title={reason}
-            className={cn(
-              quiet &&
-                'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground pointer-coarse:h-9',
-            )}
-          />
-        }
-      >
-        <BookmarkIcon data-icon="inline-start" />
-        Save question
-      </PopoverTrigger>
+      {!anchor && (
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              aria-disabled={reason ? true : undefined}
+              aria-description={reason}
+              title={reason}
+            />
+          }
+        >
+          <BookmarkIcon data-icon="inline-start" />
+          Save question
+        </PopoverTrigger>
+      )}
       <PopoverContent
-        align={quiet ? 'start' : 'end'}
+        align={anchor ? 'start' : 'end'}
         side="top"
+        anchor={anchor}
+        finalFocus={anchor}
         className="w-96 max-w-viewport-inset"
       >
         <form

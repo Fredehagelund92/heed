@@ -251,6 +251,37 @@ test('a copy turns its icon into a tick for a moment, and two toasts both arrive
   await expect(tick).not.toHaveAttribute('data-done', { timeout: 2500 })
 })
 
+test("an answer's badge opens its card after a short wait, fades in on the tokens, and goes when left", async ({
+  page,
+}) => {
+  await go(page, '/ask?example=grounded')
+  const badge = page.getByRole('log').getByRole('button', { name: 'Checked', exact: true })
+  await expect(badge).toBeVisible()
+  // When the pointer arrives and when the card is in, measured in the page.
+  await badge.evaluate((el) => {
+    const w = window as unknown as { entered?: number; shown?: number }
+    el.addEventListener('pointerenter', () => (w.entered ??= performance.now()))
+    new MutationObserver(() => {
+      if (document.querySelector('[role=dialog][aria-label="What Checked means"]'))
+        w.shown ??= performance.now()
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  await badge.hover()
+  const card = page.getByRole('dialog', { name: 'What Checked means' })
+  await expect(card).toBeVisible()
+  // A pointer passing over the badge opens nothing: the card waits about 120 ms.
+  const waited = await page.evaluate(() => {
+    const w = window as unknown as { entered: number; shown: number }
+    return w.shown - w.entered
+  })
+  expect(waited).toBeGreaterThanOrEqual(100)
+  expect(await card.evaluate((el) => getComputedStyle(el).transitionDuration.split(',')[0])).toBe(
+    (await reduced(page)) ? '0s' : '0.15s',
+  )
+  await page.mouse.move(0, 0)
+  await expect(card).toBeHidden()
+})
+
 test('a sheet comes in from its edge on the panel curve', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await go(page, '/inbox')

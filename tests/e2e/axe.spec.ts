@@ -202,6 +202,23 @@ for (const { name, width, height } of widths) {
         expect(await violations(page)).toEqual([])
       })
 
+      test("a Conflict answer with its badge's card open, and its More menu", async ({ page }) => {
+        await page.goto(withTheme('/ask?n=axe-conflict', theme))
+        const box = page.getByRole('textbox', { name: 'Ask a question' })
+        await box.click()
+        await box.pressSequentially('Do Norway orders include gift-card money?')
+        await box.press('Enter')
+        const log = page.getByRole('log')
+        await expect(log.getByRole('button', { name: 'More' })).toBeVisible()
+        await log.getByRole('button', { name: 'Conflict', exact: true }).click()
+        await expect(page.getByRole('dialog', { name: 'What Conflict means' })).toBeVisible()
+        expect(await violations(page)).toEqual([])
+        await page.keyboard.press('Escape')
+        await log.getByRole('button', { name: 'More' }).click()
+        await expect(page.getByRole('menu')).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
+
       test('an answer with the definition of the metric it asks about', async ({ page }) => {
         await page.goto(withTheme('/ask?n=axe-definition', theme))
         const box = page.getByRole('textbox', { name: 'Ask a question' })

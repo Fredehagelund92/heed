@@ -135,6 +135,8 @@ describe('src/web/styles/tokens.css holds every token of the design contract', (
     expect(light['--radius']).toBe('0.625rem')
     expect(theme['--radius-frame']).toBe('0px')
     expect(theme['--radius-surface']).toBe('var(--radius)')
+    // The Ask composer is the one surface a step softer: xl, 14 px (contract 0, rule 2).
+    expect(theme['--radius-composer']).toBe('var(--radius-xl)')
     expect(theme['--radius-sm']).toBe('calc(var(--radius) * 0.6)')
     expect(theme['--radius-md']).toBe('calc(var(--radius) * 0.8)')
     expect(theme['--radius-lg']).toBe('var(--radius)')
@@ -145,6 +147,13 @@ describe('src/web/styles/tokens.css holds every token of the design contract', (
       theme['--container-sheet'],
       theme['--container-wide'],
     ]).toEqual(['60ch', '56rem', '80rem'])
+  })
+})
+
+describe('the Ask type (contract 2.3)', () => {
+  it('sets a question and an answer at 16 px on 26 px lines, as the chat apps people know', () => {
+    // text-base is Tailwind's 16 px; the line height is the chat's own.
+    expect(css).toMatch(/--leading-chat: 1\.625rem;/)
   })
 })
 

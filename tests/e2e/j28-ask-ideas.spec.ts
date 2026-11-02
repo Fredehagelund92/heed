@@ -47,7 +47,8 @@ test('Share copies an answer for Slack with its state and sources, or as a card;
   page,
 }) => {
   await ask(page, world.share)
-  await page.getByRole('button', { name: 'Share', exact: true }).click()
+  await page.getByRole('button', { name: 'More' }).last().click()
+  await page.getByRole('menuitem', { name: 'Share' }).click()
   // It opens beside the answer, in the right panel, so the answer stays in view.
   await expect(page).toHaveURL(/dock=share\./)
   const share = page.getByRole('region', { name: 'Share this answer' })
@@ -70,7 +71,8 @@ test('Share copies an answer for Slack with its state and sources, or as a card;
 
   // Nothing written down travels as Not found, with no list of sources.
   await ask(page, 'How did orders in Spain change in October 2026?')
-  await page.getByRole('button', { name: 'Share', exact: true }).click()
+  await page.getByRole('button', { name: 'More' }).last().click()
+  await page.getByRole('menuitem', { name: 'Share' }).click()
   const missing = page
     .getByRole('region', { name: 'Share this answer' })
     .getByRole('tabpanel', { name: 'Slack message' })

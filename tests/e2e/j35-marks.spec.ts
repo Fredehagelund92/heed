@@ -53,14 +53,16 @@ test("a review's clash says what to do, marked once", async ({ page }) => {
   await expect(clash).toHaveCount(1)
 })
 
-test('Ask sets the sentences from the items that disagree apart under a line, as plain words', async ({
+test('Ask sets the sentences from the items that disagree apart behind an amber rule, as plain words', async ({
   page,
 }) => {
   await ask(page, 'Do Norway orders include gift-card money?', 'Conflict')
   const log = page.getByRole('log')
   const sentences = log.locator('[aria-pressed]')
-  // The line that says so, and the sentences under it: fewer than all of them.
-  const apart = log.getByText('These two disagree', { exact: true }).first().locator('..')
+  // The rule, and the sentences behind it: fewer than all of them. No line in the thread says so;
+  // the badge's card does.
+  const apart = log.locator('[data-differ]').first()
+  await expect(log.getByText('These two disagree', { exact: true })).toHaveCount(0)
   const differ = apart.locator('[aria-pressed]')
   await expect(differ.first()).toBeVisible()
   expect(await differ.count()).toBeLessThan(await sentences.count())

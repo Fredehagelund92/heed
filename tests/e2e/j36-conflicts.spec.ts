@@ -138,7 +138,12 @@ test('the item page and its peek say what it disagrees with, and lead to the com
 test('Ask groups the two that disagree and leads to the comparison', async ({ page }) => {
   await onMockOnly('example answer', async () => {
     await go(page, '/ask?example=conflict')
-    await expect(page.getByText('These two disagree').first()).toBeVisible()
+    // The badge's card names the two; the pair sits under the answer.
+    await page.getByRole('log').getByRole('button', { name: 'Conflict', exact: true }).hover()
+    await expect(page.getByRole('dialog', { name: 'What Conflict means' })).toContainText(
+      'These two disagree',
+    )
+    await page.mouse.move(0, 0)
     await expect(page.getByRole('group', { name: 'The two items' })).toBeVisible()
     await page.getByRole('button', { name: 'Compare and decide' }).click()
     await expect(page).toHaveURL(/dock=conflict\./)

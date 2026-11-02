@@ -11,10 +11,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { QuestionPart } from '@/model/ask'
 import { emojiExtension, mentionExtension, mentionOpen } from '@/lib/mention-extension'
 import { SCOPE_KINDS, type MentionRef } from '@/lib/mentions'
-import { inputSurface } from '@/lib/surfaces'
+import { composerSurface } from '@/lib/surfaces'
 
-// The Ask composer: the soft input surface the comment box uses (lib/surfaces.ts), the words on
-// top and a thin control row under a hairline. Typing '@' scopes the question to a domain, a
+// The Ask composer: one soft surface (lib/surfaces.ts), the words on top and a row under them with
+// @ on the left and Send on the right, no hairline between. Typing '@' scopes the question to a domain, a
 // definition, a context item or a market, as chips in the words; that replaced the Read as menus.
 // Enter sends (unless the '@' list is open), Shift and Enter make a new line. Loaded on demand,
 // so the editor stays out of the first page load.
@@ -135,7 +135,7 @@ export function AskComposer({
         'data-skip-target': '',
         'aria-multiline': 'true',
         role: 'textbox',
-        class: 'max-h-48 min-h-14 overflow-y-auto px-3 py-3 text-base leading-6 outline-none',
+        class: 'max-h-48 min-h-10 overflow-y-auto px-4 pt-3 pb-1 text-base leading-6 outline-none',
       },
       handleKeyDown: (view, e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !mentionOpen(view.state)) {
@@ -202,10 +202,10 @@ export function AskComposer({
         submit()
       }}
       onClick={(e) => e.target === e.currentTarget && editor?.commands.focus('end')}
-      className={cn('ask-composer flex w-full cursor-text flex-col', inputSurface)}
+      className={cn('ask-composer flex w-full cursor-text flex-col', composerSurface)}
     >
       <EditorContent editor={editor} />
-      <div className="flex h-10 items-center gap-2 border-t px-2">
+      <div className="flex h-11 items-center gap-2 px-2">
         <Tooltip>
           <TooltipTrigger
             render={
@@ -240,39 +240,54 @@ export function AskComposer({
               ? 'Still answering.'
               : ''}
         </span>
-        <span
-          className={cn(
-            'ml-auto hidden shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground @xl:flex',
-            held && (busy || waiting) && '@xl:hidden',
+        {/* Send and Stop share one slot, so Stop is where Send was until the last word shows. The
+            keys are in their tooltips, not written in the box. */}
+        <Tooltip>
+          {busy ? (
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  size="icon"
+                  aria-label="Stop"
+                  aria-keyshortcuts="Escape"
+                  className="ml-auto rounded-md bg-foreground text-background hover:bg-foreground/80"
+                  onClick={onStop}
+                />
+              }
+            >
+              <SquareIcon className="size-2.5 fill-current" />
+            </TooltipTrigger>
+          ) : (
+            <TooltipTrigger
+              render={
+                <Button
+                  type="submit"
+                  size="icon"
+                  aria-label="Ask"
+                  aria-keyshortcuts="Enter"
+                  disabled={empty}
+                  // Still focusable while the answer comes, said as unavailable: a click sends nothing.
+                  aria-disabled={waiting || undefined}
+                  className="ml-auto rounded-md"
+                />
+              }
+            >
+              <ArrowUpIcon />
+            </TooltipTrigger>
           )}
-        >
-          <Kbd>@</Kbd> to scope - <Kbd>Enter</Kbd> to send - <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> for a
-          new line
-        </span>
-        {busy ? (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            aria-label="Stop"
-            className="shrink-0 @max-xl:ml-auto"
-            onClick={onStop}
-          >
-            <SquareIcon className="size-3 fill-current" />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            size="icon-sm"
-            aria-label="Ask"
-            disabled={empty}
-            // Still focusable while the answer comes, said as unavailable: a click sends nothing.
-            aria-disabled={waiting || undefined}
-            className="shrink-0 @max-xl:ml-auto"
-          >
-            <ArrowUpIcon />
-          </Button>
-        )}
+          <TooltipContent>
+            {busy ? (
+              <>
+                Stop <Kbd>Esc</Kbd>
+              </>
+            ) : (
+              <>
+                Ask <Kbd>Enter</Kbd> - new line <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd>
+              </>
+            )}
+          </TooltipContent>
+        </Tooltip>
       </div>
     </form>
   )
