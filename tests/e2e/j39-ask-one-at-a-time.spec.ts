@@ -115,8 +115,8 @@ test('a question that fails stays in the chat, says why, and leaves Ask ready to
     }),
   )
   await go(page, '/ask?n=fails')
-  // Said as a sentence, with what the service said after it.
-  const why = /^Couldn't get an answer\. \S/
+  // Said as a sentence, with the reason after the colon.
+  const why = /^Couldn't get an answer: [a-z]\S.*\.$/
   // Not a chat yet, so it is asked rather than opened.
   const question = 'What should I know about Orders in Germany?'
   await box(page).click()
@@ -129,7 +129,7 @@ test('a question that fails stays in the chat, says why, and leaves Ask ready to
   await expect(log.getByText(question)).toBeVisible()
   await expect(page.getByText(/Failed to fetch/)).toHaveCount(0)
   await expect(
-    page.getByRole('status').filter({ hasText: "Couldn't get an answer." }),
+    page.getByRole('status').filter({ hasText: "Couldn't get an answer:" }),
   ).toBeAttached()
   // Nothing waits on it: the box is empty and Ask can be used.
   await expect(box(page)).toHaveText('')

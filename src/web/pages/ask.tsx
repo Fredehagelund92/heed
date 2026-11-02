@@ -255,7 +255,7 @@ export function AskChat({
           queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
       } catch (e) {
         // Nothing came back: the question stays in the chat, saying so, with Ask again.
-        update(id, { type: 'error', message: `Couldn't get an answer. ${toApiError(e).message}` })
+        update(id, { type: 'error', message: `Couldn't get an answer: ${reasonInWords(toApiError(e).message)}` })
       }
     })
 
@@ -1229,4 +1229,9 @@ export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolea
   const chat = <AskChat key={`${cardId}-${!!draft}`} initial={initial} draft={draft} compact />
   if (embedded) return chat
   return <DockFrame title="Try it">{chat}</DockFrame>
+}
+
+function reasonInWords(message: string): string {
+  const reason = message.trim().replace(/[.!?]+$/, '')
+  return `${reason.charAt(0).toLowerCase()}${reason.slice(1)}.`
 }
