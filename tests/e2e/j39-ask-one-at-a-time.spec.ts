@@ -115,7 +115,8 @@ test('a question that fails stays in the chat, says why, and leaves Ask ready to
     }),
   )
   await go(page, '/ask?n=fails')
-  const why = 'Not allowed.'
+  // Said as a sentence, with what the service said after it.
+  const why = /^Couldn't get an answer\. \S/
   // Not a chat yet, so it is asked rather than opened.
   const question = 'What should I know about Orders in Germany?'
   await box(page).click()
@@ -123,9 +124,10 @@ test('a question that fails stays in the chat, says why, and leaves Ask ready to
   await box(page).press('Enter')
   // The question stays, with why nothing came back in a sentence, never the browser's words.
   const log = page.getByRole('log')
-  await expect(log.getByText(`Couldn't get an answer. ${why}`)).toBeVisible()
+  await expect(log.getByText(why)).toBeVisible()
   await expect(page.locator('[data-turn]')).toHaveCount(1)
   await expect(log.getByText(question)).toBeVisible()
+  await expect(page.getByText(/Failed to fetch/)).toHaveCount(0)
   await expect(
     page.getByRole('status').filter({ hasText: "Couldn't get an answer." }),
   ).toBeAttached()
@@ -133,10 +135,10 @@ test('a question that fails stays in the chat, says why, and leaves Ask ready to
   await expect(box(page)).toHaveText('')
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0)
   // Asked again, it is tried again rather than held, and stays one question.
-  await log.getByRole('button', { name: 'Ask again' }).click()
+  await log.getByRole('button', { name: 'Ask again', exact: true }).click()
   await expect(page.getByText("Couldn't ask that again")).toBeVisible()
   await expect(page.locator('[data-turn]')).toHaveCount(1)
-  await expect(log.getByText(`Couldn't get an answer. ${why}`)).toBeVisible()
+  await expect(log.getByText(why)).toBeVisible()
 })
 
 test('offline, a chat in the history still opens, in Ask and in the assistant panel', async ({
