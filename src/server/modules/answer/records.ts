@@ -51,7 +51,7 @@ const wordsOnly = (input: LookupInput) =>
 
 /**
  * The service's own moment, and how far its day is from the clock's: a demo or a test may pin the
- * day (`CL_FIXED_TODAY`), and then every time the database stamped is moved by the same days, as
+ * day (`HEED_FIXED_TODAY`), and then every time the database stamped is moved by the same days, as
  * the web app moves them, so "the last 24 hours" ends now on the day it keeps.
  */
 function momentOf(clock: Clock): { now: string; shift: number } {

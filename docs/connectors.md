@@ -500,7 +500,7 @@ src/server/modules/connectors/   the core: contract, registry, sources, schedule
 
 Built-in connectors are on by default; the operator may narrow them. The server's own sources
 become a configuration file the operator writes (one entry per source: id, connector, name,
-settings, scopes, domains), and today's `CUBE_MODEL_DIR`, `CL_DOMAIN_OVERRIDES` and
+settings, scopes, domains), and today's `CUBE_MODEL_DIR`, `HEED_DOMAIN_OVERRIDES` and
 `CUBE_RENAMES_FILE` keep working by producing the same entry.
 
 ### Conformance kit
@@ -622,7 +622,7 @@ Where the build differs from the decided text above:
   stored as that.
 - **Cube** is one connector, `cube`, for a model in a Git repository an administrator adds and
   for the server's own model folder (`CUBE_MODEL_DIR`), which its runtime reads as `ctx.folder`;
-  the core applies the server's domain names (`CL_DOMAIN_OVERRIDES`) and renames
+  the core applies the server's domain names (`HEED_DOMAIN_OVERRIDES`) and renames
   (`CUBE_RENAMES_FILE`) to that folder's reads (`server-source.ts`), and `npm run
 connectors:sync` is unchanged. Its settings, its refs and the sources administrators added on
   interface 2 are as they were. Its warnings are the core's codes it always had
@@ -640,7 +640,7 @@ whose compiler runs in its worker (T1), its model fetched through `ctx.git` or r
 `ctx.folder`, and the adapter is gone. What remains of it:
 
 - The server's own sources from a configuration file the operator writes, with `CUBE_MODEL_DIR`,
-  `CL_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` producing the same entry.
+  `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` producing the same entry.
 - `domainSource` `source` in the core and the API (today `cube`), and the coverage it counts.
 - The connector's version and mark version stored on every read (a migration), shown on the
   source's page, and the first read after a mark version change stored without flags (CON-116).

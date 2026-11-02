@@ -105,7 +105,7 @@ failure code, never what the tool said.
 
 ### The secret store
 
-`CL_SECRETS_DIR` names the local secret store: a folder outside the repository that only the
+`HEED_SECRETS_DIR` names the local secret store: a folder outside the repository that only the
 server's user may open (mode 0700; the server refuses to start with a folder others may read). Each
 added source's secrets are one file in it (mode 0600), named by a random id the database keeps as
 `local:<id>`; a name that is not of that form never becomes a path. A replaced secret is written

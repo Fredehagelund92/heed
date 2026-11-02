@@ -235,7 +235,7 @@ describe('the operations view and manual runs', () => {
   it('says how this server reads a source, from its own sources of the same type', async () => {
     const settings = [
       { key: 'model_folder', variable: 'CUBE_MODEL_DIR', value: '/srv/model' },
-      { key: 'domain_overrides', variable: 'CL_DOMAIN_OVERRIDES', value: null },
+      { key: 'domain_overrides', variable: 'HEED_DOMAIN_OVERRIDES', value: null },
     ] as const
     const read = async (sources: ApiServices['sources']) => {
       const { instance } = app({ outcome: 'not_running' }, { sources })

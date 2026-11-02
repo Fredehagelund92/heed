@@ -183,9 +183,10 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
 
 /**
  * Where people write to support: Contact support and Report a problem open a mail to it. Set
- * CL_SUPPORT_EMAIL when the app is built; without it, an address that goes nowhere stands in.
+ * HEED_SUPPORT_EMAIL when the app is built; without it, an address that goes nowhere stands in.
  */
-const configured = (import.meta as { env?: { CL_SUPPORT_EMAIL?: string } }).env?.CL_SUPPORT_EMAIL
+const configured = (import.meta as { env?: { HEED_SUPPORT_EMAIL?: string } }).env
+  ?.HEED_SUPPORT_EMAIL
 export const SUPPORT_EMAIL = configured?.trim() || `support@${SLUG}.example`
 
 /** A mail to support, with its subject and words filled in. */

@@ -41,7 +41,7 @@ services:
       # The web container's nginx forwards the address of each browser that calls /api/v1, so the
       # request limits count each caller on its own. Believed only from this network's private
       # addresses, where that nginx is.
-      CL_TRUSTED_PROXIES: uniquelocal
+      HEED_DEFAULT_TRUSTED_PROXIES: uniquelocal
       # The superuser makes Heed's roles and database and loads the demo; each part of the service
       # then connects as its own role (db/README.md).
       DATABASE_URL_BOOTSTRAP: postgres://postgres@db:5432/postgres
@@ -50,7 +50,7 @@ services:
       SEED_DEMO: ${SEED_DEMO:-on}
       # Your own model's folder, when you name one; empty, the image reads its demo model.
       CUBE_MODEL_DIR: ${CUBE_MODEL_DIR:+/cube-model}
-      CL_WEB_ORIGINS: http://localhost:${HEED_WEB_PORT:-8080}
+      HEED_DEFAULT_WEB_ORIGINS: http://localhost:${HEED_WEB_PORT:-8080}
       MCP_RESOURCE_URL: http://localhost:${HEED_PORT:-3000}/mcp
     volumes:
       # Your own model's folder, or an empty volume nothing reads when you name none: the demo

@@ -199,7 +199,7 @@ AI agent                Heed MCP server         Heed login server            Bro
   the only MCP call that names the person, as the proposer, on the proposal and its history; the
   request log still keeps only `signed-in`. A dev token names no person, so it is refused. When the
   app can show forms, the tool asks its open questions there first, in a request state bound to the
-  tool, the person and the app (`CL_MCP_STATE_KEY_FILE`, below).
+  tool, the person and the app (`HEED_MCP_STATE_KEY_FILE`, below).
 - **Rates.** Per caller address and minute: discovery 120, registration 10, authorize 30, token
   60, revocation 30; the web API's own limits cover the consent operations. Failed token requests
   count per client and caller address, 30 a minute; successful code exchanges and refreshes never
@@ -237,21 +237,21 @@ rejected` with a reason code (`unknown_key`, `revoked`, `malformed`) and the cli
 
 ## Settings
 
-| Variable                               | Default                                                                    | Meaning                                                                                                                          |
-| -------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `CL_LOGIN_SERVER`                      | `builtin`                                                                  | `builtin` runs the login server here; `external` trusts another one; `off` leaves only dev tokens. Tools and items never change. |
-| `CL_OAUTH_ISSUER`                      | the origin of `MCP_RESOURCE_URL`                                           | The issuer of its tokens. It must be that origin, which serves the login server.                                                 |
-| `CL_OAUTH_CONSENT_URL`                 | the first `CL_WEB_ORIGINS` origin on the issuer's host, `/connect/approve` | The consent page. It must be on an allowed web origin, on the issuer's host.                                                     |
-| `CL_OAUTH_SIGNING_KEY_FILE`            | `.heed-oauth-key.pem`                                                      | The Ed25519 signing key (PKCS #8 PEM, owner-only). Created outside production when missing; required in production.              |
-| `CL_OAUTH_PREVIOUS_KEY_FILES`          | none                                                                       | Earlier keys, comma separated, that still verify after a rotation.                                                               |
-| `CL_OAUTH_DYNAMIC_REGISTRATION`        | `on` outside production; `off` in production                               | `on` allows dynamic client registration; an explicit `on` or `off` overrides the default.                                        |
-| `CL_OAUTH_REFRESH_IDLE_HOURS`          | `168`                                                                      | A refresh token unused this long expires (7 days).                                                                               |
-| `CL_OAUTH_CONNECTION_DAYS`             | `30`                                                                       | A connection ends this many days after sign-in (720 hours).                                                                      |
-| `MCP_AUTH_ISSUER`, `MCP_AUTH_JWKS_URL` | none                                                                       | With `CL_LOGIN_SERVER=external`: whose tokens the MCP server accepts, and where their keys are.                                  |
+| Variable                               | Default                                                                      | Meaning                                                                                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `HEED_LOGIN_SERVER`                    | `builtin`                                                                    | `builtin` runs the login server here; `external` trusts another one; `off` leaves only dev tokens. Tools and items never change. |
+| `HEED_OAUTH_ISSUER`                    | the origin of `MCP_RESOURCE_URL`                                             | The issuer of its tokens. It must be that origin, which serves the login server.                                                 |
+| `HEED_OAUTH_CONSENT_URL`               | the first `HEED_WEB_ORIGINS` origin on the issuer's host, `/connect/approve` | The consent page. It must be on an allowed web origin, on the issuer's host.                                                     |
+| `HEED_OAUTH_SIGNING_KEY_FILE`          | `.heed-oauth-key.pem`                                                        | The Ed25519 signing key (PKCS #8 PEM, owner-only). Created outside production when missing; required in production.              |
+| `HEED_OAUTH_PREVIOUS_KEY_FILES`        | none                                                                         | Earlier keys, comma separated, that still verify after a rotation.                                                               |
+| `HEED_OAUTH_DYNAMIC_REGISTRATION`      | `on` outside production; `off` in production                                 | `on` allows dynamic client registration; an explicit `on` or `off` overrides the default.                                        |
+| `HEED_OAUTH_REFRESH_IDLE_HOURS`        | `168`                                                                        | A refresh token unused this long expires (7 days).                                                                               |
+| `HEED_OAUTH_CONNECTION_DAYS`           | `30`                                                                         | A connection ends this many days after sign-in (720 hours).                                                                      |
+| `MCP_AUTH_ISSUER`, `MCP_AUTH_JWKS_URL` | none                                                                         | With `HEED_LOGIN_SERVER=external`: whose tokens the MCP server accepts, and where their keys are.                                |
 
 Addresses must be https, or http on this computer only.
 
-`CL_MCP_STATE_KEY_FILE` (default `.heed-mcp-state.key`) holds the key that signs the draft tool's
+`HEED_MCP_STATE_KEY_FILE` (default `.heed-mcp-state.key`) holds the key that signs the draft tool's
 question rounds: at least 32 bytes as hex (`openssl rand -hex 32 > heed-mcp-state.key && chmod 600
 heed-mcp-state.key`), readable by its owner only. Every instance needs the same file, because an
 app may send the answers to another one. Outside production a missing file is created; in
@@ -270,8 +270,8 @@ Keep it out of the repository (`.heed-oauth-key*.pem` is ignored), out of images
 at the hosting stage it comes from the secret store as a file. Its key id (`kid`) is its RFC 7638
 thumbprint, and `/oauth/jwks` publishes the public keys only.
 
-To rotate: create a new key, point `CL_OAUTH_SIGNING_KEY_FILE` at it, list the old file (or its
-public key, `openssl pkey -in old.pem -pubout`) in `CL_OAUTH_PREVIOUS_KEY_FILES`, and restart. New
+To rotate: create a new key, point `HEED_OAUTH_SIGNING_KEY_FILE` at it, list the old file (or its
+public key, `openssl pkey -in old.pem -pubout`) in `HEED_OAUTH_PREVIOUS_KEY_FILES`, and restart. New
 tokens use the new key; tokens signed by the old one keep working until they expire, at most ten
 minutes. After that, remove the old key from the list. Refresh tokens are not signed, so
 connections survive a rotation. If a key leaks, rotate without listing the old key: every access
@@ -321,34 +321,34 @@ through the same web session.
 ### Set it up
 
 1. At the provider, register a web application: the authorization code flow, the redirect address
-   `https://<your Heed address>/api/v1/auth/oidc/callback` (or the one in `CL_OIDC_REDIRECT_URL`),
+   `https://<your Heed address>/api/v1/auth/oidc/callback` (or the one in `HEED_OIDC_REDIRECT_URL`),
    and the scopes `openid email profile` (add the provider's groups scope for group mapping).
    Either a public client (PKCE, no secret) or a confidential one with a secret.
-2. Set `CL_AUTH=oidc` (the default in production), `CL_OIDC_ISSUER` and `CL_OIDC_CLIENT_ID`. For a
+2. Set `HEED_AUTH=oidc` (the default in production), `HEED_OIDC_ISSUER` and `HEED_OIDC_CLIENT_ID`. For a
    confidential client, write the secret to a file only the service's user may read and name it:
    `printf %s "$SECRET" > oidc-secret && chmod 600 oidc-secret`, then
-   `CL_OIDC_CLIENT_SECRET_FILE=oidc-secret`. The service refuses a file others may read, and never
+   `HEED_OIDC_CLIENT_SECRET_FILE=oidc-secret`. The service refuses a file others may read, and never
    reads the secret from an environment value.
 3. Invite the first admin: `DATABASE_URL_MIGRATE=<the owner's address> npm run heed -- invite
 you@company.example --admin` prints a link that works for a week. Or map an admin group
-   (`CL_OIDC_ADMIN_GROUPS`). After that, admins invite everyone else in Settings, People.
+   (`HEED_OIDC_ADMIN_GROUPS`). After that, admins invite everyone else in Settings, People.
 4. Serve the web app and this service on the same host (one origin behind your proxy is simplest):
    the session cookie the callback sets belongs to that host.
 
-| Variable                     | Default                                                        | Meaning                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `CL_AUTH`                    | `oidc` in production; `dev` elsewhere                          | `oidc`, or the picker from `CL_DEV_PEOPLE_FILE`: `dev` locally, `demo` for demos. Production refuses both pickers. |
-| `CL_OIDC_ISSUER`             | none (required for `oidc`)                                     | The provider's issuer, exactly as its discovery document names it.                                                 |
-| `CL_OIDC_CLIENT_ID`          | none (required for `oidc`)                                     | This app's client id at the provider.                                                                              |
-| `CL_OIDC_CLIENT_SECRET_FILE` | none: a public client                                          | An owner-only file (mode 0600) with a confidential client's secret.                                                |
-| `CL_OIDC_REDIRECT_URL`       | the origin of `MCP_RESOURCE_URL`, `/api/v1/auth/oidc/callback` | The redirect address registered at the provider.                                                                   |
-| `CL_OIDC_SCOPES`             | `openid email profile`                                         | What to ask for; `openid` is required.                                                                             |
-| `CL_OIDC_GROUPS_CLAIM`       | `groups`                                                       | The ID token claim that lists the person's groups.                                                                 |
-| `CL_OIDC_ADMIN_GROUPS`       | none                                                           | Groups whose members may sign in without an invite, as an Admin. Comma-separated.                                  |
-| `CL_OIDC_MEMBER_GROUPS`      | none                                                           | Groups whose members may sign in without an invite, as a Member. Comma-separated.                                  |
-| `CL_OIDC_NAME`               | "your company account"                                         | The provider's name on the sign-in button, such as Okta.                                                           |
-| `CL_SESSION_IDLE_HOURS`      | `12`                                                           | A browser session ends after this many hours unused.                                                               |
-| `CL_SESSION_MAX_DAYS`        | `7`                                                            | A browser session ends this many days after sign-in, used or not.                                                  |
+| Variable                       | Default                                                        | Meaning                                                                                                              |
+| ------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `HEED_AUTH`                    | `oidc` in production; `dev` elsewhere                          | `oidc`, or the picker from `HEED_DEV_PEOPLE_FILE`: `dev` locally, `demo` for demos. Production refuses both pickers. |
+| `HEED_OIDC_ISSUER`             | none (required for `oidc`)                                     | The provider's issuer, exactly as its discovery document names it.                                                   |
+| `HEED_OIDC_CLIENT_ID`          | none (required for `oidc`)                                     | This app's client id at the provider.                                                                                |
+| `HEED_OIDC_CLIENT_SECRET_FILE` | none: a public client                                          | An owner-only file (mode 0600) with a confidential client's secret.                                                  |
+| `HEED_OIDC_REDIRECT_URL`       | the origin of `MCP_RESOURCE_URL`, `/api/v1/auth/oidc/callback` | The redirect address registered at the provider.                                                                     |
+| `HEED_OIDC_SCOPES`             | `openid email profile`                                         | What to ask for; `openid` is required.                                                                               |
+| `HEED_OIDC_GROUPS_CLAIM`       | `groups`                                                       | The ID token claim that lists the person's groups.                                                                   |
+| `HEED_OIDC_ADMIN_GROUPS`       | none                                                           | Groups whose members may sign in without an invite, as an Admin. Comma-separated.                                    |
+| `HEED_OIDC_MEMBER_GROUPS`      | none                                                           | Groups whose members may sign in without an invite, as a Member. Comma-separated.                                    |
+| `HEED_OIDC_NAME`               | "your company account"                                         | The provider's name on the sign-in button, such as Okta.                                                             |
+| `HEED_SESSION_IDLE_HOURS`      | `12`                                                           | A browser session ends after this many hours unused.                                                                 |
+| `HEED_SESSION_MAX_DAYS`        | `7`                                                            | A browser session ends this many days after sign-in, used or not.                                                    |
 
 ### Who may sign in
 
@@ -383,7 +383,7 @@ confidential client), and checks the ID token: its signature by the provider's p
 (RSA, RSA-PSS, ECDSA or EdDSA; never `none` or a shared-secret algorithm), the issuer, the audience
 (this client), the authorized party when there are several audiences, the expiry and issue time
 (a minute of clock skew), and the nonce. It then makes a new session, ends the one the browser had,
-and sends the browser to the path it started from on the first `CL_WEB_ORIGINS` origin, or to
+and sends the browser to the path it started from on the first `HEED_WEB_ORIGINS` origin, or to
 `/#/signin?error=<reason>` with `cancelled`, `expired`, `unavailable`, `failed`,
 `email_unverified` or `not_allowed`.
 

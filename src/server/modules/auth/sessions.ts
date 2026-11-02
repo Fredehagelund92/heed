@@ -13,7 +13,7 @@ import { toPerson } from './people.ts'
 
 export type SessionMethod = 'dev' | 'demo' | 'oidc'
 
-/** CL_SESSION_IDLE_HOURS and CL_SESSION_MAX_DAYS. */
+/** HEED_SESSION_IDLE_HOURS and HEED_SESSION_MAX_DAYS. */
 export interface SessionLifetime {
   idleHours: number
   maxDays: number

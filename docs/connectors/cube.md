@@ -66,11 +66,11 @@ Whoever runs the server sets three environment variables; Sources shows them rea
 same Cube connector reads the folder: the core hands it to the runtime as `ctx.folder`, and
 applies the domain names and the renames below to what it read.
 
-| Variable              | Setting         | Meaning                                                                                   |
-| --------------------- | --------------- | ----------------------------------------------------------------------------------------- |
-| `CUBE_MODEL_DIR`      | Model folder    | The folder Heed reads. Unset, the server reads the demo source.                           |
-| `CL_DOMAIN_OVERRIDES` | Domain names    | A JSON file outside the model folder: view to domain, for views the model names none for. |
-| `CUBE_RENAMES_FILE`   | Renamed members | A JSON file: old id to new id.                                                            |
+| Variable                | Setting         | Meaning                                                                                   |
+| ----------------------- | --------------- | ----------------------------------------------------------------------------------------- |
+| `CUBE_MODEL_DIR`        | Model folder    | The folder Heed reads. Unset, the server reads the demo source.                           |
+| `HEED_DOMAIN_OVERRIDES` | Domain names    | A JSON file outside the model folder: view to domain, for views the model names none for. |
+| `CUBE_RENAMES_FILE`     | Renamed members | A JSON file: old id to new id.                                                            |
 
 An administrator sets one versioned setting on the source's page, `sources.cube_model_url` (Model
 folder address), described under "Links to model files". An old link to it on Limits opens it
@@ -99,7 +99,7 @@ source's health (last read and its warnings, current and missing definitions, do
 flagged items and stale links), its views, its renames, its recent reads and, for a source this
 server reads, its server settings. Sources and Operations show the same answer.
 
-`CL_DOMAIN_OVERRIDES` optionally names a JSON file outside the model directory:
+`HEED_DOMAIN_OVERRIDES` optionally names a JSON file outside the model directory:
 
 ```json
 { "sales_analytics": "finance", "campaign_analytics": "paid_media" }

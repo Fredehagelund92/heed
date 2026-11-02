@@ -81,7 +81,7 @@ export type AssignmentInput = z.infer<typeof assignmentInputSchema>
 export type GrantChange = z.infer<typeof grantChangeSchema>
 export type GrantsApplied = z.infer<typeof grantsAppliedSchema>
 /**
- * How this workspace signs people in (CL_AUTH, FR-416): with the company's OpenID Connect
+ * How this workspace signs people in (HEED_AUTH, FR-416): with the company's OpenID Connect
  * provider, or the picker (`dev` locally, `demo` for demos). For `oidc`, the provider's name for
  * the button and the address that starts a sign-in (add `returnTo` with a path of the web app).
  */

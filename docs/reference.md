@@ -107,7 +107,7 @@ links (FR-326, FR-331), `scope_used`, `dates_read` and `assumed_date`, the domai
 about with what their owners wrote (FR-813), `options`, `check_report` and `instructions`. Every
 item carries `url`, its page in Heed, and the result's text has a line per item, `Open in Heed -
 <title>: <url>`, with who checked it, so the reader of an answer can check a cited item in one click
-(FR-347). The address is the first of `CL_WEB_ORIGINS`; the eval runner and the previews run
+(FR-347). The address is the first of `HEED_WEB_ORIGINS`; the eval runner and the previews run
 without one and give the path (`/context/itm_...`). A link holds only the item's id: the page
 applies the audience rules to whoever opens it. Metric and dimension names may be the member names
 the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed resolves them
@@ -197,7 +197,7 @@ questions there before it saves anything: the domain, the kind when the agent's 
 words disagree, the term an ambiguous name means, the first day, whether an issue is still going
 on, and the source link and sentence, as one form of flat fields with closed choices where there
 are any. The app retries the call with the answers and the request state the tool returned. That
-state is signed with `CL_MCP_STATE_KEY_FILE` (HMAC-SHA256, through the SDK's request state
+state is signed with `HEED_MCP_STATE_KEY_FILE` (HMAC-SHA256, through the SDK's request state
 codec), bound to the tool, the person and the app, carries a digest of the call's arguments, expires after
 ten minutes, and saves at most one draft (`proposals.answers_round` is unique). A changed,
 foreign, expired or reused state saves nothing and is refused with a `reason`. Answers are read as
@@ -242,7 +242,7 @@ dev token: the app reads `/.well-known/oauth-protected-resource/mcp`, the person
 allows it on the consent page (`/connect/approve` on the web app), and the app gets ten-minute
 access tokens and rotating refresh tokens. Settings, under Agents and access, lists the agents
 connected and revokes them. Dynamic client registration, which Claude Code uses, is on
-outside production and needs `CL_OAUTH_DYNAMIC_REGISTRATION=on` in production. How it works, the settings, key rotation and the threat notes
+outside production and needs `HEED_OAUTH_DYNAMIC_REGISTRATION=on` in production. How it works, the settings, key rotation and the threat notes
 are in [docs/ai-sign-in.md](ai-sign-in.md).
 
 Structured question dates are inclusive (`window.from` and `window.to`); returned validity and

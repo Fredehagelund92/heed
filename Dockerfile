@@ -53,8 +53,8 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
     MCP_DEV_KEY_FILE=/var/lib/heed/mcp-dev-key.pem \
-    CL_MCP_STATE_KEY_FILE=/var/lib/heed/mcp-state.key \
-    CL_OAUTH_SIGNING_KEY_FILE=/var/lib/heed/oauth-key.pem
+    HEED_DEFAULT_MCP_STATE_KEY_FILE=/var/lib/heed/mcp-state.key \
+    HEED_DEFAULT_OAUTH_SIGNING_KEY_FILE=/var/lib/heed/oauth-key.pem
 EXPOSE 3000
 # Ready once the database answers. Every 2 seconds while it starts (the first start loads the
 # demo, a minute or two), then every 30.

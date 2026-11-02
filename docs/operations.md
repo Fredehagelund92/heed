@@ -37,7 +37,7 @@ Every request under `/api` counts against a per-minute limit (FR-408): 600 for e
 person and 120 for each address before sign-in, the `limits.api_rate_per_minute` setting. Over
 it, the answer is 429 with `Retry-After` in seconds. The counts live in the process, so each
 instance counts on its own. An address is the connection's peer, unless the peer is a proxy named
-in `CL_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
+in `HEED_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
 `uniquelocal`, comma-separated): then it is the address that proxy forwards in `X-Forwarded-For`.
 The web image's nginx forwards the address of each caller, and drops one a caller sends, and
 `compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. Unset,
@@ -61,7 +61,7 @@ administrator session; the POST also requires the session CSRF token and an allo
 retry, `job_overdue` and `connector_stale` from the watchdog.
 
 `GET /metrics` serves the service's numbers in the Prometheus text format to a scraper that
-presents `Authorization: Bearer <CL_METRICS_TOKEN>`; without the variable the endpoint is off
+presents `Authorization: Bearer <HEED_METRICS_TOKEN>`; without the variable the endpoint is off
 (404), and a session never opens it. It counts HTTP requests and their time by route template or
 API operation, and MCP requests by tool, status and agent family (FR-410), and reads at scrape time what the operations
 view shows: each job's last success, overdue jobs, runs and queue, connector age, model spending
@@ -71,14 +71,14 @@ label counts exactly, for operators holding the metrics token, unlike Observabil
 
 Configuration comes from the environment, read once at start-up by
 `src/server/config/env.ts`; `.env.example` lists every variable. The service refuses to start
-and names each bad variable when one is wrong. `CL_AUTH` is `oidc` (company sign-in with
+and names each bad variable when one is wrong. `HEED_AUTH` is `oidc` (company sign-in with
 OpenID Connect, the default in production; set up as docs/ai-sign-in.md says), `dev` (the
-default elsewhere) or `demo`: both pick a person from `CL_DEV_PEOPLE_FILE` (default
+default elsewhere) or `demo`: both pick a person from `HEED_DEV_PEOPLE_FILE` (default
 `db/seed/people.local.yml`), and production refuses both. Requests need an explicit cookie
 sign-in; the old `CL_DEV_PERSON` setting no longer signs requests in. A browser session ends after
-`CL_SESSION_IDLE_HOURS` unused (12) and `CL_SESSION_MAX_DAYS` after sign-in (7).
-`CL_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
-`CL_PRODUCT_NAME` (default `Heed`) is the name the app and the help pages say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is
+`HEED_SESSION_IDLE_HOURS` unused (12) and `HEED_SESSION_MAX_DAYS` after sign-in (7).
+`HEED_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
+`HEED_PRODUCT_NAME` (default `Heed`) is the name the app and the help pages say; `docs/rename-checklist.md` covers what it does and does not rename. `HEED_SUPPORT_EMAIL` is
 the address the web app's Contact support and Report a problem write to, read when the app and
 the docs site are built: Report a problem opens a mail to it in the person's own mail app, with
 what they wrote and the page's address, and sends nothing through the service. Unset, an address
@@ -87,10 +87,10 @@ that goes nowhere stands in (`support@heed.example`).
 from the `models.*` settings and the provider's key from `.env.local` (for example
 `ANTHROPIC_API_KEY` or `VERCEL_AI_GATEWAY_API_KEY`). The service refuses to start when a role's
 setting names a provider or model the registry does not have, or a provider whose key is missing,
-and the message names the setting. `MODEL_PROVIDER` is refused with a note on what replaced it. `CL_METRICS_TOKEN` (at least 32 characters, for example
+and the message names the setting. `MODEL_PROVIDER` is refused with a note on what replaced it. `HEED_METRICS_TOKEN` (at least 32 characters, for example
 `openssl rand -hex 32`) turns `/metrics` on. `CUBE_MODEL_DIR` names a folder of Cube model files (unset: invented demo
 definitions; the service image reads its own copy of the demo model `db/seed/cube` outside
-production, and `db/prepare.ts` refuses a folder that is missing or empty), with `CL_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `CL_SECRETS_DIR` names
+production, and `db/prepare.ts` refuses a folder that is missing or empty), with `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `HEED_SECRETS_DIR` names
 the local secret store, a folder outside the repository that only the server's user may open
 (mode 0700), where sources added in Administration › Sources keep their tokens; unset, no secret
 is kept and a source that needs one cannot be added.
@@ -98,12 +98,24 @@ is kept and a source that needs one cannot be added.
 Database setup, migration rules, the bulk demo seed and isolated test databases are documented
 in [db/README.md](../db/README.md).
 
+## Settings named CL_ before 0.1.0
+
+Before Heed 0.1.0 each setting that now starts with `HEED_` started with `CL_` instead, and the
+rest of its name is the same: `CL_AUTH` is `HEED_AUTH`, `CL_WEB_ORIGINS` is `HEED_WEB_ORIGINS`.
+Heed 0.1 still reads an old name when the new one is unset (or empty), and a new name that is set
+always wins. Each process that reads an old name (the service, the command-line tool, the web build) prints
+one warning when it starts that names the old settings in use and their new names, never their
+values. The
+release after 0.1 reads the new names only, so rename them in `.env.local`, in your own compose
+file and wherever else the service runs. The old names: `CL_AUTH`, `CL_DEV_PEOPLE_FILE`, `CL_DOMAIN_OVERRIDES`, `CL_FIXED_TODAY`, `CL_LOGIN_SERVER`, `CL_MCP_STATE_KEY_FILE`, `CL_METRICS_TOKEN`, `CL_OAUTH_CONNECTION_DAYS`, `CL_OAUTH_CONSENT_URL`, `CL_OAUTH_DYNAMIC_REGISTRATION`, `CL_OAUTH_ISSUER`, `CL_OAUTH_PREVIOUS_KEY_FILES`, `CL_OAUTH_REFRESH_IDLE_HOURS`, `CL_OAUTH_SIGNING_KEY_FILE`, `CL_OIDC_ADMIN_GROUPS`, `CL_OIDC_CLIENT_ID`, `CL_OIDC_CLIENT_SECRET_FILE`, `CL_OIDC_GROUPS_CLAIM`, `CL_OIDC_ISSUER`, `CL_OIDC_MEMBER_GROUPS`, `CL_OIDC_NAME`, `CL_OIDC_REDIRECT_URL`, `CL_OIDC_SCOPES`, `CL_PRODUCT_NAME`, `CL_SECRETS_DIR`, `CL_SESSION_IDLE_HOURS`, `CL_SESSION_MAX_DAYS`, `CL_SUPPORT_EMAIL`, `CL_TRUSTED_PROXIES`, `CL_WEB_ORIGINS`, `CL_WEB_READ_LOOPBACK`
+(`src/domain/renamed-settings.ts` pairs each with its new name).
+
 ## Run the image in production mode
 
 Heed 0.1 is for trying out on one computer. The service image starts in production mode unless
 told otherwise (`NODE_ENV=production`): people sign in with your company's OpenID Connect
 provider; the demo's people picker, dev tokens and the demo data are refused; and dynamic client
-registration is off unless `CL_OAUTH_DYNAMIC_REGISTRATION=on`. With no sign-in set up it refuses
+registration is off unless `HEED_OAUTH_DYNAMIC_REGISTRATION=on`. With no sign-in set up it refuses
 to start, names the missing settings and says how to get the demo instead. `compose.yaml` sets `NODE_ENV=development`,
 the one setting the demo needs: the people picker, where anyone can sign in as anyone, an
 administrator included, and the service says so in its log when it starts.
@@ -112,9 +124,9 @@ To run the image in production mode, beside a PostgreSQL 18 database (see `compo
 database settings):
 
 1. Register Heed with your provider as a web app, with the redirect address
-   `<your address>/api/v1/auth/oidc/callback` (`CL_OIDC_REDIRECT_URL` to use another), and set
-   `CL_OIDC_ISSUER` and `CL_OIDC_CLIENT_ID`; a confidential client's secret goes in an owner-only
-   file named by `CL_OIDC_CLIENT_SECRET_FILE`. `CL_OIDC_ADMIN_GROUPS` and `CL_OIDC_MEMBER_GROUPS`
+   `<your address>/api/v1/auth/oidc/callback` (`HEED_OIDC_REDIRECT_URL` to use another), and set
+   `HEED_OIDC_ISSUER` and `HEED_OIDC_CLIENT_ID`; a confidential client's secret goes in an owner-only
+   file named by `HEED_OIDC_CLIENT_SECRET_FILE`. `HEED_OIDC_ADMIN_GROUPS` and `HEED_OIDC_MEMBER_GROUPS`
    let the members of those groups in without an invite. [How AI sign-in works](ai-sign-in.md)
    has every sign-in setting.
 2. Make the keys production never makes on its own, once, in the volume that keeps them:
@@ -122,11 +134,11 @@ database settings):
    computer: `npm run keys:create`). It makes the login server's signing key and the key that
    seals suggest_context's questions, owner-only, and keeps a key that exists.
 3. Set `MCP_RESOURCE_URL` to the MCP server's https address, such as
-   `https://heed.example.com/mcp`, and `CL_WEB_ORIGINS` to the web app's address on the same
+   `https://heed.example.com/mcp`, and `HEED_WEB_ORIGINS` to the web app's address on the same
    host: the built-in login server for agents needs https in production. Put a TLS proxy in front
    that sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly and
    only the rest (the web app's files) to the web image, with the public host.
-4. Name that TLS proxy in `CL_TRUSTED_PROXIES`, so each caller has a request limit of its own.
+4. Name that TLS proxy in `HEED_TRUSTED_PROXIES`, so each caller has a request limit of its own.
    The web image's nginx overwrites `X-Forwarded-For` with its own peer's address, so it gives
    per-caller limits only where it is the first proxy, as in `compose.yaml`.
 
@@ -200,7 +212,7 @@ command-line tool. Writes need the session cookie, allowed `Origin` and `x-heed-
 `heed` (`npm run heed -- <command>`) talks to the service through the typed contract client and
 signs in as a person from the dev people file (`--as` or `HEED_EMAIL`; `--url` or `HEED_URL`,
 else http://127.0.0.1:3000). For changes it presents the origin the service allows: `--origin` or
-`HEED_ORIGIN`, else the first of `CL_WEB_ORIGINS`, else the service's default.
+`HEED_ORIGIN`, else the first of `HEED_WEB_ORIGINS`, else the service's default.
 
 ```sh
 npm run heed -- validate lessons.yaml                  # no service needed

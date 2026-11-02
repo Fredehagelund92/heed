@@ -8,6 +8,11 @@ import { docFiles, helpDocs, loadDocs } from './scripts/docs-plugin.ts'
 import { llmsFullTxt, llmsTxt } from './src/domain/docs.ts'
 import { storageKey } from './src/web/lib/brand.ts'
 import { productNameFrom } from './src/domain/brand.ts'
+import {
+  renamedSettings,
+  renamedSettingsWarning,
+  withRenamedSettings,
+} from './src/domain/renamed-settings.ts'
 
 /*
   The web app in src/web: the approved mockup (apps/mockup) on the repository's router, icon
@@ -25,16 +30,41 @@ const HTML_ENTITIES: Record<string, string> = {
   '"': '&quot;',
 }
 
+/** The settings the web build reads, besides VITE_ ones. */
+const webSettings: readonly string[] = ['HEED_PRODUCT_NAME', 'HEED_SUPPORT_EMAIL']
+let warnedOfOldNames = false
+
+/**
+ * The web build's settings under their old CL_ names (src/domain/renamed-settings.ts): read as
+ * their HEED_ names when only the old one is set, from the environment or an env file, with one
+ * warning per process. Vite reads the environment after this hook, and it wins over the files.
+ */
+export function renamedWebSettings(): Plugin {
+  return {
+    name: 'heed-web:renamed-settings',
+    config(_, { mode }) {
+      const { environment, oldNames } = withRenamedSettings(loadEnv(mode, root, ''))
+      const used = oldNames.filter((name) => webSettings.includes(renamedSettings[name]))
+      for (const name of used)
+        process.env[renamedSettings[name]] = environment[renamedSettings[name]]
+      if (used.length && !warnedOfOldNames) {
+        warnedOfOldNames = true
+        console.warn(renamedSettingsWarning(used))
+      }
+    },
+  }
+}
+
 /**
  * The product's name in the page title before the app runs (src/web/lib/brand.ts): the same
- * `CL_PRODUCT_NAME` the app and the service read, so the tab does not flash another name.
+ * `HEED_PRODUCT_NAME` the app and the service read, so the tab does not flash another name.
  */
 export function productTitle(): Plugin {
   let name = productNameFrom(undefined)
   return {
     name: 'heed-web:product-title',
     configResolved(config) {
-      name = productNameFrom((config.env as Record<string, string | undefined>).CL_PRODUCT_NAME)
+      name = productNameFrom((config.env as Record<string, string | undefined>).HEED_PRODUCT_NAME)
     },
     transformIndexHtml: (html) =>
       html.replace('%PRODUCT_NAME%', () =>
@@ -102,7 +132,7 @@ export default defineConfig(({ mode }) => ({
   envDir: root,
   // VITE_ variables, the product's name the service reads too (src/web/lib/brand.ts), and the
   // support address Contact support and Report a problem write to (src/web/lib/help-content.ts).
-  envPrefix: ['VITE_', 'CL_PRODUCT_NAME', 'CL_SUPPORT_EMAIL'],
+  envPrefix: ['VITE_', 'HEED_PRODUCT_NAME', 'HEED_SUPPORT_EMAIL'],
   resolve: {
     tsconfigPaths: true,
     // The binding the app talks to (src/web/api/binding.ts): the mock, unless VITE_API_MODE=http
@@ -113,6 +143,7 @@ export default defineConfig(({ mode }) => ({
         : [],
   },
   plugins: [
+    renamedWebSettings(),
     // The Inbox and Ask load with the app; every other page is a lazy route of its own
     // (routes/**/*.lazy.tsx), fetched when a link to it is hovered or once the browser is idle
     // after the first page (main.tsx). scripts/check-bundle-size.mjs holds the first load to its

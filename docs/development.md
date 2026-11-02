@@ -115,7 +115,7 @@ location.reload()
 `GET /api/v1/auth/people` lists the file's choices, with the roles each holds and their domains. `GET /api/v1/auth/session` returns the
 signed-in person, current permissions and a CSRF token. Send that token as `X-Heed-CSRF` on
 subsequent POST requests, including `/auth/sign-out`. Sign-in uses the literal `dev-sign-in`
-header instead; all mutations also require an exact Origin in `CL_WEB_ORIGINS`. The default
+header instead; all mutations also require an exact Origin in `HEED_WEB_ORIGINS`. The default
 allows the Vite dev and preview origins. Override it for other ports. No CORS access is granted.
 
 Sessions last eight hours, rotate at sign-in and are invalidated by sign-out, person deactivation
@@ -140,7 +140,7 @@ sets a domain's owners). Administrators list and change people under `/members` 
 `/invites` (list, create, `/{id}/resend`, `/{id}/revoke`): an invite carries a role and owned domains,
 returns a link on the web app's address, is stored only as a token hash, expires after 7 days and is
 single use. An invite is accepted at the person's first OIDC sign-in, by the address the provider
-has verified (`CL_AUTH=oidc`, docs/ai-sign-in.md); `npm run heed -- invite <email> --admin` invites
+has verified (`HEED_AUTH=oidc`, docs/ai-sign-in.md); `npm run heed -- invite <email> --admin` invites
 the first admin of a new install.
 
 Context then shows the demo's items, read from PostgreSQL. The dev and preview servers forward

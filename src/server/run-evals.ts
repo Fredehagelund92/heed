@@ -32,7 +32,7 @@ import { createLogger } from './observability/logger.ts'
  * spent it, and an answer starts only while what was spent, plus a margin for every answer in
  * flight, leaves room. `--pass-rule all` counts a wording only when every try passes (pass^k).
  * A question with its own as-of day (a golden question's) is asked on that day, the others on the
- * run's (`CL_FIXED_TODAY` or today), and the command says which day each was asked on.
+ * run's (`HEED_FIXED_TODAY` or today), and the command says which day each was asked on.
  *
  * The command holds the run while it works it, so the service never works it too. A run that
  * stops before every answer is made (the provider kept failing, a cap or the ceiling was reached,
@@ -197,7 +197,7 @@ async function main() {
       console.log(
         own
           ? `Asked as of ${day}: ${plural(n, 'question')} on ${n === 1 ? 'its' : 'their'} own as-of day.`
-          : `Asked as of ${day ?? deps.clock.today()}: ${plural(n, 'question')} without an as-of day, on the run's day${config.fixedToday ? ' (CL_FIXED_TODAY)' : ''}.`,
+          : `Asked as of ${day ?? deps.clock.today()}: ${plural(n, 'question')} without an as-of day, on the run's day${config.fixedToday ? ' (HEED_FIXED_TODAY)' : ''}.`,
       )
     const credits = values.real ? await startCreditsCheck(deps.port, database, providers) : null
     await workEvaluations(database, deps, {

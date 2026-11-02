@@ -74,7 +74,7 @@ export interface McpDependencies {
   drafts?: DraftTool
   /**
    * The HMAC key (at least 32 bytes) that seals `suggest_context`'s question rounds, shared by
-   * every instance (CL_MCP_STATE_KEY_FILE). Without it the questions are never asked in the
+   * every instance (HEED_MCP_STATE_KEY_FILE). Without it the questions are never asked in the
    * person's agent: the result lists them with the link instead.
    */
   stateKey?: Uint8Array
@@ -84,7 +84,7 @@ export interface McpDependencies {
    */
   reads?: ServingReads
   /**
-   * The web app's address (the first of CL_WEB_ORIGINS, as for the draft link), for each delivered
+   * The web app's address (the first of HEED_WEB_ORIGINS, as for the draft link), for each delivered
    * item's page in Heed (FR-347). Without it the pages are paths on the web app.
    */
   web?: string | null

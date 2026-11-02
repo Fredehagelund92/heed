@@ -150,7 +150,7 @@ it("prints counts by type only from the key holder's command (npm run held-out -
           ...process.env,
           ...key,
           DATABASE_URL: url,
-          CL_FIXED_TODAY: '2026-10-08',
+          HEED_FIXED_TODAY: '2026-10-08',
           LOG_LEVEL: 'silent',
         },
         timeout: 240_000,
@@ -184,7 +184,7 @@ it("prints counts by type only from the key holder's command (npm run held-out -
     {
       encoding: 'utf8',
       cwd: local,
-      env: { ...withoutDatabase(), CL_FIXED_TODAY: '2026-10-08', LOG_LEVEL: 'silent' },
+      env: { ...withoutDatabase(), HEED_FIXED_TODAY: '2026-10-08', LOG_LEVEL: 'silent' },
       timeout: 240_000,
     },
   )

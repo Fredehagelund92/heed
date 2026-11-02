@@ -8,7 +8,7 @@ import {
 import { ConfigError, loadConfig } from '../../src/server/config/env.ts'
 
 /*
-  The product's name setting (docs/rename-checklist.md): one setting, CL_PRODUCT_NAME, read once
+  The product's name setting (docs/rename-checklist.md): one setting, HEED_PRODUCT_NAME, read once
   at start by the service and the web build. A value that cannot be a name stops the start; a
   help page's token becomes the name.
 */
@@ -17,10 +17,10 @@ const other = 'Acme Ledger'
 const databaseUrl = 'postgres://localhost:5432/context_layer_dev'
 const old = new RegExp(`\\b${DEFAULT_PRODUCT_NAME}\\b`)
 
-/** The service's modules as a start with CL_PRODUCT_NAME set loads them. */
+/** The service's modules as a start with HEED_PRODUCT_NAME set loads them. */
 async function startedAs(name: string | undefined) {
-  if (name === undefined) vi.stubEnv('CL_PRODUCT_NAME', undefined)
-  else vi.stubEnv('CL_PRODUCT_NAME', name)
+  if (name === undefined) vi.stubEnv('HEED_PRODUCT_NAME', undefined)
+  else vi.stubEnv('HEED_PRODUCT_NAME', name)
   vi.resetModules()
   const [brand, tools, service] = await Promise.all([
     import('../../src/server/brand.ts'),
@@ -47,15 +47,15 @@ describe('the product name setting', () => {
   })
 
   it('stops the start with a reason when the name cannot be used, and takes an empty one as unset', () => {
-    expect(() => loadConfig({ DATABASE_URL: databaseUrl, CL_PRODUCT_NAME: other })).not.toThrow()
-    expect(() => loadConfig({ DATABASE_URL: databaseUrl, CL_PRODUCT_NAME: '' })).not.toThrow()
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, HEED_PRODUCT_NAME: other })).not.toThrow()
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, HEED_PRODUCT_NAME: '' })).not.toThrow()
     for (const bad of [
       'Two\nlines',
       '<b>Acme</b>',
       '{{product}}',
       'x'.repeat(PRODUCT_NAME_MAX + 1),
     ])
-      expect(() => loadConfig({ DATABASE_URL: databaseUrl, CL_PRODUCT_NAME: bad })).toThrow(
+      expect(() => loadConfig({ DATABASE_URL: databaseUrl, HEED_PRODUCT_NAME: bad })).toThrow(
         ConfigError,
       )
   })

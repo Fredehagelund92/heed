@@ -52,13 +52,13 @@ describe('the service entry point', { timeout: 30_000 }, () => {
     expect(await server.exited).toBe(0)
     expect(server.output()).toContain('"msg":"stopped"')
     // The picker lets anyone in as anyone: the start says so.
-    expect(server.output()).toContain('Sign-in is the people picker (CL_AUTH=dev)')
+    expect(server.output()).toContain('Sign-in is the people picker (HEED_AUTH=dev)')
   })
 
   it('refuses to start with invalid configuration and says why', async () => {
     const server = start({ NODE_ENV: 'production', DATABASE_URL: 'postgres://localhost/x' })
     expect(await server.exited).toBe(1)
-    expect(server.output()).toContain('CL_OIDC_ISSUER: Required when CL_AUTH=oidc')
+    expect(server.output()).toContain('HEED_OIDC_ISSUER: Required when HEED_AUTH=oidc')
     expect(server.output()).toContain('set NODE_ENV=development, as compose.yaml does')
   })
 
@@ -77,12 +77,12 @@ describe('the service entry point', { timeout: 30_000 }, () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgres://127.0.0.1:1/context_layer_none',
         PORT: '0',
-        CL_OIDC_ISSUER: 'http://127.0.0.1:1/realms/heed',
-        CL_OIDC_CLIENT_ID: 'heed',
+        HEED_OIDC_ISSUER: 'http://127.0.0.1:1/realms/heed',
+        HEED_OIDC_CLIENT_ID: 'heed',
         MCP_RESOURCE_URL: resource,
-        CL_WEB_ORIGINS: 'https://heed.example.test',
-        CL_OAUTH_SIGNING_KEY_FILE: signingKey,
-        CL_MCP_STATE_KEY_FILE: join(keys, 'state.key'),
+        HEED_WEB_ORIGINS: 'https://heed.example.test',
+        HEED_OAUTH_SIGNING_KEY_FILE: signingKey,
+        HEED_MCP_STATE_KEY_FILE: join(keys, 'state.key'),
         MCP_DEV_KEY_FILE: join(keys, 'dev-key.pem'),
       })
       server = booted

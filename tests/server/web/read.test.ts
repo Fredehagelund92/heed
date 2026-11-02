@@ -11,7 +11,7 @@ import {
 
 /*
   read_source's reader against a fake web server on this machine. The tests' reader may open
-  http on loopback (as CL_WEB_READ_LOOPBACK lets the end-to-end suite); every other address rule
+  http on loopback (as HEED_WEB_READ_LOOPBACK lets the end-to-end suite); every other address rule
   holds: a redirect to a private or metadata address is refused at its hop, and so are a page too
   large (also once decompressed), one too slow, a PDF, a file that is not text and an error page.
   The service's own reader refuses this machine outright.

@@ -674,7 +674,7 @@ describe('runs that stop before every answer is made (R4, R6)', () => {
         env: {
           ...process.env,
           DATABASE_URL: url,
-          CL_FIXED_TODAY: '2026-10-08',
+          HEED_FIXED_TODAY: '2026-10-08',
           LOG_LEVEL: 'silent',
         },
         timeout: 240_000,
@@ -788,7 +788,7 @@ describe('runs that stop before every answer is made (R4, R6)', () => {
         env: {
           ...process.env,
           DATABASE_URL: url,
-          CL_FIXED_TODAY: '2026-10-08',
+          HEED_FIXED_TODAY: '2026-10-08',
           LOG_LEVEL: 'silent',
         },
         timeout: 240_000,
@@ -1050,7 +1050,7 @@ describe('npm run eval', () => {
       env: {
         ...process.env,
         DATABASE_URL: url,
-        CL_FIXED_TODAY: '2026-10-08',
+        HEED_FIXED_TODAY: '2026-10-08',
         LOG_LEVEL: 'silent',
       },
       timeout: 240_000,
@@ -1062,7 +1062,7 @@ describe('npm run eval', () => {
     expect(result.stdout).toMatch(/^Judge errors: 0 of \d+ judged answers \(0\.0%\)\.$/m)
     // The day the questions were asked on: none of these has its own, so the run's pinned day.
     expect(result.stdout).toMatch(
-      /^Asked as of 2026-10-08: \d+ questions without an as-of day, on the run's day \(CL_FIXED_TODAY\)\.$/m,
+      /^Asked as of 2026-10-08: \d+ questions without an as-of day, on the run's day \(HEED_FIXED_TODAY\)\.$/m,
     )
   }, 300_000)
 })
@@ -1070,7 +1070,7 @@ describe('npm run eval', () => {
 describe('the day a question is asked on (round 6)', () => {
   it("reads a dateless question at its own as-of day, and one without at the run's day", async () => {
     // A golden question is dated (7 October 2026); without its day a run read "this past week"
-    // at the machine's real today, unless CL_FIXED_TODAY was pinned by hand for every run.
+    // at the machine's real today, unless HEED_FIXED_TODAY was pinned by hand for every run.
     const dateless = (id: string, extra: Partial<GoldenQuestionInput> = {}) =>
       question(id, 'Online sales to Norway stopped on 4 August', {
         wordings: [

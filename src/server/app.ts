@@ -56,7 +56,7 @@ export interface AppDependencies {
   clock?: Clock
   devPeople?: readonly DevPerson[]
   /**
-   * How people sign in (CL_AUTH): the composition root builds it. Defaults to the dev picker over
+   * How people sign in (HEED_AUTH): the composition root builds it. Defaults to the dev picker over
    * `devPeople`.
    */
   signIn?: SignIn
@@ -66,7 +66,7 @@ export interface AppDependencies {
   nodeEnv?: string
   /** The process's counters. Defaults to a new set. */
   metrics?: Metrics
-  /** `CL_METRICS_TOKEN`: the bearer token `/metrics` asks for. Without one it is off. */
+  /** `HEED_METRICS_TOKEN`: the bearer token `/metrics` asks for. Without one it is off. */
   metricsToken?: string
   /** The built-in login server for a person's own AI client (FR-403). Without one it is off. */
   login?: LoginServer
@@ -74,7 +74,7 @@ export interface AppDependencies {
   readPage?: PageReader
   /**
    * The proxies whose X-Forwarded-For and X-Forwarded-Proto the service believes
-   * (CL_TRUSTED_PROXIES): a caller's address, which limits count by, is then the one they
+   * (HEED_TRUSTED_PROXIES): a caller's address, which limits count by, is then the one they
    * forward. Defaults to none: the connection's peer.
    */
   trustedProxies?: readonly string[]

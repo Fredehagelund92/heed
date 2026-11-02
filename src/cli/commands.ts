@@ -57,7 +57,7 @@ Options:
   --url <url>         The service (HEED_URL, else http://127.0.0.1:3000)
   --as <email>        Sign in as this person from the dev people file (HEED_EMAIL)
   --origin <origin>   The origin to present for changes (HEED_ORIGIN, else the first
-                      of CL_WEB_ORIGINS, else the service's default, ${DEFAULT_WEB_ORIGINS[0]})
+                      of HEED_WEB_ORIGINS, else the service's default, ${DEFAULT_WEB_ORIGINS[0]})
   --out <file>        Write the result to a file instead of standard output
   --json              Print the result as JSON, for scripts and agents
   --help              Show this help
@@ -262,11 +262,11 @@ async function connect(values: Values, io: Io): Promise<HeedClient> {
   if (!URL.canParse(url)) throw new UsageError(`Not a URL: ${url}`)
   const email = values.as ?? io.env.HEED_EMAIL
   if (!email) throw new UsageError('Say who you are: --as <email> or HEED_EMAIL')
-  // The service checks the origin of every change, as for a browser (CL_WEB_ORIGINS).
+  // The service checks the origin of every change, as for a browser (HEED_WEB_ORIGINS).
   const origin =
     values.origin ??
     io.env.HEED_ORIGIN ??
-    io.env.CL_WEB_ORIGINS?.split(',')[0]?.trim() ??
+    io.env.HEED_WEB_ORIGINS?.split(',')[0]?.trim() ??
     DEFAULT_WEB_ORIGINS[0]
   const connection = createClient({ url, origin, ...(io.fetch ? { fetch: io.fetch } : {}) })
   await connection.signIn(email)
@@ -441,7 +441,7 @@ async function invite(
       "Set DATABASE_URL_MIGRATE to the database owner's address (db/README.md): an invite from here is made in the database.",
     )
   const webOrigin =
-    values.origin ?? io.env.CL_WEB_ORIGINS?.split(',')[0]?.trim() ?? DEFAULT_WEB_ORIGINS[0]
+    values.origin ?? io.env.HEED_WEB_ORIGINS?.split(',')[0]?.trim() ?? DEFAULT_WEB_ORIGINS[0]
   const result = await operatorInvite({
     databaseUrl,
     webOrigin,
