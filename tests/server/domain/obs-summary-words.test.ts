@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { noCaughtView, type CaughtView } from '@domain/obs-summary'
-import { caughtSentence } from '@domain/obs-summary-words'
+import { noCaughtView, type CaughtView } from '../../../src/domain/obs-summary.ts'
 import {
   caughtLines,
+  caughtSentence,
   changesWords,
   notComparedWords,
   periodName,
@@ -10,20 +10,19 @@ import {
   summaryNumbers,
   summarySentences,
   summaryWords,
-  type SummaryData,
-} from '@/model/obs-summary'
+  type SummaryFacts,
+} from '../../../src/domain/obs-summary-words.ts'
 
-// Summary's words (model/obs-summary.ts): fixed templates over counts the binding already
+// Summary's words (src/domain/obs-summary-words.ts), which a monthly snapshot keeps: fixed templates over counts the binding already
 // disclosed. A share is a whole per cent from 100 questions, words from 30, nothing below; a move
 // is up or down only beyond what chance would make; a sentence shows only when its count does.
 
 const day = (y: number, m: number, d: number) => Date.UTC(y, m - 1, d)
 
-function data(over: Partial<SummaryData> = {}): SummaryData {
+type Data = SummaryFacts & { complete: boolean }
+
+function data(over: Partial<Data> = {}): Data {
   return {
-    state: 'normal',
-    period: 'month',
-    last: day(2026, 10, 22),
     now: { start: day(2026, 9, 1), end: day(2026, 10, 1) },
     before: { start: day(2026, 8, 1), end: day(2026, 9, 1) },
     since: day(2026, 4, 17),
@@ -31,10 +30,8 @@ function data(over: Partial<SummaryData> = {}): SummaryData {
     numbers: { asked: 532, checked: 335, warned: 82, missing: 115 },
     previous: { asked: 483, checked: 290, missing: 110 },
     notCompared: null,
-    weeks: [],
-    open: { total: 3, spots: [] },
-    changes: { total: 12, before: 9, latest: [] },
-    hidden: 0,
+    open: { total: 3 },
+    changes: { total: 12 },
     ...over,
   }
 }
@@ -118,8 +115,8 @@ describe('summarySentences', () => {
         numbers: { asked: 47, checked: null, warned: 0, missing: null },
         previous: null,
         notCompared: 'started',
-        open: { total: 0, spots: [] },
-        changes: { total: 0, before: 0, latest: [] },
+        open: { total: 0 },
+        changes: { total: 0 },
       }),
     )
     expect(lines).toEqual([
@@ -134,9 +131,9 @@ describe('summarySentences', () => {
 
 describe('changes under the minimum', () => {
   it('never says an exact small count: 2 changes and 4 before read Fewer than 5', () => {
-    const small = data({ changes: { total: null, before: null, latest: [] } })
+    const small = data({ changes: { total: null } })
     expect(changesWords(small.changes.total)).toBe('Fewer than 5')
-    expect(changesWords(small.changes.before)).toBe('Fewer than 5')
+    expect(changesWords(null)).toBe('Fewer than 5')
     expect(changesWords(0)).toBe('0')
     expect(summarySentences(small).at(-1)).toBe(
       'Fewer than 5 changes were approved by an owner and published.',
@@ -299,7 +296,6 @@ describe('notComparedWords', () => {
     expect(
       notComparedWords(
         data({
-          period: 'quarter',
           notCompared: 'started',
           previous: null,
           now: { start: day(2026, 7, 1), end: day(2026, 10, 1) },

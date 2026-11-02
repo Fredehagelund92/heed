@@ -852,12 +852,13 @@ over its months) found nothing at least the minimum times.
   by default), so the `observability.rollup` job keeps, each night before retention, every
   completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
   answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
-  Summary's trend is their reader. The same job keeps what Heed caught in `obs_caught_weekly`: for
+  `GET /observability/summary` is their reader. The same job keeps what Heed caught in `obs_caught_weekly`: for
   each week and domain, how many times a saved question's answer changed after a change, by the
   change (a publish, an archive, a restore, a sync, a check date passing), and the alerts each rule
   raised with how many an owner or administrator acted on within 14 days. Counts only, no words and
   no person; it counts the last four weeks again each night, as an alert may still be acted on.
-- `GET /observability/summary` (Summary, the first page): `period` (`month` by default, or
+- `GET /observability/summary` (the Summary's read; no page of the web app reads it since the
+  Summary page was withdrawn, and it is kept for a direction to come): `period` (`month` by default, or
   `quarter`), and `areaId` to narrow every number to one domain. It reads the last whole calendar
   month or quarter, ending yesterday at the latest, and the same length before it. It answers with
   `state` (`empty`, `quiet` or `normal`), the headline numbers (`asked`, and of them `checked`,
@@ -889,8 +890,8 @@ over its months) found nothing at least the minimum times.
   value), what is still open and what changed as counts alone (no topic, no item, nobody who
   approved), what was caught (`caught`, absent in a snapshot taken before it was counted), and the
   sentences, what was caught and the notes said over them then
-  (`src/domain/obs-summary-words.ts`), so a digest printed later reads the same after the delivery
-  records are gone. Administrators read every snapshot, an owner those of the domains they own;
+  (`src/domain/obs-summary-words.ts`), so a snapshot read later says the same after the delivery
+  records are gone. No page of the web app reads them since the Summary page was withdrawn. Administrators read every snapshot, an owner those of the domains they own;
   without `areaId` the list is every domain's together for an administrator. The
   `observability.snapshot` job takes the last whole month's each night where it is not kept yet and
   agents asked anything, and the `POST` takes it at once, as the job does; a month taken is never
