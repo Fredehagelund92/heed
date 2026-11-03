@@ -160,6 +160,12 @@
   }
 }
 
+/* A press while the rows move reaches what is under it: ticking one facet after another loses no
+   tick. */
+:root[data-vt='filters']::view-transition {
+  pointer-events: none;
+}
+
 ::view-transition-group(.move) {
   animation-duration: var(--dur-3);
   animation-timing-function: var(--ease-move);

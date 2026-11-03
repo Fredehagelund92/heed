@@ -123,6 +123,14 @@ test('the facets count each value without its own chip, and a count looks at onl
   await expect(agents.getByText('Not shown')).toHaveCount(0)
   await expect(agents.getByRole('button', { name: /^Claude Code: / })).toBeVisible()
 
+  // Ticks in quick succession, while the rows still move, are each kept.
+  const markets = facets.getByRole('region', { name: 'Market' })
+  const ticks = markets.getByRole('checkbox')
+  await ticks.nth(0).click()
+  await ticks.nth(1).click()
+  await expect(page.getByRole('button', { name: /^Market is any of / })).toBeVisible()
+  await markets.getByRole('button', { name: 'Clear Market' }).click()
+
   // Hidden counts say so in the disclosure rules' words, never a number worked out from others.
   const answers = await facets.getByRole('region', { name: 'Answer' }).innerText()
   expect(answers).toMatch(/Checked\s*\d/)

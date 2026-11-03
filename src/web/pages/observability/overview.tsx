@@ -380,20 +380,32 @@ function Explorer({
   )
 }
 
+/** The view transition of a change of the filters, while it runs. */
+let moving: ViewTransition | null = null
+
 /**
  * A change of the filters, as a step in the address. Unless it is instant, the topic rows and the
- * chips move to their new places in one view transition while the numbers count under them.
+ * chips move to their new places in one view transition while the numbers count under them. The
+ * page stops drawing while a transition takes its pictures, so it waits for the new address a
+ * short while at most, and a change made while one runs is made at once.
  */
 function moveTo(changes: Record<string, string | undefined>, instant: boolean) {
-  if (instant || !document.startViewTransition) return void changeQuery(changes)
+  if (instant || moving || !document.startViewTransition) return void changeQuery(changes)
   const root = document.documentElement
   root.dataset.vt = 'filters'
   const t = document.startViewTransition(async () => {
-    await changeQuery(changes)
+    await Promise.race([changeQuery(changes), new Promise((done) => setTimeout(done, DRAWN_IN))])
     flushSync(() => {})
   })
-  void t.finished.finally(() => delete root.dataset.vt)
+  moving = t
+  void t.finished.finally(() => {
+    if (moving !== t) return
+    moving = null
+    delete root.dataset.vt
+  })
 }
+/** How long a transition waits for the new address to be drawn, in ms. */
+const DRAWN_IN = 200
 
 /** The fields the bar and the facets offer, each with its values in the order they list. */
 function fieldsOf(
