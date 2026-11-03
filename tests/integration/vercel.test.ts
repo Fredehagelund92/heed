@@ -1,4 +1,4 @@
-import { createServer, type Server } from 'node:http'
+import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -14,11 +14,11 @@ import { testDatabase } from './support.ts'
 const { client, url } = testDatabase()
 const waited: Promise<unknown>[] = []
 const pools: pg.Pool[] = []
-let server: Server
+let closeServer: () => Promise<unknown>
 let base: string
 
-beforeAll(async () => {
-  const handler = createVercelHandler(
+const handler = () =>
+  createVercelHandler(
     {
       // As the service connects: under the API role.
       DATABASE_URL: `${url}?options=${encodeURIComponent(`-c role=${localRoles.api}`)}`,
@@ -29,12 +29,23 @@ beforeAll(async () => {
       attachDatabasePool: (pool) => void pools.push(pool),
     },
   )
-  server = createServer((request, response) => void handler(request, response))
+
+async function listen(handle: ReturnType<typeof handler>) {
+  const server = createServer((request, response) => void handle(request, response))
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  return {
+    base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  }
+}
+
+beforeAll(async () => {
+  const listening = await listen(handler())
+  base = listening.base
+  closeServer = listening.close
 })
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve))
+  await closeServer()
   await Promise.all(pools.map((pool) => pool.end()))
 })
 
@@ -77,14 +88,23 @@ describe('the Vercel function on the database', () => {
        select 'limits.api_rate_per_minute', coalesce(max(version), 0) + 1, '{"person": 100, "ip": 2}', 'vercel'
          from settings_versions where key = 'limits.api_rate_per_minute'`,
     )
-    const status = async (forwarded: string) =>
-      (await fetch(`${base}/api/v1/auth/people`, { headers: { 'x-forwarded-for': forwarded } }))
-        .status
-    expect(await status('198.51.100.1')).toBe(200)
-    expect(await status('198.51.100.1')).toBe(200)
-    expect(await status('198.51.100.1')).toBe(429)
-    // A caller's own prefix does not move the count off the address the edge appended.
-    expect(await status('203.0.113.9, 198.51.100.1')).toBe(429)
-    expect(await status('198.51.100.2')).toBe(200)
+    // A handler of its own, started after the change: a service reads the limits once in a while.
+    const limited = await listen(handler())
+    try {
+      const status = async (forwarded: string) =>
+        (
+          await fetch(`${limited.base}/api/v1/auth/people`, {
+            headers: { 'x-forwarded-for': forwarded },
+          })
+        ).status
+      expect(await status('198.51.100.1')).toBe(200)
+      expect(await status('198.51.100.1')).toBe(200)
+      expect(await status('198.51.100.1')).toBe(429)
+      // A caller's own prefix does not move the count off the address the edge appended.
+      expect(await status('203.0.113.9, 198.51.100.1')).toBe(429)
+      expect(await status('198.51.100.2')).toBe(200)
+    } finally {
+      await limited.close()
+    }
   })
 })

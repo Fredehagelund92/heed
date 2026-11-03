@@ -111,7 +111,8 @@ and drops its scratch database when it is done. It relays the demo's outbox, so 
 items are in the file. `--model` sets every model role but the judge to that provider and model,
 so the service can start with real models: without it the file keeps the defaults (Anthropic,
 which needs `ANTHROPIC_API_KEY`). `restore` refuses a database that holds anything (a schema
-other than `public`, or a table, sequence, function or type in `public`), then applies the grants.
+other than `public`, or a table, sequence, function or type in `public`, not counting what an
+extension made), then applies the grants.
 
 Use Neon's direct address for `restore` and `reset`, never the pooled one (with `-pooler` in its
 host): `pg_restore` needs a session of its own. The same goes for `npm run db:migrate`, whose

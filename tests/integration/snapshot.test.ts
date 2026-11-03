@@ -103,6 +103,20 @@ describe('what the database holds before a restore', () => {
     }
   })
 
+  it('restores into a database with only an extension installed, not one with a user-made object', async () => {
+    await bare.client.query('create extension if not exists pg_trgm with schema public')
+    await bare.client.query('create table public.extra (id int)')
+    await expect(restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false })).rejects.toThrow(
+      refused,
+    )
+    await bare.client.query('drop table public.extra')
+    await restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false })
+    const { rows } = await bare.client.query<{ name: string }>(
+      "select name from areas where id = 'area_sandbox'",
+    )
+    expect(rows).toEqual([{ name: 'Sandbox' }])
+  }, 60_000)
+
   it('is refused when a runtime role is missing or may do more than serve', async () => {
     const suffix = randomBytes(4).toString('hex')
     const roles = {

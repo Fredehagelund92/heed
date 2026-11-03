@@ -184,17 +184,24 @@ async function rolesProblem(
 
 /** What the database holds: nothing of Heed's, the demo, or something else. */
 async function contents(client: pg.Client): Promise<'empty' | 'demo' | 'other'> {
-  // Anything outside the system schemas counts: a schema, or in public a relation, function or type.
+  // Anything outside the system schemas counts: a schema, or in public a relation, function or
+  // type. What an extension made does not, as a hosted database may have extensions installed.
+  const ext = (catalog: string, oid: string) =>
+    `not exists (select 1 from pg_depend d where d.classid = '${catalog}'::regclass and d.objid = ${oid}
+        and d.deptype = 'e' and d.refclassid = 'pg_extension'::regclass)`
   const [row] = (
     await client.query<{ objects: number; demo: boolean }>(
       `select (
-           (select count(*) from pg_namespace
+           (select count(*) from pg_namespace n
              where nspname not in ('public', 'pg_catalog', 'information_schema', 'pg_toast')
-               and nspname !~ '^pg_(toast_)?temp_')
-         + (select count(*) from pg_class where relnamespace = 'public'::regnamespace)
-         + (select count(*) from pg_proc where pronamespace = 'public'::regnamespace)
+               and nspname !~ '^pg_(toast_)?temp_' and ${ext('pg_namespace', 'n.oid')})
+         + (select count(*) from pg_class c where relnamespace = 'public'::regnamespace
+              and ${ext('pg_class', 'c.oid')})
+         + (select count(*) from pg_proc p where pronamespace = 'public'::regnamespace
+              and ${ext('pg_proc', 'p.oid')})
          + (select count(*) from pg_type t where typnamespace = 'public'::regnamespace and typrelid = 0
-              and not exists (select 1 from pg_type e where e.oid = t.typelem and e.typrelid <> 0))
+              and not exists (select 1 from pg_type e where e.oid = t.typelem and e.typrelid <> 0)
+              and ${ext('pg_type', 't.oid')} and ${ext('pg_type', 't.typelem')})
          )::int as objects,
          to_regclass('public.areas') is not null as demo`,
     )
