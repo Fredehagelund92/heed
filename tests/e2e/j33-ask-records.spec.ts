@@ -7,8 +7,9 @@ import { expect, go, test } from './go.ts'
 // rows that open in the right panel, with the full list in Context. A question about one person's
 // work is refused. Ask also answers what Definitions lists ("list 10 dimensions", "what markets
 // are there"), counted from the vocabulary with no model, and a question about what a metric
-// means gets its definition from the source first (J41). The counts differ between the mock and
-// the demo week; the shape does not.
+// means gets its definition from the source first (J41), and "List me conflicts." gets the pairs
+// Context's Conflicts filter lists. The counts differ between the mock and the demo week; the
+// shape does not.
 
 async function ask(page: Page, question: string) {
   const box = page.getByRole('textbox', { name: 'Ask a question' })
@@ -99,6 +100,32 @@ test('a question about what Definitions lists gets the names and exact counts, n
   await expect(log.getByText(/^Values of Market$/)).toBeVisible()
   await log.getByRole('link', { name: /^Show all \d+ in Definitions$/ }).click()
   await expect(page).toHaveURL(/\/definitions\/Market$/)
+})
+
+test('a question about the conflicts lists the pairs that disagree, never what Ask can do instead', async ({
+  page,
+}) => {
+  await go(page, '/ask?n=j33x')
+  // The question a person asked that Ask once answered with "The question doesn't name a metric
+  // or a market." and the kinds of question it answers.
+  await ask(page, 'List me conflicts.')
+  const log = page.getByRole('log')
+  await expect(log.getByText(/^There (is|are) [\d,]+ conflicts?\.$/)).toBeVisible()
+  await expect(log.getByText(/^Conflicts$/)).toBeVisible()
+  await expect(log.getByText('Records', { exact: true })).toBeVisible()
+  await expect(log.getByText("The question doesn't name a metric or a market.")).toHaveCount(0)
+  await expect(log.getByText(/^Ask answers three kinds of question/)).toHaveCount(0)
+  await expect(log.getByText('Nothing was looked up')).toHaveCount(0)
+  // At most five rows, each opening the pair's own page.
+  const table = log.getByRole('table')
+  await expect(table.getByRole('row').first()).toContainText('Context items that disagree')
+  expect(await table.getByRole('row').count()).toBeLessThanOrEqual(6)
+  const pair = table.getByRole('rowheader').first().getByRole('link')
+  await expect(pair).toHaveAttribute('href', /^\/context\/conflicts\/itm_\w+\.itm_\w+$/)
+
+  // The full list is Context's, filtered to the items in a conflict.
+  await log.getByRole('link', { name: /^Show all [\d,]+ in Context$/ }).click()
+  await expect(page).toHaveURL(/\/context\?show=conflicts/)
 })
 
 test('a question about what a metric means gets its definition from the source, and keeps its state', async ({

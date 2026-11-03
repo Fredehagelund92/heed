@@ -765,16 +765,19 @@ and `next` as before.
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
   no `metrics`, `dimension_filters` or `window`, is not looked up: `POST /ask/lookup` answers with
   one `records` event. It has the intent (`created`, `changed`, `due`, `archived`, `owner`,
-  `count`, `asked_nothing`, `terms` for the metrics and dimensions Definitions lists, or `values`
-  for a dimension's values), what it was understood as, the period (ISO instants, and its words
-  in UTC), what was read, the sentence, at most five `rows` (a context item, a domain, a topic, a
-  term with the Definitions page it opens, or a kind's counts) with `columns`, the exact `total`,
-  and where the full list lives (`more`, with `page` for one Definitions page). A
+  `count`, `asked_nothing`, `terms` for the metrics and dimensions Definitions lists, `values`
+  for a dimension's values, or `conflicts` for the pairs of context items an owner said disagree),
+  what it was understood as, the period (ISO instants, and its words in UTC), what was read, the
+  sentence, at most five `rows` (a context item, a domain, a topic, a term with the Definitions
+  page it opens, a conflict with the pair's `key` its page opens, or a kind's counts) with
+  `columns`, the exact `total`, and where the full list lives (`more`, with `page` for one
+  Definitions page, and `status: conflicts` for Context's Conflicts filter). A
   question about one person's work gets `refused: true` with its sentence and what to ask
   instead. Everything is counted in the request's own transaction from the items `GET /library`
   lists for the person, their editions' times, the domains and their owners, the live vocabulary
-  without a term whose definition the person's groups may not see (CON-509) and, for
-  `asked_nothing`, Asked this week. `records_asked_weekly` counts which intent was asked each week
+  without a term whose definition the person's groups may not see (CON-509), for
+  `asked_nothing`, Asked this week, and for `conflicts`, the pairs `GET /conflicts` lists for the
+  person. `records_asked_weekly` counts which intent was asked each week
   (or `refused`), and nothing else.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
   to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked

@@ -55,8 +55,8 @@ function KindGlyph({ kind }: { kind: RecordsKind }) {
 }
 
 /**
- * Where a row leads: a context item, a domain's page, a term's page in Definitions, or the Not
- * found card open on a topic.
+ * Where a row leads: a context item, a domain's page, a term's page in Definitions, a conflict's
+ * own page, or the Not found card open on a topic.
  */
 function RowName({ row }: { row: RecordsRow }) {
   const { href, cn } = useParts()
@@ -80,6 +80,14 @@ function RowName({ row }: { row: RecordsRow }) {
         className={cn(link, 'text-foreground')}
       >
         {row.name}
+      </a>
+    )
+  if (row.type === 'conflict')
+    return (
+      <a href={`/context/conflicts/${row.key}`} className={cn(link, 'text-foreground')}>
+        {row.holder.title}
+        <span className="text-muted-foreground"> and </span>
+        {row.other.title}
       </a>
     )
   if (row.type === 'topic')
@@ -107,7 +115,7 @@ function RowName({ row }: { row: RecordsRow }) {
 const rowKey = (row: RecordsRow) =>
   row.type === 'item' || row.type === 'area'
     ? row.id
-    : row.type === 'term'
+    : row.type === 'term' || row.type === 'conflict'
       ? row.key
       : row.type === 'topic'
         ? row.title
@@ -204,6 +212,7 @@ function More({ found }: { found: RecordsFound }) {
           domain: more.domain ?? undefined,
           due: more.status === 'due' ? '1' : undefined,
           status: more.status === 'archived' ? 'archived' : undefined,
+          show: more.status === 'conflicts' ? 'conflicts' : undefined,
         })
       : more.to === 'definitions'
         ? more.page
