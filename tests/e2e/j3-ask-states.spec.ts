@@ -183,6 +183,57 @@ test('Conflict: the amber rule marks the two sentences, and the card names the t
   await expect(page).toHaveURL(/dock=context\./)
 })
 
+test('Definition: a neutral mark, not a state, with its card, over the definition it explains', async ({
+  page,
+}) => {
+  await go(page, `/ask?n=${Date.now()}`)
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('What does churn rate mean?')
+  await box.press('Enter')
+  const log = page.getByRole('log')
+  const mark = log.getByRole('button', { name: 'Definition', exact: true })
+  await expect(mark).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0)
+  // The badge's size and its card, with none of the six labels at the answer's head.
+  await expect(mark).toHaveAttribute('aria-haspopup', 'dialog')
+  expect((await mark.boundingBox())!.height).toBe(24)
+  await expect(log.getByRole('button', { name: badgeName })).toHaveCount(0)
+  // Its tint is neutral: none of a state's colours, and not Not found's dashed ring.
+  const tone = await mark
+    .locator('span')
+    .first()
+    .evaluate((el) => getComputedStyle(el).borderStyle)
+  expect(tone).not.toBe('dashed')
+
+  // By keyboard, as every badge: focus opens it, Tab goes in, Escape comes back.
+  await mark.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(mark).toBeFocused()
+  const card = page.getByRole('dialog', { name: 'What Definition means' })
+  await expect(card).toBeVisible()
+  await expect(card).toContainText('for context the answer is Not found')
+  await page.keyboard.press('Tab')
+  await expect(card.getByRole('link', { name: 'Open in Definitions' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(card).toBeHidden()
+  await expect(mark).toBeFocused()
+
+  // Hovered, it covers neither the mark nor the definition.
+  await mark.hover()
+  await expect(card).toBeVisible()
+  await expect.poll(() => card.evaluate((el) => getComputedStyle(el).opacity)).toBe('1')
+  const lead = log.locator('[data-answer-definition]')
+  const [m, c, l] = [
+    (await mark.boundingBox())!,
+    (await card.boundingBox())!,
+    (await lead.boundingBox())!,
+  ]
+  expect(apart(m, c)).toBe(true)
+  expect(apart(l, c)).toBe(true)
+})
+
 test('The badge card by keyboard: it opens on focus, Tab goes into it, Escape closes it', async ({
   page,
 }) => {

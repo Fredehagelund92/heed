@@ -21,7 +21,8 @@ import { marksExceptions } from '@/lib/marks'
 import { TypeGlyph } from '@/components/heed/definition'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { ComingSoon } from '@/components/heed/bits'
-import { StateHelp } from '@/components/heed/state-help'
+import { DefinitionHelp, StateHelp } from '@/components/heed/state-help'
+import { asksWhatItIs } from '@domain/scope'
 import { SharePopover } from '@/components/heed/share-answer'
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
@@ -1158,6 +1159,44 @@ type AnswerBodyProps = {
   latest?: boolean
 }
 
+/**
+ * For a question about what a metric is, its definition as the answer itself: the source's own
+ * words at the answer's size, and where they come from, which opens it in Definitions. Never a
+ * model's words (FR-703).
+ */
+function DefinitionLead({
+  definitions,
+  ref,
+}: {
+  definitions: AskedDefinition[]
+  ref?: React.Ref<HTMLDivElement>
+}) {
+  return (
+    <div ref={ref} data-answer-definition className="flex max-w-reading flex-col gap-4">
+      {definitions.map((d) => (
+        <figure key={d.name} className="flex flex-col gap-1">
+          {d.words ? (
+            <blockquote className="text-base leading-chat text-pretty">{d.words}</blockquote>
+          ) : (
+            <p className="text-base leading-chat text-muted-foreground">
+              {d.tool} gives no description of it.
+            </p>
+          )}
+          <figcaption className="text-sm text-muted-foreground">
+            From {d.tool},{' '}
+            <a
+              href={`/definitions/${encodeURIComponent(d.name)}`}
+              className="rounded-sm text-foreground underline decoration-muted-foreground/50 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {d.name}
+            </a>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  )
+}
+
 /** A records answer's own body, loaded with the first one: most chats never need it. */
 const RecordsAnswerBody = React.lazy(() =>
   import('@/components/heed/records-answer').then((m) => ({ default: m.RecordsAnswerBody })),
@@ -1290,6 +1329,26 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
 
   // The words, which the state's card goes beside when the thread has room.
   const wordsRef = React.useRef<HTMLDivElement>(null)
+  // A question about what a metric is leads with its definition, the source's words; the context
+  // follows with its state. With no context the definition is the whole answer: a Definition mark
+  // stands for Not found, and one quiet line says nothing else is written.
+  const lead =
+    !draft &&
+    !!answer.definitions?.some((d) => d.words) &&
+    asksWhatItIs(answer.question, { values: answer.markets.length > 0, dates: !!answer.dates })
+      ? answer.definitions
+      : null
+  const definitionOnly = !!lead && answer.state === 'missing'
+  const leadRef = React.useRef<HTMLDivElement>(null)
+  const defined = lead ? listOf(lead.map((d) => d.name)) : ''
+  const copyText = lead
+    ? [
+        ...lead.map(
+          (d) => `${d.name}, from ${d.tool}: ${d.words ?? `${d.tool} gives no description of it.`}`,
+        ),
+        definitionOnly ? `Nothing else is written about ${defined} yet.` : answer.text,
+      ].join('\n\n')
+    : answer.text
   // The two items that disagree, as the answer numbers them: named in the state's card.
   const disagree =
     answer.state === 'conflict'
@@ -1301,43 +1360,61 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
     <div className="group/msg flex min-w-0 flex-col gap-4" aria-busy={isLive(turn) && !answered}>
       {/* While it works, what the look-up is doing, where the state will be. */}
       {!answered && <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />}
-      {answered && (answer.state !== null || note || !!answer.scope?.length) && (
-        <div className="flex animate-in flex-col gap-2 duration-(--dur-3) fade-in-0">
-          <ScopeLine answer={answer} />
-          {/* The badge alone; what it means is its card, on hover, focus or a tap. */}
-          {answer.state && (
-            <StateHelp state={answer.state} draft={!!draft} words={wordsRef}>
-              {disagree.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-medium">These two disagree</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {disagree.map(({ n, fact }) => (
-                      <SourceChip key={fact.id} n={n} fact={fact} draft={!!draft} card={false} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </StateHelp>
+      {/* What the metric is, from its source: the answer, so it comes first. */}
+      {answered && lead && (
+        <div className="flex animate-in flex-col gap-4 duration-(--dur-3) fade-in-0">
+          {!!answer.scope?.length && <ScopeLine answer={answer} />}
+          {definitionOnly && (
+            <DefinitionHelp names={lead.map((d) => d.name)} tool={lead[0]!.tool} words={leadRef} />
           )}
-          {note && <p className="text-sm text-muted-foreground">{note}</p>}
+          <DefinitionLead definitions={lead} ref={leadRef} />
+          {definitionOnly && (
+            <p className="text-sm text-muted-foreground">
+              Nothing else is written about {defined} yet.
+            </p>
+          )}
+          {definitionOnly && note && <p className="text-sm text-muted-foreground">{note}</p>}
         </div>
       )}
-      {/* What the metric means, from its source: first, since that is what was asked. */}
-      {answered && answer.definitions && (
+      {answered &&
+        !definitionOnly &&
+        (answer.state !== null || note || (!lead && !!answer.scope?.length)) && (
+          <div className="flex animate-in flex-col gap-2 duration-(--dur-3) fade-in-0">
+            {!lead && <ScopeLine answer={answer} />}
+            {/* The badge alone; what it means is its card, on hover, focus or a tap. */}
+            {answer.state && (
+              <StateHelp state={answer.state} draft={!!draft} words={wordsRef}>
+                {disagree.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-medium">These two disagree</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {disagree.map(({ n, fact }) => (
+                        <SourceChip key={fact.id} n={n} fact={fact} draft={!!draft} card={false} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </StateHelp>
+            )}
+            {note && <p className="text-sm text-muted-foreground">{note}</p>}
+          </div>
+        )}
+      {/* What the metric means, from its source, beside an answer about its data. */}
+      {answered && !lead && answer.definitions && (
         <div className="animate-in duration-(--dur-3) fade-in-0">
           <AnswerDefinitions definitions={answer.definitions} />
         </div>
       )}
       {/* The words: a model's checked sentences as they come, revealed word by word, or the
             engine's own whole; drawn the same way from the first word to the end. */}
-      {writing && (
+      {writing && !definitionOnly && (
         <p className="flex min-h-6 items-center">
           <ReadingLine running className="text-sm">
             Writing the answer…
           </ReadingLine>
         </p>
       )}
-      {revealed > 0 && (
+      {revealed > 0 && !definitionOnly && (
         <div
           ref={wordsRef}
           data-answer-words
@@ -1360,7 +1437,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           />
         </div>
       )}
-      {revealing && (
+      {revealing && !definitionOnly && (
         <p className="sr-only" aria-live="polite">
           {whole.map((sentence, i) => (
             <span key={i}>{sentence.text} </span>
@@ -1427,6 +1504,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           )}
           <AnswerActions
             answer={answer}
+            copyText={copyText}
             facts={facts}
             answerId={key}
             draft={!!draft}
@@ -1450,6 +1528,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
  */
 function AnswerActions({
   answer,
+  copyText,
   facts,
   answerId,
   draft,
@@ -1461,6 +1540,8 @@ function AnswerActions({
   canReport,
 }: {
   answer: Answer
+  /** What Copy copies: the words on screen, the definition first when it leads. */
+  copyText: string
   facts: Fact[]
   answerId: string
   draft: boolean
@@ -1485,7 +1566,7 @@ function AnswerActions({
   const save = stated && canSave
   const hasMore = canReport || save || stated
   // A check that did not run has its own Ask again above, and nothing to rate, copy or report.
-  if (answer.state === 'failed' && !answer.text && !hasMore) return null
+  if (answer.state === 'failed' && !copyText && !hasMore) return null
   return (
     <div
       role="group"
@@ -1497,11 +1578,11 @@ function AnswerActions({
           'opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
       )}
     >
-      {answer.text && (
+      {copyText && (
         <IconButton
           label="Copy"
           onClick={() => {
-            copy(answer.text.replace(/\[\d+\]/g, ''))
+            copy(copyText.replace(/\[\d+\]/g, ''))
             toast('Copied')
           }}
         >

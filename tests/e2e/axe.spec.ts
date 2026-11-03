@@ -247,7 +247,22 @@ for (const { name, width, height } of widths) {
         await box.click()
         await box.pressSequentially('What does Churn rate mean?')
         await box.press('Enter')
-        await expect(page.getByRole('figure')).toContainText('as Cube defines it')
+        await expect(page.getByRole('figure')).toContainText('From Cube, Churn rate')
+        expect(await violations(page)).toEqual([])
+        // The Definition mark's card, open.
+        await page.getByRole('log').getByRole('button', { name: 'Definition', exact: true }).hover()
+        await expect(page.getByRole('dialog', { name: 'What Definition means' })).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
+
+      test('an answer that leads with the definition, then the context', async ({ page }) => {
+        await page.goto(withTheme('/ask?n=axe-definition-context', theme))
+        const box = page.getByRole('textbox', { name: 'Ask a question' })
+        await box.click()
+        await box.pressSequentially('What is Orders?')
+        await box.press('Enter')
+        await expect(page.getByRole('figure')).toContainText('From Cube, Orders')
+        await expect(page.getByRole('log').getByRole('button', { name: 'Checked' })).toBeVisible()
         expect(await violations(page)).toEqual([])
       })
 

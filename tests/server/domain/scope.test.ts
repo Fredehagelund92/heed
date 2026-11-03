@@ -3,6 +3,7 @@ import fc from 'fast-check'
 import {
   assumedDate,
   asksDefinition,
+  asksWhatItIs,
   extractScope,
   readQuestion,
 } from '../../../src/domain/scope.ts'
@@ -560,4 +561,29 @@ describe('a definition question', () => {
     'Sorry, I meant Poland, not the Netherlands.',
     'Did anything happen to orders in the United Kingdom last week?',
   ])('asks about data only: %s', (question) => expect(asksDefinition(question)).toBe(false))
+})
+
+describe('a question whose answer is the definition', () => {
+  const plain = { values: false, dates: false }
+  it.each([
+    ['what is discount cost?', plain],
+    ['what does churn rate mean', plain],
+    ['what is Orders', plain],
+    ["What's margin rate?", plain],
+    ['What are active customers?', plain],
+    ['How is the metric churn rate defined?', plain],
+    ['What counts as an active customer?', plain],
+    ['What does verification pass rate measure in Germany?', { values: true, dates: false }],
+    ['What did net revenue mean last year?', { values: false, dates: true }],
+  ])('asks what it is: %s', (question, read) => expect(asksWhatItIs(question, read)).toBe(true))
+
+  it.each([
+    ['What is churn rate in Norway?', { values: true, dates: false }],
+    ['What is net revenue this month?', { values: false, dates: true }],
+    ['How is revenue doing in Norway this month?', { values: true, dates: true }],
+    ['Orders Norway August 2026', { values: true, dates: true }],
+    ['How are orders doing?', plain],
+    ['Did anything happen to discount cost last week?', { values: false, dates: true }],
+    ['Why did churn rate go up?', plain],
+  ])('asks about data: %s', (question, read) => expect(asksWhatItIs(question, read)).toBe(false))
 })

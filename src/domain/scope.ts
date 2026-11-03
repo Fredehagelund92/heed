@@ -370,17 +370,32 @@ export function readQuestion(
   }
 }
 
-const definitionWords =
-  /^(what is|what are|what s)\b|\b(mean|means|meaning|measures?|measured|defined?|defines|definitions?|stands? for|refers? to|counts? as|calculated?|calculates|calculation|worked out|formula)\b/
+const whatIsWords = /^(what is|what are|what s)\b/
+const meaningWords =
+  /\b(mean|means|meaning|measures?|measured|defined?|defines|definitions?|stands? for|refers? to|counts? as|calculated?|calculates|calculation|worked out|formula)\b/
+const wordsOf = (question: string) =>
+  normalizeName(question)
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .trim()
+
 /**
  * Whether a question asks what a metric is, how it is worked out or where its definition comes
  * from ("What does net revenue mean?", "What counts as an active customer?"), not only about its
  * data. A question that only starts "What is" counts too: the definition does no harm there.
  */
 export function asksDefinition(question: string): boolean {
-  return definitionWords.test(
-    normalizeName(question)
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .trim(),
-  )
+  const t = wordsOf(question)
+  return whatIsWords.test(t) || meaningWords.test(t)
+}
+
+/**
+ * Whether a question asks what a metric is or means, so that in Ask its definition is the answer
+ * and comes first ("What is discount cost?", "What does churn rate mean?"). Words about meaning
+ * always count; a question that only starts "What is" counts when it names no market and no
+ * dates, since "What is churn rate in Norway this month?" asks for the data. Agents get the
+ * definition as `asksDefinition` says, whatever this says.
+ */
+export function asksWhatItIs(question: string, read: { values: boolean; dates: boolean }) {
+  const t = wordsOf(question)
+  return meaningWords.test(t) || (whatIsWords.test(t) && !read.values && !read.dates)
 }

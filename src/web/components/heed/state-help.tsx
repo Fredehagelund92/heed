@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ArrowRightIcon } from '@/components/icons'
+import { ArrowRightIcon, BookAIcon } from '@/components/icons'
 import { StateLine } from '@/components/heed/bits'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DRAFT_LABEL, type AnswerState } from '@/model/ask'
@@ -11,7 +11,7 @@ const CARD_WIDTH = 280
 const GAP = 8
 
 /** How tall each state's card was when last open, so the next one knows whether it fits above. */
-const heights = new Map<AnswerState, number>()
+const heights = new Map<string, number>()
 
 /**
  * Where the card goes, so it never covers the words it explains: beside the words when the thread
@@ -59,22 +59,107 @@ export function StateHelp({
   words?: React.RefObject<HTMLElement | null>
   children?: React.ReactNode
 }) {
-  const { query } = useRoute()
   const line = ANSWER_LINES.find((l) => l.state === state)!
+  return (
+    <BadgeCard
+      id={state}
+      label={line.label}
+      words={words}
+      tall={!!children}
+      badge={
+        <StateLine state={state} draft={draft} tip={false} className="h-6 py-0">
+          {draft && state === 'grounded' ? DRAFT_LABEL : undefined}
+        </StateLine>
+      }
+      title={`${line.label}: ${line.sentence.charAt(0).toLowerCase() + line.sentence.slice(1)}`}
+      means={line.means}
+      todo={line.todo}
+      more={{ href: '/help', label: 'All answer lines' }}
+    >
+      {children}
+    </BadgeCard>
+  )
+}
+
+/**
+ * The head of an answer that is a definition and nothing more: a question about what a metric is,
+ * which the definitions source answers and no context item does. A neutral mark, never a state's
+ * tint: the context's state is still Not found, as agents get it, and its card says so.
+ */
+export function DefinitionHelp({
+  names,
+  tool,
+  words,
+}: {
+  /** The metrics defined, as Definitions names them. */
+  names: string[]
+  /** The tool the source reads, as people say it. */
+  tool: string
+  words?: React.RefObject<HTMLElement | null>
+}) {
+  const them = names.length === 1 ? 'it' : 'them'
+  return (
+    <BadgeCard
+      id="definition"
+      label="Definition"
+      words={words}
+      badge={
+        <span className="flex h-6 w-fit items-center gap-2 rounded-md bg-muted px-2 text-sm font-semibold">
+          <BookAIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          Definition
+        </span>
+      }
+      title={`Definition: ${tool}'s own words.`}
+      means={`${tool} defines ${them} this way, and agents get the same words. Nothing else is written about ${them} here yet, so for context the answer is Not found.`}
+      todo="If people need more than the definition, such as what to rule out or when it changed, write context."
+      more={
+        names.length === 1
+          ? { href: `/definitions/${encodeURIComponent(names[0]!)}`, label: 'Open in Definitions' }
+          : { href: '/definitions', label: 'Open Definitions' }
+      }
+    />
+  )
+}
+
+/** A badge whose meaning is a card on it, placed so it never covers the words it explains. */
+function BadgeCard({
+  id,
+  label,
+  words,
+  tall,
+  badge,
+  title,
+  means,
+  todo,
+  more,
+  children,
+}: {
+  /** What the card's last height is kept under. */
+  id: string
+  label: string
+  words?: React.RefObject<HTMLElement | null>
+  /** The card holds more than its words, so it is likely taller. */
+  tall?: boolean
+  badge: React.ReactNode
+  title: string
+  means: string
+  todo: string
+  more: { href: string; label: string }
+  children?: React.ReactNode
+}) {
+  const { query } = useRoute()
   const [open, setOpen] = React.useState(false)
   const [place, setPlace] = React.useState<Place>('top')
-  const badge = React.useRef<HTMLButtonElement>(null)
+  const trigger = React.useRef<HTMLButtonElement>(null)
   const card = React.useRef<HTMLDivElement>(null)
   const slot = React.useRef<HTMLDivElement>(null)
   // Closed from inside the card, focus comes back to the badge: that doesn't open it again.
   const returning = React.useRef(false)
   const show = (next: boolean) => {
     // How tall it was, for the next time: read as it closes, once it has been laid out.
-    if (!next && card.current?.offsetHeight) heights.set(state, card.current.offsetHeight)
-    if (next && !open && badge.current)
-      setPlace(
-        placeFor(badge.current, words?.current, heights.get(state) ?? (children ? 300 : 240)),
-      )
+    if (!next && card.current?.offsetHeight) heights.set(id, card.current.offsetHeight)
+    if (next && !open && trigger.current)
+      setPlace(placeFor(trigger.current, words?.current, heights.get(id) ?? (tall ? 300 : 240)))
     setOpen(next)
   }
   // Asked for in the address (?statehelp=1), it opens once the badge is on screen.
@@ -88,7 +173,7 @@ export function StateHelp({
   const [besideWords] = React.useState(() => ({
     getBoundingClientRect: () => {
       const w = words?.current?.getBoundingClientRect()
-      const b = badge.current?.getBoundingClientRect()
+      const b = trigger.current?.getBoundingClientRect()
       return w && b ? new DOMRect(w.left, b.top, w.width, b.height) : new DOMRect()
     },
   }))
@@ -103,7 +188,7 @@ export function StateHelp({
       }}
     >
       <PopoverTrigger
-        ref={badge}
+        ref={trigger}
         openOnHover
         delay={120}
         closeDelay={100}
@@ -115,9 +200,7 @@ export function StateHelp({
         onBlur={() => (returning.current = false)}
         className="w-fit rounded-md text-left outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <StateLine state={state} draft={draft} tip={false} className="h-6 py-0">
-          {draft && state === 'grounded' ? DRAFT_LABEL : undefined}
-        </StateLine>
+        {badge}
       </PopoverTrigger>
       {/* Where the card goes in the thread when it has nowhere else to go. */}
       <div ref={slot} className="empty:hidden" />
@@ -135,23 +218,21 @@ export function StateHelp({
         // It opens beside the badge, not into it: Tab goes on into the card, Escape comes back.
         initialFocus={false}
         ref={card}
-        aria-label={`What ${line.label} means`}
+        aria-label={`What ${label} means`}
         className="w-70 max-w-full gap-2 rounded-lg p-3.5"
       >
-        <p className="text-sm font-semibold">
-          {line.label}: {line.sentence.charAt(0).toLowerCase() + line.sentence.slice(1)}
-        </p>
-        <p className="text-sm text-pretty">{line.means}</p>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-sm text-pretty">{means}</p>
         {children}
         <p className="text-sm text-pretty text-muted-foreground">
           <span className="font-medium text-foreground">What you do. </span>
-          {line.todo}
+          {todo}
         </p>
         <a
-          href="/help"
+          href={more.href}
           className="mt-1 inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          All answer lines
+          {more.label}
           <ArrowRightIcon className="size-3.5" aria-hidden />
         </a>
       </PopoverContent>
