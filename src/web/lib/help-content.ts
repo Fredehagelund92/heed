@@ -159,8 +159,7 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     rows: [
       { keys: ['J'], or: ['K'], label: 'Move down, or up' },
       { keys: ['↵'], label: 'Open' },
-      { keys: ['X'], label: 'Select' },
-      { keys: ['⇧', '↓'], label: 'Select a run, as Shift and a click does' },
+      { keys: ['X'], or: ['⇧', '↓'], label: 'Select, or select a run as Shift and a click does' },
       { keys: ['/'], or: ['F'], label: 'Search the list; on Overview, add a filter' },
     ],
   },
