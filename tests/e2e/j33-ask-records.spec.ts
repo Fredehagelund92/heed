@@ -7,8 +7,8 @@ import { expect, go, test } from './go.ts'
 // rows that open in the right panel, with the full list in Context. A question about one person's
 // work is refused. Ask also answers what Definitions lists ("list 10 dimensions", "what markets
 // are there"), counted from the vocabulary with no model, and a question about what a metric
-// means gets its definition from the source beside the answer. The counts differ between the
-// mock and the demo week; the shape does not.
+// means gets its definition from the source first (J41). The counts differ between the mock and
+// the demo week; the shape does not.
 
 async function ask(page: Page, question: string) {
   const box = page.getByRole('textbox', { name: 'Ask a question' })
@@ -107,8 +107,8 @@ test('a question about what a metric means gets its definition from the source, 
   await go(page, '/ask?n=j33d')
   await ask(page, 'What does Churn rate mean?')
   const log = page.getByRole('log')
-  const definition = log.getByRole('figure')
-  await expect(definition).toContainText('Churn rate, as Cube defines it')
+  const definition = log.locator('[data-answer-definition]')
+  await expect(definition.getByRole('figure')).toContainText('From Cube, Churn rate')
   await expect(definition.getByRole('blockquote')).toHaveText(/\w/)
   // The state is the context's own, looked up as agents get it.
   await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toHaveCount(0)
