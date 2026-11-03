@@ -82,13 +82,25 @@ describe('the built-in views', () => {
 
 describe('what narrows the topics', () => {
   it('is a view, a filter of the topics or a search, never the domain or the agent', () => {
-    expect(narrowed({}, 'all', '')).toBe(false)
-    expect(narrowed({ domain: 'sales', agent: 'Cursor' }, 'all', '  ')).toBe(false)
-    expect(narrowed({}, 'look', '')).toBe(true)
-    expect(narrowed({ answer: ['missing'] }, 'all', '')).toBe(true)
-    expect(narrowed({ gap: ['draft'] }, 'all', '')).toBe(true)
-    expect(narrowed({ month: '2026-09' }, 'all', '')).toBe(true)
-    expect(narrowed({}, 'all', 'norway')).toBe(true)
+    expect(narrowed([], 'all')).toBe(false)
+    // The domain and the kind of agent the service reads narrow the read, not the topics.
+    expect(
+      narrowed(
+        [
+          { key: 'domain', values: ['sales'] },
+          { key: 'agent', values: ['Cursor'] },
+        ],
+        'all',
+      ),
+    ).toBe(false)
+    expect(narrowed([], 'look')).toBe(true)
+    expect(narrowed([{ key: 'answer', values: ['missing'] }], 'all')).toBe(true)
+    expect(narrowed([{ key: 'gap', values: ['draft'] }], 'all')).toBe(true)
+    expect(narrowed([{ key: 'month', values: ['2026-09'] }], 'all')).toBe(true)
+    expect(narrowed([{ key: 'topic', values: ['norway'] }], 'all')).toBe(true)
+    // Two domains, or one left out, narrow the topics alone.
+    expect(narrowed([{ key: 'domain', values: ['sales', 'finance'] }], 'all')).toBe(true)
+    expect(narrowed([{ key: 'domain', not: true, values: ['sales'] }], 'all')).toBe(true)
   })
 })
 

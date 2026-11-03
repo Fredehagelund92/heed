@@ -2153,7 +2153,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     getSavedViews: async () => (await read(() => client.obs.views.list())).map(savedViewOf),
     saveView: async ({ name, filters }) => {
-      const input = { name, filters }
+      const input = { name, filters: { chips: filters } }
       const saved = await write('obs.views.save', input, (o) => client.obs.views.save(input, o))
       return { id: saved.id }
     },

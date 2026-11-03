@@ -19,6 +19,7 @@ import {
   type View,
 } from '@/model/observability'
 import type { DomainId } from '@/model/items'
+import { chipOf, chipsFrom, readDomain } from '@/lib/obs-chips'
 import { useRoute } from '@/lib/router'
 import { useDomains, useMe } from '@/lib/workspace'
 
@@ -93,10 +94,12 @@ export function useObsAddress(): ObsAddress {
   const domains = useDomains()
   const range = (Number(query.get('range')) as Range) || 7
   const owned = me.admin ? null : me.owns.filter((d) => !domains[d]?.sandbox)
-  const asked = query.get('domain')
-  // An owner always sees one of their own domains.
-  const domain = owned ? (asked && owned.includes(asked) ? asked : owned[0]) : (asked ?? undefined)
-  const agent = me.admin ? (query.get('agent') ?? undefined) : undefined
+  const chips = chipsFrom(query)
+  // The service reads one domain, or all of them; a domain chip of several, or one left out,
+  // narrows the topics alone. An owner always sees one of their own domains.
+  const asked = readDomain(chips)
+  const domain = owned ? (asked && owned.includes(asked) ? asked : owned[0]) : asked
+  const agent = me.admin ? chipOf(chips, 'agent')?.values[0] : undefined
   return {
     range: RANGES.includes(range) ? range : 7,
     domain,

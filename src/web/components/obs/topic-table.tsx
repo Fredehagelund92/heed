@@ -228,6 +228,7 @@ function TopicLine({
   return (
     <tr
       data-peeked={peeked || undefined}
+      data-vt-move
       className={cn(
         'h-9 cursor-pointer border-t text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked',
         month && 'bg-muted/20',

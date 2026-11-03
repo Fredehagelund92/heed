@@ -2553,13 +2553,18 @@ export function describeHeedApi(
     )
 
     it.skipIf(lacks('signIn', 'getSavedViews', 'saveView', 'removeView'))(
-      'saves a view of Questions for everyone, and removes it',
+      'saves a view of Overview with its chips for everyone, and removes it',
       async () => {
         await api().signIn({ name: person, fresh: false })
         const name = `Found nothing ${Date.now()}`
-        const { id } = await api().saveView({ name, filters: { answer: ['missing'] } })
+        // Its chips, in their order: is, and a market left out.
+        const filters = [
+          { key: 'answer' as const, values: ['missing'] },
+          { key: 'market' as const, not: true, values: ['Norway, Sweden'] },
+        ]
+        const { id } = await api().saveView({ name, filters })
         const saved = (await api().getSavedViews()).find((v) => v.id === id)
-        expect(saved).toMatchObject({ name, filters: { answer: ['missing'] }, by: person })
+        expect(saved).toMatchObject({ name, filters, by: person })
         await api().removeView({ id })
         expect((await api().getSavedViews()).some((v) => v.id === id)).toBe(false)
       },
