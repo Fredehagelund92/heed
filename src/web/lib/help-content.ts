@@ -176,6 +176,15 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     ],
   },
   {
+    group: 'Overview',
+    rows: [
+      {
+        keys: ['B'],
+        label: 'Go to the chart: Shift and ← or → select days, Esc clears them',
+      },
+    ],
+  },
+  {
     group: 'Conflict',
     // The view's own keys, so the sheet cannot drift from what the view does.
     rows: [

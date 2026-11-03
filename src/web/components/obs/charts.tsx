@@ -73,16 +73,20 @@ export function niceMax(n: number) {
 
 export type Bar = { label: string; at?: number; counts: Counts }
 
-/** A chart's drawn width: its box's real width, so its words stay their size on a phone. */
+/**
+ * A chart's drawn width: its box's real width, so its words stay their size on a phone. It is
+ * measured before the first paint, so the chart never shows at the fallback's height and then
+ * shrinks, moving everything under it (and a scroll to the topics that has already run).
+ */
 function useWidth(fallback: number) {
   const ref = React.useRef<HTMLElement>(null)
   const [w, setW] = React.useState(fallback)
   React.useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) =>
-      setW(Math.max(260, Math.round(e?.contentRect.width ?? 0))),
-    )
+    const fit = (width: number) => setW(Math.max(260, Math.round(width)))
+    fit(el.getBoundingClientRect().width)
+    const ro = new ResizeObserver(([e]) => fit(e?.contentRect.width ?? 0))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -121,11 +125,27 @@ export function publishLines(
     })
 }
 
+/** The bars chosen on a chart, the first and the last, by their place. */
+export type Span = { from: number; to: number }
+
+/** How bars were chosen: by a drag on its way (nothing kept yet), by a drag or press, or by a key. */
+export type SpanStep = 'live' | 'done' | 'key'
+
+/** How near an edge of the bars chosen a press takes that edge, in px of the drawing: a finger, wider. */
+const EDGE = { mouse: 7, touch: 16 }
+
 /**
  * Questions per day (or per week), stacked by how they were answered, with a dashed line at each
  * publish so you can see whether the hatch of "nothing written down" shrank after it. Narrowed to
  * some answer states, it draws only those, on their own scale. Bars that are already on screen
  * move to their new heights when the view changes; another range draws new bars.
+ *
+ * With `onSpan` it chooses days: a drag across the bars chooses a run of them, a drag on the run
+ * moves it and a drag on an edge moves that edge; a press beside the run clears it. With `onDrill`
+ * a part of a bar looks at only that answer. All of it works from the keys too, once the chart has
+ * focus: Left and Right move between bars, Up and Down between their parts, Enter looks at only
+ * the part (or chooses the bar), Shift and Left or Right choose a run, Alt and Left or Right move
+ * it, Escape clears it.
  */
 export function StackedBars({
   bars,
@@ -133,6 +153,10 @@ export function StackedBars({
   states = SHOWN,
   height = 220,
   caption,
+  span = null,
+  onSpan,
+  spanWords,
+  onDrill,
 }: {
   bars: Bar[]
   /** Publishes: the index of the bar they fall on, and what was published. */
@@ -141,8 +165,32 @@ export function StackedBars({
   states?: Shown[]
   height?: number
   caption: string
+  /** The bars chosen, when the chart chooses days. */
+  span?: Span | null
+  /** Bars chosen or cleared: `live` while a drag is on its way, `key` from the keys, else `done`. */
+  onSpan?: (span: Span | null, step: SpanStep) => void
+  /** The days of a run of bars, in words: "12 to 18 Oct". */
+  spanWords?: (span: Span) => string
+  /** A part of a bar pressed, or Enter on it: look at only that answer. */
+  onDrill?: (state: Shown) => void
 }) {
-  const [hover, setHover] = React.useState<number | null>(null)
+  const [hover, setHover] = React.useState<{ bar: number; part?: Shown } | null>(null)
+  const [cursor, setCursor] = React.useState<{ bar: number; part?: Shown } | null>(null)
+  const [keyed, setKeyed] = React.useState(false)
+  const [zone, setZone] = React.useState<'edge' | 'body' | 'part' | 'plot'>('plot')
+  const [said, setSaid] = React.useState('')
+  const drag = React.useRef<{
+    mode: 'new' | 'from' | 'to' | 'move'
+    start: number
+    orig: Span | null
+    x: number
+    moved: boolean
+    part?: Shown
+    to: Span | null
+  } | null>(null)
+  const [dragging, setDragging] = React.useState<'move' | 'other' | null>(null)
+  const svg = React.useRef<SVGSVGElement>(null)
+  const helpId = React.useId()
   const hatch = useHatchId()
   const [box, W] = useWidth(640)
   // The bars grow from the baseline once, only when they arrive after a wait the person saw; a
@@ -157,6 +205,7 @@ export function StackedBars({
   const H = height
   const pad = { l: 36, r: 8, t: 20, b: 24 }
   const drawn = (b: Bar) => states.reduce((n, s) => n + (b.counts[s] ?? 0), 0)
+  const hidden = (b: Bar) => states.some((s) => b.counts[s] === null)
   const max = niceMax(Math.max(...bars.map(drawn), 1))
   const plotW = W - pad.l - pad.r
   const plotH = H - pad.t - pad.b
@@ -166,17 +215,247 @@ export function StackedBars({
   // Every label when there is room for it, else every second or fifth.
   const room = slot >= 44 ? 1 : slot >= 22 ? 2 : 5
   const every = Math.max(room, bars.length > 20 ? 5 : 1)
-  const tip = hover !== null ? bars[hover] : null
   const lines = publishLines(marks, (i) => pad.l + slot * i, pad.l, W - pad.r)
+  const choosing = !!onSpan
+  const last = bars.length - 1
+  const clamp = (i: number) => Math.max(0, Math.min(last, i))
+  const edges = (s: Span) => [pad.l + slot * s.from, pad.l + slot * (s.to + 1)] as const
+
+  /** A pointer's place in the drawing's own units, and the bar under it. */
+  const at = (clientX: number) => {
+    const r = svg.current!.getBoundingClientRect()
+    const x = ((clientX - r.left) / Math.max(1, r.width)) * W
+    return { x, bar: clamp(Math.floor((x - pad.l) / slot)) }
+  }
+  /** What a press there would take hold of: an edge of the run, the run, or a fresh choice. */
+  const holdAt = (x: number, edge = EDGE.mouse): 'new' | 'from' | 'to' | 'move' => {
+    if (!span) return 'new'
+    const [x0, x1] = edges(span)
+    if (Math.abs(x - x0) <= edge) return 'from'
+    if (Math.abs(x - x1) <= edge) return 'to'
+    return x > x0 && x < x1 ? 'move' : 'new'
+  }
+  const partOf = (target: EventTarget | null) =>
+    ((target as Element | null)?.closest?.('[data-part]')?.getAttribute('data-part') ??
+      undefined) as Shown | undefined
+
+  /** A bar read out: its day, and each answer drawn with its count. */
+  const barSaid = (i: number, part?: Shown) => {
+    const b = bars[i]
+    if (!b) return ''
+    const cells = states.map((s) => `${STATE_WORDS[s]} ${b.counts[s] ?? 'hidden'}`)
+    const pub = marks.some((m) => m.index === i) ? ', published' : ''
+    const on = span && i >= span.from && i <= span.to ? ', selected' : ''
+    if (part)
+      return `${b.label}${on}: ${STATE_WORDS[part]} ${b.counts[part] ?? 'hidden'}. Enter to look at only ${STATE_WORDS[part]}`
+    return `${b.label}${pub}${on}: ${cells.join(', ')}`
+  }
+  const drill = (part: Shown) => {
+    onDrill?.(part)
+    setSaid(`Added the filter Answer is ${STATE_WORDS[part]}`)
+  }
+  const choose = (next: Span | null, step: SpanStep) => {
+    onSpan?.(next, step)
+    if (step !== 'live') setSaid(next ? `Selected ${spanWords?.(next) ?? ''}` : 'Selection cleared')
+  }
+  const keyStep = (next: Span) => choose(next, 'key')
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!choosing || e.button !== 0) return
+    setKeyed(false)
+    const p = at(e.clientX)
+    const mode = holdAt(p.x, e.pointerType === 'touch' ? EDGE.touch : EDGE.mouse)
+    drag.current = {
+      mode,
+      start: p.bar,
+      orig: span,
+      x: e.clientX,
+      moved: false,
+      part: partOf(e.target),
+      to: span,
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const p = at(e.clientX)
+    const d = drag.current
+    if (!d) {
+      const part = partOf(e.target)
+      setHover((h) => (h?.bar === p.bar && h.part === part ? h : { bar: p.bar, part }))
+      if (choosing) {
+        const hold = holdAt(p.x)
+        setZone(
+          hold === 'from' || hold === 'to'
+            ? 'edge'
+            : hold === 'move'
+              ? 'body'
+              : part && onDrill
+                ? 'part'
+                : 'plot',
+        )
+      }
+      return
+    }
+    if (!d.moved && Math.abs(e.clientX - d.x) < 4) return
+    if (!d.moved) setDragging(d.mode === 'move' ? 'move' : 'other')
+    d.moved = true
+    const o = d.orig
+    let next: Span
+    if (d.mode === 'move' && o) {
+      const w = o.to - o.from
+      const from = Math.max(0, Math.min(last - w, o.from + p.bar - d.start))
+      next = { from, to: from + w }
+    } else if (d.mode === 'from' && o)
+      next = { from: Math.min(p.bar, o.to), to: Math.max(p.bar, o.to) }
+    else if (d.mode === 'to' && o)
+      next = { from: Math.min(p.bar, o.from), to: Math.max(p.bar, o.from) }
+    else next = { from: Math.min(d.start, p.bar), to: Math.max(d.start, p.bar) }
+    if (d.to && d.to.from === next.from && d.to.to === next.to) return
+    d.to = next
+    choose(next, 'live')
+  }
+  const onPointerUp = () => {
+    const d = drag.current
+    drag.current = null
+    setDragging(null)
+    if (!d) return
+    if (d.moved) return choose(d.to, 'done')
+    if (d.part && onDrill) return drill(d.part)
+    // A press beside the run, that moved nothing, clears it.
+    if (d.mode === 'new' && span) choose(null, 'done')
+  }
+  const onPointerCancel = () => {
+    const d = drag.current
+    drag.current = null
+    setDragging(null)
+    if (d?.moved) onSpan?.(d.orig, 'live')
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!choosing || e.metaKey || e.ctrlKey) return
+    // A key shows where the keys are, as a focus ring would.
+    setKeyed(true)
+    const now = cursor?.bar ?? (span ? span.to : last)
+    // The parts of a bar the keys step through, from the bottom up: those drawn, with a count.
+    const parts = (i: number) => states.filter((s) => bars[i]?.counts[s] !== 0)
+    const go = (bar: number, part?: Shown) => {
+      const keep = part && parts(bar).includes(part) ? part : undefined
+      setCursor({ bar, part: keep })
+      setSaid(barSaid(bar, keep))
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault()
+      const dir = e.key === 'ArrowLeft' ? -1 : 1
+      if (e.altKey && span) {
+        const w = span.to - span.from
+        const from = Math.max(0, Math.min(last - w, span.from + dir))
+        keyStep({ from, to: from + w })
+        setCursor({ bar: dir < 0 ? from : from + w })
+      } else if (e.shiftKey) {
+        const anchor =
+          span && now === span.from ? span.to : span && now === span.to ? span.from : now
+        const to = clamp(now + dir)
+        keyStep({ from: Math.min(anchor, to), to: Math.max(anchor, to) })
+        setCursor({ bar: to })
+      } else if (!e.altKey) go(clamp(now + dir), cursor?.part)
+    } else if ((e.key === 'Home' || e.key === 'End') && !e.altKey) {
+      e.preventDefault()
+      go(e.key === 'Home' ? 0 : last, cursor?.part)
+    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey) {
+      e.preventDefault()
+      const list = parts(now)
+      if (!list.length) return
+      const i = cursor?.part ? list.indexOf(cursor.part) : -1
+      const j = e.key === 'ArrowUp' ? i + 1 : i < 0 ? list.length - 1 : i - 1
+      go(now, j < 0 || j >= list.length ? undefined : list[j])
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (cursor?.part && onDrill) drill(cursor.part)
+      else keyStep({ from: now, to: now })
+    } else if (e.key === 'Escape' && span) {
+      e.preventDefault()
+      e.stopPropagation()
+      choose(null, 'done')
+    }
+  }
+
+  // The bar a tooltip is for: the one pointed at, or the one the keys are on; none while dragging.
+  const tipAt = dragging ? null : (hover?.bar ?? (keyed ? (cursor?.bar ?? null) : null))
+  const tip = tipAt !== null ? bars[tipAt] : null
+  const tipPart = tipAt === hover?.bar ? hover?.part : cursor?.part
+  const outside = (i: number) => !!span && (i < span.from || i > span.to)
+  const sumOf = (s: Span) => {
+    const picked = bars.slice(s.from, s.to + 1)
+    return `${picked.reduce((n, b) => n + drawn(b), 0).toLocaleString('en-GB')}${picked.some(hidden) ? '+' : ''}`
+  }
+  const cursorAt = keyed && cursor ? cursor : null
+
   return (
-    <figure ref={box} className="relative m-0">
+    <figure
+      ref={box}
+      className={cn(
+        'relative m-0',
+        choosing &&
+          'rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-offset-4 focus-visible:ring-offset-background',
+      )}
+      {...(choosing
+        ? {
+            tabIndex: 0,
+            role: 'group',
+            'aria-roledescription': 'chart',
+            'aria-label': caption,
+            'aria-describedby': helpId,
+            'data-chart': 'questions',
+            onKeyDown,
+            onFocus: (e: React.FocusEvent<HTMLElement>) => {
+              if (e.target !== e.currentTarget) return
+              setKeyed(e.currentTarget.matches(':focus-visible'))
+            },
+            onBlur: () => {
+              setKeyed(false)
+              setCursor(null)
+            },
+          }
+        : {})}
+    >
       <svg
+        ref={svg}
         viewBox={`0 0 ${W} ${H}`}
-        className="block h-auto w-full"
+        className={cn(
+          'block h-auto w-full',
+          choosing && 'touch-pan-y select-none',
+          choosing &&
+            (dragging === 'move'
+              ? 'cursor-grabbing'
+              : dragging
+                ? 'cursor-ew-resize'
+                : zone === 'edge'
+                  ? 'cursor-ew-resize'
+                  : zone === 'body'
+                    ? 'cursor-grab'
+                    : zone === 'part'
+                      ? 'cursor-pointer'
+                      : 'cursor-crosshair'),
+        )}
         aria-hidden
-        onMouseLeave={() => setHover(null)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={() => !drag.current && setHover(null)}
       >
         <Hatch id={hatch} />
+        {span && (
+          <rect
+            data-span
+            x={edges(span)[0]}
+            y={pad.t - 1}
+            width={edges(span)[1] - edges(span)[0]}
+            height={plotH + 1}
+            fill="color-mix(in oklab, var(--primary) 8%, transparent)"
+            rx={3}
+          />
+        )}
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <g key={f}>
             <line
@@ -199,10 +478,14 @@ export function StackedBars({
         ))}
         {bars.map((b, i) => {
           const x = pad.l + slot * i + (slot - bw) / 2
+          const pointed = hover && !dragging ? hover.bar : null
           let acc = 0
           return (
             // A bar is its day in this range: another range has other days, so other bars.
-            <g key={`${bars.length}-${i}`} onMouseEnter={() => setHover(i)}>
+            <g
+              key={`${bars.length}-${i}`}
+              opacity={(outside(i) ? 0.35 : 1) * (pointed !== null && pointed !== i ? 0.55 : 1)}
+            >
               <rect x={pad.l + slot * i} y={pad.t} width={slot} height={plotH} fill="transparent" />
               <g
                 className={cn(grow && 'bar-grow')}
@@ -219,13 +502,13 @@ export function StackedBars({
                   return (
                     <rect
                       key={s}
+                      data-part={v ? s : undefined}
                       className="bar-move"
                       x={x}
                       y={top}
                       width={bw}
                       height={Math.max(0, h - (v ? 0.5 : 0))}
                       fill={fillOf(s, hatch)}
-                      opacity={hover !== null && hover !== i ? 0.55 : 1}
                     />
                   )
                 })}
@@ -244,7 +527,7 @@ export function StackedBars({
           )
         })}
         {lines.map((m) => (
-          <g key={m.index}>
+          <g key={m.index} pointerEvents="none">
             <line
               x1={m.x}
               x2={m.x}
@@ -266,33 +549,119 @@ export function StackedBars({
             )}
           </g>
         ))}
+        {/* The run chosen, drawn over the bars: its outline, and a grip on each edge. */}
+        {span && choosing && (
+          <g pointerEvents="none">
+            <rect
+              x={edges(span)[0] + 0.5}
+              y={pad.t - 0.5}
+              width={Math.max(0, edges(span)[1] - edges(span)[0] - 1)}
+              height={plotH}
+              fill="none"
+              stroke="var(--primary)"
+              rx={3}
+            />
+            {edges(span).map((x, i) => (
+              <rect
+                key={i}
+                x={x - 2}
+                y={pad.t + plotH / 2 - 11}
+                width={4}
+                height={22}
+                rx={2}
+                fill="var(--primary)"
+              />
+            ))}
+          </g>
+        )}
+        {/* Where the keys are: the bar, or the part of it. */}
+        {cursorAt && bars[cursorAt.bar] && (
+          <CursorMark
+            at={cursorAt}
+            bar={bars[cursorAt.bar]!}
+            states={states}
+            x={pad.l + slot * cursorAt.bar}
+            slot={slot}
+            bw={bw}
+            top={pad.t}
+            plotH={plotH}
+            y={y}
+          />
+        )}
       </svg>
+      {dragging && span && (
+        // Over the middle of the run, above the plot, clear of the publish lines' labels.
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-0 z-raised -translate-x-1/2 -translate-y-full rounded-md bg-foreground px-2 py-1 text-xs font-medium whitespace-nowrap text-background tabular-nums"
+          style={{
+            left: `clamp(5rem, ${((edges(span)[0] + edges(span)[1]) / 2 / W) * 100}%, calc(100% - 5rem))`,
+          }}
+        >
+          {spanWords?.(span)}: {sumOf(span)} {states.length < SHOWN.length ? 'shown' : 'asked'}
+        </div>
+      )}
       {tip && (
-        <div className="pointer-events-none absolute top-2 right-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
+        // On the side away from its bar, so it never covers what it describes.
+        <div
+          className={cn(
+            'pointer-events-none absolute top-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md',
+            tipAt !== null && tipAt >= bars.length / 2 ? 'left-10' : 'right-2',
+          )}
+        >
           <p className="mb-1 font-medium">
             {tip.label}: {drawn(tip)}
-            {states.some((s) => tip.counts[s] === null) ? '+' : ''}{' '}
-            {states.length < SHOWN.length ? 'shown' : 'asked'}
+            {hidden(tip) ? '+' : ''} {states.length < SHOWN.length ? 'shown' : 'asked'}
           </p>
           <ul className="flex flex-col gap-0.5">
             {states
               .filter((s) => tip.counts[s] !== 0)
               .map((s) => (
-                <li key={s} className="flex items-center gap-1.5">
+                <li
+                  key={s}
+                  className={cn(
+                    '-mx-1.5 flex items-center gap-1.5 rounded-sm px-1.5',
+                    tipPart === s && 'bg-muted font-medium',
+                  )}
+                >
                   <Swatch state={s} />
-                  <span className="flex-1 text-muted-foreground">{STATE_WORDS[s]}</span>
+                  <span
+                    className={cn(
+                      'flex-1',
+                      tipPart === s ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    {STATE_WORDS[s]}
+                  </span>
                   <span className="tabular-nums">{tip.counts[s] ?? 'Hidden'}</span>
                 </li>
               ))}
           </ul>
           {marks
-            .filter((m) => m.index === hover)
+            .filter((m) => m.index === tipAt)
             .map((m, i) => (
               <p key={i} className={cn(i === 0 ? 'mt-1.5 border-t pt-1.5' : 'mt-0.5')}>
                 Published: {m.title}
               </p>
             ))}
+          {onDrill && tipPart && (
+            <p className="mt-1.5 border-t pt-1.5 text-muted-foreground">
+              {keyed ? 'Enter' : 'Click'} to look at only {STATE_WORDS[tipPart]}
+            </p>
+          )}
         </div>
+      )}
+      {choosing && (
+        <>
+          <p id={helpId} className="sr-only">
+            Left and Right move between bars, Up and Down between their answers. Enter on an answer
+            looks at only it; Enter on a bar selects it. Shift and Left or Right select a run of
+            bars, Alt and Left or Right move it, Escape clears it.
+          </p>
+          <p className="sr-only" aria-live="polite">
+            {said}
+          </p>
+        </>
       )}
       <table className="sr-only">
         <caption>{caption}</caption>
@@ -312,6 +681,7 @@ export function StackedBars({
               <th scope="row">
                 {b.label}
                 {marks.some((m) => m.index === i) ? ', published' : ''}
+                {span && !outside(i) ? ', selected' : ''}
               </th>
               {states.map((s) => (
                 <td key={s}>{b.counts[s] ?? 'Hidden'}</td>
@@ -321,6 +691,64 @@ export function StackedBars({
         </tbody>
       </table>
     </figure>
+  )
+}
+
+/** Where a chart's keys are: a ring round the bar, or round the part of it. */
+function CursorMark({
+  at,
+  bar,
+  states,
+  x,
+  slot,
+  bw,
+  top,
+  plotH,
+  y,
+}: {
+  at: { bar: number; part?: Shown }
+  bar: Bar
+  states: Shown[]
+  x: number
+  slot: number
+  bw: number
+  top: number
+  plotH: number
+  y: (v: number) => number
+}) {
+  if (!at.part)
+    return (
+      <rect
+        x={x + 1}
+        y={top - 1}
+        width={Math.max(0, slot - 2)}
+        height={plotH + 1}
+        fill="none"
+        stroke="var(--ring)"
+        strokeWidth={2}
+        rx={3}
+        pointerEvents="none"
+      />
+    )
+  // The part's place in its stack: what the drawn states under it add up to.
+  let below = 0
+  for (const s of SHOWN) {
+    if (s === at.part) break
+    if (states.includes(s)) below += bar.counts[s] ?? 0
+  }
+  const v = bar.counts[at.part] ?? 0
+  return (
+    <rect
+      x={x + (slot - bw) / 2 - 2}
+      y={y(below + v) - 2}
+      width={bw + 4}
+      height={Math.max(4, y(below) - y(below + v) + 4)}
+      fill="none"
+      stroke="var(--ring)"
+      strokeWidth={2}
+      rx={3}
+      pointerEvents="none"
+    />
   )
 }
 

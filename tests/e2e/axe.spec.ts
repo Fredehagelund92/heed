@@ -64,6 +64,8 @@ const places = [
   // The filter bar: chips that keep and leave out, in an order of their own, and the facets with a
   // kind of agent not shown.
   '/observability?market=Norway&answer=!missing&chips=market,answer',
+  // Days selected on the chart, read as a chip, with a part of a bar drilled into.
+  '/observability?range=30&days=2026-10-12..2026-10-18&answer=missing',
   '/observability?state=empty',
   '/observability/quality',
   '/observability/feedback',
@@ -236,6 +238,19 @@ for (const { name, width, height } of widths) {
         await expect(values).toBeVisible()
         const editor = `serious: scrollable-region-focusable (#${await values.getAttribute('id')})`
         expect((await violations(page)).filter((v) => v !== editor)).toEqual([])
+      })
+
+      test("Overview's chart: days selected from the keys, on a part of a bar", async ({
+        page,
+      }) => {
+        await page.goto(withTheme('/observability?range=30', theme))
+        await expect(page.getByRole('heading', { name: 'Topics' })).toBeVisible()
+        await page.keyboard.press('b')
+        await page.keyboard.press('Shift+ArrowLeft')
+        await page.keyboard.press('ArrowUp')
+        await expect(page.getByText(/^Enter to look at only /)).toBeVisible()
+        await expect(page.getByRole('button', { name: /^Time is / })).toBeVisible()
+        expect(await violations(page)).toEqual([])
       })
 
       test('an answer that looked nothing up, with what Ask can answer', async ({ page }) => {

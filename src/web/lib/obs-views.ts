@@ -1,6 +1,8 @@
 import {
+  dateLabel,
   monthName,
   STATE_WORDS,
+  type Bar,
   type Count,
   type Observability,
   type Shown,
@@ -281,4 +283,50 @@ export function facet(key: FilterKey, input: FacetInput): FacetValue[] {
     }
     return { value, topics: hits.length, count: obs.selection(hits).asked }
   })
+}
+
+/* ---------- the days chosen on the chart ---------- */
+
+/** The bars chosen on the chart, the first and the last, by their place. */
+export type Span = { from: number; to: number }
+
+const DAY = 86_400_000
+/** A day as the address writes it: "2026-10-12". */
+const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10)
+/** A bar's last day: the day before the next one starts, or the last day counted. */
+const endOf = (bars: readonly Bar[], last: number, i: number) =>
+  i + 1 < bars.length ? bars[i + 1]!.at - DAY : last
+
+/**
+ * The bars the address chooses ("days=2026-10-12..2026-10-18", or one day): every bar one of its
+ * days falls in, so over 90 days it is whole weeks. Days the range no longer has are left out, and
+ * none left is no choice.
+ */
+export function spanFrom(q: URLSearchParams, bars: readonly Bar[], last: number): Span | null {
+  const [a, b = a] = (q.get('days') ?? '').split('..')
+  const from = Date.parse(a ?? '')
+  const to = Date.parse(b ?? '')
+  if (!bars.length || Number.isNaN(from) || Number.isNaN(to)) return null
+  const lo = Math.max(Math.min(from, to), bars[0]!.at)
+  const hi = Math.min(Math.max(from, to), last)
+  if (lo > hi) return null
+  const at = (t: number) => bars.findLastIndex((x) => x.at <= t)
+  return { from: at(lo), to: at(hi) }
+}
+
+/** The bars chosen, as the address keeps their days. */
+export function spanTo(span: Span | null, bars: readonly Bar[], last: number) {
+  if (!span || !bars[span.from] || !bars[span.to]) return undefined
+  const a = dayOf(bars[span.from]!.at)
+  const b = dayOf(endOf(bars, last, span.to))
+  return a === b ? a : `${a}..${b}`
+}
+
+/** The days of the bars chosen, in words: "12 Oct", "12 to 18 Oct", "28 Sep to 4 Oct". */
+export function spanWords(span: Span, bars: readonly Bar[], last: number) {
+  const a = bars[span.from]?.at ?? last
+  const b = endOf(bars, last, span.to)
+  if (dayOf(a) === dayOf(b)) return dateLabel(a)
+  const same = new Date(a).getUTCMonth() === new Date(b).getUTCMonth()
+  return `${same ? new Date(a).getUTCDate() : dateLabel(a)} to ${dateLabel(b)}`
 }

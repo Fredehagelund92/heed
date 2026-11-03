@@ -448,6 +448,22 @@ export function observability(data: ObsData) {
   }
 
   /**
+   * What the chart's bars from one to another add up to, in the answer states drawn: each state,
+   * and everything those states count. Only shown counts are added up: a hidden one makes the sum
+   * "83+", and a sum with nothing shown says no number at all, as a hidden count may be any size
+   * (under 5, or hidden to keep another safe). No count is worked out from another.
+   */
+  function barSum(from: number, to: number, states: readonly Shown[] = SHOWN) {
+    const picked = data.bars.slice(from, to + 1)
+    const add = (ks: readonly Shown[]): Pick<TopicGroup, 'visible' | 'shown'> => {
+      const cells = picked.flatMap((b) => ks.map((k) => b.counts[k]))
+      const shown = cells.reduce<number>((n, c) => n + (c ?? 0), 0)
+      return { visible: cells.every((c) => c !== null) ? shown : null, shown }
+    }
+    return { asked: add(states), state: (k: Shown) => add([k]) }
+  }
+
+  /**
    * The headline numbers of the view, and how they compare with the range before: what was asked,
    * in calls; what was checked (only Checked, never an answer with a warning) and what found
    * nothing, by their shares. A change is null when a count is hidden or too small to compare.
@@ -490,6 +506,7 @@ export function observability(data: ObsData) {
     topicMonths,
     notFoundGroups,
     selection,
+    barSum,
     numbers,
   }
 }
