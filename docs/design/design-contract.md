@@ -319,7 +319,9 @@ Design B, at one density. A filter bar (Filter with a live count per value, Sort
 | When    | A glyph and a short date (infinity always, arrow ongoing, since, until, a range) |
 | Checked | One dot: filled up to 30 days, half up to 90, hollow after that                  |
 
-Every mark gives its exact value on hover. The Context and Checked headers sort (Name and Context in Definitions, Topic and Asked in Questions): a click on another column starts it its own way (A to Z, newest first, most first), a second click on the same column flips it, and the arrow and the header's sort state follow. A ranking (Best match, Coverage) has one way only. Questions keeps the sort and its direction in the address, as it keeps its filters. Filters that are on read as sentences under the bar ("Domain is any of Sales, Marketing") with Clear all. A totals row stays at the foot. Opening a peek keeps the search, filters, ticked rows and scroll. The peek steps with J and K, and Escape closes it first. Definitions rows show the type tile, the name with its other names as "Also called" tags (the first three, then +N), the domain at wide widths, the count of context, a flag only when something needs a look, and the source (a lock for read-only, the author's avatar for a term).
+Every mark gives its exact value on hover. The Context and Checked headers sort (Name and Context in Definitions, Topic and Asked in Observability's topics): a click on another column starts it its own way (A to Z, newest first, most first), a second click on the same column flips it, and the arrow and the header's sort state follow. A ranking (Best match, Coverage) has one way only. Observability's Overview keeps the sort and its direction in the address, as it keeps its filters. Filters that are on read as sentences under the bar ("Domain is any of Sales, Marketing") with Clear all. A totals row stays at the foot. Opening a peek keeps the search, filters, ticked rows and scroll. The peek steps with J and K, and Escape closes it first. Definitions rows show the type tile, the name with its other names as "Also called" tags (the first three, then +N), the domain at wide widths, the count of context, a flag only when something needs a look, and the source (a lock for read-only, the author's avatar for a term).
+
+**Observability's Overview** is this pattern over topics, with what they add up to above them, in one frame and one state in the address. Under the title and the range: the views (built in and the workspace's own) as a `TextSwitch` with counts, folding into one menu on a narrow page, then the bar (Filter, Month, search on `/`), the filters that are on as chips, four number cells, questions per day, and the topics with Sort and Group on their section's header. Every part follows the same state. A topic row is one line at 36 px: the name with its months and its flags (one mark with a tooltip where the row has no room), the domain, Asked, the answer bar (its words a point away, and read out), the status. On a phone a row folds to two lines and the domain, status and flags go under the name. Counts follow the disclosure rules: "Fewer than 5", "13+", and "-" for a count hidden to keep another safe. Its numbers count to a new value and its bars move to theirs ([motion](motion.md)). Native selects and checkboxes are not used: the menus, the switch and the chips are the shared parts.
 
 ### 5.2 Selection and the bulk bar
 
@@ -379,12 +381,12 @@ A thread under each suggestion in the review and inside each context item's page
 
 One shared component per job (`components/heed/switches.tsx`):
 
-| Component     | Job                                                                                                                                       |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `ViewToggle`  | Another view of the same thing, usually an advanced one: a quiet icon button (the review's Preview).                                      |
-| `TextSwitch`  | A list filter or a two-way option: words with counts and a sliding 2 px underline (Needs me / All, Definitions views, Draft / Published). |
-| `ChoiceGroup` | A decision with a few answers: outline buttons in a radio group (how an overlap relates).                                                 |
-| Property menu | A property of a document (a term's Another name for).                                                                                     |
+| Component     | Job                                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ViewToggle`  | Another view of the same thing, usually an advanced one: a quiet icon button (the review's Preview).                                                        |
+| `TextSwitch`  | A list filter or a two-way option: words with counts and a sliding 2 px underline (Needs me / All, Definitions views, Overview's views, Draft / Published). |
+| `ChoiceGroup` | A decision with a few answers: outline buttons in a radio group (how an overlap relates).                                                                   |
+| Property menu | A property of a document (a term's Another name for).                                                                                                       |
 
 No pill tabs, no segmented tracks, no line tabs. Each section of a settings area has its own address and a breadcrumb.
 

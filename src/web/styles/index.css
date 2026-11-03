@@ -417,6 +417,39 @@
   }
 }
 
+/* Chart bars already on screen move to their new height in 220ms when the view changes. */
+@utility bar-move {
+  transition-property: y, height;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-move);
+}
+
+/* A number counting to its new value in 320ms (components/heed/count-up.tsx): --count is a
+   registered integer, so it transitions; each digit is a counter of it, and a place the count is
+   under takes no room. With reduced motion --dur-4 is 0 and the number is there at once. */
+@property --count {
+  syntax: '<integer>';
+  inherits: true;
+  initial-value: 0;
+}
+
+@utility count-up {
+  transition: --count var(--dur-4) var(--ease-out);
+}
+
+@utility count-digit {
+  counter-reset: digit mod(round(down, var(--count) / var(--place)), 10);
+
+  &::after {
+    content: counter(digit);
+  }
+}
+
+@utility count-from {
+  overflow: hidden;
+  max-width: calc(clamp(0, var(--count) + 1 - var(--from), 1) * 1em);
+}
+
 /* A value that changed: a tint there at once, fading over 600ms. With reduced motion it is not drawn. */
 @utility value-changed {
   animation: value-changed var(--dur-highlight) var(--ease-out) both;

@@ -53,9 +53,15 @@ const places = [
   '/context/conflicts/itm_france_switch_12.itm_france_switch_21',
   '/settings/integrations?state=failed',
   '/settings/integrations?state=reauth',
-  '/observability/overview',
+  // Overview: the numbers, the chart and the topics; narrowed to an answer, a view and a domain;
+  // Questions' old address at the topics; and a topic's answer panel beside the table.
+  '/observability',
+  '/observability?answer=missing',
+  '/observability?view=look&group=domain',
   '/observability/questions',
   '/observability/questions?sort=name&dir=desc',
+  '/observability/questions?dock=topic.orders-spain',
+  '/observability?state=empty',
   '/observability/quality',
   '/observability/feedback',
   '/observability/usage',

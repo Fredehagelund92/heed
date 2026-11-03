@@ -89,8 +89,8 @@ function useWidth(fallback: number) {
   return [ref, w] as const
 }
 
-/** About how wide a chart label of 10 px is, per character. */
-const LABEL_CHAR = 5.6
+/** About how wide a chart label of 12 px is, per character. */
+const LABEL_CHAR = 6.7
 
 /**
  * One dashed line per bar with a publish, and its label above the plot ("Published", "2
@@ -123,17 +123,22 @@ export function publishLines(
 
 /**
  * Questions per day (or per week), stacked by how they were answered, with a dashed line at each
- * publish so you can see whether the hatch of "nothing written down" shrank after it.
+ * publish so you can see whether the hatch of "nothing written down" shrank after it. Narrowed to
+ * some answer states, it draws only those, on their own scale. Bars that are already on screen
+ * move to their new heights when the view changes; another range draws new bars.
  */
 export function StackedBars({
   bars,
   marks = [],
+  states = SHOWN,
   height = 220,
   caption,
 }: {
   bars: Bar[]
   /** Publishes: the index of the bar they fall on, and what was published. */
   marks?: { index: number; title: string }[]
+  /** The answer states drawn, in their order. */
+  states?: Shown[]
   height?: number
   caption: string
 }) {
@@ -150,8 +155,9 @@ export function StackedBars({
     return () => window.clearTimeout(t)
   }, [grow])
   const H = height
-  const pad = { l: 28, r: 8, t: 18, b: 22 }
-  const max = niceMax(Math.max(...bars.map((b) => shownSum(b.counts)), 1))
+  const pad = { l: 36, r: 8, t: 20, b: 24 }
+  const drawn = (b: Bar) => states.reduce((n, s) => n + (b.counts[s] ?? 0), 0)
+  const max = niceMax(Math.max(...bars.map(drawn), 1))
   const plotW = W - pad.l - pad.r
   const plotH = H - pad.t - pad.b
   const slot = plotW / bars.length
@@ -185,7 +191,7 @@ export function StackedBars({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-3xs tabular-nums"
+              className="fill-muted-foreground text-xs tabular-nums"
             >
               {Math.round(max * f)}
             </text>
@@ -195,7 +201,8 @@ export function StackedBars({
           const x = pad.l + slot * i + (slot - bw) / 2
           let acc = 0
           return (
-            <g key={i} onMouseEnter={() => setHover(i)}>
+            // A bar is its day in this range: another range has other days, so other bars.
+            <g key={`${bars.length}-${i}`} onMouseEnter={() => setHover(i)}>
               <rect x={pad.l + slot * i} y={pad.t} width={slot} height={plotH} fill="transparent" />
               <g
                 className={cn(grow && 'bar-grow')}
@@ -203,19 +210,20 @@ export function StackedBars({
                   grow ? { animationDelay: `calc(var(--stagger) * ${Math.min(i, 6)})` } : undefined
                 }
               >
+                {/* Every state has its part, empty when it is not drawn, so a part can move to and from nothing. */}
                 {SHOWN.map((s) => {
-                  const v = b.counts[s]
-                  if (!v) return null
+                  const v = states.includes(s) ? (b.counts[s] ?? 0) : 0
                   const top = y(acc + v)
                   const h = y(acc) - top
                   acc += v
                   return (
                     <rect
                       key={s}
+                      className="bar-move"
                       x={x}
                       y={top}
                       width={bw}
-                      height={Math.max(0, h - 0.5)}
+                      height={Math.max(0, h - (v ? 0.5 : 0))}
                       fill={fillOf(s, hatch)}
                       opacity={hover !== null && hover !== i ? 0.55 : 1}
                     />
@@ -227,7 +235,7 @@ export function StackedBars({
                   x={x + bw / 2}
                   y={H - 6}
                   textAnchor="middle"
-                  className="fill-muted-foreground text-3xs"
+                  className="fill-muted-foreground text-xs"
                 >
                   {b.label}
                 </text>
@@ -251,7 +259,7 @@ export function StackedBars({
                 x={m.end ? m.x - 4 : m.x + 4}
                 y={pad.t - 8}
                 textAnchor={m.end ? 'end' : 'start'}
-                className="fill-foreground text-3xs"
+                className="fill-foreground text-xs"
               >
                 {m.label}
               </text>
@@ -262,17 +270,20 @@ export function StackedBars({
       {tip && (
         <div className="pointer-events-none absolute top-2 right-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
           <p className="mb-1 font-medium">
-            {tip.label}: {shownSum(tip.counts)}
-            {SHOWN.some((s) => tip.counts[s] === null) ? '+' : ''} asked
+            {tip.label}: {drawn(tip)}
+            {states.some((s) => tip.counts[s] === null) ? '+' : ''}{' '}
+            {states.length < SHOWN.length ? 'shown' : 'asked'}
           </p>
           <ul className="flex flex-col gap-0.5">
-            {SHOWN.filter((s) => tip.counts[s] !== 0).map((s) => (
-              <li key={s} className="flex items-center gap-1.5">
-                <Swatch state={s} />
-                <span className="flex-1 text-muted-foreground">{STATE_WORDS[s]}</span>
-                <span className="tabular-nums">{tip.counts[s] ?? 'Hidden'}</span>
-              </li>
-            ))}
+            {states
+              .filter((s) => tip.counts[s] !== 0)
+              .map((s) => (
+                <li key={s} className="flex items-center gap-1.5">
+                  <Swatch state={s} />
+                  <span className="flex-1 text-muted-foreground">{STATE_WORDS[s]}</span>
+                  <span className="tabular-nums">{tip.counts[s] ?? 'Hidden'}</span>
+                </li>
+              ))}
           </ul>
           {marks
             .filter((m) => m.index === hover)
@@ -288,7 +299,7 @@ export function StackedBars({
         <thead>
           <tr>
             <th scope="col">Day</th>
-            {SHOWN.map((s) => (
+            {states.map((s) => (
               <th key={s} scope="col">
                 {STATE_WORDS[s]}
               </th>
@@ -302,7 +313,7 @@ export function StackedBars({
                 {b.label}
                 {marks.some((m) => m.index === i) ? ', published' : ''}
               </th>
-              {SHOWN.map((s) => (
+              {states.map((s) => (
                 <td key={s}>{b.counts[s] ?? 'Hidden'}</td>
               ))}
             </tr>

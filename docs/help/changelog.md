@@ -1,8 +1,14 @@
 ---
 title: What's new
 line: Changes people notice, newest first.
-reviewed: 2026-11-02
+reviewed: 2026-11-03
 ---
+
+## Overview and Questions are one page
+
+2026-11-03
+
+Overview now holds the topics too: the numbers, questions per day and the topics follow the same range, domain, kind of agent, view and filters, and a changed number counts to its new value. Questions' links open Overview at the topics.
 
 ## Observability opens on Overview
 

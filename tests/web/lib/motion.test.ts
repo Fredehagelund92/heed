@@ -45,6 +45,19 @@ describe('motion tokens', () => {
     // An animate-none override is only for a component's own keyframes.
     expect(hits(/motion-reduce:animate-none/, (line) => line.includes('animate-['))).toEqual([])
   })
+  it('counts a number and moves a bar in CSS, never in a frame-by-frame script', () => {
+    // Overview's numbers and bars move on the tokens (count-up, bar-move), so reduced motion
+    // reaches them through the one block in the token file.
+    expect(
+      hits(
+        /requestAnimationFrame/,
+        (_, file) => !/^(components\/obs|pages\/observability)\//.test(file),
+      ),
+    ).toEqual([])
+    expect(
+      hits(/requestAnimationFrame/, (_, file) => file !== 'components/heed/count-up.tsx'),
+    ).toEqual([])
+  })
   it('runs its own keyframes only for the countdown and the read fill', () => {
     expect(hits(/animate-\[(?!countdown_|readfill_)[^\]]*\]/)).toEqual([])
   })

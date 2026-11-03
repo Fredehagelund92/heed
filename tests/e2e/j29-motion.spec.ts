@@ -101,12 +101,7 @@ test('a skeleton sits where its table will be', async ({ page }) => {
 })
 
 test('once a page is still, nothing loops or moves', async ({ page }) => {
-  for (const route of [
-    '/inbox?demo=week',
-    '/observability/overview',
-    '/ask?example=grounded',
-    '/context',
-  ]) {
+  for (const route of ['/inbox?demo=week', '/observability', '/ask?example=grounded', '/context']) {
     await go(page, route)
     await page.waitForTimeout(2600)
     const running = await page.evaluate(() =>
@@ -338,6 +333,87 @@ test('a deleted row fades out before it goes, and does not come back on its way'
   )
   expect(seen.back).toBe(false)
   expect(seen.left).toBe(!(await reduced(page)))
+})
+
+test('Overview: a changed number counts to its new value, and the bars move to theirs', async ({
+  page,
+}) => {
+  await go(page, '/observability')
+  const asked = page.locator('[data-slot=kpi]').first().locator('[data-slot=count-up]')
+  await expect(asked).toContainText('142')
+  // Shown the first time, a number is simply there: it does not count up from nothing.
+  expect(await asked.evaluate((el) => getComputedStyle(el).getPropertyValue('--count'))).toBe('142')
+  // A filter (the Not found cell): what the number and the tallest bar show, each frame for 700ms.
+  const seen = await page.evaluate(async () => {
+    const count = () =>
+      Number(
+        getComputedStyle(document.querySelector('[data-slot=kpi] [data-slot=count-up]')!)
+          .getPropertyValue('--count')
+          .trim(),
+      )
+    const bar = () =>
+      Math.max(
+        ...[...document.querySelectorAll('figure svg rect.bar-move')].map((r) =>
+          Number.parseFloat(getComputedStyle(r).height),
+        ),
+      )
+    const counts: number[] = []
+    const bars: number[] = []
+    // A filter keeps the same days, so the bars that are there move instead of being drawn anew.
+    ;[...document.querySelectorAll('a')]
+      .find((a) => a.textContent?.startsWith('Not found'))!
+      .click()
+    const t0 = performance.now()
+    await new Promise<void>((done) => {
+      const tick = () => {
+        counts.push(count())
+        bars.push(bar())
+        if (performance.now() - t0 < 700) requestAnimationFrame(tick)
+        else done()
+      }
+      requestAnimationFrame(tick)
+    })
+    return { counts, bars }
+  })
+  const end = seen.counts.at(-1)!
+  expect(end).toBeLessThan(142)
+  await expect(asked).toContainText(String(end))
+  const between = seen.counts.filter((n) => n < 142 && n > end)
+  // Once it has counted, each place draws its own digit, and a place above the number takes no room.
+  await expect
+    .poll(() =>
+      asked.evaluate((el) =>
+        [...el.querySelectorAll('.count-digit')]
+          .map((d) => ({
+            digit: getComputedStyle(d).counterReset.replace('digit ', ''),
+            width: d.getBoundingClientRect().width,
+          }))
+          .filter((d) => d.width > 0)
+          .map((d) => d.digit)
+          .join(''),
+      ),
+    )
+    .toBe(String(end))
+  const hidden = await asked.evaluate(
+    (el) =>
+      [...el.querySelectorAll('.count-digit')]
+        .map((d) => d.getBoundingClientRect().width)
+        .filter((w) => w === 0).length,
+  )
+  expect(hidden).toBe(Math.max(0, 3 - String(end).length))
+  const moving = new Set(seen.bars).size
+  if (await reduced(page)) {
+    // With reduced motion the number is there at once, and so are the bars.
+    expect(between).toEqual([])
+    expect(moving).toBeLessThanOrEqual(2)
+    expect(await asked.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s')
+  } else {
+    // It counts through numbers between (how many frames land in 320ms depends on the machine),
+    // and the bars move there.
+    expect(between.length).toBeGreaterThanOrEqual(1)
+    expect(moving).toBeGreaterThan(3)
+    expect(await asked.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0.32s')
+  }
 })
 
 test('moving between places never blanks the page on the way', async ({ page }) => {

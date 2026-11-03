@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useDomains, useDomainList } from '@/lib/workspace'
 import { useObservability } from '@/lib/obs'
-import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon } from '@/components/icons'
+import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon, InfoIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -14,6 +14,7 @@ import {
   monthsLabel,
   share,
   shownCount,
+  shownSum,
   statusOf,
   type Count,
   type Grouping,
@@ -125,7 +126,7 @@ export function TopicTable({
             onSort={onSort}
             className="w-full px-4 md:pl-5"
           />
-          <Th className="hidden w-36 px-2 @3xl/main:table-cell">Domain</Th>
+          <Th className="hidden w-36 px-2 @5xl/main:table-cell">Domain</Th>
           <SortTh
             keys={TOPIC_SORTS}
             sorting={sorting}
@@ -133,8 +134,10 @@ export function TopicTable({
             onSort={onSort}
             className="w-24 px-2 text-right"
           />
-          {sparks && <Th className="hidden w-24 px-2 @4xl/main:table-cell">{view.range} days</Th>}
-          <Th className="hidden w-60 min-w-60 px-2 @2xl/main:table-cell">How it was answered</Th>
+          {sparks && <Th className="hidden w-24 px-2 @5xl/main:table-cell">{view.range} days</Th>}
+          <Th className="hidden w-40 min-w-40 px-2 @2xl/main:table-cell @5xl/main:w-60 @5xl/main:min-w-60">
+            How it was answered
+          </Th>
           <Th className="hidden w-44 pr-4 pl-2 md:pr-5 @3xl/main:table-cell">Status</Th>
         </tr>
       </thead>
@@ -172,8 +175,8 @@ export function TopicTable({
           )
         })}
         {unread !== 0 && (
-          <tr className="border-t bg-muted/30 text-sm">
-            <td colSpan={cols} className="px-4 py-2.5 md:px-5">
+          <tr className="h-9 border-t bg-muted/30 text-sm">
+            <td colSpan={cols} className="px-4 py-2 md:px-5">
               <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <CircleHelpIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="font-medium">Could not be read</span>
@@ -221,16 +224,18 @@ function TopicLine({
   const disagree = g.rows.some((r) => r.disagree !== undefined && r.disagree !== 0)
   const disagreeCount = g.rows.length === 1 ? (g.rows[0]!.disagree ?? null) : null
   const open = () => (expand ? expand.onToggle() : openDock('topic', id))
+  const note = hidden ? undefined : answeredLine(n, g.counts.missing)
   return (
     <tr
       data-peeked={peeked || undefined}
       className={cn(
-        'h-12 cursor-pointer border-t text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked',
+        'h-9 cursor-pointer border-t text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked',
         month && 'bg-muted/20',
       )}
       onClick={open}
     >
-      <td className={cn('max-w-0 px-4 py-2 md:pl-5', month && 'pl-11 md:pl-12')}>
+      {/* One line a row; on a phone the domain and the status fold under the name. */}
+      <td className={cn('max-w-0 px-4 py-1.5 md:pl-5', month && 'pl-11 md:pl-12')}>
         <span className="flex min-w-0 items-center gap-1.5">
           {expand && (
             <ChevronRightIcon
@@ -241,12 +246,19 @@ function TopicLine({
               )}
             />
           )}
+          {/* Where the Domain column has no room (the dock open beside it), its dot leads the name. */}
+          {!month && g.domain && (
+            <span className="hidden shrink-0 @3xl/main:inline-flex @5xl/main:hidden">
+              <DomainDot id={g.domain} />
+              <span className="sr-only">{domains[g.domain]?.name}: </span>
+            </span>
+          )}
           <button
             type="button"
             data-row-open={id}
             aria-expanded={expand ? expand.open : undefined}
             className={cn(
-              'block max-w-full truncate text-left outline-none hover:underline',
+              'block min-w-0 truncate text-left outline-none hover:underline',
               month ? 'text-dense' : 'font-medium',
             )}
             onClick={(e) => {
@@ -262,15 +274,34 @@ function TopicLine({
               {monthsLabel(months)}
             </span>
           )}
+          {!month && (
+            <>
+              <Flags
+                g={g}
+                disagree={disagree}
+                count={disagreeCount}
+                className="hidden @5xl/main:flex"
+              />
+              <Flags
+                g={g}
+                disagree={disagree}
+                count={disagreeCount}
+                compact
+                className="hidden @3xl/main:flex @5xl/main:hidden"
+              />
+            </>
+          )}
         </span>
-        {!month && <Flags g={g} disagree={disagree} count={disagreeCount} />}
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground @3xl/main:hidden">
+        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground @3xl/main:hidden">
           {g.domain ? <DomainDot id={g.domain} /> : null}
-          {g.domain ? domains[g.domain]?.name : 'No domain'}
+          <span className="shrink-0">{g.domain ? domains[g.domain]?.name : 'No domain'}</span>
           {st && <span className="truncate">- {st.label}</span>}
+          {!month && (
+            <Flags g={g} disagree={disagree} count={disagreeCount} compact className="flex" />
+          )}
         </span>
       </td>
-      <td className="hidden px-2 text-dense whitespace-nowrap text-muted-foreground @3xl/main:table-cell">
+      <td className="hidden px-2 text-dense whitespace-nowrap text-muted-foreground @5xl/main:table-cell">
         {!month && (
           <span className="flex items-center gap-1.5">
             {g.domain && <DomainDot id={g.domain} />}
@@ -299,22 +330,27 @@ function TopicLine({
         )}
       </td>
       {sparks && (
-        <td className="hidden px-2 @4xl/main:table-cell">
+        <td className="hidden px-2 @5xl/main:table-cell">
           {!hidden && g.rows.length === 1 && g.rows[0]!.spark && (
             <Sparkline values={g.rows[0]!.spark} />
           )}
         </td>
       )}
-      <td className="hidden px-2 py-2 @2xl/main:table-cell">
+      <td className="hidden px-2 @2xl/main:table-cell">
         {hidden ? (
           <span className="text-xs text-muted-foreground">-</span>
+        ) : !shownSum(g.counts) && !(n && g.counts.missing !== null) ? (
+          // Nothing of it may be drawn: the words say so where the bar would be.
+          <span className="block truncate text-xs text-muted-foreground">{note}</span>
         ) : (
-          <>
-            <MixBar counts={g.counts} of={n} />
-            <span className="mt-1 block text-xs whitespace-nowrap text-muted-foreground">
-              {answeredLine(n, g.counts.missing)}
-            </span>
-          </>
+          // The bar is the row's answer at a glance; its words are a point away, and read out.
+          <Tooltip>
+            <TooltipTrigger render={<span className="block py-2" />}>
+              <MixBar counts={g.counts} of={n} />
+              <span className="sr-only">{note}</span>
+            </TooltipTrigger>
+            <TooltipContent>{note}</TooltipContent>
+          </Tooltip>
         )}
       </td>
       <td
@@ -373,7 +409,20 @@ function answeredLine(asked: Count, nothing: Count) {
 }
 
 /** What a topic's scope says about how it was read: a metric group, no metric at all, or agent and words that disagreed. */
-function Flags({ g, disagree, count }: { g: TopicGroup; disagree: boolean; count: Count }) {
+function Flags({
+  g,
+  disagree,
+  count,
+  compact,
+  className,
+}: {
+  g: TopicGroup
+  disagree: boolean
+  count: Count
+  /** One mark with all of them a point away, where the row has no room for their words. */
+  compact?: boolean
+  className?: string
+}) {
   const flags = [
     g.named === 'group' && {
       label: 'Metric group',
@@ -399,15 +448,43 @@ function Flags({ g, disagree, count }: { g: TopicGroup; disagree: boolean; count
     },
   ].filter(Boolean) as { label: string; tip: string; warn: boolean }[]
   if (!flags.length) return null
+  if (compact)
+    return (
+      <span className={cn('shrink-0', className)}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span
+                className={cn(
+                  'inline-flex cursor-help text-muted-foreground',
+                  flags.some((f) => f.warn) && 'text-foreground',
+                )}
+              />
+            }
+          >
+            <InfoIcon className="size-3.5" aria-hidden />
+            <span className="sr-only">{flags.map((f) => f.label).join(', ')}</span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64">
+            {flags.map((f) => (
+              <p key={f.label}>
+                <span className="font-medium">{f.label}.</span> {f.tip}
+              </p>
+            ))}
+          </TooltipContent>
+        </Tooltip>
+      </span>
+    )
+  // Beside the name, on its line, and the name gives way first.
   return (
-    <span className="mt-1 flex flex-wrap gap-1">
+    <span className={cn('min-w-0 shrink-0 gap-1', className)}>
       {flags.map((f) => (
         <Tooltip key={f.label}>
           <TooltipTrigger
             render={
               <span
                 className={cn(
-                  'inline-flex h-5 cursor-help items-center rounded-md border px-1.5 text-2xs text-muted-foreground',
+                  'inline-flex h-5 cursor-help items-center rounded-md border px-1.5 text-xs whitespace-nowrap text-muted-foreground',
                   f.warn && 'border-warn/45 text-foreground',
                 )}
               />
