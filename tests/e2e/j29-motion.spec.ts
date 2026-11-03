@@ -394,10 +394,11 @@ test('Overview: a changed number counts to its new value, and the bars move to t
       ),
     )
     .toBe(String(end))
-  const hidden = await asked.evaluate((el) =>
-    [...el.querySelectorAll('.count-digit')]
-      .map((d) => d.getBoundingClientRect().width)
-      .filter((w) => w === 0).length,
+  const hidden = await asked.evaluate(
+    (el) =>
+      [...el.querySelectorAll('.count-digit')]
+        .map((d) => d.getBoundingClientRect().width)
+        .filter((w) => w === 0).length,
   )
   expect(hidden).toBe(Math.max(0, 3 - String(end).length))
   const moving = new Set(seen.bars).size
