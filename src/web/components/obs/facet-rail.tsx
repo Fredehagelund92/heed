@@ -132,8 +132,10 @@ function Facets({ chips, onChange, fields, facet, words }: FacetsProps) {
             className="border-t border-border/60 px-3 py-2 first-of-type:border-t-0"
           >
             <h3 className="flex h-6 items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              {FILTER_WORDS[f.key]}
-              {chip?.not && <span className="font-normal">{opWords(chip)}</span>}
+              <span>
+                {FILTER_WORDS[f.key]}
+                {chip?.not && <span className="font-normal"> {opWords(chip)}</span>}
+              </span>
               {chip && (
                 <Button
                   variant="ghost"
@@ -160,6 +162,7 @@ function Facets({ chips, onChange, fields, facet, words }: FacetsProps) {
                   <li key={v.value} className="flex h-7 items-center gap-2 pointer-coarse:h-11">
                     <Checkbox
                       id={id}
+                      aria-label={label}
                       checked={on}
                       onCheckedChange={() => {
                         const next = f.one
@@ -239,11 +242,10 @@ function FacetCount({
   if (!f.count)
     return (
       <span
-        className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground/70"
+        className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground"
         title="The service counts kinds of agent for every topic only, not for the topics in view."
       >
         Not shown
-        {bar}
       </span>
     )
   return (

@@ -101,12 +101,7 @@ export function ValueCount({
   if (!f) return null
   const words = facetWords(f.count, state)
   return (
-    <span
-      className={cn(
-        'ml-auto flex shrink-0 items-center gap-2 text-xs tabular-nums',
-        f.count ? 'text-muted-foreground' : 'text-muted-foreground/70',
-      )}
-    >
+    <span className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
       {words}
       <span aria-hidden className="h-1 w-6 overflow-hidden rounded-full bg-muted">
         <span
@@ -457,7 +452,7 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
           }
         }}
       >
-        <div className="relative min-w-48 flex-1">
+        <div className="relative max-w-80 min-w-48 flex-1 @max-2xl/main:max-w-none">
           <ListFilterIcon
             className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -510,8 +505,7 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
             head={
               pending && (
                 <p className="flex items-center gap-1.5 border-b px-3 py-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{FILTER_WORDS[pending]}</span>
-                  is…
+                  <span className="font-medium text-foreground">{FILTER_WORDS[pending]}</span> is…
                 </p>
               )
             }
@@ -524,7 +518,7 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-xs font-normal text-muted-foreground"
+          className="ml-auto h-6 px-2 text-xs font-normal text-muted-foreground"
           onClick={() => change([], 'Cleared every filter')}
         >
           Clear all
@@ -686,9 +680,9 @@ function ChipItem({
       {dropBefore && <DropLine side="left" />}
       <span
         className={cn(
-          'inline-flex h-6 max-w-full min-w-0 items-center rounded-md border bg-background text-xs transition-[opacity,box-shadow] has-[[data-chip]:focus-visible]:ring-3 has-[[data-chip]:focus-visible]:ring-ring/50',
+          'inline-flex h-6 max-w-full min-w-0 items-center rounded-md bg-background text-xs inset-ring inset-ring-border transition-[opacity,box-shadow] has-[[data-chip]:focus-visible]:ring-3 has-[[data-chip]:focus-visible]:ring-ring/50',
           dragging && 'relative z-raised opacity-80 shadow-md',
-          open && 'border-ring',
+          open && 'inset-ring-ring',
         )}
         style={dragging ? { translate: `${dragging.dx}px ${dragging.dy}px` } : undefined}
       >
@@ -708,7 +702,7 @@ function ChipItem({
               <button
                 type="button"
                 data-chip={c.key}
-                aria-label={`${said}. Enter to change it, Backspace to take it off, Alt and the arrows to move it`}
+                aria-label={`${said}. Enter to change it, Backspace to remove it, Alt and the arrows to move it`}
                 className="flex h-full min-w-0 cursor-default touch-manipulation items-center gap-1 truncate rounded-l-md pr-1 pl-2 outline-none select-none hover:bg-muted/60"
                 onKeyDown={onKeyDown}
                 onPointerDown={(e) => {
@@ -776,7 +770,7 @@ function ChipItem({
         <button
           type="button"
           aria-label={`Remove the filter: ${said}`}
-          className="relative grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground outline-none after:absolute after:-inset-2 hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="grid size-6 shrink-0 place-items-center rounded-r-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
           onClick={() => onRemove(c.key)}
         >
           <XIcon className="size-3" />
@@ -981,7 +975,10 @@ function ChipEditor({
           const f = byValue.get(i.id)
           return (
             <>
-              <Checkbox checked={on} tabIndex={-1} aria-hidden className="pointer-events-none" />
+              {/* The row is the option and says it is ticked; its box is only drawn. */}
+              <span inert className="flex">
+                <Checkbox checked={on} className="pointer-events-none" />
+              </span>
               {c.key === 'answer' && <Swatch state={i.id as Shown} />}
               <span className="min-w-0 flex-1 truncate">{words(c.key, i.id)}</span>
               <span className="sr-only">, {countLabel(f, c.key === 'answer')}</span>

@@ -182,22 +182,21 @@ test('Overview: one filter moves the numbers, the chart and the topics together'
   await expect(page.locator('tbody [data-row-open]').first()).toBeVisible()
   const topics = await page.locator('tbody [data-row-open]').count()
   // A domain narrows the read itself: its own numbers and chart, and its topics.
-  await page.getByRole('button', { name: /^Filter/ }).click()
-  await page.getByRole('menuitem', { name: 'Domain' }).hover()
-  await page.getByRole('menuitemradio', { name: /^Marketing/ }).click()
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
+  const facets = page.getByRole('complementary', { name: 'Facets' })
+  await facets
+    .getByRole('region', { name: 'Domain' })
+    .getByRole('checkbox', { name: 'Marketing' })
+    .click()
   await expect(page).toHaveURL(new RegExp(`domain=${domainId('marketing')}`))
   await expect(page.getByText('Domain is Marketing')).toBeVisible()
   await expect(cell(page, 'Asked')).not.toContainText('142')
   expect(await page.locator('tbody [data-row-open]').count()).toBeLessThan(topics)
   // The kinds of agent, with how often each asked: a kind, never a person.
-  await page.getByRole('button', { name: /^Filter/ }).click()
-  await page.getByRole('menuitem', { name: 'Agent' }).hover()
-  await expect(page.getByText('Kind of agent, never a person')).toBeVisible()
-  await expect(page.getByRole('menuitemradio', { name: /^Claude Code/ })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
+  await expect(
+    facets
+      .getByRole('region', { name: 'Agent kind' })
+      .getByRole('button', { name: /^Claude Code: / }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Remove the filter: Domain is Marketing' }).click()
   await expect(cell(page, 'Asked')).toContainText('142')
   // A view narrows the topics; the chart counts questions and says it cannot follow.
@@ -227,9 +226,14 @@ test("Overview: nothing connected, too few to show, and an owner's own domain", 
   await expect(cell(page, 'Asked')).toContainText('24')
   // An owner's domain is theirs, not a filter to take off; the kinds of agent are for admins.
   await expect(page.getByText('Domain is Marketing')).toHaveCount(0)
-  await page.getByRole('button', { name: /^Filter/ }).click()
-  await expect(page.getByRole('menuitem', { name: 'Domain' })).toHaveCount(0)
-  await expect(page.getByRole('menuitem', { name: 'Agent' })).toHaveCount(0)
+  const facets = page.getByRole('complementary', { name: 'Facets' })
+  await expect(facets.getByRole('region', { name: 'Answer' })).toBeVisible()
+  await expect(facets.getByRole('region', { name: 'Domain' })).toHaveCount(0)
+  await expect(facets.getByRole('region', { name: 'Agent kind' })).toHaveCount(0)
+  await page.keyboard.press('f')
+  await expect(page.getByRole('option', { name: /^Answer/ })).toBeVisible()
+  await expect(page.getByRole('option', { name: /^Domain/ })).toHaveCount(0)
+  await expect(page.getByRole('option', { name: /^Agent kind/ })).toHaveCount(0)
 })
 
 test("Overview's topics: views with counts, a filter as a chip, and a view saved for everyone", async ({
@@ -246,14 +250,12 @@ test("Overview's topics: views with counts, a filter as a chip, and a view saved
   await expect(page.locator('tbody [data-row-open]')).toHaveCount(3)
   await views.getByRole('radio', { name: /^All topics/ }).click()
 
-  await page.getByRole('button', { name: /^Filter/ }).click()
-  await page.getByRole('menuitem', { name: 'Answer' }).hover()
-  await page.getByRole('menuitemcheckbox', { name: /Not found/ }).click()
-  // The submenu, then the menu.
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('menu')).toHaveCount(0)
-  await expect(page.getByText('Answer is Not found')).toBeVisible()
+  await page
+    .getByRole('complementary', { name: 'Facets' })
+    .getByRole('region', { name: 'Answer' })
+    .getByRole('checkbox', { name: 'Not found' })
+    .click()
+  await expect(page.getByRole('button', { name: /^Answer is Not found\./ })).toBeVisible()
   await expect(page).toHaveURL(/answer=missing/)
 
   await page.getByRole('button', { name: 'Save this view' }).click()

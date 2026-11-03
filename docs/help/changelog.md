@@ -4,6 +4,12 @@ line: Changes people notice, newest first.
 reviewed: 2026-11-03
 ---
 
+## Filters as chips, and facets with counts
+
+2026-11-03
+
+Overview's filters are chips you add from the bar (press F, or / to type), change in place, move and take off one at a time. A filter can keep a value or leave it out, and you can filter by market and metric too. Facets beside the topics show every value with what it counts. A link keeps every filter, and Back undoes the last change.
+
 ## Overview and Questions are one page
 
 2026-11-03

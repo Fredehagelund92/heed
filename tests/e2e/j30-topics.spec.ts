@@ -50,10 +50,13 @@ test('Overview shows each exact topic, or a domain at a time, and filters by mon
     page.getByRole('row').filter({ hasText: 'Orders in Germany, November 2026' }),
   ).toContainText('Fewer than 5')
   await go(page, '/observability/questions?group=domain')
-  await expect(page.getByRole('button', { name: /^Sales/ })).toContainText('96 asked')
-  await expect(page.getByRole('button', { name: /^No domain/ })).toBeVisible()
+  const table = page
+    .locator('table')
+    .filter({ has: page.getByRole('columnheader', { name: /Topic/ }) })
+  await expect(table.getByRole('button', { name: /^Sales/ })).toContainText('96 asked')
+  await expect(table.getByRole('button', { name: /^No domain/ })).toBeVisible()
   await go(page, '/observability/questions?group=none&month=2026-09')
-  await expect(page.getByText('Month is September 2026')).toBeVisible()
+  await expect(page.getByText('Month asked about is September 2026')).toBeVisible()
   await expect(page.getByRole('button', { name: /, September 2026$/ })).toHaveCount(2)
   await expect(page.getByRole('button', { name: /, October 2026$/ })).toHaveCount(0)
 })

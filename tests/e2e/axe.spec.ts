@@ -61,6 +61,9 @@ const places = [
   '/observability/questions',
   '/observability/questions?sort=name&dir=desc',
   '/observability/questions?dock=topic.orders-spain',
+  // The filter bar: chips that keep and leave out, in an order of their own, and the facets with a
+  // kind of agent not shown.
+  '/observability?market=Norway&answer=!missing&chips=market,answer',
   '/observability?state=empty',
   '/observability/quality',
   '/observability/feedback',
@@ -215,6 +218,24 @@ for (const { name, width, height } of widths) {
         // region no key reaches. Only that one finding, on this list, is let through.
         const reached = `serious: scrollable-region-focusable (#${await list.getAttribute('id')})`
         expect((await violations(page)).filter((v) => v !== reached)).toEqual([])
+      })
+
+      test("Overview's filter bar: the type-ahead and a chip's editor, open", async ({ page }) => {
+        await page.goto(withTheme('/observability?market=Norway&range=30', theme))
+        await expect(page.getByRole('heading', { name: 'Topics' })).toBeVisible()
+        await page.keyboard.press('f')
+        const fields = page.getByRole('listbox', { name: 'Filters' })
+        await expect(fields).toBeVisible()
+        // The box keeps the focus and names the active row: the combobox pattern, which axe cannot
+        // tell from a scrolling region no key reaches (as the emoji list below).
+        const typeahead = `serious: scrollable-region-focusable (#${await fields.getAttribute('id')})`
+        expect((await violations(page)).filter((v) => v !== typeahead)).toEqual([])
+        await page.keyboard.press('Escape')
+        await page.getByRole('button', { name: /^Market is Norway\./ }).click()
+        const values = page.getByRole('listbox', { name: 'Market values' })
+        await expect(values).toBeVisible()
+        const editor = `serious: scrollable-region-focusable (#${await values.getAttribute('id')})`
+        expect((await violations(page)).filter((v) => v !== editor)).toEqual([])
       })
 
       test('an answer that looked nothing up, with what Ask can answer', async ({ page }) => {

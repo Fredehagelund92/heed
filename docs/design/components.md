@@ -188,16 +188,18 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### Observability
 
-| Part            | File                                                                                              | Job                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Pages           | `pages/observability/*`                                                                           | Overview (with its topics), Quality, Feedback, Usage, Alerts  |
-| Controls        | `components/obs/controls.tsx`                                                                     | Range, kept in the address; Kpi and Definition                |
-| Topic filters   | `components/obs/topic-filters.tsx`                                                                | Overview's views, Filter, Month, Group, chips and Save a view |
-| Charts          | `components/obs/charts.tsx`                                                                       | Small SVG on the tokens, with a table for screen readers      |
-| Topic table     | `components/obs/topic-table.tsx`, `data/observability.ts`, `lib/obs.ts`, `lib/obs-views.ts`       | Topics as rows, in three groupings                            |
-| Answer panel    | `components/obs/answer-panel.tsx`, `lib/replay.ts`                                                | A replay of a topic, now or before the last publish           |
-| Saved questions | `components/obs/save-question.tsx`, `result.tsx`, `data/saved-questions.ts`, `lib/saved-check.ts` | Save question and a result's shape and words                  |
-| Alerts          | `data/alerts.ts`                                                                                  | Eight rules, each one sentence                                |
+| Part            | File                                                                                              | Job                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Pages           | `pages/observability/*`                                                                           | Overview (with its topics), Quality, Feedback, Usage, Alerts |
+| Controls        | `components/obs/controls.tsx`                                                                     | Range, kept in the address; Kpi and Definition               |
+| Topic filters   | `components/obs/topic-filters.tsx`                                                                | Overview's views, Group and Save a view                      |
+| Filter bar      | `components/obs/filter-bar.tsx`, `lib/obs-views.ts`                                               | Chips as sentences, the type-ahead, a chip's editor, moving  |
+| Facets          | `components/obs/facet-rail.tsx`                                                                   | Every value with its count, beside the topics or in a sheet  |
+| Charts          | `components/obs/charts.tsx`                                                                       | Small SVG on the tokens, with a table for screen readers     |
+| Topic table     | `components/obs/topic-table.tsx`, `data/observability.ts`, `lib/obs.ts`, `lib/obs-views.ts`       | Topics as rows, in three groupings                           |
+| Answer panel    | `components/obs/answer-panel.tsx`, `lib/replay.ts`                                                | A replay of a topic, now or before the last publish          |
+| Saved questions | `components/obs/save-question.tsx`, `result.tsx`, `data/saved-questions.ts`, `lib/saved-check.ts` | Save question and a result's shape and words                 |
+| Alerts          | `data/alerts.ts`                                                                                  | Eight rules, each one sentence                               |
 
 ### Help and documentation
 
