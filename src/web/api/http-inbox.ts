@@ -689,7 +689,11 @@ function fieldSideOf(f: ReviewSheet['fields']['before']): FieldSide | null {
     scope: f.scope,
     validity: {
       ...(f.validity.from ? { from: f.validity.from } : {}),
-      ...(f.validity.until ? { until: shiftDate(f.validity.until, -1) } : { ongoing: true }),
+      ...(f.validity.until
+        ? { until: shiftDate(f.validity.until, -1) }
+        : f.kind === 'issue'
+          ? { ongoing: true }
+          : {}),
     },
     ...(f.reviewDate ? { reviewDate: f.reviewDate } : {}),
     sources: f.sources.map((s) => ({ url: s.url, ...(s.quote ? { quote: s.quote } : {}) })),
