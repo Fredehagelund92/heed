@@ -1,27 +1,10 @@
 import * as React from 'react'
 import { DisagreesSection } from '@/components/heed/disagrees'
-import { and } from '@/lib/utils'
-import { cn } from '@/lib/utils'
-import { ContextText, MentionText } from '@/components/heed/mention-chip'
 import { mentionId } from '@/lib/mentions'
-import {
-  ArchiveIcon,
-  CalendarIcon,
-  CircleCheckIcon,
-  CircleDashedIcon,
-  CircleDotIcon,
-  ClockIcon,
-  EllipsisIcon,
-  ExternalLinkIcon,
-  MapPinIcon,
-  MessageSquareIcon,
-  ShapesIcon,
-  ShieldAlertIcon,
-} from '@/components/icons'
+import { CircleCheckIcon, ClockIcon, EllipsisIcon, MessageSquareIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { StatusBadge } from '@/components/heed/bits'
-import { PeekFact, PeekFacts } from '@/components/heed/peek'
-import { Canvas, MoreProperties, Paper, Property, prose, SideSection } from '@/components/heed/doc'
+import { Canvas, Paper, SideSection } from '@/components/heed/doc'
+import { ItemDocument } from '@/components/heed/item-document'
 import { ResizableAside } from '@/components/resizable-aside'
 import { Panel, PanelRail } from '@/components/heed/panel'
 import { useSideChoice } from '@/lib/side-panel'
@@ -44,9 +27,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Badge } from '@/components/ui/badge'
-import { kindLabel } from '@/model/items'
-import { ownersOf } from '@/model/people'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
 import { openDock } from '@/lib/dock'
@@ -61,7 +41,6 @@ import { VersionHistory } from '@/components/heed/version-history'
 import { TODAY } from '@/model/history'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
 import { Loadable, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
-import { ScopeChips } from '@/components/heed/scope-chips'
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() =>
@@ -344,98 +323,8 @@ export function FactPage({ id }: { id: string }) {
                 Published {published} by you. Agents get it from the next question.
               </p>
             )}
-            {/* The document is the page: the title (with its status only when it isn't Live), the text,
-              then who owns it and where it comes from, and everything else folded into Details. */}
-            <div className="mb-5 flex flex-wrap items-start gap-x-3 gap-y-2 sm:mb-6">
-              {/* The page's heading: the breadcrumb above only leads to it. */}
-              <h1 className="text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
-                {fact.title}
-              </h1>
-              {fact.status !== 'Live' && (
-                <Badge variant="outline" className="mt-1.5 text-muted-foreground sm:mt-2">
-                  {fact.status}
-                </Badge>
-              )}
-            </div>
-            <div className={cn('flex flex-col gap-3 text-base leading-7', prose)}>
-              <p>
-                <MentionText text={fact.summary} />
-              </p>
-              {fact.body && <ContextText text={fact.body} />}
-              {fact.quote && (
-                <blockquote className="mt-2 border-l-2 pl-4 text-muted-foreground italic">
-                  “{fact.quote}”
-                </blockquote>
-              )}
-            </div>
-            <div className="mt-6 flex flex-col gap-3 border-t pt-4 text-sm">
-              <PeekFacts>
-                {fact.status === 'Archived' ? (
-                  <PeekFact icon={ArchiveIcon}>
-                    <b>{domains[fact.domain]?.name}</b> - archived, agents don't get it
-                  </PeekFact>
-                ) : fact.status === 'Draft' ? (
-                  <PeekFact icon={CircleDashedIcon}>
-                    <b>{domains[fact.domain]?.name}</b> - a draft
-                    {fact.by && (
-                      <>
-                        {' '}
-                        by <b>{fact.by}</b>
-                      </>
-                    )}
-                    , agents don't get it until it is published
-                  </PeekFact>
-                ) : (
-                  <PeekFact icon={CircleCheckIcon}>
-                    <b>{domains[fact.domain]?.name}</b> - owned by{' '}
-                    <b>{and(ownersOf(fact, domains))}</b> - checked {fact.checkedOn}
-                  </PeekFact>
-                )}
-                {fact.source && (
-                  <PeekFact icon={ExternalLinkIcon}>
-                    <a
-                      href={fact.source}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium break-all text-primary underline-offset-4 hover:underline"
-                    >
-                      {fact.source.replace('https://', '')}
-                      <span className="sr-only"> (opens in a new tab)</span>
-                    </a>
-                  </PeekFact>
-                )}
-              </PeekFacts>
-              <div className="mt-1">
-                <MoreProperties
-                  label="Details"
-                  summary={[
-                    kindLabel[fact.kind],
-                    fact.where.join(', ') || 'Read from the text',
-                    fact.when,
-                  ].join(' - ')}
-                >
-                  <Property label="Status" icon={<CircleDotIcon />}>
-                    <StatusBadge status={fact.status} />
-                  </Property>
-                  <Property label="Kind" icon={<ShapesIcon />}>
-                    {kindLabel[fact.kind]}
-                  </Property>
-                  <Property label="Applies to" icon={<MapPinIcon />}>
-                    {fact.where.length ? (
-                      <ScopeChips fact={fact} />
-                    ) : (
-                      <span>Read from the text</span>
-                    )}
-                  </Property>
-                  <Property label="When" icon={<CalendarIcon />}>
-                    {fact.when}
-                  </Property>
-                  <Property label="Don't conclude" icon={<ShieldAlertIcon />}>
-                    <span className="py-1 text-foreground">{fact.dontConclude}</span>
-                  </Property>
-                </MoreProperties>
-              </div>
-            </div>
+            {/* The document is the page: the item as people read it, the same view a review previews. */}
+            <ItemDocument fact={fact} />
             {!wide && attention && (
               <div className="mt-6 overflow-hidden rounded-frame border border-caution/45 bg-caution/6 dark:border-warn/45 dark:bg-caution/10 [&>section]:border-b-0 [&>section+section]:border-t">
                 {attention}
