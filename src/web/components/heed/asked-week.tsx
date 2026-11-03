@@ -109,7 +109,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
           )}
           {seesObservability(me) && (
             <a
-              href="/observability/questions"
+              href="/observability"
               className="ml-auto inline-flex items-center gap-0.5 underline-offset-4 hover:text-foreground hover:underline"
             >
               In Observability
