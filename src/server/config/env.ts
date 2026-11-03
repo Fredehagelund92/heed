@@ -103,7 +103,9 @@ const envSchema = z
       ),
     // The proxies in front of this service whose X-Forwarded-For and X-Forwarded-Proto it believes:
     // addresses, ranges (10.0.0.0/8) or loopback, linklocal and uniquelocal, comma-separated.
-    // Unset believes none, and a caller's address is the connection's peer.
+    // `vercel` alone believes the one hop in front, whatever its address: Vercel's edge, which
+    // writes X-Forwarded-For itself and drops what the caller sent (docs/vercel.md). Unset
+    // believes none, and a caller's address is the connection's peer.
     HEED_TRUSTED_PROXIES: z
       .string()
       .transform((value) =>
@@ -113,8 +115,9 @@ const envSchema = z
           .filter(Boolean),
       )
       .refine(
-        (entries) => entries.every(isProxyAddress),
-        'Expected addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
+        (entries) =>
+          entries.includes('vercel') ? entries.length === 1 : entries.every(isProxyAddress),
+        'Expected vercel alone, or addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
       )
       .optional(),
     // Pins the service's "today" (a UTC day) so demo data and end-to-end screenshots stay stable.
@@ -283,7 +286,10 @@ export interface Config {
   sessions: SessionLifetime
   devPeopleFile: string
   webOrigins: string[]
-  /** HEED_TRUSTED_PROXIES: the proxies whose forwarded address the service believes; empty for none. */
+  /**
+   * HEED_TRUSTED_PROXIES: the proxies whose forwarded address the service believes, or `vercel`
+   * alone for Vercel's edge; empty for none.
+   */
   trustedProxies: string[]
   fixedToday: string | undefined
   models: 'mock' | 'live'

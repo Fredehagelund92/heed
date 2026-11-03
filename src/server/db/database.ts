@@ -95,13 +95,23 @@ export function databaseFromPool(pool: pg.Pool): Database {
   }
 }
 
-export function createDatabase(databaseUrl: string, logger: Logger): Database {
+/**
+ * The application's pool. `max` caps its connections (pg's default is 10); `attach` is handed the
+ * pool, so a host that freezes idle instances can release its connections first (vercel.ts).
+ */
+export function createDatabase(
+  databaseUrl: string,
+  logger: Logger,
+  options: { max?: number; attach?: (pool: pg.Pool) => void } = {},
+): Database {
   const pool = new pg.Pool({
     connectionString: databaseUrl,
     application_name: 'heed',
     connectionTimeoutMillis: 2_000,
     types: calendarDateTypes,
+    ...(options.max === undefined ? {} : { max: options.max }),
   })
   pool.on('error', (error) => logger.error({ err: error }, 'idle database connection failed'))
+  options.attach?.(pool)
   return databaseFromPool(pool)
 }

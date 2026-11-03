@@ -13,6 +13,7 @@
     "src/connectors",
     "src/cli",
     "db/prepare.ts",
+    "db/snapshot.ts",
     "db/seed",
     "tests/server",
     "tests/integration",

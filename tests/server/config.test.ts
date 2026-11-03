@@ -291,10 +291,19 @@ describe('loadConfig', () => {
       '10.0.0.0/8/8',
       'proxy.internal',
       '::1/129',
+      // Vercel's edge is the only hop in front of a function, so it is never one of several.
+      'vercel,10.0.0.0/8',
+      'loopback, vercel',
     ])
       expect(() => load(value), value).toThrow(
-        'HEED_TRUSTED_PROXIES: Expected addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
+        'HEED_TRUSTED_PROXIES: Expected vercel alone, or addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
       )
+  })
+
+  it('believes the one hop in front behind Vercel', () => {
+    expect(
+      loadConfig({ DATABASE_URL: databaseUrl, HEED_TRUSTED_PROXIES: ' vercel ' }).trustedProxies,
+    ).toEqual(['vercel'])
   })
 
   it('refuses a fixed day in production', () => {

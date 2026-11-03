@@ -9,6 +9,8 @@ test-results/
 .env.*
 !.env.example
 .tanstack/
+# What `vercel link` and `vercel build` write (docs/vercel.md).
+.vercel/
 
 .heed-dev-key.pem
 .heed-oauth-key*.pem

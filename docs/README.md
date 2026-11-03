@@ -42,6 +42,7 @@ Older design pages that still apply:
 | Page                                                       | What it says                                                           |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [Self-host Heed on one computer](self-hosting.md)          | Install, back up, restore, upgrade and roll back, for local evaluation |
+| [Run Heed on Vercel and Neon](vercel.md)                   | The web app, the service as a function, and the demo on Neon           |
 | [Run and operate the service](operations.md)               | Setup and settings                                                     |
 | [MCP and API reference](reference.md)                      | The tools and the API                                                  |
 | [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                                      |
