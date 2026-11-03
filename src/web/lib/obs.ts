@@ -19,7 +19,7 @@ import {
   type View,
 } from '@/model/observability'
 import type { DomainId } from '@/model/items'
-import { chipOf, chipsFrom, readDomain } from '@/lib/obs-views'
+import { chipOf, chipsFrom, readDomain } from '@/lib/obs-chips'
 import { useRoute } from '@/lib/router'
 import { useDomains, useMe } from '@/lib/workspace'
 
