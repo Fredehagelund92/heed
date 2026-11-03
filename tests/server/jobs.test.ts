@@ -154,7 +154,7 @@ describe('the operations view and manual runs', () => {
         lastError: null,
         lastRead: { status: 'partial', at: hoursAgo(1), warnings: [{ code: 'x', target: 'y' }] },
         definitions: { current: 3, missing: 0 },
-        domainCoverage: { cube: 3, override: 0, none: 0 },
+        domainCoverage: { source: 3, override: 0, none: 0 },
         flaggedItems: 0,
         staleLinks: 0,
         views: [

@@ -1,5 +1,14 @@
 # Connectors: the contract
 
+> **What applies now.** To build a connector, follow [Writing a connector](connectors/authoring.md):
+> it stands on its own, with the template to copy (`src/connectors/_template/`), the mapping rules
+> every definitions connector follows, the shared helpers, the conformance kit and the review
+> checklist. This document is the reference behind it. In force: the
+> [invariants](#invariants), [interface 3](#interface-30-the-decided-contract) as
+> [what is built](#what-is-built) says it, which wins where the two differ, and
+> [interface 2](#interface-2-the-definitions-pipeline)'s pipeline, which stores every definitions
+> read. A new connector needs no core or web code: its folder, two list lines, a kit fixture.
+
 A connector is how Heed reads a tool it does not own. It is the contract between the core and
 every connector: what a connector declares, what it returns and what the core does with it.
 
@@ -25,15 +34,15 @@ worker for its compiler, and Google Drive, which reads the changes since its cur
 snapshot a definitions read is gathered into and the pipeline that stores it; the server's demo
 source is the last one written to it. The other connector documents:
 
-| Document                                                    | For                                                                                    |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Security and egress](connectors/security.md)               | Where connector code runs, the hosts it may reach, the secret store and its output     |
-| [Writing a connector](connectors/authoring.md)              | Authors of a new connector: the steps, the rules and the review checklist (a skeleton) |
-| [Connectors as packages](connectors/packaging.md)           | The design for loading connectors from packages later; not built                       |
-| [The Cube connector](connectors/cube.md)                    | The Cube model setup, its settings, the demo model, compilation and change marks       |
-| [Cube](../src/connectors/cube/README.md)                    | The Cube connector's page: its settings, what a read does, its schedule and its limits |
-| [Markdown in Git](../src/connectors/git-markdown/README.md) | The first content connector: its settings, its folders and what a read suggests        |
-| [Google Drive](../src/connectors/google-drive/README.md)    | Google Docs through a service account: setting it up, full reads and change reads      |
+| Document                                                    | For                                                                                     |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Security and egress](connectors/security.md)               | Where connector code runs, the hosts it may reach, the secret store and its output      |
+| [Writing a connector](connectors/authoring.md)              | Authors of a new connector: the template, the steps, the rules, the kit and a checklist |
+| [Connectors as packages](connectors/packaging.md)           | The design for loading connectors from packages later; not built                        |
+| [The Cube connector](connectors/cube.md)                    | The Cube model setup, its settings, the demo model, compilation and change marks        |
+| [Cube](../src/connectors/cube/README.md)                    | The Cube connector's page: its settings, what a read does, its schedule and its limits  |
+| [Markdown in Git](../src/connectors/git-markdown/README.md) | The first content connector: its settings, its folders and what a read suggests         |
+| [Google Drive](../src/connectors/google-drive/README.md)    | Google Docs through a service account: setting it up, full reads and change reads       |
 
 ## Invariants
 
@@ -129,7 +138,7 @@ A **definition** has:
 - `kind` (`metric` or `dimension`), `name` (the member's name in the tool, `orders.orders`),
   `title`, `descriptionCopy` (at most 500 characters, labelled as a copy), `valueType`.
 - `areaHint`, the domain the tool names (a Heed domain id, `^[a-z][a-z0-9_]{1,39}$`) and
-  `domainSource` (`cube`, `override` or `none`). A hint is a suggestion: it never creates a domain
+  `domainSource` (`source`, `override` or `none`). A hint is a suggestion: it never creates a domain
   or changes the vocabulary.
 - `modelFile`, the file that defines it relative to the model folder, and `changeMark`, the
   SHA-256 of its meaning. The file is not part of the mark.
@@ -342,6 +351,7 @@ export default defineManifest({
   refPrefix: undefined, // definitions only: the tool's prefix (CON-117)
   config: { groups, fields }, // the form, as a restricted schema
   secrets: [{ key: 'token', label: 'Read-only token', required: false, boundTo: ['repository'] }],
+  // a secret given as an uploaded file, such as a JSON key, adds `file: true`
   access: ['Read access to this one repository. Heed never writes to it.'],
   egress: { hosts: [{ fromField: 'repository' }], git: true },
   capabilities: {
@@ -350,6 +360,7 @@ export default defineManifest({
     deletions: 'both', // 'full-listing' | 'tombstones' | 'both'
     domain: 'per-scope', // 'hint' (definitions) | 'per-scope' (content)
     marks: undefined, // definitions: 'meaning' | 'metadata' (do marks see calculations? CON-505)
+    mergeDimensions: undefined, // definitions: 'by-name' | 'never' (CON-201), absent is by-name
     links: true,
     figures: undefined, // definitions: reads one figure for Ask (CON-612)
   },
@@ -489,14 +500,23 @@ state and draft, and when it was first and last seen. Never the text (CON-605).
 
 ```
 src/connectors/                  built-in connectors, one folder each
-  index.ts                       the list of built-in connectors
-  _template/                     what an author copies
-  cube-files/  manifest.ts  runtime.ts  README.md  fixtures/  conformance.test.ts
-  git-markdown/ …
-  demo/        …
-src/server/modules/connectors/   the core: contract, registry, sources, scheduler,
-                                 pipelines, egress, secrets, conformance kit
+  index.ts                       the server's list: each manifest with its runtime (and worker)
+  manifests.ts                   the web app's list: manifests only
+  _template/                     what an author copies; run through the kit, listed nowhere
+  cube/  manifest.ts  runtime.ts  worker.ts  README.md
+  static-definitions/ …  git-markdown/ …  google-drive/ …
+src/domain/connector-*.ts        the contract: manifest, runtime, settings
+src/domain/definition-helpers.ts what definitions connectors share: synonymsOf,
+                                 descriptionCopy, domainHint, meaningMark
+src/server/modules/connectors/   the core: registry, sources, scheduler, pipelines, egress,
+                                 secrets
+tests/fixtures/<id>/             each connector's invented input, REBUILD.md, definitions.json
+tests/server/connectors/         kit.ts, the kit; conformance.test.ts, one block per connector
 ```
+
+The web app has no code for a connector: Integrations draws its cell, its form and its words from
+the manifest (`src/web/model/catalogue.ts`). A logo is optional (`logos` in
+`src/web/model/integrations.ts`); without one the cell shows the manifest's `icon`.
 
 Built-in connectors are on by default; the operator may narrow them. The server's own sources
 become a configuration file the operator writes (one entry per source: id, connector, name,
@@ -518,7 +538,8 @@ capabilities a manifest declares:
   snapshot.
 - **Definitions**: valid, unique, prefixed refs; the same input gives the same marks; formatting
   keeps marks and meaning moves them; an unreadable file makes the read partial; planted SQL never
-  crosses.
+  crosses; every name has a group, a definition without a hint says `none` and every warning is
+  worded; input of another format fails with a worded code; the read gives its expected file.
 - **Content**: valid documents with stable ids and https links; the same document twice makes one
   draft, a change replaces it, a deletion withdraws it, and only a quote and a mark are stored.
 - **Cursors and deletions**: an unchanged source gives nothing new, a future cursor gives
@@ -528,7 +549,8 @@ capabilities a manifest declares:
 
 ### Versions
 
-- **Interface version**, a semver: 3.0 today. A minor version only adds; a
+- **Interface version**, a semver: 3.1 today (3.1 added `capabilities.mergeDimensions` and a
+  secret's `file`, so a connector that uses them says `^3.1`). A minor version only adds; a
   major one may break. Heed runs the current and the previous major for at least 12 months or two
   releases, whichever is longer, and warns on a source's page when its connector uses a major that
   will stop being supported (CON-109). Experimental parts are open to built-in connectors only.
@@ -546,23 +568,24 @@ capabilities a manifest declares:
 The first slices of interface 3.0 are in this build. The rest of this section is decided and
 comes in the next slices ([what the next slices build](#what-the-next-slices-build)).
 
-| Part                 | Where                                                      | Status                                                                                                                                                                                       |
-| -------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manifest             | `src/domain/connector-manifest.ts`                         | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `src/domain/define-manifest.ts`                                                            |
-| Settings form        | `src/domain/connector-config.ts`                           | Built: every field kind, checked the same way in the form and in the service                                                                                                                 |
-| Runtime and messages | `src/domain/connector-runtime.ts`                          | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                                                                                     |
-| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; the server's own sources beside them                                                                                                    |
-| Built-in connectors  | `src/connectors/`                                          | Built: the list, Cube (`cube`, stable), the static list of definitions (`static-definitions`, experimental), Markdown in Git (`git-markdown`, beta) and Google Drive (`google-drive`, beta)  |
-| Workers (T1)         | `src/server/modules/connectors/worker.ts`                  | Built: `ctx.worker`, a connector's own worker in a child process under Node's permission model; Cube's compiler is the first                                                                 |
-| Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                                                  |
-| Content pipeline     | `src/server/modules/connectors/content.ts`                 | Built: documents to suggestions, one per document, grouped by the read, never published; full reads, and reads from a cursor with tombstones ([content sources](#content-sources))           |
-| Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built: a content connector's scopes from discover, a definitions source's groups from the test's read; an admin maps each to a domain, and every read gets them                              |
-| Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                              |
-| Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                          |
-| Integrations         | Settings › Integrations (`src/web/pages/integrations.tsx`) | Built: the rows and cells, a source's page with its health, reads, documents and settings, Read again, Pause reading, the five-step connect on the manifests, Change settings and Disconnect |
-| Figures              | `src/server/modules/connectors/figures.ts`, `platform.ts`  | Built: the `figures` capability on a definitions connector, Cube's `figure` (REST `/v1/load`), the settings on the source, `figures.read` ([figures in Ask](#figures-in-ask))                |
-| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, secret and figure checks, run against every built-in connector                 |
-| Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                           |
+| Part                 | Where                                                           | Status                                                                                                                                                                                                                                                                                                              |
+| -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manifest             | `src/domain/connector-manifest.ts`                              | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `src/domain/define-manifest.ts`                                                                                                                                                                                   |
+| Settings form        | `src/domain/connector-config.ts`                                | Built: every field kind, checked the same way in the form and in the service                                                                                                                                                                                                                                        |
+| Runtime and messages | `src/domain/connector-runtime.ts`                               | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                                                                                                                                                                                                            |
+| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts`      | Built: manifest and runtime pairs, checked at start; the server's own sources beside them                                                                                                                                                                                                                           |
+| Built-in connectors  | `src/connectors/`                                               | Built: the list, Cube (`cube`, stable), the static list of definitions (`static-definitions`, experimental), Markdown in Git (`git-markdown`, beta) and Google Drive (`google-drive`, beta)                                                                                                                         |
+| Template, helpers    | `src/connectors/_template/`, `src/domain/definition-helpers.ts` | Built: a definitions connector to copy, run through the kit; the helpers Cube, the static list and the template share                                                                                                                                                                                               |
+| Workers (T1)         | `src/server/modules/connectors/worker.ts`                       | Built: `ctx.worker`, a connector's own worker in a child process under Node's permission model; Cube's compiler is the first                                                                                                                                                                                        |
+| Definitions pipeline | `ConnectorService.syncSource`                                   | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                                                                                                                                                                         |
+| Content pipeline     | `src/server/modules/connectors/content.ts`                      | Built: documents to suggestions, one per document, grouped by the read, never published; full reads, and reads from a cursor with tombstones ([content sources](#content-sources))                                                                                                                                  |
+| Scopes, discover     | `platform.ts`, `workspace.ts`                                   | Built: a content connector's scopes from discover, a definitions source's groups from the test's read; an admin maps each to a domain, and every read gets them                                                                                                                                                     |
+| Git                  | `src/server/modules/connectors/egress-git.ts`                   | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                                                                                                                                                     |
+| Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                       | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                                                                                                                                                 |
+| Integrations         | Settings › Integrations (`src/web/pages/integrations.tsx`)      | Built: the cells drawn from the manifests, the rows, a source's page with its health, reads, documents and settings, Read again, Pause reading, the five-step connect on the manifests, Change settings and Disconnect                                                                                              |
+| Figures              | `src/server/modules/connectors/figures.ts`, `platform.ts`       | Built: the `figures` capability on a definitions connector, Cube's `figure` (REST `/v1/load`), the settings on the source, `figures.read` ([figures in Ask](#figures-in-ask))                                                                                                                                       |
+| Conformance kit      | `tests/server/connectors/kit.ts`                                | Built in part: the manifest, form, check, read, determinism, partial read, calculations, expected file, same meaning in another form, a changed meaning, another format, groups, domains and worded warnings, cursor and tombstone, secret and figure checks, run against every built-in connector and the template |
+| Packages             |                                                                 | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                                                                                                                                                  |
 
 Where the build differs from the decided text above:
 
@@ -616,9 +639,9 @@ Where the build differs from the decided text above:
   read](#what-the-core-does-with-a-read). A source with groups chosen (its scopes, each a group
   with a domain or none) keeps only those: each definition of a chosen group takes the domain an
   admin mapped it to (`domain_override`) or none, and a group left out is not read, so a complete
-  read marks its definitions missing. With none chosen it keeps every group, as the tool gives it. The core still calls a domain from the tool `cube`
-  there and in the API (`domainSource`, and the coverage it counts), so a runtime's `source` is
-  stored as that.
+  read marks its definitions missing. With none chosen it keeps every group, as the tool gives it.
+  A domain from the tool is `source` in the core and the API (`domainSource`, and the coverage
+  it counts), whatever the tool; it was never stored, so no migration moved it.
 - **Cube** is one connector, `cube`, for a model in a Git repository an administrator adds and
   for the server's own model folder (`CUBE_MODEL_DIR`), which its runtime reads as `ctx.folder`;
   the core applies the server's domain names (`HEED_DOMAIN_OVERRIDES`) and renames
@@ -640,14 +663,13 @@ whose compiler runs in its worker (T1), its model fetched through `ctx.git` or r
 
 - The server's own sources from a configuration file the operator writes, with `CUBE_MODEL_DIR`,
   `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` producing the same entry.
-- `domainSource` `source` in the core and the API (today `cube`), and the coverage it counts.
 - The connector's version and mark version stored on every read (a migration), shown on the
   source's page, and the first read after a mark version change stored without flags (CON-116).
 - `ctx.fetch` pinned to the address it checked, with the manifest's request rate and
   `Retry-After`; `ctx.log` into the server's log, codes and targets only.
-- The rest of the conformance kit (cursors and deletions, egress and limits),
-  `src/connectors/_template/` and a README per connector with its tables from the manifest; the
-  operator's list of connectors to allow (`HEED_CONNECTORS`).
+- The rest of the conformance kit (cursors and deletions, egress and limits) and a README per
+  connector with its tables from the manifest; the operator's list of connectors to allow
+  (`HEED_CONNECTORS`).
 
 Slice 4, Google Drive through a service account, is built: its key in the secret store, signed
 into a read-only token at a sign-in host the manifest declares, documents exported as Markdown

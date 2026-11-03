@@ -1,20 +1,13 @@
 import { contentDigest } from '../../domain/canonical.ts'
 import { defineRuntime, SourceError } from '../../domain/connector-runtime.ts'
+import { descriptionCopy, domainHint, meaningMark } from '../../domain/definition-helpers.ts'
 import { manifest } from './manifest.ts'
-import {
-  parseStaticEntries,
-  staticCheckReport,
-  staticDomainOf,
-  type StaticEntry,
-} from './entries.ts'
+import { parseStaticEntries, staticCheckReport, type StaticEntry } from './entries.ts'
 
 interface Config {
   definitions: string
   domainNames?: Record<string, string>
 }
-
-const DESCRIPTION_MAX = 500
-const domainId = /^[a-z][a-z0-9_]{1,39}$/
 
 const entriesOf = (config: Config): StaticEntry[] => {
   const parsed = parseStaticEntries(config.definitions)
@@ -45,14 +38,13 @@ export const runtime = defineRuntime<Config>({
     const entries = entriesOf(config)
     const names = config.domainNames ?? {}
     for (const entry of entries) {
-      const domain = staticDomainOf(entry, names)
-      const areaHint = domain !== null && domainId.test(domain) ? domain : null
-      if (domain !== null && areaHint === null)
-        yield { type: 'warning', code: 'invalid_domain', target: entry.name }
-      const description = entry.description === null ? null : [...entry.description]
-      if (description && description.length > DESCRIPTION_MAX)
+      const domain = domainHint(entry.domain, names)
+      if (domain.invalid) yield { type: 'warning', code: 'invalid_domain', target: entry.name }
+      const description = descriptionCopy(entry.description)
+      if (description.cut)
         yield { type: 'warning', code: `${manifest.id}.description_cut`, target: entry.name }
-      // The mark is the meaning: what it is called and what it says, never where it sits.
+      // The mark is the meaning: what it is called and what it says, never where it sits. Empty
+      // parts are kept, as mark version 1 hashed them.
       const meaning = {
         kind: entry.kind,
         name: entry.name,
@@ -67,13 +59,13 @@ export const runtime = defineRuntime<Config>({
           kind: entry.kind,
           name: entry.name,
           title: entry.title,
-          descriptionCopy: description ? description.slice(0, DESCRIPTION_MAX).join('') : null,
+          descriptionCopy: description.copy,
           valueType: entry.type,
           visibleGroups: null,
-          areaHint,
-          domainSource: areaHint === null ? 'none' : 'source',
+          areaHint: domain.areaHint,
+          domainSource: domain.domainSource,
           modelFile: null,
-          changeMark: await contentDigest(meaning),
+          changeMark: await meaningMark(meaning, { keepEmpty: true }),
         },
       }
     }

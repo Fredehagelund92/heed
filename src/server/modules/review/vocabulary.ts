@@ -17,11 +17,19 @@ export const termRefs = (version: string) =>
  * limits to some groups is left out, as serving leaves its definition out (groups are parked).
  */
 async function sourceVocabulary(tx: Queryable, everyone = false) {
-  const members = await tx.query<CandidateMember>(
-    `select ref,connector_id as source,kind::text as kind,name,title,description_copy as description,
-            value_type as "valueType",area_hint as "areaHint",synonyms,base_name as "baseName"
-       from definitions where missing_since_snapshot is null${everyone ? ' and visible_groups is null' : ''}`,
+  const rows = await tx.query<CandidateMember & { type: string | null; sourceName: string | null }>(
+    `select d.ref,d.connector_id as source,d.kind::text as kind,d.name,d.title,
+            d.description_copy as description,d.value_type as "valueType",d.area_hint as "areaHint",
+            d.synonyms,d.base_name as "baseName",c.type,c.name as "sourceName"
+       from definitions d left join connectors c on c.id=d.connector_id
+      where d.missing_since_snapshot is null${everyone ? ' and d.visible_groups is null' : ''}`,
   )
+  // Whether a source's same-named dimensions are one is its connector's to say (CON-201).
+  const members = rows.map(({ type, sourceName, ...member }): CandidateMember => ({
+    ...member,
+    mergeDimensions:
+      type === null ? 'by-name' : connectorType(type, sourceName ?? member.source).mergeDimensions,
+  }))
   const known = await tx.query<KnownTerm>(
     `select s.term_key as key,t.kind::text as kind,v.name,v.aliases,v.area_id as "areaId",
             ${termRefs('v.id')} as "definitionRefs",false as open

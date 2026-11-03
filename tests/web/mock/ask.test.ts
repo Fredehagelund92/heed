@@ -8,7 +8,7 @@ import {
 } from '@/api/mock/data/ask'
 import { correctionInAgent, inAgent } from '@/lib/in-agent'
 import { DRAFT_LABEL, stateLabel } from '@/model/ask'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { connectors } from '@/model/catalogue'
 
 // The worst thing the product could do is call an answer checked when it isn't. A question that
 // names nothing the context covers gets Not found, never a lookalike from elsewhere.
@@ -93,7 +93,8 @@ describe('what answers say', () => {
       ...inAgent.flatMap((t) => [t.agent, t.line]),
       ...correctionInAgent.map((m) => m.text),
     ]
-    for (const s of strings)
-      expect(s).not.toMatch(new RegExp(`\\b(${DEFINITIONS_TOOL}|Google Drive|Looker|dbt)\\b`))
+    // Every tool of the catalogue, by the name its manifest gives it, and one it has no cell for.
+    const tools = [...connectors.map((c) => c.name), 'Looker']
+    for (const s of strings) expect(s).not.toMatch(new RegExp(`\\b(${tools.join('|')})\\b`))
   })
 })

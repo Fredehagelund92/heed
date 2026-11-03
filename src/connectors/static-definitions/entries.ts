@@ -1,4 +1,5 @@
 import type { CheckReport } from '../../domain/connector-runtime.ts'
+import { domainHint } from '../../domain/definition-helpers.ts'
 
 /**
  * The entries of a static list of definitions, read from the JSON an admin wrote, and what a
@@ -74,18 +75,8 @@ export function parseStaticEntries(text: string): { entries: StaticEntry[] } | {
   return { entries }
 }
 
-const domainId = /^[a-z][a-z0-9_]{1,39}$/
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString('en')} ${n === 1 ? one : many}`
-
-/** An entry's domain: the domain its name maps to, or its own. */
-export function staticDomainOf(
-  entry: StaticEntry,
-  names: Readonly<Record<string, string>>,
-): string | null {
-  if (entry.domain === null) return null
-  return names[entry.domain] ?? entry.domain
-}
 
 /** What a check of the list says: what it holds, and whether each metric finds its domain. */
 export function staticCheckReport(
@@ -93,11 +84,8 @@ export function staticCheckReport(
   names: Readonly<Record<string, string>>,
 ): CheckReport {
   const metrics = entries.filter((entry) => entry.kind === 'metric')
-  const unknown = entries.filter((entry) => {
-    const domain = staticDomainOf(entry, names)
-    return domain !== null && !domainId.test(domain)
-  }).length
-  const without = metrics.filter((entry) => staticDomainOf(entry, names) === null).length
+  const unknown = entries.filter((entry) => domainHint(entry.domain, names).invalid).length
+  const without = metrics.filter((entry) => entry.domain === null).length
   return {
     steps: [
       {

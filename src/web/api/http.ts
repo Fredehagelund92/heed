@@ -41,7 +41,6 @@ import { parseMentionId } from '@/lib/mentions'
 import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { FigureReport } from '@/model/figures'
-import { connectorById, type ConnectorId } from '@/model/integrations'
 import type { Fact, Sent } from '@/model/items'
 import { excerptOf, type Domains } from '@/model/people'
 import { dateLabel } from '@/model/validity'
@@ -83,18 +82,6 @@ import {
   type Words,
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
-import {
-  catalogIdOf,
-  changedConfigOf,
-  configOf,
-  connectFormOf,
-  connectorOfCatalog,
-  connectTestOf,
-  integrationsOf,
-  scopesOf,
-  secretsOf,
-  sourcePageOf,
-} from './http-integrations'
 import { peopleOf } from './http-people'
 import { savedCheckOf, savedQuestionOf } from './http-saved'
 import { alertsOf } from './http-alerts'
@@ -119,6 +106,12 @@ import {
   type Names,
   type People,
 } from './http-map'
+
+/**
+ * The integrations' pages in their words, with the catalogue of connectors they draw from: loaded
+ * when an integrations page or the connect flow asks, so the first load carries no manifest.
+ */
+const integrationWords = () => import('./http-integrations')
 
 export type HttpApiOptions = {
   /** Absolute URL of the API, with its version prefix: `https://host/api/v1`. */
@@ -973,9 +966,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
 
   /* ---------- figures in Ask ---------- */
 
-  /** The integrations that read figures, by the app's name for their tool: Cube's is `cube`. */
-  const connectorOf = (type: string): ConnectorId | undefined =>
-    connectorById(type)?.figures ? (type as ConnectorId) : undefined
+  /** The integrations that read figures, by their connector's id: every one the service lists. */
+  const connectorOf = (type: string): string | undefined => type
   async function figureSources() {
     return (await read(() => client.figures.list())).sources.flatMap((source) => {
       const id = connectorOf(source.type)
@@ -983,13 +975,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     })
   }
   /** The service's own integration for an app's tool: the first that reads figures for it. */
-  async function figureSourceId(id: ConnectorId) {
+  async function figureSourceId(id: string) {
     const found = (await figureSources()).find((f) => f.id === id)
-    if (!found) throw new ApiError('not-found', `${connectorById(id)?.name ?? id} isn't connected.`)
+    if (!found) throw new ApiError('not-found', "This integration isn't connected.")
     return found.source.id
   }
   async function setFiguresOf(
-    id: ConnectorId,
+    id: string,
     change: Omit<Parameters<typeof client.figures.set>[0], 'id'>,
   ) {
     const input = { id: await figureSourceId(id), ...change }
@@ -1707,19 +1699,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       ])
       // The tools connected, which only an admin reads: Settings' menu counts them.
       const connected = who.admin
-        ? [
-            ...new Set(
-              (await read(() => client.sources.list())).flatMap((row) => {
-                const id = catalogIdOf(row.type)
-                return id ? [id] : []
-              }),
-            ),
-          ]
+        ? [...new Set((await read(() => client.sources.list())).flatMap((row) => [row.type]))]
         : []
       return {
         mcpAddress: connect.address,
         ...(await settingsWords()).switchesOf(connect.tools, stops),
         figures: Object.fromEntries(figured.map(({ id, source }) => [id, source.enabled])),
+        figureTools: Object.fromEntries(figured.map(({ id, source }) => [id, source.tool])),
         contacts: Object.fromEntries(
           figured.flatMap(({ id, source }) =>
             source.dataContact ? [[id, source.dataContact.name]] : [],
@@ -1772,8 +1758,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         connectorOf,
         new Date(),
       )
-      if (!tried)
-        throw new ApiError('not-found', `${connectorById(source)?.name ?? source} isn't connected.`)
+      if (!tried) throw new ApiError('not-found', "This integration isn't connected.")
       return tried
     },
     // What the figures read: how each integration that reads figures is reached.
@@ -1796,7 +1781,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         read(() => client.sources.list()),
         read(() => client.sources.types()),
       ])
-      return integrationsOf(rows, types, new Date())
+      return (await integrationWords()).integrationsOf(rows, types, new Date())
     },
     integrationPage: async ({ id }) => {
       const row = (await read(() => client.sources.list())).find((r) => r.id === id)
@@ -1808,7 +1793,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         row.origin === 'workspace' ? orNull(() => client.sources.get({ id })) : null,
       ])
       const manifest = types.find((t) => t.manifest.id === row.type)?.manifest
-      return sourcePageOf(row, activity, settings, manifest, new Date())
+      return (await integrationWords()).sourcePageOf(row, activity, settings, manifest, new Date())
     },
     // Read again: due now, at the job's next turn (CON-115).
     readIntegration: async ({ id }) => {
@@ -1832,16 +1817,16 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         read(() => client.sources.types()),
       ])
       const row = rows.find((r) => r.id === id)
-      const type = row ? row.type : connectorOfCatalog(id as ConnectorId)
+      const type = row ? row.type : id
       const manifest = types.find((t) => t.manifest.id === type)?.manifest
       if (!manifest || row?.origin === 'server') return null
       const settings = row ? await read(() => client.sources.get({ id })) : null
-      return connectFormOf(manifest, settings)
+      return (await integrationWords()).connectFormOf(manifest, settings)
     },
     // Keeps nothing and changes nothing: a POST only because the settings hold secrets.
     testIntegration: async ({ connector, source, config, secrets }) => {
-      const type = connectorOfCatalog(connector)
-      if (!type) throw new ApiError('not-found', "This tool can't be connected here.")
+      const { configOf, connectTestOf, secretsOf } = await integrationWords()
+      const type = connector
       const input = {
         ...(source ? { id: source } : {}),
         type,
@@ -1860,11 +1845,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     // The source is named after its tool; the service reads it at once (CON-115).
     connectIntegration: async ({ connector, config, secrets, chosen, reason }) => {
-      const type = connectorOfCatalog(connector)
+      const { configOf, scopesOf, secretsOf } = await integrationWords()
+      const type = connector
       const manifest = (await read(() => client.sources.types())).find(
         (t) => t.manifest.id === type,
       )?.manifest
-      if (!type || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
+      if (!manifest) throw new ApiError('not-found', "This tool can't be connected here.")
       const input = {
         type,
         name: manifest.tool,
@@ -1879,6 +1865,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       return { id: added.id, firstRead: null }
     },
     changeIntegration: async ({ id, revision, config, secrets, chosen, reason }) => {
+      const { changedConfigOf, scopesOf, secretsOf } = await integrationWords()
       const before = await read(() => client.sources.get({ id }))
       const input = {
         id,

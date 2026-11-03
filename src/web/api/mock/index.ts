@@ -7,7 +7,8 @@ import { servedToAgents } from '@/model/items'
 import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
-import { connectorById, DEFINITIONS_TOOL, type ConnectorId } from '@/model/integrations'
+import { connectorById } from '@/model/catalogue'
+import { DEMO_DEFINITIONS, demoTool } from './data/integrations'
 import { answerLinks, linksOf } from '@/lib/links'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
@@ -93,9 +94,12 @@ export function createMockApi() {
   const scope = createScopeSearch()
   const settings = createSettings()
   const policies = createPolicies()
-  const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
   /** What the connect flow set for each tool this visit. */
-  const kept = new Map<ConnectorId, Kept>()
+  const kept = new Map<string, Kept>()
+  const integrations = createIntegrations(
+    () => settings.read(scenario.address()).connected,
+    (id) => kept.get(id),
+  )
   let views: SavedView[] = []
   readDefinitionsFrom(definitions.list)
   let state: State = start
@@ -624,7 +628,7 @@ export function createMockApi() {
     getDefinitionHistory: ({ name }) =>
       now(() => {
         const d = definitions.list().find((x) => x.name.toLowerCase() === name.toLowerCase())
-        return d ? historyOfDefinition(d, d.tool ?? DEFINITIONS_TOOL) : []
+        return d ? historyOfDefinition(d, d.tool ?? demoTool(DEMO_DEFINITIONS)) : []
       }),
     saveTerm: ({ previous, term }) =>
       scenario.send('saveTerm', () => definitions.saveTerm(previous, term)),
@@ -851,11 +855,7 @@ export function createMockApi() {
       now(() => settings.setConnection(source, endpoint)),
     connectForm: ({ id }) =>
       read('connectForm', id, () =>
-        connectFormFor(
-          id,
-          settings.read(scenario.address()).connected,
-          kept.get(id as ConnectorId),
-        ),
+        connectFormFor(id, settings.read(scenario.address()).connected, kept.get(id)),
       ),
     // The checks take a moment, as a tool's do.
     testIntegration: ({ connector, config, secrets }) =>

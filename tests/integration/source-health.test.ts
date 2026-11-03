@@ -28,7 +28,7 @@ const apiUrl = (() => {
   api.searchParams.set('options', `-c role=${localRoles.api}`)
   return api.href
 })()
-const fixture = fileURLToPath(new URL('../fixtures/cube/model.yml', import.meta.url))
+const fixture = fileURLToPath(new URL('../fixtures/cube/model/model.yml', import.meta.url))
 let modelDir = ''
 const logger = createLogger({ level: 'silent' })
 const database = createDatabase(apiUrl, logger)
@@ -121,7 +121,7 @@ it('refreshes from the operations view and shows the health of the source', asyn
     lastError: null,
     lastRead: { status: 'ok' },
     definitions: { current: 7, missing: 0 },
-    domainCoverage: { cube: 3, override: 0, none: 2 },
+    domainCoverage: { source: 3, override: 0, none: 2 },
     flaggedItems: 0,
     staleLinks: 0,
   })

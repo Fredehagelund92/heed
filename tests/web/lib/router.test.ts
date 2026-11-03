@@ -16,7 +16,7 @@ describe('old addresses', () => {
     expect(redirectFrom(at('/library'))).toBe('/context')
     expect(redirectFrom(at('/library/fact/itm_1'))).toBe('/context/itm_1')
     expect(redirectFrom(at('/library/metrics'))).toBe('/definitions')
-    expect(redirectFrom(at('/settings/definitions'))).toBe('/settings/integrations/cube')
+    expect(redirectFrom(at('/settings/definitions'))).toBe('/settings/integrations')
     expect(redirectFrom(at('/settings/about', '?setup=1'))).toBe('/settings/general?setup=1')
     expect(redirectFrom(at('/context', '?dock=fact.itm_1'))).toBe('/context?dock=context.itm_1')
     expect(redirectFrom(at('/', '', '/library?dock=fact.itm_1'))).toBe(

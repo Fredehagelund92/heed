@@ -15,8 +15,7 @@ export const manifest = defineManifest({
   kind: 'definitions',
   tool: 'Cube',
   title: 'Cube model in a Git repository',
-  summary:
-    'Reads the YAML model files of a Cube project from a Git repository every hour, at the branch, tag or commit you name. We keep names, short descriptions and change marks, never a calculation or data.',
+  summary: 'Metrics and dimensions, read from your Cube definition files in Git.',
   icon: 'database',
   docs: './README.md',
   maintainer: { name: 'Core team' },
@@ -97,6 +96,7 @@ export const manifest = defineManifest({
     deletions: 'full-listing',
     domain: 'hint',
     marks: 'meaning',
+    mergeDimensions: 'by-name',
     figures: true,
   },
   schedule: { default: 'PT1H', minimum: 'PT15M' },

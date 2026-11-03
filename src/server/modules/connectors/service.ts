@@ -54,7 +54,7 @@ export const overriddenMembers = `left join (
 
 /** Where a stored definition's domain comes from, with `overriddenMembers` joined as `o`. */
 export const domainSource = `case when d.area_hint is null then 'none'
-  when o.ref is not null then 'override' else 'cube' end`
+  when o.ref is not null then 'override' else 'source' end`
 
 const columns = `d.ref, d.kind, d.name, d.title, d.description_copy as "descriptionCopy",
   d.value_type as "valueType", d.visible_groups as "visibleGroups", d.area_hint as "areaHint",

@@ -352,7 +352,7 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     expect(card.from).toBeNull()
     expect(card.writtenBy).toBe('source')
     expect(card.synced).toMatchObject({
-      source: { id: sourceId, name: 'Handbook', tool: 'Markdown in Git' },
+      source: { id: sourceId, name: 'Handbook', type: 'git-markdown', tool: 'Markdown in Git' },
       scope: 'docs/finance',
     })
     expect(

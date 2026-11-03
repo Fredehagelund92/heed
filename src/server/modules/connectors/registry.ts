@@ -30,7 +30,12 @@ export function connectorType(type: string, name: string): ConnectorType {
   const server = connectorTypes.find((candidate) => candidate.type === type)
   if (server) return server
   const manifest = builtInConnectors.find((module) => module.manifest.id === type)?.manifest
-  return { type, tool: manifest?.tool ?? name, settingKeys: [] }
+  return {
+    type,
+    tool: manifest?.tool ?? name,
+    settingKeys: [],
+    mergeDimensions: manifest?.capabilities.mergeDimensions ?? 'by-name',
+  }
 }
 
 function checkSource(source: DefinitionSource) {

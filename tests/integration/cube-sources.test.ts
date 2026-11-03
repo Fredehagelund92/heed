@@ -127,7 +127,7 @@ beforeAll(async () => {
       'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
     }
   }
-  model = await readFile(new URL('../fixtures/cube/model.yml', import.meta.url), 'utf8')
+  model = await readFile(new URL('../fixtures/cube/model/model.yml', import.meta.url), 'utf8')
   host = await gitHost({ token: TOKEN })
   await host.repository('analytics', { 'cube/model/model.yml': model, 'README.md': '# Model' })
 }, 120_000)

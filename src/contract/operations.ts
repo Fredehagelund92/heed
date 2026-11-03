@@ -145,8 +145,11 @@ export const connectorOverviewSchema = z.object({
     }),
   ),
   definitions: z.object({ current: z.number(), missing: z.number() }),
-  /** Current metrics by where their domain comes from: Cube, the local override file, or nowhere. */
-  domainCoverage: z.object({ cube: z.number(), override: z.number(), none: z.number() }),
+  /**
+   * Current metrics by where their domain comes from: the tool, the server's domain names or the
+   * source's mapped groups, or nowhere.
+   */
+  domainCoverage: z.object({ source: z.number(), override: z.number(), none: z.number() }),
   /** Accepted items flagged because a definition of this source they reference changed or went. */
   flaggedItems: z.number(),
   /** Mentions of this source's definitions that changed or went since the item was written. */

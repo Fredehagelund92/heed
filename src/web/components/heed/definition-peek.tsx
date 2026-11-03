@@ -31,7 +31,6 @@ import { MentionText } from '@/components/heed/mention-chip'
 import { mentionId } from '@/lib/mentions'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 
 // The definition quick view: the note and one closed Details, as the context one. Title once (with
 // its type as the tile), the meaning, its domain and where it comes from in one quiet line (a
@@ -137,7 +136,7 @@ export function DefinitionPeek({ name }: { name: string }) {
           <PeekFacts>
             {d.synced ? (
               <PeekFact icon={LockIcon}>
-                <b>{domain}</b> - read-only, synced from {DEFINITIONS_TOOL} {SYNCED_AT} -{' '}
+                <b>{domain}</b> - read-only, synced from {d.tool ?? 'its tool'} {SYNCED_AT} -{' '}
                 <a
                   href={sourceUrl(d)}
                   target="_blank"
@@ -183,7 +182,7 @@ export function DefinitionPeek({ name }: { name: string }) {
               ...(d.synced
                 ? ([
                     [
-                      `${DEFINITIONS_TOOL} name`,
+                      `${d.tool ?? 'Its tool'} name`,
                       <span key="v" className="font-mono text-xs">
                         {cubeRef(d)}
                       </span>,
@@ -191,7 +190,10 @@ export function DefinitionPeek({ name }: { name: string }) {
                   ] as [string, React.ReactNode][])
                 : []),
               ...(d.changed
-                ? ([['Changed', `In ${DEFINITIONS_TOOL} on ${d.changed}`]] as [string, string][])
+                ? ([['Changed', `In ${d.tool ?? 'its tool'} on ${d.changed}`]] as [
+                    string,
+                    string,
+                  ][])
                 : []),
               ...(about
                 ? ([

@@ -79,7 +79,6 @@ import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
 import type { FigureView } from '@/model/figures'
-import type { ConnectorId } from '@/model/integrations'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useRelated } from '@/hooks/use-related'
@@ -806,7 +805,7 @@ function SomethingWrong({
   answer: Answer
   facts: Fact[]
   /** The integration of the figure the answer shows, when it shows one. */
-  figure?: ConnectorId
+  figure?: string
   onClose: () => void
   onSent: () => void
 }) {

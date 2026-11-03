@@ -76,7 +76,7 @@ export type Fact = {
   /** The older context item this one replaced: it stays, archived, and links say so. */
   replaces?: string
   /** Published from a suggestion a sync created: the document it came from. */
-  origin?: { tool: 'Google Drive'; folder: string; doc: string; read: string }
+  origin?: { tool: string; connector: string; folder: string; doc: string; read: string }
   /** Who answers for it, when not its domain's owners: set in the editor or in bulk. */
   owners?: string[]
   /** Who started a draft. */

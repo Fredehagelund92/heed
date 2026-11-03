@@ -82,6 +82,33 @@ describe('termCandidates', () => {
     ])
   })
 
+  it("keeps each view's dimension its own when its source never merges them (CON-201)", () => {
+    const apart = { kind: 'dimension', mergeDimensions: 'never', valueType: 'categorical' } as const
+    const candidates = termCandidates(
+      [
+        member('example:orders.status', { ...apart, source: 'shop', title: 'Order status' }),
+        member('example:customers.status', { ...apart, source: 'shop', areaHint: null }),
+        member('example:orders.ordered_at', { ...apart, source: 'shop', valueType: 'time' }),
+        member('example:orders.channel', { ...apart, source: 'shop', title: 'Channel' }),
+        member('example:web.channel', { ...apart, source: 'shop', title: 'Channel' }),
+        // Another source's dimensions of the same name still merge by name.
+        member('cube:ads.status', { kind: 'dimension', valueType: 'string' }),
+        member('cube:web.status', { kind: 'dimension', valueType: 'string' }),
+      ],
+      [known('dim:channel', 'dimension', ['cube:ads.channel'], { name: 'Channel' })],
+    )
+    expect(candidates.map((c) => [c.key, c.name, c.definitionRefs, c.areaId, c.suggested])).toEqual(
+      [
+        ['dim:orders_channel', 'Channel (orders)', ['example:orders.channel'], 'paid_social', true],
+        ['dim:web_channel', 'Channel (web)', ['example:web.channel'], 'paid_social', true],
+        ['dim:orders_status', 'Order status', ['example:orders.status'], 'paid_social', true],
+        ['dim:ordered_at', 'Ordered at', ['example:orders.ordered_at'], 'paid_social', false],
+        ['dim:status', 'Status', ['cube:ads.status', 'cube:web.status'], 'paid_social', true],
+        ['dim:customers_status', 'Status (customers)', ['example:customers.status'], null, true],
+      ],
+    )
+  })
+
   it('leaves out what a term or a proposal links, and keeps metric keys and names apart', () => {
     const candidates = termCandidates(
       [

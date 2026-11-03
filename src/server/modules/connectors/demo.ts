@@ -7,7 +7,12 @@ import {
 } from './types.ts'
 
 /** Two invented definitions, read when the server is given no model folder. */
-export const demoConnectorType: ConnectorType = { type: 'demo', tool: 'Demo', settingKeys: [] }
+export const demoConnectorType: ConnectorType = {
+  type: 'demo',
+  tool: 'Demo',
+  settingKeys: [],
+  mergeDimensions: 'by-name',
+}
 
 export function createDemoSource(): DefinitionSource {
   return {

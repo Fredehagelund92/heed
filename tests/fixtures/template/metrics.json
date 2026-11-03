@@ -1,0 +1,65 @@
+{
+  "format": "example-metrics/1",
+  "environment": { "database": "invented_warehouse", "schema": "analytics_prod" },
+  "groups": [
+    {
+      "name": "orders",
+      "domain": "sales",
+      "metrics": [
+        {
+          "name": "orders",
+          "label": "Orders",
+          "description": "Every order placed in the invented shop, whatever its status.",
+          "type": "count",
+          "expr": "count(distinct order_id)",
+          "synonyms": ["order count", "Order Count", "  purchases "]
+        },
+        {
+          "name": "revenue",
+          "label": "Revenue",
+          "description": "What customers paid, before refunds.",
+          "type": "sum",
+          "expr": "sum(amount) filter (where status = 'completed')"
+        },
+        {
+          "name": "average_order_value",
+          "label": "Average order value",
+          "type": "ratio",
+          "expr": "revenue / nullif(orders, 0)",
+          "inputs": ["revenue", "orders"]
+        }
+      ],
+      "dimensions": [
+        { "name": "status", "label": "Order status", "type": "categorical", "expr": "status" },
+        { "name": "ordered_at", "label": "Order date", "type": "time", "expr": "ordered_at" },
+        {
+          "name": "channel",
+          "type": "categorical",
+          "expr": "case when channel = 'web' then 'online' else 'in person' end",
+          "domain": "Customer Care"
+        }
+      ]
+    },
+    {
+      "name": "customers",
+      "metrics": [
+        {
+          "name": "customers",
+          "label": "Customers",
+          "description": "Customers are the people who placed at least one order in the invented shop in the days asked about, counted once each however many orders they placed. A customer who only returned an order still counts on the day of the order, not on the day of the return. Guest orders count as one customer per address. This sentence is here to make the description longer than five hundred characters, so that the connector must cut it and say so with a warning, never silently, and never by guessing what the end said.",
+          "type": "count_distinct",
+          "expr": "count(distinct customer_id)"
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "status",
+          "label": "Customer status",
+          "type": "categorical",
+          "expr": "case when tier = 'gold' then 'active' else 'dormant' end"
+        },
+        { "name": "region", "type": "geography" }
+      ]
+    }
+  ]
+}

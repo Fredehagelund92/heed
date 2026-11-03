@@ -49,6 +49,7 @@ export const manifest = defineManifest({
       description:
         'The JSON key of a service account, created in your Google Cloud project. It is kept where only this source can use it, and only to read.',
       required: true,
+      file: true,
       boundTo: ['apiAddress', 'signInAddress'],
     },
   ],

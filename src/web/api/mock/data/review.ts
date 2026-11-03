@@ -2,6 +2,7 @@ import { kindLabel, type Fact } from '@/model/items'
 import type { FieldSide, Review } from '@/model/review'
 import { spainDraft } from './drafts'
 import { LARS_REPLY } from './comments'
+import { DEMO_CONTEXT, demoTool } from './integrations'
 import { domains, facts } from './world'
 
 // What the full-screen review shows for each waiting suggestion: a one-sentence summary, the
@@ -528,7 +529,8 @@ fixtures.push(
     ...drive,
     mode: 'new',
     synced: {
-      tool: 'Google Drive',
+      tool: demoTool(DEMO_CONTEXT),
+      connector: DEMO_CONTEXT,
       folder: 'Data team / Definitions',
       doc: 'Marketplace orders: what we count',
       read: 'Today, 06:00',
@@ -579,7 +581,8 @@ fixtures.push(
     ...drive,
     mode: 'new',
     synced: {
-      tool: 'Google Drive',
+      tool: demoTool(DEMO_CONTEXT),
+      connector: DEMO_CONTEXT,
       folder: 'Data team / Definitions',
       doc: 'Units sold: bundles and sets',
       read: 'Today, 06:00',

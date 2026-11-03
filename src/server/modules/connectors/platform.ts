@@ -498,11 +498,7 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
             continue
           }
           refs.add(definition.ref)
-          // Interface 2's pipeline still names a domain from the tool for its first connector.
-          definitions.push({
-            ...definition,
-            domainSource: definition.domainSource === 'source' ? 'cube' : definition.domainSource,
-          })
+          definitions.push(definition)
         }
       } catch (error) {
         // Why it failed first, then what it warned about on the way: each file it left out.

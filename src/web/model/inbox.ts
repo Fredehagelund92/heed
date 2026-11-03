@@ -47,6 +47,8 @@ export type InboxCard = {
   primary: string
   secondary: string[]
   factId?: string
+  /** Why a check is due: a definition it relies on changed in its tool, or its check date passed. */
+  due?: 'source' | 'date'
   suggestion?: Suggestion
   /**
    * Not found: the scope agents asked about and how often (never their words, which are not
@@ -62,8 +64,11 @@ export type InboxCard = {
    * goes (a topic's answer panel, Overview, Usage, or an integration).
    */
   alert?: { rule: AlertCardRule; name: string; href: string; pair?: string }
-  /** Created by a sync from a document, never by a person. */
-  source?: { tool: string; folder: string; doc: string; read: string }
+  /**
+   * Created by a sync from a document, never by a person: the tool as people say it, and its
+   * connector's id, which its logo is drawn by.
+   */
+  source?: { tool: string; connector: string; folder: string; doc: string; read: string }
 }
 
 export type Waiting = {

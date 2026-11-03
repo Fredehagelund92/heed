@@ -60,8 +60,11 @@ export interface ConnectorOverview {
   /** The most recent read, good or not, and the files and views it warned about (CON-504, CON-516). */
   lastRead: { status: 'ok' | 'partial' | 'failed'; at: Date; warnings: SourceWarning[] } | null
   definitions: { current: number; missing: number }
-  /** Current metrics by where their domain comes from: Cube, the local override file, or nowhere. */
-  domainCoverage: { cube: number; override: number; none: number }
+  /**
+   * Current metrics by where their domain comes from: the tool, the server's domain names or the
+   * source's mapped groups, or nowhere.
+   */
+  domainCoverage: { source: number; override: number; none: number }
   /** Accepted items flagged because a definition of this source they reference changed or went. */
   flaggedItems: number
   /** Mentions of this source's definitions that changed or went since the item was written. */
@@ -179,7 +182,7 @@ interface ConnectorRow {
   last_read: { status: 'ok' | 'partial' | 'failed'; at: string; warnings: SourceWarning[] } | null
   current: number
   missing: number
-  coverage: { cube: number; override: number; none: number }
+  coverage: { source: number; override: number; none: number }
   flagged_items: number
   stale_links: number
   now: Date
@@ -195,7 +198,7 @@ export async function readConnectors(database: Database): Promise<ConnectorOverv
           from connector_snapshots s where s.connector_id = c.id
           order by s.fetched_at desc limit 1) as last_read,
        defs.current, defs.missing,
-       json_build_object('cube', defs.cube, 'override', defs.override, 'none', defs.none) as coverage,
+       json_build_object('source', defs.source, 'override', defs.override, 'none', defs.none) as coverage,
        (select count(distinct l.id)::int from v_overlay_on o
           join v_item_list l on l.id = o.item_id and l.status = 'accepted'
             and cl_audience_allows(l.audience_groups)
@@ -209,7 +212,7 @@ export async function readConnectors(database: Database): Promise<ConnectorOverv
      left join lateral (
        select count(*) filter (where d.missing_since_snapshot is null)::int as current,
               count(*) filter (where d.missing_since_snapshot is not null)::int as missing,
-              count(*) filter (where m.metric and m.source = 'cube')::int as cube,
+              count(*) filter (where m.metric and m.source = 'source')::int as source,
               count(*) filter (where m.metric and m.source = 'override')::int as override,
               count(*) filter (where m.metric and m.source = 'none')::int as none
          from definitions d ${overriddenMembers}

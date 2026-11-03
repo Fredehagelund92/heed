@@ -208,7 +208,8 @@ export const reviewIdInputSchema = z.object({ id: z.string().check(z.uuid()) })
  * suggestion a person sent has none.
  */
 export const syncedSchema = z.object({
-  source: z.object({ id: z.string(), name: z.string(), tool: z.string() }),
+  /** The source, its connector's id (`type`) and the tool it reads, as people say it. */
+  source: z.object({ id: z.string(), name: z.string(), type: z.string(), tool: z.string() }),
   /** The scope the document is in, as the source names it (a folder). */
   scope: z.string(),
   document: z.object({ title: z.string(), link: z.string() }),

@@ -8989,6 +8989,9 @@
                                 "name": {
                                   "type": "string"
                                 },
+                                "type": {
+                                  "type": "string"
+                                },
                                 "tool": {
                                   "type": "string"
                                 }
@@ -8996,6 +8999,7 @@
                               "required": [
                                 "id",
                                 "name",
+                                "type",
                                 "tool"
                               ]
                             },
@@ -12497,6 +12501,9 @@
                                       "name": {
                                         "type": "string"
                                       },
+                                      "type": {
+                                        "type": "string"
+                                      },
                                       "tool": {
                                         "type": "string"
                                       }
@@ -12504,6 +12511,7 @@
                                     "required": [
                                       "id",
                                       "name",
+                                      "type",
                                       "tool"
                                     ]
                                   },
@@ -57995,6 +58003,9 @@
                                 "required": {
                                   "type": "boolean"
                                 },
+                                "file": {
+                                  "type": "boolean"
+                                },
                                 "boundTo": {
                                   "type": "array",
                                   "items": {
@@ -58114,6 +58125,13 @@
                                 "enum": [
                                   "meaning",
                                   "metadata"
+                                ],
+                                "type": "string"
+                              },
+                              "mergeDimensions": {
+                                "enum": [
+                                  "by-name",
+                                  "never"
                                 ],
                                 "type": "string"
                               },
@@ -65510,6 +65528,9 @@
                                           "name": {
                                             "type": "string"
                                           },
+                                          "type": {
+                                            "type": "string"
+                                          },
                                           "tool": {
                                             "type": "string"
                                           }
@@ -65517,6 +65538,7 @@
                                         "required": [
                                           "id",
                                           "name",
+                                          "type",
                                           "tool"
                                         ]
                                       },
@@ -82615,7 +82637,7 @@
                           "domainCoverage": {
                             "type": "object",
                             "properties": {
-                              "cube": {
+                              "source": {
                                 "type": "number"
                               },
                               "override": {
@@ -82626,7 +82648,7 @@
                               }
                             },
                             "required": [
-                              "cube",
+                              "source",
                               "override",
                               "none"
                             ]

@@ -1,4 +1,4 @@
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { DEMO_DEFINITIONS, demoTool } from './integrations'
 import { ruleWords, type AlertSettings, type Raised, type Rule, type RuleId } from '@/model/alerts'
 import type { DomainId } from '@/model/items'
 
@@ -39,7 +39,7 @@ export const RULES: Rule[] = [
   {
     ...ruleWords('sync'),
     last: 'Fri 9 Oct',
-    lastHref: '/settings/integrations/cube',
+    lastHref: `/settings/integrations/${DEMO_DEFINITIONS}`,
   },
   {
     ...ruleWords('due'),
@@ -90,10 +90,10 @@ export const RAISED: Raised[] = [
   {
     id: 'r-cube',
     rule: 'sync',
-    title: `${DEFINITIONS_TOOL} did not sync`,
+    title: `${demoTool(DEMO_DEFINITIONS)} did not sync`,
     line: 'A card went to the admins. It synced again at 06:00.',
     when: 'Fri 9 Oct',
-    href: '/settings/integrations/cube',
+    href: `/settings/integrations/${DEMO_DEFINITIONS}`,
   },
   {
     id: 'r-italy',

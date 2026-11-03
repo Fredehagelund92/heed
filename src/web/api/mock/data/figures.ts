@@ -1,5 +1,4 @@
-import { figureConnections } from './integrations'
-import { connectorById, type ConnectorId } from '@/model/integrations'
+import { DEMO_DEFINITIONS, demoTool, demoToolHome, figureConnections } from './integrations'
 import type { Figure, FigureTry, FigureView } from '@/model/figures'
 import type { FigureConnection } from '@/model/integrations'
 import { metrics } from './world'
@@ -61,9 +60,9 @@ const fixtures: Record<string, Figure> = {
   },
 }
 
-/** The integration a metric's definition comes from: every metric here is defined in Cube. */
-export function sourceOfMetric(name: string): ConnectorId | undefined {
-  return metrics.some((m) => m.name === name) ? 'cube' : undefined
+/** The integration a metric's definition comes from: every metric here is defined in the demo's definitions tool. */
+export function sourceOfMetric(name: string): string | undefined {
+  return metrics.some((m) => m.name === name) ? DEMO_DEFINITIONS : undefined
 }
 
 type Asked = { metric: string; markets: string[]; dates?: string; state: string | null }
@@ -72,41 +71,47 @@ const scopeOf = (a: Asked) =>
   `${a.metric}${a.markets.length ? ` in ${a.markets.join(' and ')}` : ''}${a.dates ? `, ${a.dates}` : ''}`
 
 /** What an answer shows of the data, given which integrations have figures on. No period, no figure. */
-export function figureFor(a: Asked, enabled: (id: ConnectorId) => boolean): FigureView | null {
+export function figureFor(a: Asked, enabled: (id: string) => boolean): FigureView | null {
   if (!a.metric || a.state === 'failed' || !a.dates) return null
   const source = sourceOfMetric(a.metric)
   if (!source) {
-    if (!enabled('cube')) return null
+    if (!enabled(DEMO_DEFINITIONS)) return null
     return {
       kind: 'none',
       why: `No connected integration defines ${a.metric.toLowerCase()}, so no figure is read for it.`,
       closest: ['Repeat purchase rate', 'Churn rate', 'Support contacts'],
     }
   }
-  if (!enabled(source)) return { kind: 'link', source, scope: scopeOf(a) }
+  if (!enabled(source)) {
+    const href = demoToolHome[source]
+    return {
+      kind: 'link',
+      source,
+      tool: demoTool(source),
+      scope: scopeOf(a),
+      ...(href ? { href } : {}),
+    }
+  }
   const figure = fixtures[`${a.metric}|${a.markets.join(',')}|${a.dates}`]
   if (!figure)
     return {
       kind: 'none',
-      why: `${connectorById(source)!.name} returned no figure for ${scopeOf(a)}.`,
+      why: `${demoTool(source)} returned no figure for ${scopeOf(a)}.`,
       closest: [],
     }
   const asOf = figureConnections[source]?.asOf ?? 'just now'
   return figure.against
-    ? { kind: 'against', source, figure, asOf }
-    : { kind: 'line', source, figure, asOf }
+    ? { kind: 'against', source, tool: demoTool(source), figure, asOf }
+    : { kind: 'line', source, tool: demoTool(source), figure, asOf }
 }
 
 /**
- * Try a figure in the demo week, as the service reads it: the first of Cube's views by name with a
+ * Try a figure in the demo week, as the service reads it: the first of the tool's views by name with a
  * single date is Marketing, its first measure by name is Conversion rate, and the demo warehouse
  * has nothing for it in the last 7 days, which still says the endpoint and its token work. With no
  * token set there is nothing to try.
  */
-export function figureTryFor(
-  source: ConnectorId,
-  connection: FigureConnection | undefined,
-): FigureTry {
+export function figureTryFor(source: string, connection: FigureConnection | undefined): FigureTry {
   if (!connection?.endpoint || !connection.secretSet)
     return { kind: 'failed', source, failure: 'not_set_up' }
   return {
