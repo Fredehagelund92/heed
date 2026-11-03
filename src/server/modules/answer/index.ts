@@ -1,8 +1,9 @@
 /**
  * The answer engine on the service (src/domain/answer.ts): Ask's look-up, Asked this week, the
  * replay of a topic and the reach of a draft, each on the edition it needs, read
- * once and kept a short while. No model decides anything, and no question is stored; with a real
- * model, the assistant's model only writes Ask's words from the items the engine gave.
+ * once and kept a short while. No model decides a state, an item or what agents are told, and no
+ * question is stored; with a real model, the assistant's model chooses Ask's reads for a question
+ * the rules cannot read (the planner, FR-719) and writes Ask's words from the items read.
  */
 export {
   askForWords,
@@ -16,6 +17,26 @@ export {
 } from './words.ts'
 export { wordsCases, wordsProblems, type WordsCase } from './words-cases.ts'
 export {
+  askPlanCase,
+  planCases,
+  planProblems,
+  runPlanCases,
+  type PlanCase,
+  type PlanOutcome,
+  type PlanRoute,
+} from './plan-cases.ts'
+export { PLAN_NOW, PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
+export {
+  askForPlan,
+  planQuestion,
+  scriptedPlan,
+  PLAN_MAX_TOKENS,
+  PLAN_TIMEOUT_MS,
+  type PlanCall,
+  type PlannerMiss,
+  type PlannerReply,
+} from './plan.ts'
+export {
   askedThisWeek,
   createBundleCache,
   liveBundle as liveServingBundle,
@@ -24,5 +45,6 @@ export {
   reachOfDraft,
   replayTopic,
   type BundleCache,
+  type LookupDeps,
 } from './service.ts'
 export type { RecordsReads } from './records.ts'

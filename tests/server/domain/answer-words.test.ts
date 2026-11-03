@@ -32,7 +32,7 @@ const known = wordsPrompt(input)
 
 /** The words streamed in chunks of `size` characters: what each chunk let through, then the end. */
 function stream(text: string, size: number, finished = true) {
-  const gate = wordsGate(input.items.length, known)
+  const gate = wordsGate(input)
   const shown: string[][] = []
   for (let at = 0; at < text.length; at += size) shown.push(gate.push(text.slice(at, at + size)))
   const last = gate.end(finished)
@@ -112,10 +112,13 @@ describe('the words as they stream', () => {
   })
 
   it('does not end a sentence inside a number or an abbreviation', () => {
-    const { shown, last } = stream('It covers 4 August 2026, e.g. online sales [1]. It stands.', 2)
+    const { shown, last } = stream(
+      'It covers 4 August 2026, e.g. online sales [1]. The context does not say what caused it.',
+      2,
+    )
     expect([...shown.flat(), ...last]).toEqual([
       'It covers 4 August 2026, e.g. online sales [1].',
-      'It stands.',
+      'The context does not say what caused it.',
     ])
   })
 
@@ -135,19 +138,91 @@ describe('the words as they stream', () => {
     expect(gate.failed).toBe('a list or a heading')
   })
 
-  it('holds sentences that cite nothing until one that does passes', () => {
+  it('holds one lead that cites nothing until a sentence that does passes', () => {
     const { shown, last } = stream(
-      'Here is what is known. Online sales stopped [1]. Both stand.',
+      'Here is why orders in Norway dropped in August 2026. Online sales stopped [1]. The context does not say what caused it.',
       1,
     )
-    expect(shown[0]).toEqual(['Here is what is known.', 'Online sales stopped [1].'])
+    expect(shown[0]).toEqual([
+      'Here is why orders in Norway dropped in August 2026.',
+      'Online sales stopped [1].',
+    ])
     expect([...shown.flat(), ...last]).toHaveLength(3)
   })
 
+  it('ends the words at a second sentence that cites nothing before any that does', () => {
+    const { gate, shown, last } = stream(
+      'Here is what applies to orders in Norway. Orders in Norway dropped. Online sales stopped [1].',
+      4,
+    )
+    expect([...shown.flat(), ...last]).toEqual([])
+    expect(gate.failed).toBe('a sentence that cites no item')
+  })
+
+  it('ends the words at a sentence that cites nothing and adds a fact', () => {
+    const { gate, shown, last } = stream(
+      'Online sales stopped [1]. Orders count the purchases placed by loyal shoppers.',
+      4,
+    )
+    expect([...shown.flat(), ...last]).toEqual(['Online sales stopped [1].'])
+    expect(gate.failed).toBe('a sentence that cites no item')
+  })
+
+  it('ends the words at a sentence its items do not support (FR-701)', () => {
+    // As the scout saw for "what's the difference between orders and net revenue?": a cited
+    // sentence that says what no item gives is dropped, with everything after it.
+    const { gate, shown, last } = stream(
+      'Online sales to Norway stopped on 4 August 2026 [1]. Orders counts the purchases placed, while net revenue is the money kept from them after deductions [2].',
+      6,
+    )
+    expect([...shown.flat(), ...last]).toEqual([
+      'Online sales to Norway stopped on 4 August 2026 [1].',
+    ])
+    expect(gate.failed).toBe('says what its items do not')
+  })
+
+  it('reads [1, 2] as [1][2], and holds each number to its own item', () => {
+    const { gate, shown, last } = stream(
+      'Online sales to Norway stopped and order value includes store credit [1, 2].',
+      5,
+    )
+    expect([...shown.flat(), ...last]).toEqual([
+      'Online sales to Norway stopped and order value includes store credit [1][2].',
+    ])
+    expect(gate.failed).toBeNull()
+    expect(stream('Online sales stopped [1, 3].', 5).gate.failed).toBe(
+      'cites an item it was not given',
+    )
+  })
+
+  it('lets a sentence say what a definition given says, with no number', () => {
+    const defined: WordsInput = {
+      ...input,
+      question: 'What is net revenue?',
+      definitions: [
+        { name: 'Net revenue', words: 'Money from orders after returns and discounts.' },
+      ],
+    }
+    const gate = wordsGate(defined)
+    const shown = [
+      ...gate.push('Net revenue is the money from orders after returns and discounts. '),
+      ...gate.push('Online sales to Norway stopped [1].'),
+      ...gate.end(true),
+    ]
+    expect(shown).toEqual([
+      'Net revenue is the money from orders after returns and discounts.',
+      'Online sales to Norway stopped [1].',
+    ])
+    expect(gate.failed).toBeNull()
+  })
+
   it('shows nothing for words that never cite an item', () => {
-    const { gate, shown, last } = stream('Orders fell. Nobody knows why.', 3)
+    const { gate, shown, last } = stream('Here is what applies to orders in Norway.', 3)
     expect([...shown.flat(), ...last]).toEqual([])
     expect(gate.failed).toBe('cites no item')
+    expect(stream('Orders fell. Nobody knows why.', 3).gate.failed).toBe(
+      'a sentence that cites no item',
+    )
     expect(stream('   ', 1).gate.failed).toBe('no words')
   })
 
@@ -170,11 +245,11 @@ describe('the words as they stream', () => {
 
 describe('the words whole, as the words cases check them', () => {
   it('stands only when every sentence passes', () => {
-    expect(checkWords('Online sales stopped [1].\n\nCredit counts [2].', 2, known)).toEqual({
+    expect(checkWords('Online sales stopped [1].\n\nStore credit counts [2].', input)).toEqual({
       ok: true,
-      text: 'Online sales stopped [1]. Credit counts [2].',
+      text: 'Online sales stopped [1]. Store credit counts [2].',
     })
-    expect(checkWords('Online sales stopped [1]. It fell 12 percent.', 2, known)).toEqual({
+    expect(checkWords('Online sales stopped [1]. It fell 12 percent.', input)).toEqual({
       ok: false,
       why: 'a number it was not given (12)',
     })

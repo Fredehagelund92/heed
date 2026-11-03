@@ -10,10 +10,11 @@ import type {
   Replay,
 } from '../../../contract/answer.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
+import { previousOf, routeQuestion, type Planner } from '../../../domain/ask-route.ts'
+import { overlaps } from '../../../domain/validity.ts'
 import {
   answer,
   askedTopics,
-  lookUp,
   reach,
   startersOf,
   topicScope,
@@ -30,7 +31,7 @@ import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { quoted } from '../../mcp/outcomes.ts'
 import { draftBundle } from '../proposals/index.ts'
-import { recordsAnswerOf, type RecordsReads } from './records.ts'
+import { answerRecordsOf, recogniseRecordsOf, type RecordsReads } from './records.ts'
 
 /** An edition to answer on: its sequence, its label and the overlay of stops and flags now. */
 type Head = { seq: string; label: string; overlay: string }
@@ -97,6 +98,19 @@ const result = (a: Answer, target: Target): AnswerResult => {
   return { target, ...rest }
 }
 
+/** What Ask's look-up may call beside the engine, each when the service has it. */
+export type LookupDeps = {
+  /**
+   * The words a real model writes from the answer, each sentence once it has passed the check, or
+   * null when the model writes none for it.
+   */
+  words?: (answer: AnswerResult) => AsyncIterable<string> | null
+  /** The reads a records answer is made from, as the person's request makes them (FR-718). */
+  records?: RecordsReads
+  /** The planner (FR-719): the checked plan for a question, or null to answer it with no model. */
+  planner?: Planner
+}
+
 /**
  * Ask's look-up (FR-701): the question on the live edition as get_context answers an agent, with
  * no model, each step as it is done and then the answer; then, given `words`, what a real model
@@ -105,55 +119,84 @@ const result = (a: Answer, target: Target): AnswerResult => {
  * is read before the first step, so the steps need no database. Given `records`, a question about
  * the context's own records is answered from them instead, in one event (FR-718), and nothing is
  * looked up.
+ *
+ * Given a `planner` (FR-719), a question the rules cannot read, a market asked about alone that
+ * finds nothing, a question about what changed in the business, and a follow-up of the chat's
+ * last turn (`input.previous`, from the browser, never stored) are read by the planner first
+ * (src/domain/ask-route.ts): a `plan` event says what is looked up, and the checked plan's reads
+ * run as Ask's own, with the state from what they read; or the answer is one short question back,
+ * or the sentence for a question off topic. With no plan, the answer is the rules' own.
  */
 export async function lookupQuestion(
   tx: Queryable,
   clock: Clock,
   cache: BundleCache,
   input: LookupInput,
-  /**
-   * The words a real model writes from the answer, each sentence once it has passed the check, or
-   * null when the model writes none for it.
-   */
-  words?: (answer: AnswerResult) => AsyncIterable<string> | null,
-  records?: RecordsReads,
+  deps: LookupDeps = {},
 ): Promise<AsyncGenerator<LookupEvent>> {
   const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
   const today = clock.today()
-  const found = records ? await recordsAnswerOf(tx, clock, bundle, input, records) : null
-  const steps = lookUp(bundle, input, { today, now: clockMs })
+  const reads = deps.records && { ...deps.records, areas: once(deps.records.areas) }
+  const { previous: given, ...ask } = input
+  const routed = await routeQuestion({
+    bundle,
+    ask,
+    previous: previousOf(bundle, given, today),
+    records: reads ? await recogniseRecordsOf(clock, bundle, input, reads) : null,
+    today,
+    now: clock.now().toISOString(),
+    planner: deps.planner,
+    clock: clockMs,
+  })
+  // A records question is counted and answered inside the request, before the stream starts.
+  const found =
+    routed.kind === 'records' && reads
+      ? await answerRecordsOf(tx, clock, bundle, routed.found, reads)
+      : null
+
+  /** The answer as Ask sends it: with its links, and a metric's definition when it is asked. */
+  const answered = (a: Answer, extra: Partial<AnswerResult> = {}, define: string[] = []) => {
+    const done = { ...result(a, { kind: 'live' }), ...extra }
+    const definitions = definitionsOf(
+      bundle,
+      define.length ? define : asksDefinition(input.question) ? (done.scope?.metrics ?? []) : [],
+    )
+    const valueMetrics = valueMetricsOf(bundle, done, today)
+    return {
+      ...done,
+      links: linksOf(bundle, done, tools, today),
+      ...(definitions.length ? { definitions } : {}),
+      ...(valueMetrics.length ? { valueMetrics } : {}),
+    }
+  }
   function* events(): Generator<LookupEvent> {
-    // A records answer is the look-up's one event: nothing is looked up in the context.
-    if (found) {
+    if (routed.kind === 'reply') {
+      yield { type: 'reply', reply: routed.reply }
+      return
+    }
+    if (found && routed.kind === 'records') {
+      if (routed.planned) yield { type: 'plan', plan: { kind: 'records', working: COUNTING } }
       yield { type: 'records', records: found }
       return
     }
-    for (;;) {
-      const next = steps.next()
-      if (next.done) {
-        const answer = result(next.value, { kind: 'live' })
-        const definitions = definitionsOf(bundle, answer, input.question)
-        const valueMetrics = valueMetricsOf(bundle, answer, today)
-        yield {
-          type: 'answer',
-          answer: {
-            ...answer,
-            links: linksOf(bundle, answer, tools, today),
-            ...(definitions.length ? { definitions } : {}),
-            ...(valueMetrics.length ? { valueMetrics } : {}),
-          },
-        }
-        return
-      }
-      yield { type: 'step', step: next.value }
+    if (routed.kind === 'reads') {
+      const { answer: planned, reading, defines } = routed.planned
+      yield { type: 'plan', plan: { kind: 'reads', working: routed.working } }
+      for (const step of planned.steps) yield { type: 'step', step }
+      yield { type: 'answer', answer: answered(planned, { reading }, defines) }
+      return
     }
+    // The rules' answer, also for a records question when no records are read here.
+    const rules = routed.kind === 'rules' ? routed.answer : answer(bundle, ask, { today })
+    for (const step of rules.steps) yield { type: 'step', step }
+    yield { type: 'answer', answer: answered(rules) }
   }
   return (async function* () {
     for (const event of events()) {
       yield event
       // Let the stream send this step before the next one runs.
       await new Promise<void>((done) => setImmediate(done))
-      const sentences = event.type === 'answer' ? words?.(event.answer) : null
+      const sentences = event.type === 'answer' ? deps.words?.(event.answer) : null
       if (!sentences) continue
       for await (const text of sentences) yield { type: 'sentence', text }
       yield { type: 'words-end' }
@@ -161,19 +204,23 @@ export async function lookupQuestion(
   })()
 }
 
+/** What the working line says while the records are counted for a planned records question. */
+const COUNTING = 'Counting from the workspace’s records…'
+
+/** A read made once, however often it is asked for. */
+const once = <T>(read: () => Promise<T>) => {
+  let made: Promise<T> | null = null
+  return () => (made ??= read())
+}
+
 /**
  * For a question about what a metric means ("What is churn rate?", "What does net revenue
- * mean?"): what the definition source says about each metric asked, and where that comes from, as
- * get_context gives an agent beside the items (FR-338). A term an agent may not see, or one whose
- * definition the source limits to groups (CON-509), has none.
+ * mean?"), or a definition the planner chose: what the definition source says about each metric,
+ * and where that comes from, as get_context gives an agent beside the items (FR-338). A term an
+ * agent may not see, or one whose definition the source limits to groups (CON-509), has none.
  */
-function definitionsOf(
-  bundle: ServingBundle,
-  answer: AnswerResult,
-  question: string,
-): AskDefinition[] {
-  if (!answer.scope?.metrics.length || !asksDefinition(question)) return []
-  return answer.scope.metrics.slice(0, 5).flatMap((key) => {
+function definitionsOf(bundle: ServingBundle, metrics: readonly string[]): AskDefinition[] {
+  return metrics.slice(0, 5).flatMap((key) => {
     const term = bundle.terms.find((t) => t.key === key)
     const described = term && termShown(bundle, term) ? term.described : null
     if (!term || !described) return []
@@ -194,17 +241,19 @@ function definitionsOf(
 
 /**
  * For a question that names values (a market) and no metric, and found nothing: the metrics that
- * the context agents get about all those values is written for, most items first, at most three.
+ * the context agents get about all those values is written for, most items first, at most three,
+ * counting only items for the question's own dates, so the question the hint leads to finds them.
  * Such a question only gets items that name no metric, so Ask can say where the rest is.
  */
 function valueMetricsOf(bundle: ServingBundle, answer: AnswerResult, today: string): string[] {
   const values = Object.values(answer.scope?.filters ?? {}).flat()
   if (answer.status !== 'no_match' || answer.scope?.metrics.length || !values.length) return []
+  const window = answer.scope!.window
   const counts = new Map<string, number>()
   for (const item of bundle.items) {
     const named = new Set(item.scope.dimensionValues.map((row) => row.value))
     if (item.status !== 'accepted' || !values.every((value) => named.has(value))) continue
-    if (!canRead(bundle, item, today)) continue
+    if (!overlaps(item.validity, window) || !canRead(bundle, item, today)) continue
     for (const metric of item.scope.metrics) counts.set(metric, (counts.get(metric) ?? 0) + 1)
   }
   return [...counts]

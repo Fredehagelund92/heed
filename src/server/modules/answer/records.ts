@@ -10,6 +10,7 @@ import {
   type RecordsIntent,
   type RecordsItem,
   type RecordsKind,
+  type RecordsRecognition,
   type RecordsWorld,
 } from '../../../domain/records.ts'
 import { readQuestion } from '../../../domain/scope.ts'
@@ -160,29 +161,39 @@ async function countIntent(tx: Queryable, intent: RecordsIntent | 'refused', tod
 }
 
 /**
- * The records answer to a question, or null when it is not a records question and not about one
- * person's work: the answer engine reads it then, as before.
+ * How a question reads as a records question, or null when it is not one and not about one
+ * person's work: the answer engine reads it then, as before. Nothing is counted yet.
  */
-export async function recordsAnswerOf(
-  tx: Queryable,
+export async function recogniseRecordsOf(
   clock: Clock,
   bundle: ServingBundle,
   input: LookupInput,
-  reads: RecordsReads,
-): Promise<RecordsAnswer | null> {
+  reads: Pick<RecordsReads, 'areas'>,
+): Promise<RecordsRecognition | null> {
   if (!wordsOnly(input)) return null
-  const today = clock.today()
-  const { now, shift } = momentOf(clock)
-  const read = readQuestion(input.question, bundle.terms, today)
-  const areas = await reads.areas()
-  const found = recogniseRecords(input.question, {
+  const read = readQuestion(input.question, bundle.terms, clock.today())
+  return recogniseRecords(input.question, {
     spans: read.spans,
     terms: bundle.terms,
-    domains: areas,
-    now,
+    domains: await reads.areas(),
+    now: momentOf(clock).now,
   })
-  if (!found) return null
-  await countIntent(tx, found.type === 'refused' ? 'refused' : found.ask.intent, today)
+}
+
+/**
+ * The records answer to a records question, read by the rules or chosen by Ask's planner
+ * (FR-719), from what the person may see. Only which question it was is counted, by week.
+ */
+export async function answerRecordsOf(
+  tx: Queryable,
+  clock: Clock,
+  bundle: ServingBundle,
+  found: RecordsRecognition,
+  reads: RecordsReads,
+): Promise<RecordsAnswer> {
+  const { now, shift } = momentOf(clock)
+  const areas = await reads.areas()
+  await countIntent(tx, found.type === 'refused' ? 'refused' : found.ask.intent, clock.today())
   if (found.type === 'refused') return refusedAnswer({ areas })
   return answerRecords(found.ask, await worldFor(tx, found.ask, reads, areas, bundle, shift), now)
 }

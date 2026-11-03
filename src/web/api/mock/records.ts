@@ -4,6 +4,7 @@ import {
   refusedAnswer,
   type RecordsAnswer,
   type RecordsItem,
+  type RecordsRecognition,
   type RecordsWorld,
 } from '@domain/records'
 import type { Term } from '@domain/vocabulary'
@@ -45,7 +46,7 @@ const valuesOf = (d: Definition) =>
       : []
 
 /** The vocabulary as the engine names it: the metrics and dimensions with their domains, and their values. */
-function termsOf(definitions: readonly Definition[]): Term[] {
+export function termsOf(definitions: readonly Definition[]): Term[] {
   const term = (
     key: string,
     kind: Term['kind'],
@@ -171,6 +172,20 @@ const conflictsOf = (rows: readonly ConflictRow[]): NonNullable<RecordsWorld['co
  * The records answer to a typed question, or null when it is not a records question: the matcher
  * answers it then, as before.
  */
+/** How a question reads as a records question, as the service's reader reads it, or null. */
+export function recognisedFor(
+  question: string,
+  world: Pick<Parameters<typeof recordsFor>[1], 'definitions' | 'domains'>,
+): RecordsRecognition | null {
+  const terms = termsOf(world.definitions)
+  return recogniseRecords(question, {
+    spans: spansOf(question, terms),
+    terms,
+    domains: world.domains,
+    now: RECORDS_NOW,
+  })
+}
+
 export function recordsFor(
   question: string,
   world: {
@@ -185,12 +200,7 @@ export function recordsFor(
   },
 ): RecordsAnswer | null {
   const terms = termsOf(world.definitions)
-  const found = recogniseRecords(question, {
-    spans: spansOf(question, terms),
-    terms,
-    domains: world.domains,
-    now: RECORDS_NOW,
-  })
+  const found = recognisedFor(question, world)
   if (!found) return null
   // The demo world names owners by name, so a name is its own id here.
   const areas = world.domains.map((d) => ({ id: d.id, name: d.name, ownerIds: [...d.owners] }))

@@ -13,7 +13,14 @@ import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
 import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
-import { closestNames, NAMES_NOTHING, namesNothing, scopeText, unreadReason } from '@/model/ask'
+import {
+  closestNames,
+  midSentence,
+  NAMES_NOTHING,
+  namesNothing,
+  scopeText,
+  unreadReason,
+} from '@/model/ask'
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
 export type ReadScope = Asked['rows'][number]['scope']
@@ -99,6 +106,7 @@ const sentenceOf = (summary: string) => {
 }
 
 const items = (n: number) => (n === 1 ? '1 context item' : `${n} context items`)
+
 /** "Orders, Returns and Net revenue". */
 const list = (names: readonly string[], and = 'and') =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} ${and} ${names.at(-1)}`
@@ -220,6 +228,9 @@ function engineAnswerOf(
           definitions: a.definitions.map((d) => ({ name: d.name, words: d.words, tool: d.tool })),
         }
       : {}),
+    // How it was read, as keys, for the next question to carry; and the planner's reading.
+    ...(scope ? { keys: scope } : {}),
+    ...(a.reading ? { reading: { words: a.reading.words, carried: a.reading.carried } } : {}),
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'
@@ -257,7 +268,9 @@ function engineAnswerOf(
   if (a.state === 'missing')
     return {
       ...base,
-      text: `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`,
+      text: a.reading
+        ? `No context item matches ${midSentence(a.reading.words)}. That doesn't mean there's no explanation, only that none is written down yet.`
+        : `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`,
     }
   const said = a.items.map((i, n) => `${sentenceOf(i.summary)} [${n + 1}]`).join(' ')
   if (a.state === 'conflict') {

@@ -43,24 +43,25 @@ const input: WordsInput = {
 }
 
 describe('the check on a model’s words', () => {
-  const known = wordsPrompt(input)
-
   it('keeps one paragraph that cites only the items it was given', () => {
     expect(
-      checkWords('One side says one thing [1].\n\nThe other says another [2].', 2, known),
+      checkWords(
+        'One side counts store credit [1].\n\nThe other counts card and cash only [2].',
+        input,
+      ),
     ).toEqual({
       ok: true,
-      text: 'One side says one thing [1]. The other says another [2].',
+      text: 'One side counts store credit [1]. The other counts card and cash only [2].',
     })
   })
 
   it('refuses words that cite nothing, cite an item they were not given, or add a number', () => {
-    expect(checkWords('Orders include gift cards.', 2, known)).toMatchObject({ ok: false })
-    expect(checkWords('Orders include gift cards [3].', 2, known)).toMatchObject({
+    expect(checkWords('Orders include gift cards.', input)).toMatchObject({ ok: false })
+    expect(checkWords('Orders include gift cards [3].', input)).toMatchObject({
       ok: false,
       why: 'cites an item it was not given',
     })
-    expect(checkWords('Gift cards add 12 percent [1].', 2, known)).toMatchObject({
+    expect(checkWords('Gift cards add 12 percent [1].', input)).toMatchObject({
       ok: false,
       why: 'a number it was not given (12)',
     })
@@ -72,8 +73,8 @@ describe('the check on a model’s words', () => {
       '# Answer\nIt counts [1].',
       'See https://x.example [1].',
     ])
-      expect(checkWords(text, 2, known).ok, text).toBe(false)
-    expect(checkWords(`${'word '.repeat(WORDS_MAX / 4)} [1]`, 2, known)).toMatchObject({
+      expect(checkWords(text, input).ok, text).toBe(false)
+    expect(checkWords(`${'store credit '.repeat(WORDS_MAX / 4)} [1]`, input)).toMatchObject({
       ok: false,
       why: 'too long',
     })

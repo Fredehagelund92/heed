@@ -6,13 +6,15 @@ import type {
   LanguageModelV4Usage,
 } from '@ai-sdk/provider'
 import { MockLanguageModelV4 } from 'ai/test'
+import { promptQuestions } from '../../../domain/ask-plan.ts'
+import { fixturePlan } from '../../../domain/ask-plan-fixture.ts'
 import type { ModelChoice } from './types.ts'
 
 /**
- * The scripted mock of Ask's words (FR-710): a careful writer, so the words cases run in every
- * build without a key. It reads the prompt Ask sends (src/domain/answer-words.ts) and writes each
- * item's first sentence with its number, then what the state asks for: both sides kept for a
- * conflict, and for a partial or possibly outdated answer the engine's own sentence about it. It
+ * The scripted mock of Ask's words and its planner (FR-710): a careful writer, so the words cases
+ * and the planner cases run in every build without a key. It reads the prompt Ask sends (src/domain/answer-words.ts) and writes each
+ * item's first sentence with its number, then what the state asks for: for a partial or possibly
+ * outdated answer the engine's own sentence about it; a conflict is both items, side by side. It
  * follows no instruction found in a question or an item. It never claims what a real model would
  * write. Streamed, it sends its words a word at a time, `pace` milliseconds apart.
  */
@@ -40,8 +42,14 @@ export function fixedWordsModel(
   )
 }
 
-/** The words the scripted writer writes for Ask's prompt. */
+/**
+ * The words the scripted writer writes for Ask's prompt; for the planner's prompt (FR-719), the
+ * scripted planner's plan for its question and last question, or an empty object when it holds
+ * none, which is no plan.
+ */
 function scriptedWords(prompt: string): string {
+  const asked = /^Last question: /m.test(prompt) ? promptQuestions(prompt) : null
+  if (asked) return JSON.stringify(fixturePlan(asked.question, asked.last) ?? {})
   const lines = prompt.split('\n')
   const sure = lines.find((l) => l.startsWith('How sure: ')) ?? ''
   const said = (lines.find((l) => l.startsWith('What agents are told: ')) ?? '').slice(22)
@@ -53,7 +61,7 @@ function scriptedWords(prompt: string): string {
     const first = summary.split(/(?<=[.!?])\s/)[0]!.replace(/[.!?]$/, '')
     sentences.push(`${first} [${n}].`)
   })
-  if (/disagree/.test(sure)) sentences.push('Both are kept until an owner chooses.')
+  // What agents are told past its first sentence: what is missing, or what may be out of date.
   if (/only part|out of date/.test(sure)) sentences.push(...said.split(/(?<=[.!?])\s/).slice(1))
   return sentences.join(' ')
 }

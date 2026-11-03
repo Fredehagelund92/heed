@@ -93,17 +93,28 @@ export async function planWords(
   }
 }
 
-/** The words the model's input is made of, from the engine's answer. */
-export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput => ({
-  question,
-  state: answer.state,
-  say: answer.say,
-  items: answer.items.map((item) => ({
-    title: item.title,
-    summary: item.summary,
-    notToConclude: item.notToConclude,
-  })),
-})
+/**
+ * The words the model's input is made of, from the engine's answer: its items, the definitions it
+ * shows (so what a metric means is said in the source's words), and how the planner read the
+ * question, when it did.
+ */
+export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput => {
+  const definitions = (answer.definitions ?? []).flatMap((d) =>
+    d.words ? [{ name: d.name, words: d.words }] : [],
+  )
+  return {
+    question,
+    state: answer.state,
+    say: answer.say,
+    items: answer.items.map((item) => ({
+      title: item.title,
+      summary: item.summary,
+      notToConclude: item.notToConclude,
+    })),
+    ...(definitions.length ? { definitions } : {}),
+    ...(answer.reading ? { read: answer.reading.words } : {}),
+  }
+}
 
 /**
  * Why the model's words were not used, for the service log: the step that refused them, and for a
@@ -170,7 +181,7 @@ async function* sentencesOf(
       ...(deps.onError ? { onRecordError: deps.onError } : {}),
     })
     const choice = meter.wrap(plan.choice, { role: 'assistant' })
-    const gate = wordsGate(input.items.length, prompt)
+    const gate = wordsGate(input)
     let finishReason: FinishReason | undefined
     let reasoningTokens = 0
     try {

@@ -41,7 +41,7 @@ import {
   useSession,
   useWrite,
 } from '@/api/queries'
-import type { Answer, AskInput, QuestionPart } from '@/model/ask'
+import { previousOf, type Answer, type AskInput, type QuestionPart } from '@/model/ask'
 import {
   askedTurn,
   doneTurn,
@@ -66,6 +66,10 @@ import { arriveRef, leaveThen, useLeaving } from '@/lib/presence'
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. A question shows
 // the moment it is sent; its answer follows the look-up as it runs, the words a sentence at a time.
+
+/** What a turn passes on to the next question, once its answer is in. */
+const carriedFrom = (turn: Turn | undefined) =>
+  turn?.answered && !turn.error ? previousOf(turn.answer) : undefined
 
 /** What Ask is asked for a chat's first answer: its example, or its question. */
 const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
@@ -235,6 +239,8 @@ export function AskChat({
       // An example's question, typed or picked, opens the example. Any other is asked here, one that
       // is already a chat too: once answered it joins that chat, so the history never has it twice.
       if (index === 0 && onExample?.(q)) return
+      // A follow-up carries the chat's last answered turn; it stays in the browser (FR-717).
+      const previous = carriedFrom(turns.at(-1))
       // The question is in the chat at once; its answer follows as the look-up runs.
       setTurns((ts) => [...ts, askedTurn(id, q, { parts, scope })])
       keepFocus()
@@ -246,7 +252,11 @@ export function AskChat({
         onFirstAsk?.(q)
       }
       try {
-        const answer = await answerTurn(id, { question: q, parts, scope }, join)
+        const answer = await answerTurn(
+          id,
+          { question: q, parts, scope, ...(previous ? { previous } : {}) },
+          join,
+        )
         if (!answer) return
         join()
         // It opens again on its question alone: a question with no mentions gets the same answer, so
@@ -271,12 +281,15 @@ export function AskChat({
     one(async () => {
       const before = turns[i]!
       const { question, parts, scope, id, state, dates } = before.answer
+      const previous = carriedFrom(turns[i - 1])
       follow.current = true
       setTurns((ts) => ts.map((t, j) => (j === i ? askedTurn(id, question, { parts, scope }) : t)))
       try {
         await answerTurn(
           id,
-          state === 'failed' ? { question, reread: { dates } } : { question, parts, scope },
+          state === 'failed'
+            ? { question, reread: { dates } }
+            : { question, parts, scope, ...(previous ? { previous } : {}) },
         )
       } catch (e) {
         // The answer it had stays.

@@ -37,6 +37,7 @@ import {
 } from './data/ask'
 import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { playAnswer } from './ask-live'
+import { followsOn, plannedFor } from './planner'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
@@ -51,7 +52,7 @@ import {
 } from './integrations'
 import { figureFor, figureTryFor } from './data/figures'
 import { recordsAnswer, reportedOn, type AskInput } from '@/model/ask'
-import { recordsFor } from './records'
+import { recognisedFor, recordsFor } from './records'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
@@ -229,7 +230,7 @@ export function createMockApi() {
   }
 
   /** Ask's answer, from the context as it is now. */
-  const answer = ({ question = '', parts, scope, example, reread }: AskInput) => {
+  const answer = ({ question = '', parts, scope, example, reread, previous }: AskInput) => {
     const pool = factsOf(state)
     if (example) return exampleAnswer(example)
     if (scope?.length) return answerForScope(question, scope, parts, pool)
@@ -240,11 +241,26 @@ export function createMockApi() {
         alias: read.alias,
       }
     }
-    // A question about the context's own records is answered from them, as on the service.
+    // Ask's planner reads what the rules cannot, and a follow-up first, as on the service (FR-719).
+    const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
+    const planned = () => {
+      const a = plannedFor(question, previous, world)
+      return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
+    }
+    const read = readQuestion(question)
+    if (followsOn(question, previous, world, read.metric ? 1 : 0)) {
+      const a = planned()
+      if (a) return a
+    }
+    // A question about the context's own records is answered from them, as on the service; one
+    // about what changed that names nothing Heed keeps is the business's first.
+    const recognised = recognisedFor(question, world)
+    if (recognised?.type === 'records' && recognised.loose) {
+      const a = planned()
+      if (a) return a
+    }
     const records = recordsFor(question, {
-      pool,
-      domains: workspace.domains(),
-      definitions: definitions.list(),
+      ...world,
       asked: () => askedThisWeek(pool).rows,
       conflicts: () => conflictRows('all'),
       manages: (domain) => {
@@ -253,10 +269,16 @@ export function createMockApi() {
       },
     })
     if (records) return recordsAnswer(question, records)
-    return {
-      ...askQuestion(question, pool),
-      parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
-    }
+    const ruled = askQuestion(question, pool)
+    // Read nothing, or a market alone: the planner reads it. The mock's reader finds every
+    // metric's items for a market alone, where the service's finds none, so it asks first.
+    const unread = ruled.state === null || (!ruled.metric && ruled.markets.length > 0)
+    return (
+      (unread && planned()) || {
+        ...ruled,
+        parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
+      }
+    )
   }
 
   /** The reports the person sent from Ask this visit, newest first. */
