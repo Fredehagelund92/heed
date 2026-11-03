@@ -97627,6 +97627,45 @@
                       "filters": {
                         "type": "object",
                         "properties": {
+                          "chips": {
+                            "type": "array",
+                            "maxItems": 9,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "enum": [
+                                    "answer",
+                                    "domain",
+                                    "agent",
+                                    "market",
+                                    "metric",
+                                    "month",
+                                    "gap",
+                                    "reported",
+                                    "topic"
+                                  ],
+                                  "type": "string"
+                                },
+                                "not": {
+                                  "type": "boolean"
+                                },
+                                "values": {
+                                  "type": "array",
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  }
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "values"
+                              ]
+                            }
+                          },
                           "answer": {
                             "type": "array",
                             "items": {
@@ -97947,6 +97986,45 @@
                   "filters": {
                     "type": "object",
                     "properties": {
+                      "chips": {
+                        "type": "array",
+                        "maxItems": 9,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "enum": [
+                                "answer",
+                                "domain",
+                                "agent",
+                                "market",
+                                "metric",
+                                "month",
+                                "gap",
+                                "reported",
+                                "topic"
+                              ],
+                              "type": "string"
+                            },
+                            "not": {
+                              "type": "boolean"
+                            },
+                            "values": {
+                              "type": "array",
+                              "maxItems": 50,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              }
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "values"
+                          ]
+                        }
+                      },
                       "answer": {
                         "type": "array",
                         "items": {
@@ -98012,6 +98090,45 @@
                     "filters": {
                       "type": "object",
                       "properties": {
+                        "chips": {
+                          "type": "array",
+                          "maxItems": 9,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "enum": [
+                                  "answer",
+                                  "domain",
+                                  "agent",
+                                  "market",
+                                  "metric",
+                                  "month",
+                                  "gap",
+                                  "reported",
+                                  "topic"
+                                ],
+                                "type": "string"
+                              },
+                              "not": {
+                                "type": "boolean"
+                              },
+                              "values": {
+                                "type": "array",
+                                "maxItems": 50,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                }
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "values"
+                            ]
+                          }
+                        },
                         "answer": {
                           "type": "array",
                           "items": {

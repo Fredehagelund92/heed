@@ -147,6 +147,32 @@
   animation-duration: var(--dur-2);
 }
 
+/* Overview's filters changing: the topic rows and the chips move to their new places in 220ms on
+   the move curve, those that arrive fade in and those that go fade out, while the rest of the page
+   (the numbers counting, the bars moving) stays live under them. With reduced motion there is no
+   transition at all (pages/observability/overview.tsx). */
+:root[data-vt='filters'] {
+  view-transition-name: none;
+
+  & [data-vt-move] {
+    view-transition-name: match-element;
+    view-transition-class: move;
+  }
+}
+
+::view-transition-group(.move) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-move);
+}
+
+::view-transition-new(.move):only-child {
+  animation: vt-in var(--dur-3) var(--ease-out) both;
+}
+
+::view-transition-old(.move):only-child {
+  animation: vt-out var(--dur-2) var(--ease-out) both;
+}
+
 /* The read hint under a change fills as it counts towards read; none with reduced motion. */
 @keyframes readfill {
   from {

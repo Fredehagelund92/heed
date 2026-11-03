@@ -169,6 +169,10 @@
   --cols-source: auto minmax(0, 1fr) 13rem auto;
   --cols-alerts: minmax(0, 1.7fr) minmax(0, 1fr) 11rem 3rem;
   --cols-split-6-5: minmax(0, 1.2fr) minmax(0, 1fr);
+
+  /* Overview's facets beside the topics, open and folded away. */
+  --cols-facets: 15rem minmax(0, 1fr);
+  --cols-facets-shut: 0rem minmax(0, 1fr);
   --cols-split-3-2: minmax(0, 1.5fr) minmax(0, 1fr);
   --cols-split-19-10: minmax(0, 1.9fr) minmax(0, 1fr);
   --cols-card-action: 1fr auto;

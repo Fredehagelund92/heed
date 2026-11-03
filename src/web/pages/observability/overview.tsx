@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { flushSync } from 'react-dom'
 import { useSavedViews, useSavedQuestions, useWrite } from '@/api/queries'
 import { toast } from 'sonner'
 import {
@@ -22,22 +23,15 @@ import {
 } from '@/components/ui/empty'
 import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
-import { BarSpacer, ListBar, SearchField, SortMenu } from '@/components/heed/list'
+import { SortMenu } from '@/components/heed/list'
 import { CountUp } from '@/components/heed/count-up'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { Legend, StackedBars } from '@/components/obs/charts'
 import { Kpi, kpiChange, moreOrFewer, RangeSwitch } from '@/components/obs/controls'
 import { TopicTable } from '@/components/obs/topic-table'
-import {
-  FilterChips,
-  FilterMenu,
-  GroupMenu,
-  MonthMenu,
-  SaveView,
-  ViewSwitch,
-  cleared,
-  viewCount,
-} from '@/components/obs/topic-filters'
+import { FilterBar, type Field } from '@/components/obs/filter-bar'
+import { FacetRail, FacetSheet } from '@/components/obs/facet-rail'
+import { GroupMenu, SaveView, ViewSwitch, cleared, viewCount } from '@/components/obs/topic-filters'
 import {
   dayLabel,
   groupCount,
@@ -48,6 +42,7 @@ import {
   TOPIC_SORTS,
   type Count,
   type Grouping,
+  type Observability,
   type Shown,
   type Sort,
   type Topic,
@@ -56,7 +51,7 @@ import {
 import { savedCounts } from '@/model/saved-questions'
 import { openDock, useDock } from '@/lib/dock'
 import { open } from '@/lib/events'
-import { matches, usePublishOrder, useRowKeys } from '@/lib/list'
+import { usePublishOrder, useRowKeys } from '@/lib/list'
 import {
   OBS_PURPOSE,
   ObsDrawn,
@@ -67,18 +62,28 @@ import {
   useObsView,
   type ObsView,
 } from '@/lib/obs'
+import type { DomainId } from '@/model/items'
 import {
   BUILT_IN,
-  filtersFrom,
-  filtersTo,
+  chipOf,
+  chipsFrom,
+  chipsTo,
+  facet,
+  facetSize,
   narrowed,
   passes,
+  readDomain,
   sentence,
+  valueOf,
+  valueWords,
+  type FilterKey,
   type Filters,
 } from '@/lib/obs-views'
-import { href, setQuery, useRoute } from '@/lib/router'
+import { changeQuery, href, setQuery, useRoute } from '@/lib/router'
 import { clicked, sortingFrom, sortingTo, type Sorting } from '@/lib/sort'
-import { useDomains } from '@/lib/workspace'
+import { useDomainList, useDomains, useMe } from '@/lib/workspace'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useWide } from '@/hooks/use-wide'
 import { ObsPage } from '@/pages/observability'
 
 // Overview: what agents asked and what they got, in one view over one state in the address. The
@@ -152,17 +157,22 @@ function Explorer({
   busy: boolean
 }) {
   const domains = useDomains()
+  const domainList = useDomainList()
   const write = useWrite()
   const obs = useObservability()
+  const me = useMe()
   const { query } = useRoute()
   const dock = useDock()
   const saved = useSavedViews()
-  const [text, setText] = React.useState('')
-  const filters = filtersFrom(query)
-  // An owner sees their own domains only.
-  if (view.owned && (!filters.domain || !view.owned.includes(filters.domain)))
-    filters.domain = view.domain
-  if (view.owned) delete filters.agent
+  const reduced = useReducedMotion()
+  const chips = chipsFrom(query)
+  // An owner reads their own domains, one at a time: their domain is no chip, as they can't take
+  // it off. A kind of agent is for admins.
+  const own = view.owned && view.domain ? view.domain : undefined
+  const shown = chips.filter(
+    (c) => !(own && c.key === 'domain') && !(view.owned && c.key === 'agent'),
+  )
+  const on: Filters = own ? [{ key: 'domain', values: [own] }, ...shown] : shown
   const viewId = query.get('view') ?? 'all'
   const sorting = sortingFrom(TOPIC_SORTS, query, 'asked')
   const sortBy = (s: Sorting<Sort>) => setQuery(sortingTo(TOPIC_SORTS, s, 'asked'))
@@ -171,14 +181,22 @@ function Explorer({
     query.get('group') === 'none' ? 'none' : query.get('group') === 'domain' ? 'domain' : 'metric'
   const custom = saved.find((v) => v.id === viewId)
   const builtIn = BUILT_IN.find((v) => v.id === viewId) ?? (custom ? undefined : BUILT_IN[0])
-  const set = (f: Filters) => setQuery(filtersTo(f))
-  // What narrows the topics: a saved view's own filters, with those in the address over them.
-  const on = custom ? { ...custom.filters, ...filters } : filters
+  const chosen = custom ? custom.id : (builtIn?.id ?? 'all')
+  const inView = (t: Topic) => (builtIn ? builtIn.has(t) : true)
+
+  // A change of the filters is a step in the address, so Back undoes it. The topics and the chips
+  // move to their new places while the numbers count (one view transition, none with reduced
+  // motion); a chip moved by its keys moves at once, as the keyboard's tier is instant.
+  const set = (next: Filters, opts?: { instant?: boolean }) => {
+    const keep = own ? next.filter((c) => c.key !== 'domain') : next
+    const domain = own
+      ? (chipOf(next, 'domain') ?? { key: 'domain' as const, values: [own] })
+      : null
+    moveTo(chipsTo(domain ? [domain, ...keep] : keep), reduced || !!opts?.instant)
+  }
 
   const all = obs.data.topics
-  const rows = all.filter(
-    (t) => (builtIn ? builtIn.has(t) : true) && passes(t, on) && matches(text, obs.topicName(t)),
-  )
+  const rows = all.filter((t) => inView(t) && passes(t, on, obs.topicName))
   usePublishOrder(
     'obs-topics',
     obs.rowOrder(rows, group, sorting).map((t) => t.id),
@@ -188,17 +206,47 @@ function Explorer({
     onMove: (id) => peeked && openDock('topic', id),
     onEscape: () => !!peeked,
   })
-  const said = sentence(filters, domains)
-  const chosen = custom ? custom.id : (builtIn?.id ?? 'all')
-  const narrow = narrowed(on, chosen, text)
-  // The chart counts questions, so it follows the answer filter; it cannot follow what narrows
-  // topics alone (a built-in view, the Inbox, the month, a search), and says so.
+  const said = sentence(shown, domains)
+  const narrow = narrowed(on, chosen)
+  // The chart counts questions, so it follows the answer filter and the domain and kind of agent
+  // the service reads; what narrows topics alone (a view, a market, a month, a topic's words) it
+  // cannot follow, and says so.
   const behind =
-    (!!builtIn && builtIn.id !== 'all') || !!on.gap?.length || !!on.month || !!text.trim()
+    chosen !== 'all' ||
+    on.some(
+      (c) => c.key !== 'answer' && c.key !== 'agent' && !(c.key === 'domain' && readDomain(on)),
+    )
+  const answer = chipOf(on, 'answer')
+  const states = answer
+    ? SHOWN.filter((s) => answer.values.includes(s) !== !!answer.not)
+    : undefined
   const totals = obs.selection(rows)
   const topics = group === 'none' ? rows.length : obs.rollUp(rows).length
   // Calls that could not be read have no topic, so they show only when nothing narrows the list.
   const unread = !narrow ? obs.data.couldNotRead : 0
+
+  const { fields, facets } = useFacets(obs, domainList, me.admin, on, chosen, view.owned)
+  const words = (key: FilterKey, v: string) => valueWords(key, v, domains)
+  const facetOf = (key: FilterKey) => facets.get(key) ?? []
+
+  // The facets sit beside the topics where there is room for them, and the device remembers
+  // whether they are shown; on a narrow page they open in a sheet.
+  const [setBody, wide] = useWide<HTMLDivElement>(FACETS_FROM)
+  const [facetsOn, setFacetsOn] = React.useState(() => readFacets())
+  const [sheet, setSheet] = React.useState(false)
+  const rail = wide && facetsOn
+  const toggleFacets = () => {
+    if (!wide) return setSheet(true)
+    setFacetsOn(!facetsOn)
+    writeFacets(!facetsOn)
+  }
+  const facetProps = {
+    chips: on,
+    onChange: (next: Filters) => set(next),
+    fields,
+    facet: facetOf,
+    words,
+  }
 
   // Opened from Questions' old address or on a topic: the topics are what it was opened for.
   const topicsAt = React.useRef<HTMLDivElement>(null)
@@ -225,8 +273,8 @@ function Explorer({
     name: v.name,
     count:
       'has' in v
-        ? viewCount(all, v.has as (t: Topic) => boolean, filters)
-        : all.filter((t) => passes(t, v.filters)).length,
+        ? viewCount(all, v.has as (t: Topic) => boolean, on, obs.topicName)
+        : all.filter((t) => passes(t, v.filters, obs.topicName)).length,
   }))
 
   return (
@@ -238,7 +286,7 @@ function Explorer({
           value={chosen}
           onChange={(id) => {
             const v = saved.find((x) => x.id === id)
-            setQuery({ view: id === 'all' ? undefined : id, ...(v ? filtersTo(v.filters) : {}) })
+            setQuery({ view: id === 'all' ? undefined : id, ...(v ? chipsTo(v.filters) : {}) })
           }}
           onRemove={
             custom
@@ -251,74 +299,192 @@ function Explorer({
           }
         />
         <span className="ml-auto">
-          <SaveView filters={filters} disabled={!said.length} />
+          <SaveView filters={on} said={said} disabled={!said.length} />
         </span>
       </div>
-      <div className="border-t">
-        <ListBar>
-          <FilterMenu filters={filters} set={set} view={view} />
-          <MonthMenu filters={filters} set={set} />
-          <BarSpacer>
-            <SearchField value={text} onChange={setText} placeholder="Search topics" />
-          </BarSpacer>
-        </ListBar>
-      </div>
-      <FilterChips filters={filters} set={set} view={view} />
-      <Numbers view={view} narrow={narrow} totals={totals} topics={topics} />
-      <Chart view={view} answer={on.answer} behind={behind} />
-      <div ref={topicsAt}>
-        <FrameSection
-          title="Topics"
-          description="Each is a metric, a market and the month asked about, grouped here for reading."
-          action={
-            <span className="flex flex-wrap items-center gap-1">
-              <SortMenu keys={TOPIC_SORTS} sorting={sorting} onSort={sortBy} className="w-52" />
-              <GroupMenu value={group} />
-            </span>
-          }
-        />
-      </div>
-      <TopicTable
-        rows={rows}
-        grouping={group}
-        sorting={sorting}
-        onSort={(k) => sortBy(clicked(TOPIC_SORTS, sorting, k))}
-        view={view}
-        peeked={peeked}
-        unread={unread}
-        onKeyDown={onKeyDown}
-        empty={
-          <>
-            <p className="font-medium">No topics match</p>
-            <p className="mt-1 text-muted-foreground">
-              {[text && `Searching for “${text}”`, ...said].filter(Boolean).join(', ') ||
-                'Nothing in this view.'}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => (
-                setText(''),
-                setQuery({ ...filtersTo(cleared(view)), view: undefined })
-              )}
-            >
-              Clear search and filters
-            </Button>
-          </>
-        }
+      <FilterBar
+        chips={shown}
+        onChange={(next, _said, instant) => set(next, { instant })}
+        fields={fields}
+        facet={facetOf}
+        words={words}
+        facets={{ on: rail, toggle: toggleFacets, sheet: !wide }}
       />
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs text-muted-foreground md:px-5">
-        <span>
-          {topics} {topics === 1 ? 'topic' : 'topics'} -{' '}
-          {rows.length ? groupCount(totals.asked) : 0} calls{' '}
-          {view.label === 'this week' ? 'in 7 days' : `in ${view.range} days`}. A count under 5
-          shows as “fewer than 5”.
-        </span>
-        <Legend />
+      <div
+        ref={setBody}
+        className={cn(
+          'grid border-t transition-[grid-template-columns] duration-(--dur-3) ease-panel',
+          !wide
+            ? 'grid-cols-1'
+            : rail
+              ? 'grid-cols-(--cols-facets)'
+              : 'grid-cols-(--cols-facets-shut)',
+        )}
+      >
+        {wide && <FacetRail {...facetProps} folded={!rail} />}
+        {/* The topics measure the room beside the facets, not the page's. */}
+        <div className="@container/main min-w-0">
+          <Numbers view={view} narrow={narrow} totals={totals} topics={topics} />
+          <Chart view={view} answer={states} behind={behind} />
+          <div ref={topicsAt}>
+            <FrameSection
+              title="Topics"
+              description="Each is a metric, a market and the month asked about, grouped here for reading."
+              action={
+                <span className="flex flex-wrap items-center gap-1">
+                  <SortMenu keys={TOPIC_SORTS} sorting={sorting} onSort={sortBy} className="w-52" />
+                  <GroupMenu value={group} />
+                </span>
+              }
+            />
+          </div>
+          <TopicTable
+            rows={rows}
+            grouping={group}
+            sorting={sorting}
+            onSort={(k) => sortBy(clicked(TOPIC_SORTS, sorting, k))}
+            view={view}
+            peeked={peeked}
+            unread={unread}
+            onKeyDown={onKeyDown}
+            empty={
+              <>
+                <p className="font-medium">No topics match</p>
+                <p className="mt-1 text-muted-foreground">
+                  {said.join(', ') || 'Nothing in this view.'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => set(cleared(view))}
+                >
+                  Clear the filters
+                </Button>
+              </>
+            }
+          />
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs text-muted-foreground md:px-5">
+            <span>
+              {topics} {topics === 1 ? 'topic' : 'topics'} -{' '}
+              {rows.length ? groupCount(totals.asked) : 0} calls{' '}
+              {view.label === 'this week' ? 'in 7 days' : `in ${view.range} days`}. A count under 5
+              shows as “fewer than 5”.
+            </span>
+            <Legend />
+          </div>
+        </div>
       </div>
+      {!wide && <FacetSheet open={sheet} onOpenChange={setSheet} {...facetProps} />}
     </Frame>
   )
+}
+
+/**
+ * A change of the filters, as a step in the address. Unless it is instant, the topic rows and the
+ * chips move to their new places in one view transition while the numbers count under them.
+ */
+function moveTo(changes: Record<string, string | undefined>, instant: boolean) {
+  if (instant || !document.startViewTransition) return void changeQuery(changes)
+  const root = document.documentElement
+  root.dataset.vt = 'filters'
+  const t = document.startViewTransition(async () => {
+    await changeQuery(changes)
+    flushSync(() => {})
+  })
+  void t.finished.finally(() => delete root.dataset.vt)
+}
+
+/** The fields the bar and the facets offer, each with its values in the order they list. */
+function fieldsOf(
+  obs: Observability,
+  domains: { id: DomainId; sandbox?: boolean }[],
+  admin: boolean,
+  owned: DomainId[] | null,
+): Field[] {
+  const topics = obs.data.topics
+  const of = (key: FilterKey) =>
+    [...new Set(topics.map((t) => valueOf(t, key)).filter((v): v is string => !!v))].sort((a, b) =>
+      a.localeCompare(b),
+    )
+  return [
+    { key: 'answer', values: [...SHOWN] },
+    // An admin filters on every domain; an owner of more than one picks one of their own.
+    ...(!owned
+      ? [{ key: 'domain' as const, values: domains.filter((d) => !d.sandbox).map((d) => d.id) }]
+      : owned.length > 1
+        ? [{ key: 'domain' as const, values: owned, one: true }]
+        : []),
+    ...(admin
+      ? [{ key: 'agent' as const, values: obs.data.agents.map((a) => a.name), one: true }]
+      : []),
+    { key: 'market', values: of('market') },
+    { key: 'metric', values: of('metric') },
+    { key: 'month', values: obs.topicMonths() },
+    { key: 'gap', values: ['draft', 'suggestion', 'none'] },
+    { key: 'reported', values: ['yes', 'no'] },
+  ]
+}
+
+/**
+ * The fields the bar and the facets offer, each with its values in order and what they count:
+ * worked out once per change of the data, the filters, the view or an owner's domains.
+ */
+function useFacets(
+  obs: Observability,
+  domains: { id: DomainId; sandbox?: boolean }[],
+  admin: boolean,
+  chips: Filters,
+  chosen: string,
+  owned: DomainId[] | null,
+) {
+  const signature = JSON.stringify([chips, chosen, owned])
+  return React.useMemo(
+    () => facetsOf(obs, domains, admin, signature),
+    [obs, domains, admin, signature],
+  )
+}
+
+/** The fields and their values' counts, for the chips, the view and the domains in `signature`. */
+function facetsOf(
+  obs: Observability,
+  domains: { id: DomainId; sandbox?: boolean }[],
+  admin: boolean,
+  signature: string,
+) {
+  const [chips, chosen, owned] = JSON.parse(signature) as [Filters, string, DomainId[] | null]
+  const fields = fieldsOf(obs, domains, admin, owned)
+  const view = BUILT_IN.find((v) => v.id === chosen)
+  const inView = (t: Topic) => (view ? view.has(t) : true)
+  const values = (k: FilterKey) => fields.find((f) => f.key === k)?.values ?? []
+  const facets = new Map(
+    fields.map((f) => {
+      const list = facet(f.key, { obs, chips, inView, all: chosen === 'all', values })
+      // The busiest first, where the values have no order of their own.
+      if (f.key === 'domain' || f.key === 'market' || f.key === 'metric')
+        list.sort((a, b) => facetSize(b.count) - facetSize(a.count) || b.topics - a.topics)
+      return [f.key, list] as const
+    }),
+  )
+  return { fields, facets }
+}
+
+/** The facets beside the topics from this width of the frame; under it they open in a sheet. */
+const FACETS_FROM = 896
+const FACETS_KEY = 'heed.obs.facets'
+const readFacets = () => {
+  try {
+    return localStorage.getItem(FACETS_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+const writeFacets = (on: boolean) => {
+  try {
+    localStorage.setItem(FACETS_KEY, on ? 'on' : 'off')
+  } catch {
+    // A browser that keeps nothing shows the facets each time.
+  }
 }
 
 /** A count as a number cell says it: counting to its new value, "13+", "Fewer than 5" or "-". */
@@ -374,7 +540,7 @@ function Numbers({
   const checkedShare = narrow ? share(totals.checked.visible, totals.asked.visible) : null
   const nothingShare = narrow ? share(totals.nothing.visible, totals.asked.visible) : null
   return (
-    <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4">
+    <div className="grid grid-cols-2 gap-px bg-border @3xl/main:grid-cols-4">
       {narrow ? (
         <>
           <Kpi
@@ -495,7 +661,7 @@ function Chart({ view, answer, behind }: { view: ObsView; answer?: Shown[]; behi
       title={`Questions per ${per}`}
       description={
         behind
-          ? 'Every question asked, as the chart counts questions, not topics. The numbers and the topics follow the view, the filters and the search.'
+          ? 'Every question asked, as the chart counts questions, not topics. The numbers and the topics follow the view and the filters.'
           : 'What agents asked and how it was answered. A dashed line marks a publish.'
       }
     >

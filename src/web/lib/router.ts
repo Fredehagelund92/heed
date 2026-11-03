@@ -110,13 +110,18 @@ export function redirectTo(path: string) {
 
 /** Change some query values on the current path, keeping the rest. */
 export function setQuery(changes: Record<string, string | undefined>) {
+  void changeQuery(changes)
+}
+
+/** The same, settling once the new address is drawn: for a view transition to wait on. */
+export function changeQuery(changes: Record<string, string | undefined>) {
   const { path, query } = current()
   const q = new URLSearchParams(query)
   for (const [k, v] of Object.entries(changes)) {
     if (v) q.set(k, v)
     else q.delete(k)
   }
-  navigate(path, Object.fromEntries(q))
+  return router!.navigate({ href: href(path, Object.fromEntries(q)) })
 }
 
 /**

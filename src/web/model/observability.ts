@@ -444,7 +444,7 @@ export function observability(data: ObsData) {
         : null,
       shown: groups.reduce((n, g) => n + (g.counts[k] ?? 0), 0),
     })
-    return { asked, checked: state('grounded'), nothing: state('missing') }
+    return { asked, checked: state('grounded'), nothing: state('missing'), state }
   }
 
   /**

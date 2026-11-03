@@ -3,7 +3,7 @@ import { obsData } from '@/api/mock/data/observability'
 import { changedSteps, replay } from '@/api/mock/replay'
 import { createWorkspace } from '@/api/mock/workspace'
 import { obsPage } from '@/api/mock/obs-page'
-import { BUILT_IN, filtersFrom, filtersTo, passes, sentence } from '@/lib/obs-views'
+import { BUILT_IN, chipsFrom, chipsTo, passes, sentence, type Filters } from '@/lib/obs-views'
 import { observability } from '@/api/mock/obs-engine'
 import { afterAnswer, NEXT } from '@/model/replay'
 
@@ -75,29 +75,29 @@ describe("Overview's views and filters", () => {
   })
 
   it('filter by answer, domain and gap', () => {
-    expect(all.filter((t) => passes(t, { answer: ['conflict'] })).map((t) => t.id)).toEqual([
+    const name = (t: (typeof all)[number]) => t.metric
+    const by = (chips: Filters) => all.filter((t) => passes(t, chips, name)).map((t) => t.id)
+    expect(by([{ key: 'answer', values: ['conflict'] }])).toEqual([
       'net-revenue-norway',
       'cpa-germany',
       'net-revenue-norway-sep',
     ])
-    expect(all.filter((t) => passes(t, { gap: ['draft'] })).map((t) => t.id)).toEqual([
-      'orders-spain',
-    ])
-    expect(all.filter((t) => passes(t, { domain: 'paid_media' }))).toHaveLength(1)
+    expect(by([{ key: 'gap', values: ['draft'] }])).toEqual(['orders-spain'])
+    expect(by([{ key: 'domain', values: ['paid_media'] }])).toHaveLength(1)
+    // Left out: every topic but those.
+    expect(by([{ key: 'domain', not: true, values: ['paid_media'] }])).toHaveLength(all.length - 1)
   })
 
   it('read back as a sentence, and round-trip through the address', () => {
-    const f = { answer: ['missing' as const, 'partial' as const], domain: 'sales' as const }
+    const f: Filters = [
+      { key: 'answer', values: ['missing', 'partial'] },
+      { key: 'domain', values: ['sales'] },
+    ]
     expect(sentence(f, domains)).toEqual(['Answer is any of Not found, Partial', 'Domain is Sales'])
     // As the address keeps them: a filter that is off has no key at all.
-    const kept = Object.entries(filtersTo(f)).filter((e): e is [string, string] => !!e[1]!)
-    expect(filtersFrom(new URLSearchParams(kept))).toEqual({
-      ...f,
-      agent: undefined,
-      gap: undefined,
-      month: undefined,
-    })
-    expect(filtersFrom(new URLSearchParams('answer=found')).answer).toEqual([
+    const kept = Object.entries(chipsTo(f)).filter((e): e is [string, string] => !!e[1]!)
+    expect(chipsFrom(new URLSearchParams(kept))).toEqual(f)
+    expect(chipsFrom(new URLSearchParams('answer=found'))[0]!.values).toEqual([
       'grounded',
       'partial',
       'conflict',

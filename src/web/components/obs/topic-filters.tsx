@@ -1,65 +1,30 @@
 import * as React from 'react'
 import { toast } from 'sonner'
 import { useWrite } from '@/api/queries'
-import {
-  BookmarkIcon,
-  BotIcon,
-  CalendarIcon,
-  ChevronDownIcon,
-  FlagIcon,
-  LayersIcon,
-  ListFilterIcon,
-  ListTreeIcon,
-  XIcon,
-} from '@/components/icons'
+import { BookmarkIcon, ChevronDownIcon, ListTreeIcon, XIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { barButton, FilterChip, FilterRow, FilterValue } from '@/components/heed/list'
+import { barButton, FilterValue } from '@/components/heed/list'
 import { TextSwitch } from '@/components/heed/switches'
-import { Swatch } from '@/components/obs/charts'
-import {
-  GROUPINGS,
-  monthName,
-  monthShort,
-  SHOWN,
-  shownCount,
-  STATE_WORDS,
-  type Grouping,
-  type Shown,
-  type Topic,
-} from '@/model/observability'
-import type { DomainId } from '@/model/items'
-import { useObservability, type ObsView } from '@/lib/obs'
-import { GAP_WORDS, gapOf, passes, sentence, type Filters, type Gap } from '@/lib/obs-views'
+import { GROUPINGS, type Grouping, type Topic } from '@/model/observability'
+import type { ObsView } from '@/lib/obs'
+import { passes, readDomain, type Filters } from '@/lib/obs-views'
 import { setQuery } from '@/lib/router'
-import { useDomainList, useDomains } from '@/lib/workspace'
 
 // Overview's controls for its topics, on the list pattern Context and Definitions share: the views
-// as words with counts, a Filter menu whose values say how many topics they keep, the month, the
-// grouping, the filters that are on as chips, and a view saved for the whole workspace. Domain and
-// kind of agent narrow the read itself, so the numbers and the chart follow them too.
-
-const toggle = <T,>(list: T[] | undefined, v: T) => {
-  const l = list ?? []
-  return l.includes(v) ? l.filter((x) => x !== v) : [...l, v]
-}
+// as words with counts, the grouping, and a view saved for the whole workspace. The filters are
+// the filter bar's (filter-bar.tsx).
 
 export type ViewOption = { id: string; name: string; count: number }
 
@@ -133,211 +98,9 @@ export function ViewSwitch({
   )
 }
 
-/**
- * The Filter menu: one list of fields, each opening its values with how many topics they keep, or
- * for a kind of agent how often it asked. Domain and agent are for admins; an owner sees their own.
- */
-export function FilterMenu({
-  filters,
-  set,
-  view,
-}: {
-  filters: Filters
-  set: (f: Filters) => void
-  view: ObsView
-}) {
-  const domains = useDomains()
-  const domainIds = useDomainList().map((d) => d.id)
-  const obs = useObservability()
-  const all = obs.data.topics
-  const n = (f: Filters) => all.filter((t) => passes(t, f)).length
-  const owned = view.owned
-  const on =
-    (filters.answer?.length ?? 0) +
-    (filters.gap?.length ?? 0) +
-    (filters.domain && !owned ? 1 : 0) +
-    (filters.agent ? 1 : 0)
-  const sum = obs.data.numbers.counts
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(barButton, on > 0 && 'bg-muted text-foreground')}
-          />
-        }
-      >
-        <ListFilterIcon />
-        Filter
-        {on > 0 && <span className="tabular-nums">{on}</span>}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-          {/* An owner of more than one domain picks among their own; an admin, among all. */}
-          {(!owned || owned.length > 1) && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <LayersIcon />
-                Domain
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-56">
-                <DropdownMenuRadioGroup
-                  value={filters.domain ?? 'all'}
-                  onValueChange={(v) =>
-                    set({ ...filters, domain: v === 'all' ? undefined : (v as DomainId) })
-                  }
-                >
-                  {!owned && <DropdownMenuRadioItem value="all">All domains</DropdownMenuRadioItem>}
-                  {(owned ?? domainIds.filter((d) => !domains[d]?.sandbox)).map((d) => (
-                    <DropdownMenuRadioItem key={d} value={d}>
-                      <FilterValue count={n({ ...filters, domain: d })}>
-                        {domains[d]?.name}
-                      </FilterValue>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Swatch state="missing" className="mx-0.5" />
-              Answer
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-64">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Answer is any of</DropdownMenuLabel>
-                {SHOWN.map((s: Shown) => (
-                  <DropdownMenuCheckboxItem
-                    key={s}
-                    checked={!!filters.answer?.includes(s)}
-                    onCheckedChange={() => set({ ...filters, answer: toggle(filters.answer, s) })}
-                  >
-                    <span className="flex w-full items-center gap-2">
-                      <Swatch state={s} />
-                      <span className="flex-1">{STATE_WORDS[s]}</span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {sum[s] === null ? '' : sum[s].toLocaleString('en-GB')}
-                      </span>
-                    </span>
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          {!owned && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <BotIcon />
-                Agent
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-60">
-                <DropdownMenuGroup>
-                  {/* How often each kind asked: a kind of agent, never a person. */}
-                  <DropdownMenuLabel>Kind of agent, never a person</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={filters.agent ?? 'all'}
-                    onValueChange={(v) =>
-                      set({ ...filters, agent: v === 'all' ? undefined : (v as string) })
-                    }
-                  >
-                    <DropdownMenuRadioItem value="all">All agents</DropdownMenuRadioItem>
-                    {obs.data.agents.map((a) => (
-                      <DropdownMenuRadioItem key={a.name} value={a.name}>
-                        <span className="flex w-full items-center gap-2">
-                          <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {shownCount(a.count)}
-                          </span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <FlagIcon />
-              In the Inbox
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-56">
-              {(Object.keys(GAP_WORDS) as Gap[]).map((g) => (
-                <DropdownMenuCheckboxItem
-                  key={g}
-                  checked={!!filters.gap?.includes(g)}
-                  onCheckedChange={() => set({ ...filters, gap: toggle(filters.gap, g) })}
-                >
-                  <FilterValue count={all.filter((t) => gapOf(t) === g).length}>
-                    {GAP_WORDS[g]}
-                  </FilterValue>
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuGroup>
-        {on > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => set(cleared(view))}>
-              <XIcon />
-              Clear all
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 /** The filters with nothing on: an owner keeps their own domain. */
-export const cleared = (view: Pick<ObsView, 'owned' | 'domain'>): Filters => ({
-  domain: view.owned ? view.domain : undefined,
-})
-
-/** The month asked about: every month the topics are about, newest first. */
-export function MonthMenu({ filters, set }: { filters: Filters; set: (f: Filters) => void }) {
-  const obs = useObservability()
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(barButton, filters.month && 'bg-muted text-foreground')}
-          />
-        }
-      >
-        <CalendarIcon />
-        Month{' '}
-        <span className="text-foreground">{filters.month ? monthShort(filters.month) : 'All'}</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>The month asked about</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={filters.month ?? 'all'}
-            onValueChange={(v) =>
-              set({ ...filters, month: v === 'all' ? undefined : (v as string) })
-            }
-          >
-            <DropdownMenuRadioItem value="all">All months</DropdownMenuRadioItem>
-            {obs.topicMonths().map((m) => (
-              <DropdownMenuRadioItem key={m} value={m}>
-                {monthName(m)}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
+export const cleared = (view: Pick<ObsView, 'owned' | 'domain'>): Filters =>
+  view.owned && view.domain ? [{ key: 'domain', values: [view.domain] }] : []
 
 /** How the topics are grouped for reading; each stays one exact scope with its month. */
 export function GroupMenu({ value }: { value: Grouping }) {
@@ -377,72 +140,21 @@ export function GroupMenu({ value }: { value: Grouping }) {
   )
 }
 
-/** The filters that are on, as chips that each come off, with Clear all from two. */
-export function FilterChips({
+/** Save this view: a name, and everyone in the workspace has it beside the others. */
+export function SaveView({
   filters,
-  set,
-  view,
+  said,
+  disabled,
 }: {
   filters: Filters
-  set: (f: Filters) => void
-  view: ObsView
+  /** The filters as sentences, for the name it suggests. */
+  said: string[]
+  disabled: boolean
 }) {
-  const domains = useDomains()
-  const domain = !view.owned && filters.domain
-  const count =
-    (domain ? 1 : 0) +
-    (filters.answer?.length ? 1 : 0) +
-    (filters.agent ? 1 : 0) +
-    (filters.gap?.length ? 1 : 0) +
-    (filters.month ? 1 : 0)
-  return (
-    <FilterRow count={count} onClear={() => set(cleared(view))}>
-      {domain && (
-        <FilterChip
-          field="Domain"
-          values={[domains[domain]?.name ?? domain]}
-          onRemove={() => set({ ...filters, domain: undefined })}
-        />
-      )}
-      {!!filters.answer?.length && (
-        <FilterChip
-          field="Answer"
-          values={filters.answer.map((s) => STATE_WORDS[s])}
-          onRemove={() => set({ ...filters, answer: undefined })}
-        />
-      )}
-      {filters.agent && (
-        <FilterChip
-          field="Agent"
-          values={[filters.agent]}
-          onRemove={() => set({ ...filters, agent: undefined })}
-        />
-      )}
-      {!!filters.gap?.length && (
-        <FilterChip
-          field="In the Inbox"
-          values={filters.gap.map((g) => GAP_WORDS[g])}
-          onRemove={() => set({ ...filters, gap: undefined })}
-        />
-      )}
-      {filters.month && (
-        <FilterChip
-          field="Month"
-          values={[monthName(filters.month)]}
-          onRemove={() => set({ ...filters, month: undefined })}
-        />
-      )}
-    </FilterRow>
-  )
-}
-
-/** Save this view: a name, and everyone in the workspace has it beside the others. */
-export function SaveView({ filters, disabled }: { filters: Filters; disabled: boolean }) {
-  const domains = useDomains()
   const write = useWrite()
   const [open, setOpen] = React.useState(false)
   const [name, setName] = React.useState('')
-  const suggested = sentence(filters, domains).join(', ')
+  const suggested = said.join(', ')
   return (
     <Popover
       open={open}
@@ -504,6 +216,15 @@ export function SaveView({ filters, disabled }: { filters: Filters; disabled: bo
   )
 }
 
-/** How many topics a view holds, with the domain in the address. */
-export const viewCount = (all: Topic[], has: (t: Topic) => boolean, filters: Filters) =>
-  all.filter((t) => has(t) && passes(t, { domain: filters.domain })).length
+/** How many topics a view holds, with the domain the service reads. */
+export const viewCount = (
+  all: Topic[],
+  has: (t: Topic) => boolean,
+  filters: Filters,
+  name: (t: Topic) => string,
+) => {
+  const domain = readDomain(filters)
+  return all.filter(
+    (t) => has(t) && passes(t, domain ? [{ key: 'domain', values: [domain] }] : [], name),
+  ).length
+}

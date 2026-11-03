@@ -125,6 +125,12 @@ export const observabilitySearch = lenient(
     answer: text,
     gap: text,
     month: text,
+    market: text,
+    metric: text,
+    reported: text,
+    q: text,
+    // The order the filter chips were put in, when it is not the fields' own.
+    chips: text,
     period: oneOf(['month', 'quarter']),
   }),
 )
