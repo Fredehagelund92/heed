@@ -150,27 +150,34 @@ describe('the words as they stream', () => {
     expect([...shown.flat(), ...last]).toHaveLength(3)
   })
 
-  it('ends the words at a second sentence that cites nothing before any that does', () => {
+  it('leaves out a second sentence that cites nothing before any that does', () => {
     const { gate, shown, last } = stream(
-      'Here is what applies to orders in Norway. Orders in Norway dropped. Online sales stopped [1].',
+      'Here is what applies to orders in Norway. Shoppers in Norway moved to other shops. Online sales stopped [1].',
       4,
     )
-    expect([...shown.flat(), ...last]).toEqual([])
-    expect(gate.failed).toBe('a sentence that cites no item')
+    expect([...shown.flat(), ...last]).toEqual([
+      'Here is what applies to orders in Norway.',
+      'Online sales stopped [1].',
+    ])
+    expect(gate.failed).toBeNull()
+    expect(gate.dropped).toEqual(['a sentence that cites no item'])
   })
 
-  it('ends the words at a sentence that cites nothing and adds a fact', () => {
+  it('leaves out a sentence that cites nothing and adds a fact, and goes on', () => {
     const { gate, shown, last } = stream(
-      'Online sales stopped [1]. Orders count the purchases placed by loyal shoppers.',
+      'Online sales stopped [1]. Orders count the purchases placed by loyal shoppers. Order value includes store credit [2].',
       4,
     )
-    expect([...shown.flat(), ...last]).toEqual(['Online sales stopped [1].'])
-    expect(gate.failed).toBe('a sentence that cites no item')
+    expect([...shown.flat(), ...last]).toEqual([
+      'Online sales stopped [1].',
+      'Order value includes store credit [2].',
+    ])
+    expect(gate.dropped).toEqual(['a sentence that cites no item'])
   })
 
-  it('ends the words at a sentence its items do not support (FR-701)', () => {
+  it('leaves out a sentence its items do not support (FR-701)', () => {
     // As the scout saw for "what's the difference between orders and net revenue?": a cited
-    // sentence that says what no item gives is dropped, with everything after it.
+    // sentence that says what no item gives is never shown.
     const { gate, shown, last } = stream(
       'Online sales to Norway stopped on 4 August 2026 [1]. Orders counts the purchases placed, while net revenue is the money kept from them after deductions [2].',
       6,
@@ -178,7 +185,19 @@ describe('the words as they stream', () => {
     expect([...shown.flat(), ...last]).toEqual([
       'Online sales to Norway stopped on 4 August 2026 [1].',
     ])
-    expect(gate.failed).toBe('says what its items do not')
+    expect(gate.dropped).toEqual(['says what its items do not'])
+  })
+
+  it('lets a short lead say what the items say before a sentence that cites them', () => {
+    // As the real model writes it: the fact first, its number on the next sentence.
+    const { shown, last } = stream(
+      'Online sales to Norway stopped on 4 August 2026. A customs rule stopped them [1].',
+      3,
+    )
+    expect([...shown.flat(), ...last]).toEqual([
+      'Online sales to Norway stopped on 4 August 2026.',
+      'A customs rule stopped them [1].',
+    ])
   })
 
   it('reads [1, 2] as [1][2], and holds each number to its own item', () => {

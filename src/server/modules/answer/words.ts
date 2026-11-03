@@ -121,7 +121,9 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
  * call that ended, why the model stopped and how much it reasoned. Never the words or the question.
  */
 export type WordsMiss = {
-  reason: 'spending limit' | 'not finished' | 'failed the check'
+  reason: 'spending limit' | 'not finished' | 'failed the check' | 'sentences left out'
+  /** How many sentences the check left out on the way, for `sentences left out`. */
+  count?: number
   why?: string
   finishReason?: FinishReason
   reasoningTokens?: number
@@ -227,7 +229,14 @@ async function* sentencesOf(
         ...(finishReason ? { finishReason } : {}),
         reasoningTokens,
       })
-    } else if (cut)
+    } else if (gate.dropped.length && !cut)
+      // The words stood, without the sentences that said more than the items do.
+      deps.onMiss?.({
+        reason: 'sentences left out',
+        why: gate.dropped[0]!,
+        count: gate.dropped.length,
+      })
+    else if (cut)
       // Cut off at the output limit or the time limit: what passed before it stands.
       deps.onMiss?.({
         reason: 'not finished',

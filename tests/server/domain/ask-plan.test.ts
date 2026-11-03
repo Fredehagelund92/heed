@@ -106,8 +106,14 @@ describe('a plan as the model writes it', () => {
     // No dates: today, as the rules read it; for a question about why, every date.
     expect(read(null).period).toBe('today')
     expect(read(null, true)).toEqual({ window: anyDate, period: 'any' })
-    // The last question's period, carried.
-    expect(read('same')).toEqual({ window: previous.scope!.window, period: 'carried' })
+    // The last question's period, carried, only when its words named one.
+    expect(read('same').period).toBe('today')
+    const dated = { ...previous, question: 'why did orders drop in Norway in May 2026?' }
+    const carried = checkPlan(
+      { reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'same' }] },
+      ctx({ previous: dated }),
+    )
+    expect(carried).toMatchObject({ ok: true, plan: { reads: [{ period: 'carried' }] } })
     expect(
       checkPlan(
         { reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'the 45th of Smarch' }] },
@@ -285,6 +291,7 @@ describe('what the planner is told', () => {
       'Today: 2026-10-23 (UTC)',
       'Last question: why did orders drop in Norway?',
       'Last question read as: Orders in Norway, today',
+      'Last question named no dates.',
       'Last answer:',
       '[1] event: Online sales to Norway stopped on 4 August 2026',
       'Question: what about Sweden?',
@@ -345,8 +352,8 @@ describe('the reads a plan runs', () => {
   })
 
   it('reads every item of the kinds, and says so, when the words match none', () => {
-    const { answer, read } = search({ kinds: ['issue'], words: 'zebra' })
-    expect(read.words).toBe('')
+    const { answer, reads } = search({ kinds: ['issue'], words: 'zebra' })
+    expect(reads.map((r) => r.words)).toEqual([''])
     expect(answer.items).toHaveLength(2)
     expect(answer.state).toBe('grounded')
   })
@@ -369,6 +376,16 @@ describe('the reads a plan runs', () => {
         scope: { metrics: [], filters: {}, window: { start: '2020-01-01', end: '2020-02-01' } },
       }).answer.state,
     ).toBe('missing')
+  })
+
+  it('reads a kind none of whose items has the words apart, and says so', () => {
+    const { answer, reads } = search({ kinds: ['event', 'guide'], words: 'jump' })
+    expect(reads.map((r) => [r.kinds, r.words])).toEqual([
+      [['guide'], 'jump'],
+      [['event'], ''],
+    ])
+    expect(answer.items.some((item) => item.kind === 'event')).toBe(true)
+    expect(answer.items.some((item) => item.kind === 'guide')).toBe(true)
   })
 
   it('is Partial when one read finds something and another nothing', () => {

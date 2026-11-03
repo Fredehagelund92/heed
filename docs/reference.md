@@ -756,12 +756,14 @@ and `next` as before.
   (`MODELS=live`), the words of `models.assistant` follow an answer that gives items, written from
   those items only, each sentence ending with the numbers of the items it uses. They stream: each
   sentence is a `sentence` event, sent once it is complete and passes the check (citing only the
-  items given, with no list, heading, link or number it was not given, and saying only what the
-  items it cites, the definitions given and the question say), and `words-end` closes them. A
-  sentence that cites no item may only restate the question, what agents are told, or what a
-  definition given says; one such lead waits until a sentence that cites an item has passed.
-  `[1, 2]` is read as `[1][2]`. The first sentence that fails ends the words there, and nothing
-  after it is sent, and the words run to at most 1,200 characters. When no sentence passes, the spending limits leave no room, or the provider
+  items given, with no list, heading, link or number it was not given), and `words-end` closes
+  them. A sentence that cites items may say only what those items, the definitions given and the
+  question say; one that cites none may only restate the question or what agents are told, or say
+  what a definition says, and before any that cites an item one short lead may say what the items
+  say, held until a sentence that cites an item has passed. A sentence that says more is left out
+  and the words go on (the log says `sentences left out`, with the check's reason and how many).
+  `[1, 2]` is read as `[1][2]`. A sentence that fails the first check ends the words there, and
+  nothing after it is sent, and the words run to at most 1,200 characters. When no sentence passes, the spending limits leave no room, or the provider
   fails, no `sentence` event comes and Ask writes its own words from the items. Words cut off by
   the output limit or by 12 seconds keep the sentences already sent and leave out the unfinished
   one. The model decides nothing: the state, the items and what agents are told are the engine's.

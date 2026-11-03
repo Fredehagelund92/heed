@@ -11,6 +11,7 @@ import {
   type PlannerReason,
   type PreviousTurn,
 } from './ask-plan.ts'
+import { readDates } from './dates.ts'
 import { canRead } from './links.ts'
 import {
   plannedAnswer,
@@ -22,6 +23,7 @@ import type { RecordsRecognition } from './records.ts'
 import { offTopicSaid, scopeWords } from './say.ts'
 import type { ResolvedScope } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
+import { normalizeName } from './vocabulary.ts'
 
 /*
   How Ask reads one question (FR-701, FR-718, FR-719), the same on the service, in the planner
@@ -101,6 +103,7 @@ export function plannerInputOf(
       today,
       previous: previous && {
         question: previous.question,
+        dated: readDates(normalizeName(previous.question), today).status === 'read',
         read: previous.scope ? scopeWords(bundle, previous.scope) : null,
         sources: previous.sources.flatMap((id) => {
           const item = byId.get(id)

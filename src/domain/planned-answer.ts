@@ -269,6 +269,33 @@ export function explore(
   asked: ExploreRead,
   today: string,
   now: () => number = () => 0,
+): { answer: Answer; reads: ExploreRead[] } {
+  const first = searchOnce(bundle, asked, today, now)
+  // A kind none of whose items has the words is read whole, apart: a word for guides ("jump")
+  // never hides the events asked beside them, and the read says which had the words.
+  const found = new Set(first.answer.items.map((item) => item.kind))
+  const rest = asked.kinds.filter((kind) => !found.has(kind))
+  if (!first.read.words || !found.size || !rest.length)
+    return { answer: first.answer, reads: [first.read] }
+  const matched = searchOnce(
+    bundle,
+    { ...asked, kinds: asked.kinds.filter((kind) => found.has(kind)) },
+    today,
+    now,
+  )
+  const whole = searchOnce(bundle, { ...asked, kinds: rest, words: '' }, today, now)
+  return {
+    answer: combined([matched.answer, whole.answer]),
+    reads: [matched.read, whole.read],
+  }
+}
+
+/** One search of the context, as `explore` runs it. */
+function searchOnce(
+  bundle: PlannedBundle,
+  asked: ExploreRead,
+  today: string,
+  now: () => number,
 ): { answer: Answer; read: ExploreRead } {
   const { scope } = asked
   const { window } = scope
@@ -349,16 +376,17 @@ export function previousSources(
 
 /**
  * One planned read, run: the answer engine's for a look-up or a definition, else read by id or
- * words; with the read as it was run (a search whose words matched nothing reads without them).
+ * words; with the reads as they were run (a search whose words matched nothing reads without
+ * them, and one whose words matched only some of its kinds reads the others apart).
  */
 export function runRead(
   bundle: PlannedBundle,
   read: PlannedRead,
   c: { today: string; previous: PreviousTurn | null; now?: () => number },
-): { answer: Answer; read: PlannedRead } {
+): { answer: Answer; reads: PlannedRead[] } {
   const now = c.now ?? (() => 0)
   if (read.kind === 'explore') return explore(bundle, read, c.today, now)
-  return { answer: engineRead(bundle, read, c, now), read }
+  return { answer: engineRead(bundle, read, c, now), reads: [read] }
 }
 
 function engineRead(
@@ -458,7 +486,7 @@ export function plannedAnswer(
   c: { question: string; today: string; previous: PreviousTurn | null; now?: () => number },
 ): PlannedAnswer {
   const runs = reads.map((read) => runRead(bundle, read, c))
-  const ran = runs.map((r) => r.read)
+  const ran = runs.flatMap((r) => r.reads)
   const dated = ran.find((r) => r.kind === 'lookup' || r.kind === 'explore')
   return {
     reads: ran,

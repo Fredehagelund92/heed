@@ -54,6 +54,8 @@ const { values } = parseArgs({
   },
 })
 const usd = (micros: number) => `$${(micros / 1_000_000).toFixed(4)}`
+/** A call's cost is a few hundred micro-dollars: said as micro-dollars. */
+const micro = (micros: number) => `${Math.round(micros)} micro-dollars`
 const tokens = (text: string) => Math.ceil(text.length / 4)
 const percentile = (sorted: readonly number[], p: number) =>
   sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)]! : 0
@@ -212,13 +214,13 @@ function report(
     const mean = (xs: readonly number[]) =>
       xs.length ? xs.reduce((t, x) => t + x, 0) / xs.length : 0
     console.log(
-      `Planner: ${measured.timing.length} calls, p50 ${Math.round(percentile(sorted, 0.5))} ms, p90 ${Math.round(percentile(sorted, 0.9))} ms, ${usd(mean(measured.planCost))} a call.`,
+      `Planner: ${measured.timing.length} calls, p50 ${Math.round(percentile(sorted, 0.5))} ms, p90 ${Math.round(percentile(sorted, 0.9))} ms, ${micro(mean(measured.planCost))} a call.`,
     )
     console.log(
-      `Words: ${measured.wordsCost.length} calls, ${measured.wordsFailed} failed the check, ${usd(mean(measured.wordsCost))} a call.`,
+      `Words: ${measured.wordsCost.length} calls, ${measured.wordsFailed} failed the check, ${micro(mean(measured.wordsCost))} a call.`,
     )
     console.log(
-      `A planned question: about ${usd(mean(measured.planCost) + mean(measured.wordsCost))}. Spent ${usd(measured.spent)} in all.`,
+      `A planned question: about ${micro(mean(measured.planCost) + mean(measured.wordsCost))}. Spent ${usd(measured.spent)} in all.`,
     )
   }
   return failed ? 1 : 0

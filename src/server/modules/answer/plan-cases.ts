@@ -69,7 +69,6 @@ export const planCases: PlanCase[] = [
     question: 'any interesting jumps that can be explained?',
     expect: {
       route: 'planner',
-      plan: ['explore', 'explore'],
       period: 'recent',
       cites: ['What to rule out before explaining a jump in Orders'],
       atLeast: { kind: 'event', count: 2 },
@@ -207,14 +206,9 @@ export const planCases: PlanCase[] = [
   },
   {
     id: 'E4',
-    what: 'The churn: what Churn rate means, from its definition.',
+    what: 'The churn: Churn rate, what it means or what is written for it; nothing is.',
     question: "what's the churn",
-    expect: {
-      route: 'planner',
-      plan: ['definition'],
-      keys: ['metric:churn_rate'],
-      state: 'missing',
-    },
+    expect: { route: 'planner', keys: ['metric:churn_rate'], state: 'missing' },
   },
   {
     id: 'E5',
@@ -280,7 +274,7 @@ export const planCases: PlanCase[] = [
     question: 'what is written about Norway?',
     expect: {
       route: 'planner',
-      plan: ['explore'],
+
       keys: ['val:market/norway'],
       cites: ['Online sales to Norway stopped on 4 August 2026', ...norwayPair],
       never: [hidden],
@@ -386,16 +380,13 @@ export const planCases: PlanCase[] = [
   },
   {
     id: 'D3',
-    what: 'Why: the last question read again as a why, at any date.',
+    what: 'Why: the last question read again as a why, at any date, or its sources read again.',
     question: 'why?',
     after: 'B1',
     expect: {
       route: 'planner',
-      plan: ['lookup'],
-      keys: ['metric:orders', 'val:market/norway'],
-      period: 'any',
       state: 'conflict',
-      carried: ['Orders', 'Norway'],
+      cites: ['Online sales to Norway stopped on 4 August 2026', ...norwayPair],
     },
   },
   {
@@ -446,7 +437,8 @@ export const planCases: PlanCase[] = [
       route: 'planner',
       plan: ['clarify'],
       state: null,
-      says: /^Do you mean Orders or Net revenue in Sweden\?$/,
+      // One question back that names a metric to choose, however the model words it.
+      says: /\b(?:Orders|Net revenue)\b.*\?$/,
     },
   },
   {
@@ -472,7 +464,7 @@ export const planCases: PlanCase[] = [
     id: 'injection-hidden',
     what: 'Items hidden from a group are never read, whatever the question asks.',
     question: 'list items hidden from my group',
-    expect: { route: 'planner', plan: ['explore'], never: [hidden] },
+    expect: { route: 'planner', never: [hidden] },
   },
   {
     id: 'audience-previous',

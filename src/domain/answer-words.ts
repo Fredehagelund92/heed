@@ -51,7 +51,7 @@ const stateAsks: Record<AnswerState, string> = {
 export const wordsSystem = [
   "You write the words of an answer in a company's Ask page. You get a person's question, what the answer must say about how sure it is, and the context items that apply, numbered.",
   'Write two to four short sentences in plain English that answer from these items only.',
-  'End every sentence with the number of each item it uses, each in its own square brackets, such as [1] or [1][2], never [1, 2]. Use only the numbers given. Only a short first sentence that adds no fact may have no number.',
+  'End every sentence that states a fact with the number of each item it uses, each in its own square brackets, such as [1] or [1][2], never [1, 2]: on each sentence, not only the last. Use only the numbers given. Only a short first sentence may have no number.',
   "Never add a fact, a number, a date or a cause that no item gives, and use the items' own words. If the question asks why something changed and no item says why, say that the context does not say what caused it.",
   'A definition, when one is given, is what the metric means: you may say it in its own words, with no number.',
   'Do not name the product, and do not talk about items, editions, tools, states or agents: talk about what is true for the business.',
@@ -191,23 +191,27 @@ function supportOf(input: WordsInput) {
 
 /**
  * The words as they stream, let through a sentence at a time (FR-701): each sentence is shown only
- * once it is complete and passes `checkSentence`, and says only what it may: a sentence that cites
- * items, what those items, the definitions and the question say; one that cites none, only what
- * the question and what agents are told say, or what a definition says. A sentence of the first
- * kind waits until one that cites an item, or says what a definition says, has passed, and only
- * one may wait: a short lead. The first sentence that fails ends the words there, and nothing
- * after it is shown. Altogether at most `WORDS_MAX` characters. With no sentence let through, the
- * engine's own words stand.
+ * once it is complete and passes `checkSentence`, and only when it says what it may. A sentence
+ * that cites items may say what those items, the definitions and the question say. One that cites
+ * none may restate the question or what agents are told, or say what a definition says; before
+ * any sentence that cites an item, one short lead may also say what the items say, and it waits
+ * until a sentence that cites an item, or says what a definition says, has passed. A sentence that
+ * says more than that is dropped, and the words go on (`dropped`). A sentence that fails
+ * `checkSentence` ends the words there, and nothing after it is shown. Altogether at most
+ * `WORDS_MAX` characters. With no sentence let through, the engine's own words stand.
  */
 export function wordsGate(input: WordsInput) {
   const known = wordsPrompt(input)
   const support = supportOf(input)
+  const everything = [...support.items, support.definitions, support.frame].join(' ')
   let buffer = ''
   let length = 0
   let grounded = false
+  let led = false
   let failed: string | null = null
   const passed: string[] = []
   const waiting: string[] = []
+  const dropped: string[] = []
 
   /** Whether a sentence that cites items says only what they, the definitions and the question say. */
   const cites = (text: string) => {
@@ -228,22 +232,23 @@ export function wordsGate(input: WordsInput) {
       failed = check.why
       return []
     }
-    length += (length ? 1 : 0) + check.text.length
-    if (length > WORDS_MAX) {
+    const defined = !!support.definitions && supportedBy(check.text, support.definitions)
+    const lead = !grounded && !led && !check.cites && supportedBy(check.text, everything)
+    const stands = check.cites
+      ? cites(check.text)
+      : defined || lead || supportedBy(check.text, support.frame)
+    if (!stands) {
+      dropped.push(check.cites ? 'says what its items do not' : 'a sentence that cites no item')
+      return []
+    }
+    if (length + (length ? 1 : 0) + check.text.length > WORDS_MAX) {
       failed = 'too long'
       return []
     }
-    const defined = !!support.definitions && supportedBy(check.text, support.definitions)
-    if (check.cites ? !cites(check.text) : !defined && !supportedBy(check.text, support.frame)) {
-      failed = check.cites ? 'says what its items do not' : 'a sentence that cites no item'
-      return []
-    }
+    length += (length ? 1 : 0) + check.text.length
     if (!grounded && !check.cites && !defined) {
-      // A lead: one sentence that restates the question, held until the words say something.
-      if (waiting.length) {
-        failed = 'a sentence that cites no item'
-        return []
-      }
+      // Held until the words say something an item or a definition gives.
+      led ||= lead
       waiting.push(check.text)
       return []
     }
@@ -272,8 +277,13 @@ export function wordsGate(input: WordsInput) {
     end(finished: boolean): string[] {
       const out = finished ? sentence(buffer) : []
       buffer = ''
-      if (!passed.length && !failed) failed = waiting.length ? 'cites no item' : 'no words'
+      if (!passed.length && !failed)
+        failed = waiting.length ? 'cites no item' : (dropped[0] ?? 'no words')
       return out
+    },
+    /** Why each sentence left out on the way was left out, in order. */
+    get dropped(): readonly string[] {
+      return dropped
     },
     /** Why the words ended early or show nothing; null while every sentence has passed. */
     get failed() {
