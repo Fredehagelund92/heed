@@ -4,10 +4,10 @@ line: The six tools an agent can call, with what each takes and returns.
 group: Reference
 order: 1
 minutes: 3
-reviewed: 2026-10-27
+reviewed: 2026-11-03
 ---
 
-The six tools an agent can call. All read, apart from the two that send something to an owner after the person says yes.
+The six tools an agent can call. All read, apart from the two that send something to an owner after the person says yes. A suggestion waits for the owner, unless the owner lets that agent [publish without review](publish-without-review.md).
 
 <!-- include tools -->
 
@@ -44,7 +44,7 @@ Tell the owner something is missing, wrong or unclear.
 Send a suggestion to the owner, after the person says yes.
 
 - Takes: The suggested text and what it applies to.
-- Returns: That it waits in the owner's Inbox.
+- Returns: That it waits in the owner's Inbox, or that it was published under the owner's policy.
 
 ### get_related
 
@@ -55,4 +55,4 @@ Follow a link between context items, definitions and domains, one step at a time
 
 <!-- /include -->
 
-> **Switching tools off.** Admins switch tools off in Agents and access, Tools and access keys. Following links has its own switch.
+> **Switching tools off.** Admins switch tools off for every agent in Agents and access, Tools and access keys, where following links has its own switch, and for one agent in its Details: see [the tools each agent may call](connect-an-agent.md#the-tools-each-agent-may-call).

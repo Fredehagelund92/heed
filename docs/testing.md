@@ -42,7 +42,7 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   lint deliberately wrong components and CSS and expect each rule to report them with a clear
   message; `tests/lint/web-class-rules.test.ts` runs the class rules against samples. If you
   loosen a rule, these fail first.
-- **Golden job specs (Playwright).** `tests/e2e`: the mockup's job specs J1 to J30, the
+- **Golden job specs (Playwright).** `tests/e2e`: the job specs J1 to J41 (`j<n>-<name>.spec.ts`), the
   motion journey again under reduced motion, on a production build with the mock binding
   (`npm run test:e2e`), and those whose screens are wired in http mode against the service
   (`npm run test:e2e:golden-http`). An agent's consent page runs a real OAuth round trip in http

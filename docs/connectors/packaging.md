@@ -17,7 +17,7 @@ a Git repository, and its conformance kit runs on every built-in connector from 
 A connector in a package is the same manifest and runtime as a built-in one. Moving it out of the
 repository is a change of where it is loaded and how its messages travel, not of the contract:
 
-- the manifest is read without running code, so Sources can list and describe a packaged
+- the manifest is read without running code, so Integrations can list and describe a packaged
   connector before it runs;
 - the runtime's messages are plain serializable objects, so in-process iteration becomes JSON
   lines over a pipe with no change to their shape;
@@ -40,7 +40,7 @@ The operator may narrow the built-in connectors in the same configuration (for e
 
 ## Support levels
 
-| Level       | What it means                                                                                           | What Sources shows                     |
+| Level       | What it means                                                                                           | What Integrations shows                |
 | ----------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `core`      | In this repository, reviewed with Heed.                                                                 | Built in                               |
 | `verified`  | Passes the conformance kit, published with npm provenance, follows the security rules. Can be delisted. | Verified                               |

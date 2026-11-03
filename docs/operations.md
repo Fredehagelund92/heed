@@ -92,7 +92,7 @@ and the message names the setting. `MODEL_PROVIDER` is refused with a note on wh
 definitions; the service image reads its own copy of the demo model `db/seed/cube` outside
 production, and `db/prepare.ts` refuses a folder that is missing or empty), with `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `HEED_SECRETS_DIR` names
 the local secret store, a folder outside the repository that only the server's user may open
-(mode 0700), where sources added in Administration › Sources keep their tokens; unset, no secret
+(mode 0700), where sources added in Settings › Integrations keep their tokens; unset, no secret
 is kept and a source that needs one cannot be added.
 
 Database setup, migration rules, the bulk demo seed and isolated test databases are documented

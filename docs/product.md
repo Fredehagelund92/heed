@@ -2,13 +2,13 @@
 
 This page says what Heed v1 is: the job, the people, the promise, every screen with its address, the six answer states, the kinds, the roles, the privacy rules and the words. It is short on purpose. The details of each rule are in the [design contract](design/design-contract.md), the [copy rules](design/copy.md) and the [requirements](requirements.md).
 
-|                      |                                                                                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status               | v1 spec, written from the approved mockup                                                                                                                                       |
-| Date                 | 2026-10-25                                                                                                                                                                      |
-| Acceptance reference | The Heed v1 mockup at commit `080cbc3` (section 14)                                                                                                                             |
-| Written for          | Everyone who builds, reviews or runs Heed: contributors, coding agents, and the people who pick Heed up for their own company                                                   |
-| Order of authority   | The mockup first. Then this page and the design contract, which are written from it. Then the requirements, which are changed to match both. Where they differ, the mockup wins |
+|                      |                                                                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status               | v1 spec, written from the approved mockup                                                                                                                                                                     |
+| Date                 | 2026-10-25                                                                                                                                                                                                    |
+| Acceptance reference | The Heed v1 mockup at commit `080cbc3` (section 14)                                                                                                                                                           |
+| Written for          | Everyone who builds, reviews or runs Heed: contributors, coding agents, and the people who pick Heed up for their own company                                                                                 |
+| Order of authority   | The app first. Then this page and the design contract, which say what it does. Then the requirements, which are changed to match both. The mockup is a reference ([section 14](#14-the-acceptance-reference)) |
 
 ## 1. The job
 
@@ -122,7 +122,7 @@ Conflicts is a filter of the list, not a list of its own: All or Conflicts above
 
 ### Settings (admins)
 
-Inside Settings, the app sidebar gives way to the settings menu, with Back to app on top. Five sections in three groups: Workspace (General, Domains and owners), Connections (Agents and access, Integrations), System (Advanced).
+Inside Settings, the app sidebar gives way to the settings menu, with Back to app on top. Six sections in three groups: Workspace (General, Domains and owners, People), Connections (Agents and access, Integrations), System (Advanced).
 
 | Screen                               | Address                                      |
 | ------------------------------------ | -------------------------------------------- |
@@ -164,7 +164,7 @@ Overview is one view over one state in the address: the numbers (Asked, Checked 
 
 The consent page is where the login server sends a person whose agent asked to connect (`?request=` names the sign-in): they sign in there if they have not, read which agent asks and what it may do, and allow or deny it. The mockup does not draw it; it keeps the earlier app's page in this design.
 
-The Help menu in the sidebar's foot opens a small menu: the Help page, the keys, the documentation and What's new in new tabs, Contact support, Report a problem. Old addresses `/library`, `/settings/about` and `/settings/definitions` redirect to Context, General and Definitions.
+The Help menu in the sidebar's foot opens a small menu: the Help page, the keys, the documentation and What's new in new tabs, Contact support, Report a problem. Old addresses `/library`, `/settings/about` and `/settings/definitions` redirect to Context, General and the definitions source's page in Integrations.
 
 ## 6. The six answer states
 
@@ -229,14 +229,14 @@ One rule everywhere: **from agents, Heed keeps only what a question was about an
 
 Six tools. Each is described in one list in the code (`AGENT_TOOLS`), which Settings, Help and the docs read.
 
-| Tool              | What it does                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| `get_context`     | The context that applies to a question, with the answer line and one sentence to relay.          |
-| `find_context`    | A word search over names, titles and summaries.                                                  |
-| `read_context`    | One context item in full: text, source, check date and the don't conclude line.                  |
-| `report`          | Tell the owner something is missing, wrong or unclear, after the person says yes.                |
-| `suggest_context` | Send a suggestion to the owner, after the person says yes. It waits in the owner's Inbox.        |
-| `get_related`     | Follow a link between items, definitions and domains, one step at a time. It has its own switch. |
+| Tool              | What it does                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_context`     | The context that applies to a question, with the answer line and one sentence to relay.                                                            |
+| `find_context`    | A word search over names, titles and summaries.                                                                                                    |
+| `read_context`    | One context item in full: text, source, check date and the don't conclude line.                                                                    |
+| `report`          | Tell the owner something is missing, wrong or unclear, after the person says yes.                                                                  |
+| `suggest_context` | Send a suggestion to the owner, after the person says yes. It waits in the owner's Inbox, unless the owner lets that agent publish without review. |
+| `get_related`     | Follow a link between items, definitions and domains, one step at a time. It has its own switch.                                                   |
 
 The default reply holds the answer state, one sentence to relay (`say`), what was asked, the items that apply, a reply id and the edition. Where two items disagree, the reply says so. A mention in an item is only its words in `get_context`. Following it is a separate, read-only tool, `get_related`, at most 50 nodes, in a fixed order. It never changes what an answer includes.
 
@@ -285,16 +285,16 @@ Ask answers from what the workspace has written. An item with no Applies to is r
 
 ## 14. The acceptance reference
 
-**The Heed v1 mockup is the acceptance specification** until the real application switches over to it. It is a complete clickable build of this page, with mock data from the Larchwood Outdoor demo world and no backend.
+**The web app leads, and the Heed v1 mockup is a reference.** The mockup was the acceptance specification while the web app was built from it: a complete clickable build of this page, with mock data from the Larchwood Outdoor demo world and no backend. The app now differs from it on purpose in places, such as Overview holding the topics and Conflicts being a filter of the Context list.
 
-|                      |                                                                                                                              |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Mockup               | Repository `heed-v1-design`, folder `mockup/`                                                                                |
-| Commit               | `080cbc3` ("README: topics, roll-ups and the month in the key")                                                              |
-| Acceptance checks    | Its job specs `mockup/e2e/j1-*` to `j30-*` (Playwright), its unit tests, and its README as the screen map                    |
-| When it stops ruling | When the switch pull request lands and the mockup's code is the web app. Its specs then run against the real service as well |
+|                   |                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| Mockup            | `apps/mockup`, imported from the repository `heed-v1-design`, folder `mockup/`                              |
+| Commit            | `080cbc3` ("README: topics, roll-ups and the month in the key")                                             |
+| Acceptance checks | The web app's own job specs in `tests/e2e` (Playwright), on the mock build and on the service, listed below |
+| The mockup's role | A reference for the design. It is not changed to follow the app                                             |
 
-If the mockup and the real app differ, the real app changes. If the mockup and a document differ, the document changes. A change to the mockup needs a new reference commit, recorded here.
+If the app and the mockup differ, the app and these documents are right. A change to the mockup needs a new reference commit, recorded here.
 
 The job specs, one line each:
 

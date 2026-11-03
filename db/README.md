@@ -144,13 +144,13 @@ neither.
 
 Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
 updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores
-evidence from before its `status_since` hour, and newer evidence opens a new gap. `report_gap`
-is case 2. `cl_gaps_detect()`, run by the `gaps.detect` job, adds case 1 (agent `no_match`
+evidence from before its `status_since` hour, and newer evidence opens a new gap. The MCP tool
+`report` is case 2. `cl_gaps_detect()`, run by the `gaps.detect` job, adds case 1 (agent `no_match`
 calls about a topic reach `gaps.no_item_threshold` within its days), case 3 (negative feedback
 on an agent delivery; the note moves into `gap_notes` under row security) and case 4 (a
 definition's change mark changed; recent topics about a metric it defines get an `outdated`
 gap). It is safe to repeat. Case 5 is `cl_report_gap_person`: it
-counts a signed-in person's report like `report_gap`, with the type the person chose, marks it
+counts a signed-in person's report like `report`, with the type the person chose, marks it
 in `gap_weekly_counts.human_reports` (a part of `reports`), and never reads `cl.person_id`.
 `gap_report_keys` keeps the digests of a report's retry key and request for a day, so a retry
 counts once without naming anyone. Retention also clears feedback notes after `retention.note_days`.
@@ -164,7 +164,7 @@ a gap to others only through topic weeks that reach it (full detail only to the 
 
 The anonymity suite is `tests/integration/privacy.test.ts` (column contracts, forbidden column
 names, foreign keys across every schema, hour and UUIDv4 constraints, serving read-back) and the
-runtime canary `tests/integration/canary.test.ts`: one signed-in person makes 1,000 `get_facts`
+runtime canary `tests/integration/canary.test.ts`: one signed-in person makes 1,000 `get_context`
 calls through HTTP and MCP with a marker sentence, a cookie, a user agent and a forwarded address,
 and no new row in any schema, no log line and no export may contain any of them.
 
@@ -209,9 +209,9 @@ The rules that decide when a gap is verified are pure functions in `src/domain/g
 ## Agent drafts
 
 `proposals.provenance` is set on a draft an AI agent (the MCP tool
-`draft_context`, FR-121) wrote for the person: who wrote it, a mark per field and
-the flags of its words; null for a draft a person wrote. `draft_context` starts switched off in
-`tool_config`, and the setting `limits.agent_drafts` allows each person 10 in 24 hours and 20
+`suggest_context`, FR-121) wrote for the person: who wrote it, a mark per field and
+the flags of its words; null for a draft a person wrote. `suggest_context` is on in
+`tool_config` unless an admin switched it off (migration 0004), and the setting `limits.agent_drafts` allows each person 10 in 24 hours and 20
 waiting. `cl_similar_items` is an owner-run read of the accepted items whose title or summary reads like a
 draft (pg_trgm's `similarity`, which the API role does not hold). The limits count the person's
 own `mcp` proposals, so no counter names anyone, and the person is named only where every proposal

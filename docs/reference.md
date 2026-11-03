@@ -430,7 +430,9 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   no answer is 422. `POST /review/{id}/return` takes `{ revision, note, body? }`: the suggestion
   goes back to its writer, and the note is its first comment, marked returned (`body` is the
   note as the comment box wrote it, with its mentions; without it the comment is the note's
-  words).
+  words). `POST /review/{id}/close` takes `{ revision }` and closes a suggestion to archive that
+  its sender took back in the comments: nothing changes, the item stays live, and the answer has
+  a token that undoes it.
 - `POST /review/{id}/read` takes `{ itemVersionId }` and records that the person read that
   version (FR-226); a version that is no longer the one under review is 409.
   `POST /review/publish-read` takes `{ ids }` (up to 50) and publishes each suggestion the
@@ -515,7 +517,13 @@ edition holds is built from them. Writes need the session cookie, `Origin`, `x-h
   `newReply` (the newest reply by someone else since the person last opened the thread or wrote
   in it, in a thread they wrote in or a suggestion they sent) and `mentions` (the comments there
   that mention them and that they haven't read).
-- `POST /comments` takes `{ subject, body, parentId? }`; writing in a thread is opening it.
+- `POST /comments` takes `{ subject, body, parentId?, anchor? }`; writing in a thread is opening
+  it. On a suggestion, `anchor` hangs a new thread on one field (`{ before, after, field }`) or one
+  line of the text (`{ before, after, side, line }`), where `before` and `after` are the versions
+  compared. `POST /comments/{id}/resolve` takes `{ resolved }` and resolves such a thread, or
+  opens it again. `POST /comments/{id}/withdraw` takes `{ withdrew }`: on a suggestion to archive
+  that waits, its sender marks their own comment as taking the suggestion back, or takes the mark
+  back, and its owners see it in the review.
   `PUT /comments/{id}` takes `{ body }` and `DELETE /comments/{id}` deletes it, for its author only
   (403 for anyone else, 409 once deleted). A deleted comment that a later one answers keeps its
   place without its words (`removed: "kept"`), with its reactions and mentions gone; one nobody
@@ -929,6 +937,14 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
   (`declined`), since `since`, at most an hour back, with the agent's name for itself; `waiting`
   when there is neither. A no is kept for an hour, for that person alone, and the history log is
   not told, as nothing changed.
+- `GET /connections` and `POST /connections/{id}/disconnect`: the agents connected as the
+  signed-in person, and disconnecting one, whose refresh tokens end and whose access tokens the
+  MCP server refuses at once. `GET /connections/request` and `POST /connections/request/decision`
+  (`{ id, allow }`) are the consent screen's read of the sign-in this browser started and the
+  person's answer, which returns the app's redirect address.
+- `POST /access-keys` (administrators) takes `{ name }` and creates an access key for a bot or a
+  scheduled job: it reads context and gives feedback, names no person, and lasts until revoked.
+  The key is in this answer only.
 - `GET /agent-connections` and `POST /agent-connections/{id}/disconnect` (administrators, formerly
   `/ai-connections`): every person's agents, and ending one, with a reason the history log keeps
   (docs/ai-sign-in.md).
@@ -941,7 +957,8 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
   `POST /agent-policies/switch` (administrators) read and switch it for the workspace, and switching
   it off ends every policy; `GET /areas/{areaId}/agent-policies` lists one domain's policies, whether
   the workspace allows them, whether the signed-in person may set one, and the apps that suggested
-  there lately; `POST /agent-policies` sets one (an owner of the domain) and
+  there lately; `POST /agent-policies` takes `{ agentId, areaId, perDay, reason }` and sets one (an
+  owner of the domain), with `perDay` the most it may publish in a day, from 1 to 50, and
   `POST /agent-policies/{id}/end` turns one off (whoever set it, an owner of the domain, an
   administrator or the person the agent works for), each with a reason the history log keeps.
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the

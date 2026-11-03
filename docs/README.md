@@ -4,9 +4,9 @@ Everything written about Heed, in one place. If you are new, start with the prod
 
 ## Product and design (Heed v1)
 
-The approved Heed v1 mockup is the acceptance specification for the web app. These pages are written from it. Read them in this order.
+The web app leads: these pages say what it does. They were first written from the approved Heed v1 mockup, which is now a reference. Read them in this order.
 
-The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state, with demo data and no backend. It is the acceptance reference for the web app, which is changed to match it ([how it is checked](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
+The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state as it was designed, with demo data and no backend. The app has since moved past it in places on purpose, such as Overview holding the topics and Conflicts being a filter of the Context list, and the mockup is not changed to follow ([its job specs](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
 
 | Page                                            | What it says                                                                                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -17,6 +17,7 @@ The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable 
 | [Accessibility](design/accessibility.md)        | The checklist and the gates                                                                                                                                      |
 | [Components](design/components.md)              | The inventory, with the mockup file each part comes from                                                                                                         |
 | [Requirements](requirements.md)                 | What Heed must do. Each requirement has a status (kept, changed, withdrawn, new) against the mockup                                                              |
+| [Domain core](domain/core.md)                   | What `src/domain` holds and may not depend on                                                                                                                    |
 
 Older design pages that still apply:
 
@@ -45,6 +46,11 @@ Older design pages that still apply:
 | [MCP and API reference](reference.md)                      | The tools and the API                                                  |
 | [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                                      |
 | [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md)            |
+| [The Cube connector](connectors/cube.md)                   | Reading definitions from a Cube model                                  |
+| [Connectors as packages](connectors/packaging.md)          | How a connector could ship on its own, later                           |
+| [Connector security](connectors/security.md)               | What a connector may reach, and how that is enforced                   |
+| [The database](../db/README.md)                            | Roles, grants, migrations and the data each feature keeps              |
+| [Templates](templates/)                                    | Item and test-question files, and prompts that turn notes into items   |
 | [Evaluations and the golden set](evaluations.md)           | How answers are tested                                                 |
 | [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                             |
 | [Release Heed](releasing.md)                               | One version number, the release pull request and the tag               |
@@ -55,8 +61,8 @@ Older design pages that still apply:
 
 ## The order of authority
 
-1. The approved Heed v1 mockup, in [apps/mockup](../apps/mockup/README.md) (its commit is recorded in [Product](product.md#14-the-acceptance-reference)).
-2. [Product](product.md) and the [design contract v2](design/design-contract.md), which are written from it.
+1. The web app, as its job specs in `tests/e2e` check it.
+2. [Product](product.md) and the [design contract v2](design/design-contract.md), which say what it does and are changed with it.
 3. The [requirements](requirements.md), which are changed to match both.
 
-If a document and the mockup differ, the document changes.
+The Heed v1 mockup, in [apps/mockup](../apps/mockup/README.md), is a reference for the design (its commit is recorded in [Product](product.md#14-the-acceptance-reference)). Where the app and the mockup differ, the app and these documents are right.
