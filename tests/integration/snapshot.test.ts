@@ -95,9 +95,9 @@ describe('what the database holds before a restore', () => {
   ])('is refused when it holds %s', async (_name, create, drop) => {
     await bare.client.query(create)
     try {
-      await expect(restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false })).rejects.toThrow(
-        refused,
-      )
+      await expect(
+        restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false }),
+      ).rejects.toThrow(refused)
     } finally {
       await bare.client.query(drop)
     }
