@@ -26,7 +26,7 @@ import { Loadable } from '@/components/heed/load-state'
 import { SortMenu } from '@/components/heed/list'
 import { CountUp } from '@/components/heed/count-up'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
-import { Legend, StackedBars } from '@/components/obs/charts'
+import { Legend, StackedBars, type SpanStep } from '@/components/obs/charts'
 import { Kpi, kpiChange, moreOrFewer, RangeSwitch } from '@/components/obs/controls'
 import { TopicTable } from '@/components/obs/topic-table'
 import { FilterBar, type Field } from '@/components/obs/filter-bar'
@@ -74,14 +74,20 @@ import {
   passes,
   readDomain,
   sentence,
+  spanFrom,
+  spanTo,
+  spanWords,
   valueOf,
   valueWords,
+  withValues,
   type FilterKey,
   type Filters,
+  type Span,
 } from '@/lib/obs-views'
 import { changeQuery, href, setQuery, useRoute } from '@/lib/router'
 import { clicked, sortingFrom, sortingTo, type Sorting } from '@/lib/sort'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
+import { pageKey } from '@/lib/keys'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { useWide } from '@/hooks/use-wide'
 import { ObsPage } from '@/pages/observability'
@@ -89,7 +95,9 @@ import { ObsPage } from '@/pages/observability'
 // Overview: what agents asked and what they got, in one view over one state in the address. The
 // numbers, the questions per day and the topics all follow the same range, domain, kind of agent,
 // view and filters: the domain and the agent narrow the read itself, every other filter narrows
-// the topics, and the numbers then add up what those topics may show ("83+"). A row opens the
+// the topics, and the numbers then add up what those topics may show ("83+"). Days chosen on the
+// chart (a drag, or B and Shift and the arrows) are kept in the address too, and the numbers then
+// add up the bars chosen as they show. A part of a bar adds its answer as a chip. A row opens the
 // answer panel, a replay of what an agent gets for it. Questions' old address opens it at the
 // topics. Never the words of a question, never who asked.
 
@@ -187,12 +195,18 @@ function Explorer({
   // A change of the filters is a step in the address, so Back undoes it. The topics and the chips
   // move to their new places while the numbers count (one view transition, none with reduced
   // motion); a chip moved by its keys moves at once, as the keyboard's tier is instant.
-  const set = (next: Filters, opts?: { instant?: boolean }) => {
+  const set = (next: Filters, opts?: { instant?: boolean; clearDays?: boolean }) => {
     const keep = own ? next.filter((c) => c.key !== 'domain') : next
     const domain = own
       ? (chipOf(next, 'domain') ?? { key: 'domain' as const, values: [own] })
       : null
-    moveTo(chipsTo(domain ? [domain, ...keep] : keep), reduced || !!opts?.instant)
+    moveTo(
+      {
+        ...chipsTo(domain ? [domain, ...keep] : keep),
+        ...(opts?.clearDays ? { days: undefined } : {}),
+      },
+      reduced || !!opts?.instant,
+    )
   }
 
   const all = obs.data.topics
@@ -217,10 +231,55 @@ function Explorer({
       (c) => c.key !== 'answer' && c.key !== 'agent' && !(c.key === 'domain' && readDomain(on)),
     )
   const answer = chipOf(on, 'answer')
-  const states = answer
-    ? SHOWN.filter((s) => answer.values.includes(s) !== !!answer.not)
-    : undefined
+  const kept = answer ? SHOWN.filter((s) => answer.values.includes(s) !== !!answer.not) : undefined
+  // The chart draws the answers the filter keeps, or all of them when it keeps none.
+  const states = kept?.length ? kept : SHOWN
   const totals = obs.selection(rows)
+
+  // The days chosen on the chart, from the address; while a drag is on its way, or until the
+  // address has the step just taken, the choice on its way.
+  const { bars, last } = obs.data
+  const days = query.get('days') ?? ''
+  const [onItsWay, setOnItsWay] = React.useState<{ span: Span | null; from: string } | null>(null)
+  // Once the address has moved on, it says what is chosen.
+  if (onItsWay && onItsWay.from !== days) setOnItsWay(null)
+  const span = onItsWay && onItsWay.from === days ? onItsWay.span : spanFrom(query, bars, last)
+  // A run of keys is one step in the address: each key after the first takes the last one's
+  // place, as long as nothing else changed the address in between, so Back undoes the run at once.
+  const [byKeys, setByKeys] = React.useState<string | null>(null)
+  const onSpan = (next: Span | null, step: SpanStep) => {
+    setOnItsWay({ span: next, from: days })
+    if (step === 'live') return
+    const value = spanTo(next, bars, last)
+    const after = new URLSearchParams(query)
+    if (value) after.set('days', value)
+    else after.delete('days')
+    setByKeys(step === 'key' ? addressOf(after) : null)
+    void changeQuery({ days: value }, { replace: step === 'key' && byKeys === addressOf(query) })
+  }
+  const clearSpan = () => onSpan(null, 'done')
+  const daysSaid = span ? spanWords(span, bars, last) : undefined
+  const chartAt = React.useRef<HTMLDivElement>(null)
+  const toChart = () => {
+    const el = chartAt.current?.querySelector<HTMLElement>('[data-chart]')
+    el?.focus({ preventScroll: true })
+    el?.scrollIntoView({ block: 'nearest' })
+  }
+  // B goes to the chart; Escape clears the days chosen, when no panel is open for it to close.
+  const onPageKey = React.useEffectEvent((e: KeyboardEvent) => {
+    if (e.defaultPrevented || !pageKey(e)) return
+    if (e.key === 'b' || e.key === 'B') {
+      e.preventDefault()
+      toChart()
+    } else if (e.key === 'Escape' && span && !dock) {
+      e.preventDefault()
+      clearSpan()
+    }
+  })
+  React.useEffect(() => {
+    window.addEventListener('keydown', onPageKey)
+    return () => window.removeEventListener('keydown', onPageKey)
+  }, [])
   const topics = group === 'none' ? rows.length : obs.rollUp(rows).length
   // Calls that could not be read have no topic, so they show only when nothing narrows the list.
   const unread = !narrow ? obs.data.couldNotRead : 0
@@ -252,17 +311,33 @@ function Explorer({
   const topicsAt = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     if (!topicsFirst && !peeked) return
-    let gone = false
-    // Once the font is in, so the lines above have their final height; the page's own scroller
-    // moves, never the shell around it.
-    void document.fonts.ready.then(() => {
-      const at = topicsAt.current
-      const scroller = at?.closest<HTMLElement>('[data-slot=page-scroll]')
-      if (gone || !at || !scroller) return
+    const at = topicsAt.current
+    const column = at?.parentElement
+    const scroller = at?.closest<HTMLElement>('[data-slot=page-scroll]')
+    if (!at || !column || !scroller) return
+    // Once the font is in, and again while the page settles over its first frames (the facets
+    // take their column, so the chart takes its width and height): the topics stay at the top
+    // until then, unless the person moves the page first. The page's own scroller moves, never
+    // the shell around it.
+    let done = false
+    const place = () => {
+      if (done) return
       scroller.scrollTop += at.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    })
+    }
+    const leave = () => {
+      done = true
+    }
+    // Each part of the column is watched, not the column: a grid stretches it to the facets.
+    const settling = new ResizeObserver(() => void document.fonts.ready.then(place))
+    for (const part of column.children) settling.observe(part)
+    const moves = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const
+    for (const m of moves) scroller.addEventListener(m, leave, { passive: true })
+    const settled = window.setTimeout(leave, SETTLE)
     return () => {
-      gone = true
+      done = true
+      settling.disconnect()
+      for (const m of moves) scroller.removeEventListener(m, leave)
+      window.clearTimeout(settled)
     }
     // Only on arriving: a topic opened later leaves the page where it is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,6 +380,8 @@ function Explorer({
       <FilterBar
         chips={shown}
         onChange={(next, _said, instant) => set(next, { instant })}
+        time={daysSaid ? { words: daysSaid, onRemove: clearSpan, onEdit: toChart } : undefined}
+        onClearAll={() => set([], { clearDays: true })}
         fields={fields}
         facet={facetOf}
         words={words}
@@ -324,12 +401,35 @@ function Explorer({
         {wide && <FacetRail {...facetProps} folded={!rail} />}
         {/* The topics measure the room beside the facets, not the page's. */}
         <div className="@container/main min-w-0">
-          <Numbers view={view} narrow={narrow} totals={totals} topics={topics} />
-          <Chart view={view} answer={states} behind={behind} />
+          <Numbers
+            view={view}
+            narrow={narrow}
+            totals={totals}
+            topics={topics}
+            chosen={
+              span && daysSaid
+                ? { words: daysSaid, sums: obs.barSum(span.from, span.to, states), states, behind }
+                : undefined
+            }
+          />
+          <div ref={chartAt}>
+            <Chart
+              view={view}
+              states={states}
+              behind={behind}
+              span={span}
+              onSpan={onSpan}
+              onDrill={(s) => set(withValues(on, 'answer', [s], false))}
+            />
+          </div>
           <div ref={topicsAt}>
             <FrameSection
               title="Topics"
-              description="Each is a metric, a market and the month asked about, grouped here for reading."
+              description={
+                span
+                  ? `Each is a metric, a market and the month asked about, counted over ${view.label}, not only the days selected.`
+                  : 'Each is a metric, a market and the month asked about, grouped here for reading.'
+              }
               action={
                 <span className="flex flex-wrap items-center gap-1">
                   <SortMenu keys={TOPIC_SORTS} sorting={sorting} onSort={sortBy} className="w-52" />
@@ -380,6 +480,9 @@ function Explorer({
   )
 }
 
+/** An address's params in one order, to tell whether two are the same. */
+const addressOf = (q: URLSearchParams) => [...q].sort(([a], [b]) => a.localeCompare(b)).join('&')
+
 /** The view transition of a change of the filters, while it runs. */
 let moving: ViewTransition | null = null
 
@@ -406,6 +509,8 @@ function moveTo(changes: Record<string, string | undefined>, instant: boolean) {
 }
 /** How long a transition waits for the new address to be drawn, in ms. */
 const DRAWN_IN = 200
+/** How long the page may take to settle on arrival, keeping the topics at the top, in ms. */
+const SETTLE = 1000
 
 /** The fields the bar and the facets offer, each with its values in the order they list. */
 function fieldsOf(
@@ -532,11 +637,19 @@ function Numbers({
   narrow,
   totals,
   topics,
+  chosen,
 }: {
   view: ObsView
   narrow: boolean
   totals: ReturnType<ReturnType<typeof useObservability>['selection']>
   topics: number
+  /** Days chosen on the chart: the numbers add up its bars, in the answers it draws. */
+  chosen?: {
+    words: string
+    sums: ReturnType<Observability['barSum']>
+    states: Shown[]
+    behind: boolean
+  }
 }) {
   const obs = useObservability()
   const { query, path } = useRoute()
@@ -553,7 +666,9 @@ function Numbers({
   const nothingShare = narrow ? share(totals.nothing.visible, totals.asked.visible) : null
   return (
     <div className="grid grid-cols-2 gap-px bg-border @3xl/main:grid-cols-4">
-      {narrow ? (
+      {chosen ? (
+        <ChosenNumbers chosen={chosen} drill={drill} />
+      ) : narrow ? (
         <>
           <Kpi
             icon={<MessageSquareIcon />}
@@ -653,28 +768,110 @@ function Numbers({
 }
 
 /**
+ * The numbers for days chosen on the chart: what its bars add up to, as they show, in the answers
+ * it draws. A hidden bar makes a sum "83+"; a share needs every part of it shown. An answer the
+ * filter leaves out is not counted here at all.
+ */
+function ChosenNumbers({
+  chosen: { words, sums, states, behind },
+  drill,
+}: {
+  chosen: NonNullable<React.ComponentProps<typeof Numbers>['chosen']>
+  drill: (answer: string) => string
+}) {
+  const { asked } = sums
+  const of = (s: Shown) => {
+    const part = sums.state(s)
+    return {
+      part,
+      value: !states.includes(s) ? '-' : sumFigure(part, true),
+      share: states.includes(s) ? share(part.visible, asked.visible) : null,
+      sub: !states.includes(s)
+        ? 'left out by the answer filter'
+        : part.visible === null && !part.shown
+          ? HIDDEN
+          : undefined,
+    }
+  }
+  const checked = of('grounded')
+  const nothing = of('missing')
+  return (
+    <>
+      <Kpi
+        icon={<MessageSquareIcon />}
+        label="Asked"
+        value={sumFigure(asked, true)}
+        sub={
+          asked.visible === null && !asked.shown ? HIDDEN : behind ? `${words}, every topic` : words
+        }
+      />
+      <Kpi
+        icon={<CircleCheckIcon />}
+        label={CHECKED}
+        value={
+          checked.share !== null ? <CountUp value={checked.share} suffix="%" /> : checked.value
+        }
+        sub={
+          checked.sub ?? `${groupCount(checked.part)} of ${groupCount(asked).toLowerCase()} asked`
+        }
+        href={drill('grounded')}
+      />
+      <Kpi
+        icon={<CircleDashedIcon />}
+        label="Not found"
+        value={nothing.value}
+        sub={
+          nothing.sub ??
+          (nothing.share !== null
+            ? `${nothing.share}% of questions`
+            : `${groupCount(nothing.part)} of ${groupCount(asked).toLowerCase()} asked`)
+        }
+        href={drill('missing')}
+      />
+    </>
+  )
+}
+
+/**
  * Questions per day (per week over 90 days), stacked by how they were answered, with a dashed line
  * at each publish. The answer filter keeps its states; what narrows topics alone it cannot follow,
- * as it counts questions, not topics, and then it says so.
+ * as it counts questions, not topics, and then it says so. A drag (or Shift and the arrows) chooses
+ * days for the numbers to add up; a part of a bar looks at only its answer.
  */
-function Chart({ view, answer, behind }: { view: ObsView; answer?: Shown[]; behind: boolean }) {
+function Chart({
+  view,
+  states,
+  behind,
+  span,
+  onSpan,
+  onDrill,
+}: {
+  view: ObsView
+  states: Shown[]
+  behind: boolean
+  span: Span | null
+  onSpan: (span: Span | null, step: SpanStep) => void
+  onDrill: (state: Shown) => void
+}) {
   const obs = useObservability()
-  const { bars, publishes, range } = obs.data
+  const { bars, publishes, range, last } = obs.data
   const marks = publishes
     .map((p) => ({
       index: bars.findIndex((b, i) => (b.at ?? 0) <= p.at && (bars[i + 1]?.at ?? Infinity) > p.at),
       title: p.title,
     }))
     .filter((m) => m.index >= 0)
-  const states = answer?.length ? SHOWN.filter((s) => answer.includes(s)) : SHOWN
   const per = range === 90 ? 'week' : 'day'
+  const every = 'Every question asked, as the chart counts questions, not topics.'
   return (
     <FrameSection
       title={`Questions per ${per}`}
       description={
-        behind
-          ? 'Every question asked, as the chart counts questions, not topics. The numbers and the topics follow the view and the filters.'
-          : 'What agents asked and how it was answered. A dashed line marks a publish.'
+        span
+          ? `${behind ? `${every} ` : ''}The numbers add up the ${per}s selected.`
+          : behind
+            ? `${every} The numbers and the topics follow the view and the filters.`
+            : `What agents asked and how it was answered. A dashed line marks a publish. Drag across the bars to add up some ${per}s.`
       }
     >
       <div className="flex flex-col gap-3 px-4 pb-4 md:px-5">
@@ -684,6 +881,10 @@ function Chart({ view, answer, behind }: { view: ObsView; answer?: Shown[]; behi
           marks={marks}
           states={states}
           caption={`Questions per ${per}, ${view.label}, by how they were answered`}
+          span={span}
+          onSpan={onSpan}
+          spanWords={(s) => spanWords(s, bars, last)}
+          onDrill={onDrill}
         />
       </div>
     </FrameSection>

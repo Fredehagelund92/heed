@@ -131,6 +131,8 @@ export const observabilitySearch = lenient(
     q: text,
     // The order the filter chips were put in, when it is not the fields' own.
     chips: text,
+    // The days chosen on the chart: "2026-10-12..2026-10-18", or one day.
+    days: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}(\.\.\d{4}-\d{2}-\d{2})?$/))),
     period: oneOf(['month', 'quarter']),
   }),
 )

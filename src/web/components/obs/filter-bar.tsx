@@ -47,7 +47,8 @@ import type { Shown } from '@/model/observability'
 // choose, Esc closes, Backspace in the empty box takes the last chip off. A chip opens an editor:
 // is or is not, a search over its values with what each counts, and its values to tick. Chips move
 // by drag, by Alt and the arrows, or by the editor's buttons. The values' counts are the facets'
-// (lib/obs-views.ts), so they follow the disclosure rules exactly.
+// (lib/obs-views.ts), so they follow the disclosure rules exactly. Days chosen on the chart read
+// as one more chip, first: "Time is 12 to 18 Oct", changed on the chart and taken off as any other.
 
 /** A field the bar offers, with the values it lists in order. */
 export type Field = {
@@ -71,6 +72,10 @@ export type FilterBarProps = {
   words: (key: FilterKey, v: string) => string
   /** The facets beside the topics, or in a sheet on a narrow page. */
   facets: { on: boolean; toggle: () => void; sheet: boolean }
+  /** Days chosen on the chart, in words; `onEdit` goes to the chart, where they change. */
+  time?: { words: string; onRemove: () => void; onEdit: () => void }
+  /** Clear all: every chip, and the days chosen. */
+  onClearAll?: () => void
 }
 
 const ICONS: Record<FilterKey, React.ReactNode> = {
@@ -243,7 +248,16 @@ const forPage = (e: KeyboardEvent) =>
     'input, textarea, select, [contenteditable=true], [role=dialog], [role=menu], [role=listbox]',
   )
 
-export function FilterBar({ chips, onChange, fields, facet, words, facets }: FilterBarProps) {
+export function FilterBar({
+  chips,
+  onChange,
+  fields,
+  facet,
+  words,
+  facets,
+  time,
+  onClearAll,
+}: FilterBarProps) {
   const input = React.useRef<HTMLInputElement>(null)
   const box = React.useRef<HTMLDivElement>(null)
   const [text, setText] = React.useState('')
@@ -259,6 +273,11 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
   const sentenceOf = (c: Chip) => {
     const values = c.values.map((v) => words(c.key, v))
     return `${FILTER_WORDS[c.key]} ${opWords(c)} ${values.join(c.key === 'topic' ? ' and ' : ', ')}`
+  }
+  const removeTime = () => {
+    if (!time) return
+    time.onRemove()
+    setSaid(`Removed the filter Time is ${time.words}`)
   }
   const remove = (key: FilterKey) => {
     const c = chipOf(chips, key)
@@ -360,10 +379,11 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
     } else if (e.key === 'Backspace' && empty) {
       if (pending) setPending(null)
       else if (chips.length) remove(chips[chips.length - 1]!.key)
-    } else if (e.key === 'ArrowLeft' && empty && chips.length) {
+      else if (time) removeTime()
+    } else if (e.key === 'ArrowLeft' && empty && (chips.length || time)) {
       e.preventDefault()
       setOpen(false)
-      focusChip(box.current, chips[chips.length - 1]!.key)
+      focusChip(box.current, chips.length ? chips[chips.length - 1]!.key : 'time')
     } else if (e.key === 'Tab') setOpen(false)
   }
 
@@ -431,6 +451,15 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
           {facets.sheet ? 'Every value with what it counts' : 'Show or hide the facets'}
         </TooltipContent>
       </Tooltip>
+      {time && (
+        <TimeChip
+          time={time}
+          onRemove={removeTime}
+          onNext={() =>
+            chips.length ? focusChip(box.current, chips[0]!.key) : input.current?.focus()
+          }
+        />
+      )}
       <ChipRow
         chips={chips}
         fields={fields}
@@ -469,7 +498,7 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
             placeholder={
               pending
                 ? `${FILTER_WORDS[pending]} is…`
-                : chips.length
+                : chips.length || time
                   ? 'Add a filter'
                   : 'Filter by answer, domain, market, metric or a topic'
             }
@@ -514,12 +543,16 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
           />
         </PopoverContent>
       </Popover>
-      {chips.length > 1 && (
+      {chips.length + (time ? 1 : 0) > 1 && (
         <Button
           variant="ghost"
           size="sm"
           className="ml-auto h-6 px-2 text-xs font-normal text-muted-foreground"
-          onClick={() => change([], 'Cleared every filter')}
+          onClick={() => {
+            if (onClearAll) onClearAll()
+            else onChange([], 'Cleared every filter')
+            setSaid('Cleared every filter')
+          }}
         >
           Clear all
         </Button>
@@ -532,8 +565,68 @@ export function FilterBar({ chips, onChange, fields, facet, words, facets }: Fil
 }
 
 /** Puts focus on a chip's own button. */
-function focusChip(root: HTMLElement | null, key: FilterKey) {
+function focusChip(root: HTMLElement | null, key: FilterKey | 'time') {
   root?.querySelector<HTMLElement>(`[data-chip="${key}"]`)?.focus()
+}
+
+/**
+ * The days chosen on the chart, as a chip: its own button goes to the chart, where they change by
+ * a drag or by Shift and the arrows; Backspace, Delete or its cross takes them off.
+ */
+function TimeChip({
+  time,
+  onRemove,
+  onNext,
+}: {
+  time: NonNullable<FilterBarProps['time']>
+  onRemove: () => void
+  onNext: () => void
+}) {
+  const said = `Time is ${time.words}`
+  return (
+    <span
+      data-vt-move
+      className="inline-flex h-6 max-w-full min-w-0 items-center rounded-md bg-background text-xs inset-ring inset-ring-border has-[[data-chip]:focus-visible]:ring-3 has-[[data-chip]:focus-visible]:ring-ring/50"
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              data-chip="time"
+              aria-label={`${said}. Enter to change it on the chart, Backspace to remove it`}
+              className="flex h-full min-w-0 items-center gap-1 truncate rounded-l-md pr-1 pl-2 outline-none select-none hover:bg-muted/60"
+              onClick={time.onEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                  e.preventDefault()
+                  onNext()
+                  onRemove()
+                } else if (e.key === 'ArrowRight') {
+                  e.preventDefault()
+                  onNext()
+                }
+              }}
+            />
+          }
+        >
+          <span className="shrink-0 text-muted-foreground">Time is</span>{' '}
+          <span className="truncate font-medium tabular-nums">{time.words}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          Change it on the chart <Kbd>B</Kbd>
+        </TooltipContent>
+      </Tooltip>
+      <button
+        type="button"
+        aria-label={`Remove the filter: ${said}`}
+        className="grid size-6 shrink-0 place-items-center rounded-r-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={onRemove}
+      >
+        <XIcon className="size-3" />
+      </button>
+    </span>
+  )
 }
 
 type RowProps = {
@@ -665,9 +758,10 @@ function ChipItem({
     } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.altKey) {
       e.preventDefault()
       onMove(index + (e.key === 'ArrowLeft' ? -1 : 1))
-    } else if (e.key === 'ArrowLeft' && index > 0) {
+    } else if (e.key === 'ArrowLeft') {
       e.preventDefault()
-      focusChip(root, chips[index - 1]!.key)
+      if (index > 0) focusChip(root, chips[index - 1]!.key)
+      else focusChip(root?.parentElement ?? null, 'time')
     } else if (e.key === 'ArrowRight') {
       e.preventDefault()
       if (last) input.current?.focus()

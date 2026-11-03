@@ -4,6 +4,12 @@ line: Changes people notice, newest first.
 reviewed: 2026-11-03
 ---
 
+## Select days on the chart, and drill into a bar
+
+2026-11-03
+
+Drag across Overview's chart, or press B and then Shift and the arrows, to select some days: the numbers add up just those days, the filter bar says which, and a link keeps them. Press a part of a bar to look at only that answer. Escape clears the days.
+
 ## Filters as chips, and facets with counts
 
 2026-11-03

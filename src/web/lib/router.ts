@@ -113,15 +113,21 @@ export function setQuery(changes: Record<string, string | undefined>) {
   void changeQuery(changes)
 }
 
-/** The same, settling once the new address is drawn: for a view transition to wait on. */
-export function changeQuery(changes: Record<string, string | undefined>) {
+/**
+ * The same, settling once the new address is drawn: for a view transition to wait on. With
+ * `replace` it takes the place of the address now, so Back skips it.
+ */
+export function changeQuery(
+  changes: Record<string, string | undefined>,
+  opts?: { replace?: boolean },
+) {
   const { path, query } = current()
   const q = new URLSearchParams(query)
   for (const [k, v] of Object.entries(changes)) {
     if (v) q.set(k, v)
     else q.delete(k)
   }
-  return router!.navigate({ href: href(path, Object.fromEntries(q)) })
+  return router!.navigate({ href: href(path, Object.fromEntries(q)), replace: opts?.replace })
 }
 
 /**

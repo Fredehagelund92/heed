@@ -55,9 +55,15 @@ async function leads(turn: Locator, name: keyof typeof definitions) {
   return lead
 }
 
-/** A is above B on the screen. */
+/**
+ * A is above B on the screen. Polled: the answer's lookup (the data's figure) settles after the
+ * answer is finished, and the two boxes are read one after the other, so a shift between the
+ * reads must not count.
+ */
 async function above(a: Locator, b: Locator) {
-  expect((await a.boundingBox())!.y + 1).toBeLessThan((await b.boundingBox())!.y)
+  await expect
+    .poll(async () => (await a.boundingBox())!.y + 1 < (await b.boundingBox())!.y)
+    .toBe(true)
 }
 
 test('what does churn rate mean: the definition is the answer, under a Definition mark', async ({
