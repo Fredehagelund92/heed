@@ -1,6 +1,9 @@
 import { relationWords } from '@domain/clash-relations'
 import { lineDiff } from '@/lib/line-diff'
+import { kindLabel, type Fact, type Kind } from './items'
+import type { Domains } from './people'
 import type { Relation, Review } from './review'
+import { whenLabel } from './validity'
 
 // The review's rules that only the full review page uses: the answers to a clash, and how long a
 // change takes to read. Apart from model/review.ts, which the Inbox loads up front, so these and
@@ -66,3 +69,54 @@ export const readTime = (r: Review) =>
             .reduce((n, x) => n + x.line.length, 0),
     ),
   )
+
+/**
+ * The suggested version as a context item, the way its page will show it once published: the
+ * review's own fields and stored text, over the live item it changes (`live`, for an edit). Only
+ * what publishing sets stays empty (the day it was checked); null for an archive, which has no
+ * suggested version.
+ */
+export function draftItem(r: Review, live: Fact | undefined, domains: Domains): Fact | null {
+  const after = r.fields.after
+  if (!after) return null
+  const before = r.fields.before
+  // The stored text is the summary, then the body after the first blank line.
+  const [summary = '', ...rest] = r.source.after.split('\n\n')
+  const body = rest.join('\n\n')
+  const kind = (Object.keys(kindLabel) as Kind[]).find((k) => kindLabel[k] === after.kind)
+  const domain = Object.values(domains).find((d) => d.name === after.domain)?.id
+  // The same names as the live item: its terms by key, so a value still reads as its dimension's.
+  const sameScope =
+    !!live &&
+    live.where.length === after.scope.length &&
+    live.where.every((w) => after.scope.includes(w))
+  // An owner the suggestion leaves alone stays as the live item has it. A new one shows as the
+  // item's page shows it: one of the domain's owners reads as all of them, anyone else by name.
+  const domainOwners = domain ? (domains[domain]?.owners ?? []) : []
+  const owners =
+    live && before?.owner === after.owner
+      ? live.owners
+      : after.owner && after.owner !== 'Not set' && !domainOwners.includes(after.owner)
+        ? [after.owner]
+        : undefined
+  const source = after.sources[0]
+  return {
+    id: live?.id ?? r.id,
+    title: after.title,
+    summary,
+    ...(body ? { body } : {}),
+    domain: domain ?? live?.domain ?? '',
+    kind: kind ?? live?.kind ?? 'note',
+    where: after.scope,
+    ...(sameScope && live.scope ? { scope: live.scope } : {}),
+    valid: after.validity,
+    when: whenLabel(after.validity),
+    status: 'Live',
+    checkedBy: '',
+    checkedOn: '',
+    source: source?.url ?? '',
+    quote: source?.quote ?? '',
+    dontConclude: after.dontConclude,
+    ...(owners ? { owners } : {}),
+  }
+}
