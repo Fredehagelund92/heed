@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { ChevronsUpDownIcon, MessageSquarePlusIcon, PlusIcon } from '@/components/icons'
+import { MessageSquarePlusIcon, PlusIcon } from '@/components/icons'
 import { MentionText } from '@/components/heed/mention-chip'
 import { Button } from '@/components/ui/button'
+import { FoldTrigger } from '@/components/heed/fold'
 import { cn } from '@/lib/utils'
 import {
   changeWords,
@@ -97,6 +98,13 @@ function TouchNote({ at, notes }: { at: SourcePlace; notes: SourceNotes }) {
 /** What each side is called: "Now" and "Suggested" in a review. */
 export type SideLabels = { before: string; after: string }
 const REVIEW_SIDES: SideLabels = { before: 'Now', after: 'Suggested' }
+
+/**
+ * What stays the same, folded into a full-width row of the table or the text: the fold's inline
+ * toggle at the box's width, as tall as a finger needs on a touch screen.
+ */
+const fullWidthToggle =
+  'flex w-full gap-1.5 rounded-none px-3 text-xs text-muted-foreground focus-visible:ring-inset pointer-coarse:min-h-11 pointer-coarse:after:hidden'
 
 /** A stop for N and P, ringed while it is the one stepped to. */
 const stop =
@@ -395,20 +403,21 @@ export function FieldsDiff({
           </table>
         )}
         {same.length > 0 && (
-          <button
-            type="button"
-            aria-expanded={showSame}
+          <FoldTrigger
+            variant="inline"
+            expanded={showSame}
             onClick={() => setShowSame((s) => !s)}
+            label={
+              showSame
+                ? `Hide the ${same.length} that stay the same`
+                : `${same.length} the same: ${same.map((r) => r.label).join(', ')}`
+            }
             className={cn(
-              'flex min-h-9 w-full items-center gap-1.5 bg-muted/30 px-3 py-2 text-left text-xs text-muted-foreground outline-none hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              fullWidthToggle,
+              'min-h-9 bg-muted/30 py-2 hover:bg-muted/60',
               shown.length > 0 && 'border-t',
             )}
-          >
-            <ChevronsUpDownIcon aria-hidden className="size-3.5 shrink-0" />
-            {showSame
-              ? `Hide the ${same.length} that stay the same`
-              : `${same.length} the same: ${same.map((r) => r.label).join(', ')}`}
-          </button>
+          />
         )}
       </div>
     </section>
@@ -496,15 +505,16 @@ function Fold({ rows, all, notes }: { rows: Row[]; all: boolean; notes?: SourceN
     )
   const n = rows.length
   return (
-    <button
-      type="button"
-      aria-expanded={false}
+    <FoldTrigger
+      variant="inline"
+      expanded={false}
       onClick={() => setOpen(true)}
-      className="flex min-h-8 w-full items-center gap-1.5 border-y bg-muted/40 px-3 py-1 text-left text-xs text-muted-foreground outline-none first:border-t-0 last:border-b-0 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-    >
-      <ChevronsUpDownIcon aria-hidden className="size-3.5 shrink-0" />
-      {all ? `The text is the same: show its ${n} lines` : `Show ${n} unchanged lines`}
-    </button>
+      label={all ? `The text is the same: show its ${n} lines` : `Show ${n} unchanged lines`}
+      className={cn(
+        fullWidthToggle,
+        'min-h-8 border-y bg-muted/40 py-1 first:border-t-0 last:border-b-0 hover:bg-muted',
+      )}
+    />
   )
 }
 

@@ -1,12 +1,8 @@
-import {
-  ChevronRightIcon,
-  CircleSlashIcon,
-  DatabaseIcon,
-  ExternalLinkIcon,
-} from '@/components/icons'
+import { CircleSlashIcon, DatabaseIcon, ExternalLinkIcon } from '@/components/icons'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import type { Figure, FigureView } from '@/model/figures'
 import { useDomains, useFacts } from '@/lib/workspace'
 import { openDock } from '@/lib/dock'
@@ -46,13 +42,7 @@ function Provenance({
         </button>
       </p>
       <Collapsible>
-        <CollapsibleTrigger className="group/q -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-          <ChevronRightIcon
-            className="size-3.5 transition-transform group-aria-expanded/q:rotate-90"
-            aria-hidden
-          />
-          Show the query
-        </CollapsibleTrigger>
+        <FoldTrigger variant="inline" label="Show the query" className="-ml-1 min-h-7 px-1" />
         <CollapsibleContent>
           <p className="mt-1 max-w-reading rounded-surface border border-input bg-background px-3 py-2 text-sm leading-relaxed text-foreground">
             {figure.words}

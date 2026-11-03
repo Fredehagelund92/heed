@@ -95,9 +95,16 @@ test('a card with no answers to compare keeps its point, its folds and its decis
   await expect(p.getByRole('heading', { level: 2, name: title })).toBeVisible()
   await expect(p.getByText('Due for a check', { exact: true })).toBeVisible()
   await expect(answers(page)).toHaveCount(0)
-  await expect(p.getByRole('button', { name: 'The context item' })).toHaveAttribute(
-    'aria-expanded',
-    'false',
+  // The context item folds to the Context list's row: its title, and what it is in words.
+  const item = p.getByRole('button', { name: `The context item: ${title}`, exact: true })
+  await expect(item).toHaveAttribute('aria-expanded', 'false')
+  await expect(item).toHaveAccessibleDescription(/^Context item - Rule - Sales - owned by /)
+  await item.click()
+  await expect(item).toHaveAttribute('aria-expanded', 'true')
+  // Opened, it leads to the item's page, as the card's own decisions don't.
+  await expect(p.getByRole('link', { name: 'Open the context item' })).toHaveAttribute(
+    'href',
+    /^\/context\/[^/]+$/,
   )
   // Secondary decisions are labelled buttons beside the primary, not icons beside the arrows.
   await expect(p.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
@@ -107,6 +114,18 @@ test('a card with no answers to compare keeps its point, its folds and its decis
   await p.getByRole('button', { name: 'Still true' }).click()
   await expect(page.getByText('Checked: still true')).toBeVisible()
   await expect(pane(page).getByRole('heading', { level: 2, name: title })).toHaveCount(0)
+})
+
+test("a reported item's fold leaves out the way to its page: the card's decision is that way", async ({
+  page,
+}) => {
+  await go(page, `/inbox?demo=week&card=${card('flag-germany')}`)
+  const p = pane(page)
+  const item = p.getByRole('button', { name: /^The context item: / })
+  await item.click()
+  await expect(item).toHaveAttribute('aria-expanded', 'true')
+  await expect(p.getByRole('link', { name: 'Open the context item' })).toHaveCount(0)
+  await expect(p.getByRole('button', { name: 'Open the context item' })).toBeVisible()
 })
 
 test('the answers stand side by side from 560 px of pane, one above the other below it', async ({
