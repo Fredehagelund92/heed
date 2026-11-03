@@ -12,13 +12,13 @@ import {
 import { StateLine } from '@/components/heed/bits'
 import { Frame, FrameFooter, FramePage, FrameSection } from '@/components/heed/frame'
 import { Switch } from '@/components/ui/switch'
-import { setSlowNetwork, useSlowNetwork } from '@/lib/loading'
+import { hasSlowNetwork, setSlowNetwork, useSlowNetwork } from '@/lib/loading'
 import { Page } from '@/components/site-header'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { open } from '@/lib/events'
 import { pageKey } from '@/lib/keys'
-import { DOC_PAGES, DOCS_HOME, docHref } from '@/lib/docs'
+import { DOCS_HOME, docHref } from '@/lib/docs'
 import { ANSWER_LINES, HOW_AGENTS_USE_IT, supportMail, WORDS } from '@/lib/help-content'
 import { setQuery, useRoute } from '@/lib/router'
 
@@ -209,9 +209,8 @@ function Nothing({ q, onTry }: { q: string; onTry: (q: string) => void }) {
         </div>
         <p className="text-sm text-muted-foreground">
           Or try{' '}
-          {['owner', 'out of date', 'shortcuts'].map((t, i) => (
+          {['owner', 'out of date'].map((t) => (
             <React.Fragment key={t}>
-              {i > 0 && ', '}
               <button
                 type="button"
                 className="underline underline-offset-4 hover:text-foreground"
@@ -219,8 +218,18 @@ function Nothing({ q, onTry }: { q: string; onTry: (q: string) => void }) {
               >
                 {t}
               </button>
+              {', '}
             </React.Fragment>
           ))}
+          {/* The keys are not in Help's words: they have their own sheet. */}
+          or the{' '}
+          <button
+            type="button"
+            className="underline underline-offset-4 hover:text-foreground"
+            onClick={() => open('shortcuts')}
+          >
+            keyboard shortcuts
+          </button>
         </p>
       </div>
     </Frame>
@@ -262,7 +271,6 @@ export function HelpPage() {
       ANSWER_LINES.some((a) => match(q, a.label, a.long, a.sentence, a.means, a.todo)),
       WORDS.some(([w, d]) => match(q, w, d)),
       HOW.some((h) => match(q, h.lead, h.rest, 'agents privacy kept')),
-      DOC_PAGES.some((p) => match(q, p.title, p.line)),
     ].some(Boolean)
   return (
     <Page title="Help">
@@ -311,7 +319,7 @@ export function HelpPage() {
               )}
             </Frame>
           )}
-          {!q && <SlowNetwork />}
+          {!q && hasSlowNetwork() && <SlowNetwork />}
         </div>
       </FramePage>
     </Page>

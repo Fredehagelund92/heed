@@ -203,7 +203,7 @@ export const cards: InboxCard[] = [
     alert: {
       rule: 'disagree',
       name: 'Conflict',
-      href: '/observability/questions?dock=topic.orders-norway',
+      href: '/observability?dock=topic.orders-norway',
       pair: 'itm_gift_store_credit.itm_gift_card_only',
     },
   },

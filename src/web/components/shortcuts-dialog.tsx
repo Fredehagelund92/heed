@@ -44,29 +44,37 @@ export function ShortcutsDialog() {
   }, [])
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="gap-0 p-0 sm:max-w-2xl" data-testid="shortcuts">
+      <DialogContent
+        className="max-h-screen-inset gap-0 overflow-y-auto p-0 sm:max-w-2xl"
+        data-testid="shortcuts"
+      >
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>Keyboard shortcuts</DialogTitle>
           <DialogDescription>
             Single keys work when you are not typing. On Windows, use Ctrl for ⌘ and Alt for ⌥.
           </DialogDescription>
         </DialogHeader>
+        {/* Two columns, each a stack, filled in reading order: groups of any length pack without gaps. */}
         <div className="grid gap-px bg-border sm:grid-cols-2">
-          {SHORTCUTS.map((g) => (
-            <section key={g.group} className="bg-background px-5 py-4">
-              <h3 className="mb-2 text-sm font-medium">{g.group}</h3>
-              <ul className="flex flex-col">
-                {g.rows.map((r) => (
-                  <li
-                    key={r.label}
-                    className="flex items-center justify-between gap-4 border-t py-2 text-sm first:border-t-0"
-                  >
-                    <span className="min-w-0 text-muted-foreground">{r.label}</span>
-                    <Combo row={r} />
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {[0, 1].map((col) => (
+            <div key={col} className="flex flex-col gap-px">
+              {SHORTCUTS.filter((_, i) => i % 2 === col).map((g) => (
+                <section key={g.group} className="bg-background px-5 py-4 last:flex-1">
+                  <h3 className="mb-2 text-sm font-medium">{g.group}</h3>
+                  <ul className="flex flex-col">
+                    {g.rows.map((r) => (
+                      <li
+                        key={r.label}
+                        className="flex items-center justify-between gap-4 border-t py-2 text-sm first:border-t-0"
+                      >
+                        <span className="min-w-0 text-muted-foreground">{r.label}</span>
+                        <Combo row={r} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           ))}
         </div>
       </DialogContent>

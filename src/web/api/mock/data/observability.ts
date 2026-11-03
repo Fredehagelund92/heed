@@ -260,7 +260,7 @@ const REPORTS: Report[] = [
     from: 'ChatGPT',
     agent: true,
     when: 'Mon 19 Oct',
-    href: '/observability/questions?dock=topic.roas-sweden',
+    href: '/observability?dock=topic.roas-sweden',
   },
   {
     id: 'r-customers',
@@ -281,7 +281,7 @@ const REPORTS: Report[] = [
     from: 'Other agents',
     agent: true,
     when: 'Sat 17 Oct',
-    href: '/observability/questions?dock=topic.repeat-purchases-all',
+    href: '/observability?dock=topic.repeat-purchases-all',
   },
 ]
 

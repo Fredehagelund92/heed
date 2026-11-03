@@ -140,7 +140,7 @@ describe('what the rules raised', () => {
 
   it('goes to its card, or to the page it is about', () => {
     expect(hrefOf({ card: 'gap:g1' })).toBe('/inbox?card=gap:g1')
-    expect(hrefOf({ topic: 't1' })).toBe('/observability/questions?dock=topic.t1')
+    expect(hrefOf({ topic: 't1' })).toBe('/observability?dock=topic.t1')
     expect(hrefOf({ page: 'overview' })).toBe('/observability')
     expect(hrefOf({ page: 'usage' })).toBe('/observability/usage')
     expect(hrefOf({ connector: 'cube' })).toBe('/settings/integrations/cube')
