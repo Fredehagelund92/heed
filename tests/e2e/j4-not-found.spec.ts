@@ -4,7 +4,7 @@ import { expect, go, test } from './go.ts'
 test('a Not found card is a draft to review and publish', async ({ page }) => {
   await go(page, '/inbox?demo=week')
   await page.getByRole('button', { name: /Orders in Spain, October 2026/ }).click()
-  await page.getByRole('button', { name: 'Review', exact: true }).click()
+  await page.getByRole('button', { name: 'Check the draft', exact: true }).click()
   await expect(page.getByText('A draft to check.')).toBeVisible()
   await page.locator('#decision').getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(page.locator('#decision').getByRole('status')).toContainText('Published')

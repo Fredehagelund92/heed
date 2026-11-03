@@ -104,6 +104,10 @@ Under All: **Waiting on others** and **Done**. Never "Gap" or "Flag" as a card n
 
 Change kinds: **Wording**, **Formatting**, **Link**, **Order**, **Added**, **Removed**, **Dates**. Decisions: **Publish**, **Edit**, **Return with a note**, **Archive**, **Close the suggestion**. Group actions: **Publish the N you've read**, **Mark as read**. Outcomes stay on the page: "Published. Agents now say ...", with Undo. A failed try says "Couldn't publish. Nothing changed." with Try again; offline the button says "Publish is off until you're back".
 
+### The quick view's answers
+
+The answers in a suggestion's quick view (the Inbox pane and the dock) carry one of four labels, from `ANSWER_SIDES` in `src/web/model/inbox-pane.ts`: **Agents say today** over what agents answer now, and over the answer after the decision **After you publish**, **If you publish as it is** for a suggestion that clashes with live context, or **After you archive** for a suggestion to archive. Each side starts with its answer line. Over the question of a Not found card: **Agents asked about**, then the scope, never their words. A count says how often, and is left out when there is none.
+
 ### Saved question results
 
 **Same**, **Changed**, **Needs a look**. "Couldn't check" is a failure of the run, not a result. Action: **Save question**. Line in a review: "N of N still answer the same".

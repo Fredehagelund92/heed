@@ -12,6 +12,12 @@ const places = [
   '/connect/approve?request=demo-agent-sign-in-waiting-for-your-answer0',
   '/inbox',
   '/inbox?card=sug-ines',
+  // The pane's answers in each state it draws: a conflict on the soft caution fill, a Not found
+  // draft, and a card with no answers to compare; and the same quick view in the dock.
+  '/inbox?card=sug-sofia-clash',
+  '/inbox?card=gap-spain',
+  '/inbox?card=check-returns',
+  '/inbox?dock=review.sug-sofia-clash',
   '/inbox?demo=setup',
   '/inbox/sug-ines/review',
   '/inbox/sug-sofia-clash/review',

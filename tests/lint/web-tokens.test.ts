@@ -299,6 +299,20 @@ describe('contrast pairs meet their minimum in both themes', () => {
       bg,
       min: 3,
     })),
+    // A Conflict answer in the quick view sits on the soft caution fill: its words, its ink and
+    // the answer line's icon keep their contrast there.
+    ...(['foreground', 'muted-foreground', 'caution-text'] as const).map((fg): Pair => ({
+      what: 'a Conflict answer',
+      fg,
+      bg: 'caution-soft',
+      min: 4.5,
+    })),
+    ...(['caution-icon', 'warn'] as const).map((fg): Pair => ({
+      what: 'a Conflict answer icon and rule',
+      fg,
+      bg: 'caution-soft',
+      min: 3,
+    })),
     ...['ok', 'warn', 'idle'].flatMap((fg) =>
       ['background', 'card', 'muted', 'accent'].map((bg): Pair => ({
         what: 'freshness and trust',
