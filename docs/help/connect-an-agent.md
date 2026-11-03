@@ -4,7 +4,7 @@ line: One prompt for Claude, Cursor or another agent, and what approving does.
 group: Start
 order: 2
 minutes: 3
-reviewed: 2026-10-29
+reviewed: 2026-11-03
 open:
   label: Open Agents and access
   href: /settings/agents
@@ -14,7 +14,7 @@ Connect Claude, Cursor or another agent, so it reads your published context befo
 
 ## Before you start
 
-You need to be signed in. Anyone in the workspace can connect their own agent. It reads only context an owner has published, never drafts or comments.
+You need to be signed in. Anyone in the workspace can connect their own agent. In Agents and access, an admin sees every agent, and anyone else sees their own. An agent reads only context an owner has published, never drafts or comments.
 
 ## Paste the prompt
 
@@ -59,7 +59,7 @@ The page checks every few seconds. After two minutes it shows what usually helps
 
 <!-- /include -->
 
-> **Revoking.** Revoke an agent from Connected agents. It signs out at once, and you can connect it again.
+> **Revoking.** Revoke your own agent from Connected agents; an admin can revoke any. It signs out at once, and you can connect it again.
 
 ## The tools each agent may call
 

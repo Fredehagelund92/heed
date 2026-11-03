@@ -25,7 +25,7 @@ so in its notes.
 
 1. **Every merge to `main`** runs [release-please](https://github.com/googleapis/release-please)
    (`.github/workflows/release-please.yml`, set up in `release-please-config.json`). It keeps one
-   pull request open, titled `chore(main): release 0.1.0` with the next version, that:
+   pull request open, titled with the next version, such as `chore(main): release 0.2.0`, that:
    - writes the new section of `CHANGELOG.md` from the commit titles since the last release;
    - raises the version in `package.json`, `package-lock.json`, `.release-please-manifest.json`,
      `docs/api/openapi.json` and the supported versions in `SECURITY.md`.
@@ -92,9 +92,10 @@ To choose the next number yourself, end the message of the squash commit with th
 notice, in the app's words, written by hand ([the help pages](help/README.md#whats-new)). Check
 that it is current before you merge a release pull request.
 
-## Set up once, before the first release
+## Set up once
 
-These are repository settings, so a maintainer makes them:
+These are repository settings, so a maintainer makes them. They were made for 0.1.0; a fork or a
+new repository needs them again:
 
 1. **Settings, Actions, General, Workflow permissions:** turn on **Allow GitHub Actions to create
    and approve pull requests**. Leave the default permissions at read. Without it the release
@@ -107,42 +108,40 @@ These are repository settings, so a maintainer makes them:
 3. Optional: a tag ruleset (**Settings, Rules, Rulesets, New tag ruleset**, for `v*`) that lets only
    maintainers create, move or delete release tags.
 
-## The first release, 0.1.0
+## Make a release
 
-1. Make the setting in step 1 above. If the change that added these workflows merged before it,
-   start the release pull request by hand: **Actions, Release pull request, Run workflow** on
-   `main`, or
+The first release, 0.1.0, came out on 3 November 2026. Every release takes the same steps, with
+its own version where these say `0.2.0`:
+
+1. Open the pull request `chore(main): release 0.2.0`. If there is none, start it by hand:
+   **Actions, Release pull request, Run workflow** on `main`, or
 
    ```sh
    gh workflow run release-please.yml --repo Fredehagelund92/heed --ref main
    ```
 
-2. Open the pull request `chore(main): release 0.1.0`. Read the new `CHANGELOG.md` and check that
-   `package.json`, `package-lock.json`, `.release-please-manifest.json`, `docs/api/openapi.json`
-   and `SECURITY.md` say `0.1.0`. Check **What's new**. Choose **Approve workflows to run**, and
-   wait for **CI gate**.
+2. Read the new `CHANGELOG.md` and check that `package.json`, `package-lock.json`,
+   `.release-please-manifest.json`, `docs/api/openapi.json` and `SECURITY.md` say `0.2.0`. Check
+   **What's new**. Choose **Approve workflows to run**, and wait for **CI gate**.
 3. Merge it. Wait for **CI gate** to pass on the commit the merge made on `main`.
 4. Tag that commit and push the tag:
 
    ```sh
    git fetch origin
    sha=$(gh pr view <release pull request number> --repo Fredehagelund92/heed --json mergeCommit --jq .mergeCommit.oid)
-   git tag -a v0.1.0 -m "Heed 0.1.0" "$sha"
-   git push origin v0.1.0
+   git tag -a v0.2.0 -m "Heed 0.2.0" "$sha"
+   git push origin v0.2.0
    ```
 
 5. Watch **Actions, Release**. It takes a few minutes. When it passes, the release is at
-   `https://github.com/Fredehagelund92/heed/releases/tag/v0.1.0`.
-6. Make both packages public (step 2 above).
-7. Check the images:
+   `https://github.com/Fredehagelund92/heed/releases/tag/v0.2.0`.
+6. Check the images:
 
    ```sh
-   docker buildx imagetools inspect ghcr.io/fredehagelund92/heed:0.1.0     # linux/amd64 and linux/arm64
-   gh attestation verify oci://ghcr.io/fredehagelund92/heed:0.1.0 --repo Fredehagelund92/heed
-   gh attestation verify oci://ghcr.io/fredehagelund92/heed-web:0.1.0 --repo Fredehagelund92/heed
+   docker buildx imagetools inspect ghcr.io/fredehagelund92/heed:0.2.0     # linux/amd64 and linux/arm64
+   gh attestation verify oci://ghcr.io/fredehagelund92/heed:0.2.0 --repo Fredehagelund92/heed
+   gh attestation verify oci://ghcr.io/fredehagelund92/heed-web:0.2.0 --repo Fredehagelund92/heed
    ```
-
-Later releases are steps 2 to 5 and 7.
 
 ## When something goes wrong
 

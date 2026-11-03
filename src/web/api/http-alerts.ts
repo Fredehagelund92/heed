@@ -32,7 +32,7 @@ export function raisedWhen(iso: string, now: Date): string {
 /** Where a raise sends people in the app: its card in the Inbox, or the page it is about. */
 export function hrefOf(subject: RaiseSubject): string {
   if ('card' in subject) return `/inbox?card=${subject.card}`
-  if ('topic' in subject) return `/observability/questions?dock=topic.${subject.topic}`
+  if ('topic' in subject) return `/observability?dock=topic.${subject.topic}`
   if ('connector' in subject) return `/settings/integrations/${subject.connector}`
   // Overview is Observability's own address.
   return subject.page === 'overview' ? '/observability' : `/observability/${subject.page}`

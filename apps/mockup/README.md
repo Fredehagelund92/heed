@@ -1,7 +1,7 @@
 # Heed v1 mockup
 
 A clickable mockup of Heed v1: every screen and state, with mock data from the Larchwood Outdoor demo
-world and no backend. It is the acceptance specification: the app is changed to match it
+world and no backend. The app was built from it and now leads; the mockup is a reference
 ([ACCEPTANCE.md](ACCEPTANCE.md)).
 
 It is shadcn as shadcn ships it: base-nova on Base UI, the default neutral theme with one primary

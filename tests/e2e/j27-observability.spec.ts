@@ -556,7 +556,7 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
           title: 'Orders in Norway: conflict, 3 times',
           rule: 'Conflict',
           open: 'Open the topic',
-          to: /\/observability\/questions\?dock=topic\./,
+          to: /\/observability\?dock=topic\./,
         }
   await go(page, '/observability/alerts')
   await page.getByRole('link', { name: alert.title }).first().click()

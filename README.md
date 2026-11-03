@@ -179,7 +179,7 @@ how to read another source.
 The [documentation index](docs/README.md) lists every page. The [product page](docs/product.md) and the
 [design contract](docs/design/design-contract.md) say what the Heed v1 web app is and how it looks.
 
-[The clickable mockup](apps/mockup/README.md) is the acceptance specification the app is changed to match.
+[The clickable mockup](apps/mockup/README.md) is the design the app was built from, kept as a reference: the app now leads.
 
 ## Status
 

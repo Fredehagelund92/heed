@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { stateLabel } from '@/model/ask'
 import { ANSWER_LINES, reportMail, SHORTCUTS, supportMail, WORDS } from '@/lib/help-content'
+import { CONFLICT_KEYS } from '@/lib/conflict'
 import { kindLabel } from '@/model/items'
 import { PRODUCT } from '@/lib/brand'
 
@@ -49,10 +50,20 @@ describe('the shared help lists', () => {
     expect(mail).not.toContain('+')
   })
 
-  // Seventeen with the Conflict scope's row: its other keys are in the view's own hints and Help.
-  it('keep the shortcut sheet to about fifteen rows', () => {
+  // Thirty with every key of the conflict view, which Help's pages send people to ? for.
+  it('keep the shortcut sheet to about thirty rows', () => {
     const rows = SHORTCUTS.flatMap((g) => g.rows)
     expect(rows.length).toBeGreaterThanOrEqual(12)
-    expect(rows.length).toBeLessThanOrEqual(17)
+    expect(rows.length).toBeLessThanOrEqual(30)
+  })
+
+  it("list the conflict view's own keys, so the sheet cannot drift from them", () => {
+    const rows = SHORTCUTS.find((g) => g.group === 'Conflict')!.rows
+    expect(rows.slice(0, CONFLICT_KEYS.length).map((r) => r.label)).toEqual(
+      CONFLICT_KEYS.map((k) => k.label),
+    )
+    expect(rows.map((r) => r.keys.join(' '))).toEqual(
+      expect.arrayContaining(['←', '→', '1', '2', 'E', 'B', 'N', 'O', 'J', 'K', '⌘ ↵']),
+    )
   })
 })

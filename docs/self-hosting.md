@@ -20,8 +20,8 @@ containers and keeps two volumes of data:
 | `heed` | The service: the API, the MCP server for agents and the scheduled jobs, with its keys in the volume `keys` | http://localhost:3000    |
 | `web`  | The web app, served by nginx, which forwards `/api/v1` to the service                                      | http://localhost:8080    |
 
-Compose names the volumes after the project, which is the folder's name unless you set one:
-`heed_db` and `heed_keys` for a clone in a folder called `heed` (`docker volume ls` lists them). A
+Compose names the volumes after the project, which `compose.yaml` names `heed` whatever the
+folder is called: `heed_db` and `heed_keys` (`docker volume ls` lists them). A
 third, `heed_no-model`, stays empty: it stands where your own Cube model's folder goes when you
 name none.
 
@@ -48,7 +48,7 @@ loads the demo. Settings for `docker compose up`:
 | `CUBE_MODEL_DIR` | unset   | Your own Cube model's folder, read only ([Use your own data](../README.md#use-your-own-data)) |
 
 Check it: `docker compose ps` shows each part `healthy`, and `docker compose logs heed` shows what
-the start did, such as `applied 33 migrations` and `Loaded the demo`.
+the start did, such as `applied 37 migrations` and `Loaded the demo`.
 
 The demo's Cube model comes inside the service image, so the demo needs no folder shared from this
 computer. Your own model's folder is shared into the container read only: when Docker cannot read

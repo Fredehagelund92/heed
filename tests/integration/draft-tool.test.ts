@@ -470,7 +470,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
     expect(tool?.description).toMatch(
       /^Send a suggestion to the owner, after the person says yes\./,
     )
-    expect(tool?.description).toMatch(/it never publishes/)
+    expect(tool?.description).toMatch(/nothing changes until they do/)
     const reply = await wire.callTool(
       suggestionOf('Orders in every market exclude gift cards, from 1 October 2026.', {
         ...complete,

@@ -4,7 +4,7 @@ line: Who publishes what, how to add a domain, the sandbox, and inviting people.
 group: Set up
 order: 1
 minutes: 4
-reviewed: 2026-10-29
+reviewed: 2026-11-03
 ---
 
 Who publishes what, how to add a domain, the sandbox, and inviting people.
@@ -17,6 +17,15 @@ An area of the business, such as Sales or Marketing. Every context item belongs 
 
 <!-- /include -->
 
+## Add a domain
+
+Admins only.
+
+1. Open **Settings**, then **Domains and owners**.
+2. Choose **Add a domain**.
+3. Name it, choose its owners, and say what belongs in it.
+4. Choose **Add the domain**.
+
 ## Owners
 
 <!-- include word: Owner -->
@@ -27,7 +36,7 @@ The person who publishes and checks a domain's context. Agents read only what an
 
 - Admins do everything, including roles and invitations.
 - An owner who isn't an admin edits their own domain and adds owners to it.
-- A domain with no context can be deleted; the sandbox never reaches agents.
+- An admin can delete a domain with no context; the sandbox never reaches agents.
 - An owner can let one agent publish low-risk new items in their domain without a review round, once an admin allows it: [Publish without review](publish-without-review.md).
 
 ## People

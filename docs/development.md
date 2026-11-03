@@ -4,8 +4,8 @@ How the repository is laid out, how to run the front end, the commands, what CI 
 
 ## The two parts
 
-The repository holds two parts. The **web app** in `src/web` is the approved mockup
-(`apps/mockup`, the acceptance specification) on the repository's router, icon module, class merge
+The repository holds two parts. The **web app** in `src/web` began as the approved mockup
+(`apps/mockup`, now a reference) on the repository's router, icon module, class merge
 and lint. Its screens are listed with their addresses in [docs/product.md](product.md), section 5:
 the Inbox and the review, Ask, Context, Definitions, Observability, Settings, Help and the docs, the
 sign-in page and an agent's consent page. Its pages read their data through one typed interface,
@@ -79,7 +79,7 @@ To run the whole product instead, with its database and your own Cube model, see
 | Components  | shadcn/ui on Base UI (style `base-nova`), Heed's own parts in `components/heed`, a Tiptap editor, sonner toasts                                                                        |
 | Styling     | Tailwind 4 with the tokens in one file, `src/web/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
 | Guard rails | ESLint and Stylelint rules for the class rules, raw values, icons and plain words, with tests that prove they fail loudly                                                              |
-| Quality     | Vitest; Playwright with the golden job specs J1 to J30 on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI              |
+| Quality     | Vitest; Playwright with the golden job specs J1 to J41 on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI              |
 
 Agents get the published context over MCP, signed in, with a local dev token or with an access
 key.
@@ -118,10 +118,13 @@ subsequent POST requests, including `/auth/sign-out`. Sign-in uses the literal `
 header instead; all mutations also require an exact Origin in `HEED_WEB_ORIGINS`. The default
 allows the Vite dev and preview origins. Override it for other ports. No CORS access is granted.
 
-Sessions last eight hours, rotate at sign-in and are invalidated by sign-out, person deactivation
+Sessions end after 12 hours unused or 7 days after sign-in (`HEED_SESSION_IDLE_HOURS` and
+`HEED_SESSION_MAX_DAYS`), rotate at sign-in and are invalidated by sign-out, person deactivation
 or erasure. Cookies are HttpOnly and SameSite=Strict, with Secure on HTTPS. Only token hashes
-are stored, in the separate `auth` schema; roles are read afresh on every request. There are no
-groups and no company identity provider yet.
+are stored, in the separate `auth` schema; roles are read afresh on every request. This dev
+sign-in has no groups; company sign-in with OpenID Connect (`HEED_OIDC_*`, with
+`HEED_OIDC_ADMIN_GROUPS` and `HEED_OIDC_MEMBER_GROUPS`) is set up as
+[docs/operations.md](operations.md) says.
 
 Administrators use `POST /roles/grant`, `POST /roles/revoke`, `POST /assignments/grant` and
 `POST /assignments/revoke` (all under `/api/v1`; API only, with no screen in the web app). Role bodies are
@@ -195,9 +198,10 @@ src/
       jobs/           scheduled jobs, heartbeats, the watchdog and the operations endpoints
       evals/          golden questions, answer tests through the MCP wire, judges, scorecards
       gaps/           gap detection and gaps
-      models/         the model port: the scripted mocks, the direct Anthropic adapter and the spend ledger
+      models/         the model port: the scripted mocks, the Anthropic and OpenAI-compatible adapters and the spend ledger
       admin/          settings, tool switch, client policies, history log, item import, edition export
-      library, areas, vocabulary, auth (dev sessions and roles)
+      library, areas, vocabulary, auth (dev and OpenID Connect sign-in, sessions and roles), oauth,
+      access-keys, agents and the rest, one folder each
   web/            the web app: the mockup's shell and pages on a typed API
     api/            HeedApi (client.ts) and its method list, the query factories and what each write
                     makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
@@ -222,7 +226,7 @@ tests/
 docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
-apps/mockup/      the clickable mockup, the acceptance specification: its own package (apps/mockup/README.md)
+apps/mockup/      the clickable mockup the app was built from, now a reference: its own package (apps/mockup/README.md)
 ```
 
 ### Why this layout
@@ -265,14 +269,13 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request, every merge queue entry, every push to
-`main`, every night at 03:17 UTC, and by hand (`gh workflow run CI --ref <branch>`). Its first job,
+`.github/workflows/ci.yml` runs on every pull request, every push to `main`, every night at
+03:17 UTC, and by hand (`gh workflow run CI --ref <branch>`). Its first job,
 **What the change needs**, sorts the changed paths into a tier with `.github/scripts/ci-scope.sh`,
 and the expensive jobs run only when the tier needs them. Its last job, **CI gate**, passes when
 every job passed or was skipped on purpose, and fails on a failure, a cancel, or a job that should
-have run and did not. It is the one check a branch rule and the merge queue need to require. A new
-push to a pull request cancels the run it replaces; runs on `main`, in the merge queue and at night
-always finish.
+have run and did not. It is the one check the rule on `main` requires. A new push to a pull
+request cancels the run it replaces; runs on `main` and at night always finish.
 
 Two more workflows make releases ([Releasing Heed](releasing.md)): `release-please.yml` keeps the
 release pull request current after every push to `main`, and `release.yml`
@@ -310,13 +313,14 @@ deleted, or when `db/migrations/latest.txt` does not name the last file. Its mes
 and run `npm run db:renumber` ([Generated files and rebasing](#generated-files-and-rebasing)). Run
 it yourself with `node scripts/check-migration-numbers.ts origin/main`.
 
-### The merge queue
+### Up to date with main
 
 A pull request is tested on the base it had when CI ran. Two pull requests that each pass on
 their own can still fail together on `main`: both take the next migration number, or each adds a
-little to the first load and together they pass its budget. In the merge queue, each entry runs CI
-again (`merge_group`) on top of `main` and the entries ahead of it, with every job, and merges only
-when **CI gate** passes there.
+little to the first load and together they pass its budget. So the rule on `main` merges a pull
+request only when it is up to date with `main` and **CI gate** passed on that head: after another
+pull request merges, update the branch and let CI run again. The repository belongs to a personal
+account, where GitHub has no merge queue; the `merge_group` trigger in `ci.yml` waits for one.
 
 The first load budget (`scripts/check-bundle-size.mjs`) keeps about 3 percent of room over what
 CI measures, so ordinary changes fit. The automatic repairs of the pipeline that validates
@@ -326,7 +330,7 @@ and reports instead, and the change goes in a pull request of its own that says 
 
 ### On main and every night
 
-Every push to `main`, every merge queue entry, the nightly run and a manual run take the Sensitive
+Every push to `main`, the nightly run and a manual run take the Sensitive
 tier: every job, whatever changed. The nightly run also catches a new advisory against an unchanged
 lockfile, and a flaky test that a single pull request run passed by luck.
 
@@ -416,37 +420,39 @@ These are enforced by lint and tests, not by good intentions. `CONTRIBUTING.md` 
 ## Versions, and why
 
 Every dependency is pinned to an exact version (`.npmrc` has `save-exact=true`), and the lock
-file is committed. Read the date as 7 October 2026.
+file is committed. The versions themselves are in `package.json`; this table says why each main
+package is there.
 
-| Package                    | Version              | Why                                                                                                                      |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Node                       | 26                   | The stack decision: TypeScript on Node 26. Pinned in `.nvmrc` and `engines`.                                             |
-| TypeScript                 | 6.0.3                | typescript-eslint 8.71 supports TypeScript below 6.1. TypeScript 7 is out, but the lint toolchain cannot use it yet.     |
-| Vite / plugin-react        | 8.3.3 / 6.1.2        | The recommended build tool; no server coupling. 8.3.3 is the newest release (6 October 2026).                            |
-| React                      | 19.3.0               | The current release (9 September 2026). Pinned exactly so an update is a decision.                                       |
-| Tailwind CSS               | 4.3.3                | Semantic tokens in CSS variables; spacing is computed, so the lint rules matter.                                         |
-| shadcn CLI / style         | 4.22.1 / `base-nova` | Copy-in components on Base UI.                                                                                           |
-| Base UI                    | 1.8.0                | The component base shadcn defaults to.                                                                                   |
-| TanStack Router / Query    | 1.170.41 / 5.104.1   | Typed search params and intent preloading; server state cache.                                                           |
-| zod                        | 4.6.6                | Used as `zod/mini` in the web app and domain to keep the browser bundle small. The service uses full `zod`.              |
-| Playwright / axe           | 1.63.0 / 4.13.0      | The golden job specs and the accessibility checks.                                                                       |
-| Vitest / jsdom             | 5.0.3 / 30.1.2       | Unit tests.                                                                                                              |
-| ESLint / typescript-eslint | 10.12.0 / 8.71.1     | With `eslint-plugin-better-tailwindcss` 4.9.0 for the class rules.                                                       |
-| Fastify / pino             | 5.12.5 / 10.4.0      | The service's HTTP server and its JSON logger (the one Fastify uses).                                                    |
-| pg                         | 8.23.1               | The PostgreSQL driver.                                                                                                   |
-| pg-boss                    | 12.37.0              | The job queue and cron schedules, in PostgreSQL. Its schema is vendored in the baseline migration (`0001_baseline.sql`). |
-| eslint-plugin-boundaries   | 7.2.0                | The module boundaries, with `eslint-import-resolver-typescript` 4.4.5 to follow the path aliases.                        |
-| Stylelint                  | 17.16.0              | With `stylelint-declaration-strict-value` for hand written CSS.                                                          |
-| cn                         | 0.4.0                | The class merge helper the shadcn CLI now emits. It is pre 1.0; `@/lib/utils` re-exports it, so swapping it is one line. |
-| react-day-picker           | 10.0.2               | The calendar of the date fields.                                                                                         |
-| diff (jsdiff)              | 8.0.4                | The word diff the review and history draw (`components/heed/bits.tsx`).                                                  |
+| Package                    | Why                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Node                       | The stack decision: TypeScript on Node 26. Pinned in `.nvmrc` and `engines`.                                             |
+| TypeScript                 | Held where typescript-eslint supports it: TypeScript 7 is out, but the lint toolchain cannot use it yet.                 |
+| Vite / plugin-react        | The recommended build tool; no server coupling.                                                                          |
+| React                      | Pinned exactly so an update is a decision.                                                                               |
+| Tailwind CSS               | Semantic tokens in CSS variables; spacing is computed, so the lint rules matter.                                         |
+| shadcn CLI / style         | Copy-in components on Base UI, style `base-nova`.                                                                        |
+| Base UI                    | The component base shadcn defaults to.                                                                                   |
+| TanStack Router / Query    | Typed search params and intent preloading; server state cache.                                                           |
+| zod                        | Used as `zod/mini` in the web app and domain to keep the browser bundle small. The service uses full `zod`.              |
+| Playwright / axe           | The golden job specs and the accessibility checks.                                                                       |
+| Vitest / jsdom             | Unit tests.                                                                                                              |
+| ESLint / typescript-eslint | With `eslint-plugin-better-tailwindcss` for the class rules.                                                             |
+| Fastify / pino             | The service's HTTP server and its JSON logger (the one Fastify uses).                                                    |
+| pg                         | The PostgreSQL driver.                                                                                                   |
+| pg-boss                    | The job queue and cron schedules, in PostgreSQL. Its schema is vendored in the baseline migration (`0001_baseline.sql`). |
+| eslint-plugin-boundaries   | The module boundaries, with `eslint-import-resolver-typescript` to follow the path aliases.                              |
+| Stylelint                  | With `stylelint-declaration-strict-value` for hand written CSS.                                                          |
+| cn                         | The class merge helper the shadcn CLI now emits. It is pre 1.0; `@/lib/utils` re-exports it, so swapping it is one line. |
+| react-day-picker           | The calendar of the date fields.                                                                                         |
+| diff (jsdiff)              | The word diff the review and history draw (`components/heed/bits.tsx`).                                                  |
 
 ## Known limits
 
 - The default build uses the mock binding; `VITE_API_MODE=http` switches to the service, as the
   Docker image builds it.
-- Dependency scanning (OSV-Scanner) passes with two reviewed exceptions, both in `extract-zip`,
-  which the Cube compiler loads but never calls. They are listed with their reasons and an expiry
-  date in `osv-scanner.toml`. Neither has a fixed version. `npm audit` shows the same findings;
+- Dependency scanning (OSV-Scanner) passes with three reviewed exceptions: two in `extract-zip`,
+  which the Cube compiler loads but never calls, and one in `deepmerge`, which only the shadcn CLI
+  and the mockup's build tooling load, for their own configuration files. They are listed with
+  their reasons and an expiry date in `osv-scanner.toml`. None has a fixed version. `npm audit` shows the same findings;
   `.npmrc` turns off the audit on install, so look at it on purpose.
 - axe passes on every place, but it does not replace a keyboard and screen reader review.

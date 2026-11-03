@@ -2,9 +2,9 @@
 title: Publish without review
 line: Let one agent publish low-risk new items in your domain, as your decision, and turn it off.
 group: Write and review
-order: 4
+order: 5
 minutes: 4
-reviewed: 2026-10-31
+reviewed: 2026-11-03
 open:
   label: Open Agents and access
   href: /settings/agents
@@ -50,7 +50,7 @@ Setting it again for the same agent and domain replaces what you set before.
 
 ## Turn it off
 
-Turn off is beside it on the domain page, and in the agent's Details in Agents and access. Whoever set it, any owner of the domain, an admin, and the person the agent works for can turn it off. It acts at once: the agent's next suggestions wait for review. Revoking the agent, or the person disconnecting it, turns it off too.
+Turn off is beside it on the domain page, and in the agent's Details in Agents and access, where the person the agent works for finds their own agents. Whoever set it, any owner of the domain, an admin, and the person the agent works for can turn it off. It acts at once: the agent's next suggestions wait for review. Revoking the agent, or the person disconnecting it, turns it off too.
 
 ## Who decided, and how to undo it
 

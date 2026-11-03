@@ -106,7 +106,8 @@ export const AGENT_TOOLS: readonly {
     title: 'Send a suggestion',
     what: 'Send a suggestion to the owner, after the person says yes.',
     takes: 'The suggested text and what it applies to.',
-    returns: "That it waits in the owner's Inbox.",
+    returns:
+      "That it waits in the owner's Inbox, or that it was published under the owner's policy.",
   },
   {
     name: 'get_related',

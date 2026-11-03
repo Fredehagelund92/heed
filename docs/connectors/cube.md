@@ -31,7 +31,7 @@ What a Cube project needs for Heed to read it:
 
 ## A Cube model in a Git repository
 
-An administrator adds one in Sources with:
+An administrator adds one in Settings › Integrations with:
 
 | Field                   | Meaning                                                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -62,7 +62,7 @@ line stays as the model says it.
 
 ## Configuration of the server's model
 
-Whoever runs the server sets three environment variables; Sources shows them read only. The
+Whoever runs the server sets three environment variables; Integrations shows them read only. The
 same Cube connector reads the folder: the core hands it to the runtime as `ctx.folder`, and
 applies the domain names and the renames below to what it read.
 
@@ -93,11 +93,11 @@ number of definitions, metric domain coverage (`cube`, `override`, `none`), the 
 and unflagged, and how many stale-link and domain notices it sent. A failed read is recorded and
 exits with status 1. The service runs the same refresh in the `connectors.sync` job (each source
 on its own schedule, hourly for Cube unless an administrator sets another); an administrator starts one at any time with
-Read again on the source's page in Sources (`POST /api/v1/sources/{id}/read`, or
+Read again on the source's page in Integrations (`POST /api/v1/sources/{id}/read`, or
 `POST /api/v1/operations/jobs/connectors.sync/run` for every source), and `GET /api/v1/operations` shows each
 source's health (last read and its warnings, current and missing definitions, domain coverage,
 flagged items and stale links), its views, its renames, its recent reads and, for a source this
-server reads, its server settings. Sources and Operations show the same answer.
+server reads, its server settings. Integrations and the operations API show the same answer.
 
 `HEED_DOMAIN_OVERRIDES` optionally names a JSON file outside the model directory:
 
@@ -129,7 +129,7 @@ model folder (`payments.yml`, `views/sales.yml`). The file is not part of the ch
 member to another file flags nothing. The operations overview (`GET /operations`) names it for each
 view (`modelFile`).
 
-The administrator setting `sources.cube_model_url`, on the Cube source's page in Sources, is the
+The administrator setting `sources.cube_model_url`, on the Cube source's page in Integrations, is the
 address of the model folder in the Git host's web view, for example `https://github.com/acme/analytics/blob/main/model`. It is off (null)
 after the migration. When it is set and the read named a file, the file's address is the folder
 address followed by the file's path, each segment encoded. The service never calls the Git host:

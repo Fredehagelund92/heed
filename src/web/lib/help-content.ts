@@ -1,5 +1,6 @@
 import type { AnswerState } from '@/model/ask'
 import { SLUG } from '@/lib/brand'
+import { CONFLICT_KEYS } from '@/lib/conflict'
 import { answerLines } from '@domain/words'
 
 // One source for what Help and the docs say about the product's own words. The in-app Help page, the
@@ -138,6 +139,11 @@ export const HOW_AGENTS_USE_IT: {
 ]
 
 export type Keys = { keys: string[]; then?: string[]; label: string; or?: string[] }
+
+/** A key as the sheet shows it: an arrow as an arrow, a letter as a capital. */
+const keyName = (key: string) =>
+  (({ ArrowLeft: '←', ArrowRight: '→' }) as Record<string, string>)[key] ?? key.toUpperCase()
+
 export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
   {
     group: 'Anywhere',
@@ -163,6 +169,7 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     rows: [
       { keys: ['J'], or: ['K'], label: 'Next, or previous suggestion' },
       { keys: ['N'], or: ['P'], label: 'Next, or previous change' },
+      { keys: ['↓'], or: ['↑'], label: 'Next, or previous line' },
       { keys: ['C'], label: 'Comment on the line or field in focus' },
       { keys: ['⌘', '↵'], label: 'Publish, when it is ready' },
       { keys: ['Esc'], label: 'Close the note, keeping it' },
@@ -170,12 +177,18 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
   },
   {
     group: 'Conflict',
-    rows: [{ keys: ['1'], or: ['2', 'B', 'N'], label: 'Keep one, keep both, or Not a conflict' }],
+    // The view's own keys, so the sheet cannot drift from what the view does.
+    rows: [
+      ...CONFLICT_KEYS.map(({ key, label }) => ({ keys: [keyName(key)], label })),
+      { keys: ['⌘', '↵'], label: 'Confirm, once you say why' },
+    ],
   },
   {
     group: 'Ask',
     rows: [
       { keys: ['/'], label: 'Start typing a question' },
+      { keys: ['@'], label: 'Mention a domain, a definition, an item or a market' },
+      { keys: ['Esc'], label: 'Stop the answer being written' },
       { keys: ['⌥', 'H'], label: 'Show or hide history' },
     ],
   },

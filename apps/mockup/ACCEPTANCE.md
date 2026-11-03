@@ -1,11 +1,10 @@
 # Acceptance specification
 
-The mockup is the acceptance specification; the real app is changed to match it. Where the app, its
-design contract, its requirements, its help pages or its README differ from the mockup, the mockup
-wins and the other is updated: tokens, wording, kinds, answer states, roles, flows, widths and
-motion. Its screens, its copy and its job specs below are what the app is checked against, and the
-job specs become the app's golden tests: they run against the mockup today and against the app later
-with `BASE_URL` set and nothing else.
+The mockup was the acceptance specification while the web app was built from it, and its job specs
+below became the app's golden tests (`tests/e2e`). The app now leads: it differs from the mockup on
+purpose in places, such as Overview holding the topics and Conflicts being a filter of the Context
+list, and the mockup is a reference for the design. Where the two differ, the app, its design
+contract, its requirements and its help pages are right, and the mockup is not changed to follow.
 
 ## Source
 

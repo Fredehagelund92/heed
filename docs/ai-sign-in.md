@@ -17,11 +17,10 @@ first build, which runs on one computer (FR-413).
 3. The browser returns to the app. Its tools work as you. On **Connect an agent** (the user
    menu, or Settings) you see every app connected as you, and **Disconnect** ends one at once.
 
-An administrator sees every person's connections in Administration, MCP and gateway,
-**Connections** (`agentConnections.list`): the person, the agent's own name and where it came from, its
-scopes, when it connected, last refreshed and ends. **Disconnect** there ends one connection, or
-every connection of one person in one step (`agentConnections.disconnect`,
-`agentConnections.disconnectPerson`), through the same revocation as the person's own: the refresh
+An administrator reads every person's connections through the API (`agentConnections.list`): the
+person, the agent's own name and where it came from, its scopes, when it connected, last refreshed
+and ends. `agentConnections.disconnect` ends one connection, and
+`agentConnections.disconnectPerson` every connection of one person in one step, through the same revocation as the person's own: the refresh
 tokens end and the MCP server refuses the access tokens at their next request. A reason is required
 and kept in the history log; the person does not see it. In the web app it is Settings, Agents and
 access, where **Revoke** ends every connection of that agent for that person.

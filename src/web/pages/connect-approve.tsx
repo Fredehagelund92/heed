@@ -248,8 +248,9 @@ function Decide({
           </ul>
           <p className="flex gap-2 text-sm text-muted-foreground">
             <ShieldCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-            It sees only what you can see, and it can never publish anything. You can disconnect it
-            at any time in Settings, under Agents and access.
+            It sees only what you can see. What it suggests waits for an owner, unless the owner
+            lets it publish without review. You can disconnect it at any time in Settings, under
+            Agents and access.
           </p>
         </section>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

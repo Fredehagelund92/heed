@@ -139,7 +139,7 @@ checks every answer, row, history entry, retry record and log line of a run for 
   read only. The account sees only the folders shared with it: no domain-wide delegation, no
   impersonation, and who may read a document is not copied (CON-610).
 - Later, for sign-in with OAuth: a refresh token is a secret, an access token lives only in
-  memory, the manifest lists the scopes and Sources shows them before connecting, and only read
+  memory, the manifest lists the scopes and Integrations shows them before connecting, and only read
   scopes are allowed.
 - Later, out of process (T2): the egress proxy attaches the credential to requests for the
   declared hosts, so the connector's process never holds the token.

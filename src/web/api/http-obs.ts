@@ -171,7 +171,7 @@ export function obsFeedbackOf(f: ObsFeedback, range: Range, now: Date): ObsData 
       : r.itemId
         ? `/context/${r.itemId}`
         : r.topicId
-          ? `/observability/questions?dock=topic.${r.topicId}`
+          ? `/observability?dock=topic.${r.topicId}`
           : '/observability/feedback',
   }))
   return {

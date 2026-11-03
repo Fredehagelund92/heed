@@ -18,7 +18,7 @@ Chat and identity connectors have other shapes and are outside this contract (CO
 
 **Interface 3.0** is the contract: a manifest that is data and a runtime that is code, for both
 kinds. Its first slices are built: the manifest, the runtime and its messages, the registry,
-adding a source of any connector from its manifest in Sources, `ctx.git`, each source's own
+adding a source of any connector from its manifest in Integrations, `ctx.git`, each source's own
 schedule, the content pipeline with Markdown in Git, Cube as a connector of its own, with a
 worker for its compiler, and Google Drive, which reads the changes since its cursor
 ([what is built](#what-is-built)). **Interface 2**, below, is the
@@ -53,14 +53,14 @@ tests them, so no connector can break them.
 
 ## Interface 2: the definitions pipeline
 
-Administrators look after the sources in **Administration › Sources**: a list of the sources with
-their status, last read, what they hold and their issues, Add a connector, and one page per
-source with its status, issues, views and domains, settings and recent reads, and Read again. AI
-apps that read _from_ Heed are the other direction, in MCP and gateway.
+Administrators look after the sources in **Settings › Integrations**: a list of the tools with
+their status, last read, what they hold and their issues, the five-step connect, and one page per
+tool with its status, issues, views and domains, settings and recent reads, and Read again. AI
+apps that read _from_ Heed are the other direction, in Settings › Agents and access.
 
 A source is configured in one of two places. Whoever runs the server selects one with its
 environment (the Cube model folder, read by the Cube connector, or the demo): its settings are
-read only in the product. An administrator **adds** others in **Administration › Sources**, of
+read only in the product. An administrator **adds** others in **Settings › Integrations**, of
 any connector (a Cube model in a Git repository): their settings are configuration in the
 database, their secrets are in the server's secret store (CON-105).
 
@@ -95,17 +95,17 @@ id, except the one that reads it (Cube, for the server's model folder):
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | `type`        | The type's id, stored on the connector (`connectors.type`).                                                                                                                                                                                                                                                                            | `cube`                   |
 | `tool`        | The tool it reads, as people say it. Every word on screen that names the tool comes from here ("Gone from Cube", "Changed in Cube, 7 Oct 2026", "We could not read Cube lately"): no core code names a vendor (CON-101). The API sends it as `tool` on each catalogue source and definition and on each source of the operations view. | `Cube`                   |
-| `settingKeys` | The administrator settings (FR-809) that belong to the source the server's configuration selects. Its page in Sources shows and changes them; Limits leaves them out.                                                                                                                                                                  | `sources.cube_model_url` |
+| `settingKeys` | The administrator settings (FR-809) that belong to the source the server's configuration selects. Its page in Integrations shows and changes them; Limits leaves them out.                                                                                                                                                             | `sources.cube_model_url` |
 
 A **source** (`DefinitionSource`) is one configured reader of that type:
 
-| Field              | Meaning                                                                                                                                                                                                                                                         |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`               | Stable id of the connector row: `cube` or `demo` for the server's, and for an added one an id from its name (`analytics-model`), which never changes.                                                                                                           |
-| `type`, `name`     | Its type (its connector's id), and its name on screen ("Cube local model").                                                                                                                                                                                     |
-| `interfaceVersion` | The interface its connector was written to: `3`, or `2` for the demo.                                                                                                                                                                                           |
-| `serverSettings`   | What it reads from the server's own configuration: `key` (`model_folder`, `domain_overrides` or `renames`), the environment `variable` that sets it, and the `value` (a path, or null). Sources shows them read only, with "Set on the server". Never a secret. |
-| `read(context)`    | One read, given the cursor of the newest good read (`context.cursor`, null at first): a snapshot, or a `SourceReadError` with warnings when the source cannot be read at all. It changes nothing anywhere (CON-102), so the core also tests settings with it.   |
+| Field              | Meaning                                                                                                                                                                                                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | Stable id of the connector row: `cube` or `demo` for the server's, and for an added one an id from its name (`analytics-model`), which never changes.                                                                                                                |
+| `type`, `name`     | Its type (its connector's id), and its name on screen ("Cube local model").                                                                                                                                                                                          |
+| `interfaceVersion` | The interface its connector was written to: `3`, or `2` for the demo.                                                                                                                                                                                                |
+| `serverSettings`   | What it reads from the server's own configuration: `key` (`model_folder`, `domain_overrides` or `renames`), the environment `variable` that sets it, and the `value` (a path, or null). Integrations shows them read only, with "Set on the server". Never a secret. |
+| `read(context)`    | One read, given the cursor of the newest good read (`context.cursor`, null at first): a snapshot, or a `SourceReadError` with warnings when the source cannot be read at all. It changes nothing anywhere (CON-102), so the core also tests settings with it.        |
 
 The API shows a source's server settings only when this server reads it (same id and type); a
 source read by another server or by the seed has none.
@@ -140,11 +140,11 @@ A **definition** has:
 - `visibleGroups`, always null until access-policy groups are read (CON-508).
 
 A member's **view** is its name up to the last dot (`orders` of `orders.returns`);
-`src/domain/source-views.ts` groups a source's current members by view for Sources.
+`src/domain/source-views.ts` groups a source's current members by view for Integrations.
 
 ### Warnings
 
-| Code               | Target                                 | Effect on the read | What Sources says                                         |
+| Code               | Target                                 | Effect on the read | What Integrations says                                    |
 | ------------------ | -------------------------------------- | ------------------ | --------------------------------------------------------- |
 | `missing_domain`   | a public view or cube                  | complete           | N views have no domain (CON-516)                          |
 | `invalid_domain`   | a view, a member, or `override:<view>` | complete           | N domains are not a domain id                             |
@@ -156,7 +156,7 @@ A member's **view** is its name up to the last dot (`orders` of `orders.returns`
 
 A read that fails before anything is read says why with one of these, on a failed snapshot:
 
-| Code              | Target           | What Sources says                       |
+| Code              | Target           | What Integrations says                  |
 | ----------------- | ---------------- | --------------------------------------- |
 | `private_address` | the repository   | The address is not public               |
 | `unreachable`     | the repository   | The repository could not be reached     |
@@ -184,20 +184,20 @@ every five minutes and reads each source that is switched on and due: the server
 administrators added, loaded from the database each time, each on its own schedule
 ([schedules](#schedules-built)); one that breaks the refresh itself does not keep the others from
 being read. Read again on a source's page reads that source now (`sources.read`), and running the
-job by hand in Operations reads every source now. A source whose last good read is older than
+job by hand (`POST /api/v1/operations/jobs/{job}/run`) reads every source now. A source whose last good read is older than
 `stale_after` (6 hours by default) is out of date, and the watchdog alerts (CON-104).
 
 ### Sources an administrator adds
 
-**Add a connector** in Administration › Sources (administrators only) lists every connector an
+Connecting a tool in **Settings › Integrations** (administrators only) starts from every connector an
 administrator may add a source of, by what it syncs, with its title, its summary and how far
 along it is. Choosing one opens its page: what it syncs, how often it reads, the hosts it reaches
 and the least access it needs, then the form its manifest declares. **Test connection** runs
 the connector's check step by step, then
 reads the source once with the form's settings and keeps nothing: it says what Heed would hold
 (version, views, metrics, dimensions and the read's warnings, including members another source
-already reads) or why it could not read. **Add connector** saves the source with a reason and
-queues a read. The source's page shows its settings, each secret only as set or not set, and
+already reads) or why it could not read. The last step, Schedule and review, saves the source with
+a reason and queues a read. The source's page shows its settings, each secret only as set or not set, and
 **Change settings** opens the same form filled in; a secret left empty keeps the one the store
 holds, and a new one replaces it.
 
@@ -321,7 +321,7 @@ the rest is decided and comes in the next slices.
 
 ### The manifest
 
-The manifest is pure data. The server and the web app both import it, and Sources can list and
+The manifest is pure data. The server and the web app both import it, and Integrations can list and
 describe a connector without running its code (CON-112).
 
 ```ts
@@ -448,7 +448,7 @@ interface Context<Config> {
   fails when a code has no words.
 - Health is kept per read (status, duration, counts, warnings, failure class, version and
   connector version) and per source (last success, age, next run, backoff, `staleAfter`), on the
-  source's page and in Operations.
+  source's page and through the operations API.
 - Each source has its own schedule, at or above its manifest's minimum, and its own Read again
   (CON-115). A transient failure backs off per source, never past half of `staleAfter`.
 - `ctx.fetch` enforces the manifest's request rate and honours `Retry-After`.
@@ -554,7 +554,6 @@ comes in the next slices ([what the next slices build](#what-the-next-slices-bui
 | Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; the server's own sources beside them                                                                                                    |
 | Built-in connectors  | `src/connectors/`                                          | Built: the list, Cube (`cube`, stable), the static list of definitions (`static-definitions`, experimental), Markdown in Git (`git-markdown`, beta) and Google Drive (`google-drive`, beta)  |
 | Workers (T1)         | `src/server/modules/connectors/worker.ts`                  | Built: `ctx.worker`, a connector's own worker in a child process under Node's permission model; Cube's compiler is the first                                                                 |
-| Sources              | Administration › Sources                                   | Built: Add a connector, a form from the manifest, the check step by step, status, last read and errors on the source's page                                                                  |
 | Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                                                  |
 | Content pipeline     | `src/server/modules/connectors/content.ts`                 | Built: documents to suggestions, one per document, grouped by the read, never published; full reads, and reads from a cursor with tombstones ([content sources](#content-sources))           |
 | Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built: a content connector's scopes from discover, a definitions source's groups from the test's read; an admin maps each to a domain, and every read gets them                              |

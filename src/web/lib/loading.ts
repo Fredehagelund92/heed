@@ -67,3 +67,6 @@ export function useSlowNetwork() {
 }
 
 export const setSlowNetwork = (on: boolean) => mockControls?.setSlow(on)
+
+/** Whether there is a Slow network switch at all: only the mock binding has one. */
+export const hasSlowNetwork = () => mockControls !== null
