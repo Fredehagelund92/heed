@@ -217,6 +217,17 @@ export function createMockApi() {
     return saved.afterPublish(r, me(), itemId, domain, saveQuestion)
   }
 
+  /** The Conflicts filter's rows, as the person may see them: a pair kept as both and unchanged since is off it. */
+  const conflictRows = (whose: 'mine' | 'all') => {
+    const person = meAsPerson()
+    const domains = workspace.domainMap()
+    return pairsOf(factsOf(state))
+      .filter(([h, o]) => !stillKept(keptPairs.get(`${h.id}.${o.id}`), h, o))
+      .map(([h, o]) => rowOf(h, o, person, domains))
+      .filter((r) => whose === 'all' || r.mine)
+      .sort((a, b) => b.asked - a.asked || a.topic.localeCompare(b.topic))
+  }
+
   /** Ask's answer, from the context as it is now. */
   const answer = ({ question = '', parts, scope, example, reread }: AskInput) => {
     const pool = factsOf(state)
@@ -235,6 +246,7 @@ export function createMockApi() {
       domains: workspace.domains(),
       definitions: definitions.list(),
       asked: () => askedThisWeek(pool).rows,
+      conflicts: () => conflictRows('all'),
       manages: (domain) => {
         const p = workspace.person(me())
         return !!p && (p.admin || (!!domain && p.owns.includes(domain)))
@@ -374,16 +386,7 @@ export function createMockApi() {
         const item = factsOf(state).find((f) => f.id === id)
         return item ? { item: withScope(item), history: historyOf(item, state.log) } : null
       }),
-    conflicts: ({ whose }) =>
-      read('conflicts', whose, () => {
-        const person = meAsPerson()
-        const domains = workspace.domainMap()
-        return pairsOf(factsOf(state))
-          .filter(([h, o]) => !stillKept(keptPairs.get(`${h.id}.${o.id}`), h, o))
-          .map(([h, o]) => rowOf(h, o, person, domains))
-          .filter((r) => whose === 'all' || r.mine)
-          .sort((a, b) => b.asked - a.asked || a.topic.localeCompare(b.topic))
-      }),
+    conflicts: ({ whose }) => read('conflicts', whose, () => conflictRows(whose)),
     conflict: ({ holderId, otherId }) =>
       read('conflict', `${holderId}.${otherId}`, () => {
         const pair = pairAt(holderId, otherId)

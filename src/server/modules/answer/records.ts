@@ -1,4 +1,5 @@
 import type { Asked, LookupInput, RecordsAnswer } from '../../../contract/answer.ts'
+import type { ConflictList } from '../../../contract/conflicts.ts'
 import type { LibraryIndex } from '../../../contract/schemas.ts'
 import {
   answerRecords,
@@ -25,7 +26,8 @@ import type { ServingBundle } from '../editions/index.ts'
   served them, for those items only. The vocabulary is the live edition's, as Definitions shows it
   to the person: a term whose definition their groups may not see is left out (CON-509). Owners are named as Context names them; nothing is read by
   person, no comment is read, and what agents asked comes from Asked this week, as counts only,
-  small ones hidden. The question itself is never stored: only which of the records questions it
+  small ones hidden. The conflicts are the Context list's Conflicts filter (`conflicts.list`), so
+  a pair the person may not read whole is not there. The question itself is never stored: only which of the records questions it
   was, by week, as a count.
 */
 
@@ -43,6 +45,8 @@ export type RecordsReads = {
   asked: () => Promise<{ asked: Asked; minimum: number }>
   /** The definitions the person's groups may not see, by ref, as the catalogue leaves them out. */
   hidden: () => Promise<readonly string[]>
+  /** The conflicts, as Context's Conflicts filter lists them to the person. */
+  conflicts: () => Promise<ConflictList>
 }
 
 /** A question is read as a records question only as words: a scope picked with @ is the engine's. */
@@ -136,8 +140,9 @@ async function itemsOf(tx: Queryable, index: LibraryIndex, shift: number): Promi
 
 /** What one intent needs read; the rest is left empty. */
 const needs = (ask: RecordsAsk) => ({
-  items: ask.intent !== 'asked_nothing' && ask.intent !== 'terms' && ask.intent !== 'values',
+  items: !['asked_nothing', 'terms', 'values', 'conflicts'].includes(ask.intent),
   asked: ask.intent === 'asked_nothing',
+  conflicts: ask.intent === 'conflicts',
   terms:
     ask.intent === 'terms' ||
     ask.intent === 'values' ||
@@ -191,11 +196,12 @@ async function worldFor(
   shift: number,
 ): Promise<RecordsWorld> {
   const need = needs(ask)
-  const [items, people, asked, hidden] = await Promise.all([
+  const [items, people, asked, hidden, conflicts] = await Promise.all([
     need.items ? reads.index().then((index) => itemsOf(tx, index, shift)) : [],
     reads.people(),
     need.asked ? reads.asked() : null,
     need.terms ? reads.hidden().then((refs) => new Set(refs)) : new Set<string>(),
+    need.conflicts ? reads.conflicts() : null,
   ])
   // A term is left out when its groups may not see one of its definitions, as the catalogue
   // leaves it out, and a value with its dimension.
@@ -220,5 +226,14 @@ async function worldFor(
         gap: r.gap,
       })),
     },
+    // The list shows only pairs the person may read whole, so both titles are there.
+    conflicts:
+      conflicts?.rows.map((r) => ({
+        key: r.key,
+        holder: { id: r.holder.id, title: r.holder.title ?? '', areaId: r.holder.areaId },
+        other: { id: r.other.id, title: r.other.title ?? '', areaId: r.other.areaId },
+        topic: r.topic,
+        since: r.since,
+      })) ?? null,
   }
 }

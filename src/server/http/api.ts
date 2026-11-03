@@ -1161,6 +1161,7 @@ export function createRouter({
               minimum: await minimumCount(context.tx),
             }),
             hidden: () => hiddenDefinitions(context.tx),
+            conflicts: () => context.conflicts.list({ whose: 'all' }),
           },
         )
       }),

@@ -91726,7 +91726,8 @@
                                             "count",
                                             "asked_nothing",
                                             "terms",
-                                            "values"
+                                            "values",
+                                            "conflicts"
                                           ],
                                           "type": "string"
                                         },
@@ -91998,6 +91999,60 @@
                                                 "type": "object",
                                                 "properties": {
                                                   "type": {
+                                                    "const": "conflict"
+                                                  },
+                                                  "key": {
+                                                    "type": "string"
+                                                  },
+                                                  "holder": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "id": {
+                                                        "type": "string"
+                                                      },
+                                                      "title": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "id",
+                                                      "title"
+                                                    ]
+                                                  },
+                                                  "other": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "id": {
+                                                        "type": "string"
+                                                      },
+                                                      "title": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "id",
+                                                      "title"
+                                                    ]
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "key",
+                                                  "holder",
+                                                  "other",
+                                                  "cells"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
                                                     "const": "kind"
                                                   },
                                                   "kind": {
@@ -92080,7 +92135,8 @@
                                                     {
                                                       "enum": [
                                                         "due",
-                                                        "archived"
+                                                        "archived",
+                                                        "conflicts"
                                                       ],
                                                       "type": "string"
                                                     },
