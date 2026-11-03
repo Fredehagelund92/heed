@@ -134,16 +134,16 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### Peeks, docks and pages of one thing
 
-| Part              | File                                                                                          | Job                                                                                     |
-| ----------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Peek              | `components/heed/peek.tsx`                                                                    | The quick view frame: note, one closed Details                                          |
-| Context peek      | `components/heed/fact-peek.tsx`                                                               | The context item quick view                                                             |
-| Definition peek   | `components/heed/definition-peek.tsx`                                                         | The definition quick view                                                               |
-| Context page      | `pages/fact.tsx`                                                                              | A context item as a document with Details, History, Related, comments                   |
-| Version history   | `components/heed/version-history.tsx`                                                         | One line until opened, then rows by month, with a read-only diff and Restore for owners |
-| Related           | `components/heed/related.tsx`, `lib/links.ts`, `hooks/use-related.ts`                         | What `get_related` can follow, shown as chips                                           |
-| Definitions pages | `pages/definitions.tsx`, `definition-page.tsx`, `definition-editor.tsx`, `lib/definitions.ts` | The list, a page and the term and synonym editor                                        |
-| Domain page       | `pages/domain-page.tsx`, `lib/domains.ts`                                                     | A domain as its own document                                                            |
+| Part              | File                                                                                          | Job                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Peek              | `components/heed/peek.tsx`                                                                    | The quick view frame: note, one closed Details                                                                   |
+| Context peek      | `components/heed/fact-peek.tsx`                                                               | The context item quick view                                                                                      |
+| Definition peek   | `components/heed/definition-peek.tsx`                                                         | The definition quick view                                                                                        |
+| Context page      | `pages/fact.tsx`, `components/heed/item-document.tsx`                                         | A context item as a document with Details, History, Related, comments; the document is also the review's Preview |
+| Version history   | `components/heed/version-history.tsx`                                                         | One line until opened, then rows by month, with a read-only diff and Restore for owners                          |
+| Related           | `components/heed/related.tsx`, `lib/links.ts`, `hooks/use-related.ts`                         | What `get_related` can follow, shown as chips                                                                    |
+| Definitions pages | `pages/definitions.tsx`, `definition-page.tsx`, `definition-editor.tsx`, `lib/definitions.ts` | The list, a page and the term and synonym editor                                                                 |
+| Domain page       | `pages/domain-page.tsx`, `lib/domains.ts`                                                     | A domain as its own document                                                                                     |
 
 ### Lists and bulk
 
@@ -168,7 +168,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | Inbox          | `pages/inbox.tsx`, `lib/inbox-rows.ts`, `data/inbox.ts`                           | List, groups, cards, quick view, setup checklist        |
 | Review         | `pages/review-page.tsx`, `pages/review.tsx`, `data/review.ts`                     | The full-screen review and the quick view               |
 | Inbox pane     | `components/heed/inbox-pane.tsx`, `model/inbox-pane.ts`                           | A card's head (state chip, title, summary) and decision |
-| Review parts   | `components/heed/review-parts.tsx`, `change-icons.ts`, `review-page-parts.tsx`    | Change blocks, marks, the Ready line (the Preview)      |
+| Review parts   | `components/heed/review-parts.tsx`, `change-icons.ts`, `review-page-parts.tsx`    | Change blocks, marks, the Ready line                    |
 | Source review  | `components/heed/source-review.tsx`, `lib/line-diff.ts`, `model/review-fields.ts` | Fields table and Text diff, each fed two sides          |
 | Source threads | `components/heed/source-threads.tsx`, `model/source-places.ts`                    | Threads on a line or a field, and the rail's summary    |
 | Try it         | `pages/ask.tsx` (`TryIt`, in the dock), `pages/review-page.tsx` (`TryItPanel`)    | What agents say before and after, as Draft or Published |

@@ -21,8 +21,11 @@ import { SIDE_BY_SIDE } from '@/lib/conflict'
 import { ownersOf } from '@/model/people'
 import type { Fact } from '@/model/items'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
-import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
-import { ClaimCheck, Rewrite } from '@/components/heed/review-page-parts'
+import { KindLabel } from '@/components/heed/review-parts'
+import { ClaimCheck } from '@/components/heed/review-page-parts'
+import { ItemDocument } from '@/components/heed/item-document'
+import { Canvas, Paper } from '@/components/heed/doc'
+import { useQuery } from '@tanstack/react-query'
 import { Mark } from '@/components/heed/mark'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { ResizableAside } from '@/components/resizable-aside'
@@ -69,12 +72,13 @@ import { useCommentActions } from '@/lib/comments'
 import { ChoiceGroup, TextSwitch, ViewToggle } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DRAFT_LABEL } from '@/model/ask'
-import { useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
+import { itemPageQuery, useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
 import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
 import { careLine, marks, readiness, type Relation, type Review } from '@/model/review'
 import {
   clashOutcome,
+  draftItem,
   needsCare,
   publishedWords,
   readTime,
@@ -570,63 +574,33 @@ function SourceReview({ r, me, owners }: { r: Review; me: string; owners: string
   )
 }
 
-/** The rich text with its changes marked, by kind: a second look, never the review itself. */
+/**
+ * The suggested version as its context item's page will show it once published: the same view
+ * and sheet, fed with the draft. What only publishing sets says so; the item's history and
+ * comments are its page's own.
+ */
 function Preview({ r }: { r: Review }) {
-  const [showUnchanged, setShowUnchanged] = React.useState(false)
   const facts = useFacts()
   const { cards } = useInbox()
-  const fact = facts.find((f) => f.id === itemOfReview(r, cards))
+  const domains = useDomains()
+  const id = itemOfReview(r, cards)
+  // The live item as its page reads it, for an edit: what the suggestion leaves alone comes from it.
+  const page = useQuery({ ...itemPageQuery(id ?? ''), enabled: !!id && r.mode === 'edit' })
+  const live = r.mode === 'edit' ? (page.data?.item ?? facts.find((f) => f.id === id)) : undefined
+  const item = draftItem(r, live, domains)
   return (
     <section aria-label="Preview" className="flex flex-col">
       <p className="pb-2 text-xs text-muted-foreground">
-        A preview of the rich text, with the changes marked by kind. The source is what you review.
+        {item
+          ? 'The context item as it will read once you publish it.'
+          : 'Archived, it has no page agents read.'}
       </p>
-      {r.rewrite && <Rewrite rewrite={r.rewrite} />}
-      {r.blocks.length > 0 && (
-        <div>
-          {r.blocks.map((b, i) => (
-            <ChangeBlock key={i} block={b} index={i} total={r.blocks.length} />
-          ))}
-        </div>
-      )}
-      {r.unchanged.length > 0 && (
-        <div className="mt-2 border-t pt-4">
-          <button
-            type="button"
-            aria-expanded={showUnchanged}
-            onClick={() => setShowUnchanged((s) => !s)}
-            className="flex items-center gap-1.5 text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:underline"
-          >
-            {showUnchanged ? (
-              <ChevronUpIcon className="size-4" aria-hidden />
-            ) : (
-              <ChevronDownIcon className="size-4" aria-hidden />
-            )}
-            {r.unchanged.length} fields unchanged: {r.unchanged.join(', ')}
-          </button>
-          {showUnchanged && fact && (
-            <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-(--cols-lead-36)">
-              {r.unchanged.map((f) => (
-                <React.Fragment key={f}>
-                  <dt>{f}</dt>
-                  <dd className="text-foreground/80">
-                    {f === 'Title'
-                      ? fact.title
-                      : f === 'Where'
-                        ? fact.where.join(', ')
-                        : f === 'When'
-                          ? fact.when
-                          : f === "Don't conclude"
-                            ? fact.dontConclude
-                            : f === 'Source'
-                              ? fact.source
-                              : 'As before'}
-                  </dd>
-                </React.Fragment>
-              ))}
-            </dl>
-          )}
-        </div>
+      {item && (
+        <Canvas className="-mx-4 flow-root sm:mx-0 sm:rounded-frame">
+          <Paper>
+            <ItemDocument fact={item} heading="h3" preview />
+          </Paper>
+        </Canvas>
       )}
     </section>
   )

@@ -3,9 +3,9 @@ import { expect, go, test } from './go.ts'
 // J19, the Source review: the source is the review. A Fields table says which fields change, with
 // their value now and suggested, and folds the rest; the Text diff shows the stored text line by
 // line with its numbers, removed lines before added ones, and only the changed words marked, even
-// when a paragraph is split in two. N
-// and P step through the changes. Preview is a quiet toggle for the rich text, and no view hides
-// what must be decided: the clash gate and the claim check stay in both.
+// when a paragraph is split in two. N and P step through the changes. Preview is a quiet toggle for
+// the item as its page will show it, and no view hides what must be decided: the clash gate and
+// the claim check stay in both.
 
 test('the source is the review: changed fields, then the text, with only the changed words marked', async ({
   page,
@@ -78,7 +78,7 @@ test('a paragraph split in two and reworded marks only the words that changed', 
   await expect(text.getByRole('group', { name: 'Change 1 of 1 in the text' })).toBeFocused()
 })
 
-test('Preview shows the rich text, and the clash gate stays in both views', async ({ page }) => {
+test('Preview shows the item, and the clash gate stays in both views', async ({ page }) => {
   await go(page, '/inbox/sug-sofia-clash/review')
   const decide = page.getByRole('complementary', { name: 'Try it and decide' })
   const gate = page.getByRole('radiogroup', { name: /^How this relates to / })

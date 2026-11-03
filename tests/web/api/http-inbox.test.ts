@@ -668,7 +668,7 @@ describe('the review', () => {
       domain: 'Sales',
       owner: 'Jon Abara',
       scope: ['Units sold', 'Norway'],
-      validity: { from: '2026-05-29', ongoing: true },
+      validity: { from: '2026-05-29' },
       reviewDate: '2026-12-01',
       sources: [{ url: 'https://wiki.example/units-sold', quote: 'Test accounts are left out.' }],
       dontConclude: 'Fewer units are not fewer customers.',
