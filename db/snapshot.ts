@@ -158,8 +158,11 @@ export async function takeSnapshot(options: {
 }
 
 /** Why the runtime roles cannot serve from this database, if they cannot. */
-async function rolesProblem(client: pg.Client): Promise<string | undefined> {
-  const runtime = [localRoles.api, localRoles.serve, localRoles.readonly]
+async function rolesProblem(
+  client: pg.Client,
+  roles: typeof localRoles,
+): Promise<string | undefined> {
+  const runtime = [roles.api, roles.serve, roles.readonly]
   const rows = (
     await client.query<{ name: string; privileged: boolean }>(
       // A member of another role may hold its privileges: on Neon, a role made in the console is
@@ -181,13 +184,22 @@ async function rolesProblem(client: pg.Client): Promise<string | undefined> {
 
 /** What the database holds: nothing of Heed's, the demo, or something else. */
 async function contents(client: pg.Client): Promise<'empty' | 'demo' | 'other'> {
+  // Anything outside the system schemas counts: a schema, or in public a relation, function or type.
   const [row] = (
-    await client.query<{ tables: number; demo: boolean }>(
-      `select (select count(*)::int from pg_tables where schemaname not in ('pg_catalog', 'information_schema')) as tables,
+    await client.query<{ objects: number; demo: boolean }>(
+      `select (
+           (select count(*) from pg_namespace
+             where nspname not in ('public', 'pg_catalog', 'information_schema', 'pg_toast')
+               and nspname !~ '^pg_(toast_)?temp_')
+         + (select count(*) from pg_class where relnamespace = 'public'::regnamespace)
+         + (select count(*) from pg_proc where pronamespace = 'public'::regnamespace)
+         + (select count(*) from pg_type t where typnamespace = 'public'::regnamespace and typrelid = 0
+              and not exists (select 1 from pg_type e where e.oid = t.typelem and e.typrelid <> 0))
+         )::int as objects,
          to_regclass('public.areas') is not null as demo`,
     )
   ).rows
-  if (!row!.tables) return 'empty'
+  if (!row!.objects) return 'empty'
   if (!row!.demo) return 'other'
   const demo = await client.query<{ demo: boolean }>(
     "select exists (select 1 from areas where id = 'area_sandbox' and is_demo) as demo",
@@ -200,8 +212,10 @@ export async function restoreSnapshot(options: {
   migrateUrl: string
   file: string
   reset: boolean
+  roles?: typeof localRoles
 }): Promise<void> {
   const database = databaseName(options.migrateUrl)
+  const roles = options.roles ?? localRoles
   await withClient(options.migrateUrl, async (client) => {
     const [{ owner }] = (
       await client.query<{ owner: boolean }>(
@@ -212,7 +226,7 @@ export async function restoreSnapshot(options: {
       throw new SnapshotError(
         `DATABASE_URL_MIGRATE: expected the owner of the database ${database}, which owns everything the snapshot makes`,
       )
-    const problem = await rolesProblem(client)
+    const problem = await rolesProblem(client, roles)
     if (problem) throw new SnapshotError(problem)
     const found = await contents(client)
     if (found === 'other')
@@ -234,7 +248,7 @@ export async function restoreSnapshot(options: {
     `--dbname=${options.migrateUrl}`,
     options.file,
   ])
-  await withClient(options.migrateUrl, (client) => applyGrants(client))
+  await withClient(options.migrateUrl, (client) => applyGrants(client, roles))
 }
 
 async function main(argv: string[], env: Record<string, string | undefined>) {

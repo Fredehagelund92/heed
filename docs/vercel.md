@@ -110,15 +110,16 @@ DATABASE_URL_MIGRATE='postgres://context_layer_owner:<password>@<endpoint>.eu-ce
 and drops its scratch database when it is done. It relays the demo's outbox, so the demo's inbox
 items are in the file. `--model` sets every model role but the judge to that provider and model,
 so the service can start with real models: without it the file keeps the defaults (Anthropic,
-which needs `ANTHROPIC_API_KEY`). `restore` refuses a database that holds anything, then applies
-the grants.
+which needs `ANTHROPIC_API_KEY`). `restore` refuses a database that holds anything (a schema
+other than `public`, or a table, sequence, function or type in `public`), then applies the grants.
 
 Use Neon's direct address for `restore` and `reset`, never the pooled one (with `-pooler` in its
 host): `pg_restore` needs a session of its own. The same goes for `npm run db:migrate`, whose
 migrations take a session lock.
 
 To put the demo back as it was, run `reset` with the same file. It drops everything the owner owns
-in that database, then restores the file. It refuses a database that holds anything but the demo.
+in that database, including anything you added beside the demo, then restores the file. It refuses
+a database that holds anything but the demo.
 
 ```sh
 DATABASE_URL_MIGRATE='<the owner, on the direct address>' npm run db:snapshot -- reset --file heed-demo.dump
@@ -158,6 +159,9 @@ the edge's. `HEED_TRUSTED_PROXIES=vercel` believes the one hop in front and coun
 address in `X-Forwarded-For`, which the edge writes itself: it drops whatever address a caller
 sends ([Vercel's request headers](https://vercel.com/docs/headers/request-headers)). So each
 visitor has a count of their own, and nobody can lock out sign-in for everyone else.
+
+The function sets `HEED_TRUSTED_PROXIES=vercel` unless you do. Setting it to an empty value in
+Vercel overrides that default, and every caller then shares one count.
 
 Never set `vercel` where anything but Vercel's edge connects to the service: it believes whoever
 connects, so a caller could name any address and never be limited.

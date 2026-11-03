@@ -70,4 +70,21 @@ describe('the Vercel function on the database', () => {
     await waited[0]
     expect(await unrelayed()).toBe(0)
   })
+
+  it('counts each caller by the address the edge wrote, with no proxy setting made', async () => {
+    await client.query(
+      `insert into settings_versions (key, version, value, reason)
+       select 'limits.api_rate_per_minute', coalesce(max(version), 0) + 1, '{"person": 100, "ip": 2}', 'vercel'
+         from settings_versions where key = 'limits.api_rate_per_minute'`,
+    )
+    const status = async (forwarded: string) =>
+      (await fetch(`${base}/api/v1/auth/people`, { headers: { 'x-forwarded-for': forwarded } }))
+        .status
+    expect(await status('198.51.100.1')).toBe(200)
+    expect(await status('198.51.100.1')).toBe(200)
+    expect(await status('198.51.100.1')).toBe(429)
+    // A caller's own prefix does not move the count off the address the edge appended.
+    expect(await status('203.0.113.9, 198.51.100.1')).toBe(429)
+    expect(await status('198.51.100.2')).toBe(200)
+  })
 })

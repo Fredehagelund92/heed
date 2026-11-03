@@ -1,10 +1,12 @@
+import { randomBytes } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { restoreSnapshot } from '../../db/snapshot.ts'
+import pg from 'pg'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { modelSetting, restoreSnapshot } from '../../db/snapshot.ts'
 import { pgTool } from '../../src/server/db/restore-drill.ts'
-import { localRoles } from '../../src/server/db/roles.ts'
+import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { testDatabase } from './support.ts'
 
 /**
@@ -73,5 +75,81 @@ describe('the demo snapshot', () => {
     await expect(restoreSnapshot({ migrateUrl: owner(), file, reset: true })).rejects.toThrow(
       'holds something other than the demo',
     )
+  })
+})
+
+describe('what the database holds before a restore', () => {
+  const bare = testDatabase({ unmigrated: true })
+  const bareOwner = () => as(bare.url, localRoles.owner)
+  const refused = 'holds something other than the demo'
+
+  it.each([
+    ['a schema', 'create schema extra', 'drop schema extra'],
+    [
+      'a function',
+      'create function public.extra() returns int language sql as $$ select 1 $$',
+      'drop function public.extra()',
+    ],
+    ['a sequence', 'create sequence public.extra', 'drop sequence public.extra'],
+    ['a type', "create type public.extra as enum ('a')", 'drop type public.extra'],
+  ])('is refused when it holds %s', async (_name, create, drop) => {
+    await bare.client.query(create)
+    try {
+      await expect(restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false })).rejects.toThrow(
+        refused,
+      )
+    } finally {
+      await bare.client.query(drop)
+    }
+  })
+
+  it('is refused when a runtime role is missing or may do more than serve', async () => {
+    const suffix = randomBytes(4).toString('hex')
+    const roles = {
+      owner: localRoles.owner,
+      api: `heed_snap_api_${suffix}`,
+      serve: `heed_snap_serve_${suffix}`,
+      readonly: `heed_snap_ro_${suffix}`,
+    }
+    const adminUrl = new URL(inject('databaseTemplate'))
+    adminUrl.pathname = '/postgres'
+    const admin = new pg.Client({ connectionString: adminUrl.href })
+    await admin.connect()
+    const restore = () => restoreSnapshot({ migrateUrl: bareOwner(), file, reset: false, roles })
+    try {
+      await expect(restore()).rejects.toThrow(
+        `Create the roles ${roles.api}, ${roles.serve}, ${roles.readonly} first`,
+      )
+      await admin.query(`create role ${identifier(roles.api)} nologin`)
+      await admin.query(`create role ${identifier(roles.serve)} nologin bypassrls`)
+      await admin.query(`create role ${identifier(roles.readonly)} nologin`)
+      await expect(restore()).rejects.toThrow(
+        new RegExp(`roles ${roles.serve} may bypass row security`),
+      )
+      await admin.query(`alter role ${identifier(roles.serve)} nobypassrls`)
+      await admin.query(`grant ${identifier(roles.api)} to ${identifier(roles.readonly)}`)
+      await expect(restore()).rejects.toThrow(
+        new RegExp(`roles ${roles.readonly} may bypass row security`),
+      )
+    } finally {
+      for (const role of [roles.readonly, roles.serve, roles.api])
+        await admin.query(`drop role if exists ${identifier(role)}`)
+      await admin.end()
+    }
+  })
+})
+
+describe('modelSetting', () => {
+  it('accepts a provider and model it knows', () => {
+    expect(modelSetting('vercel-gateway:anthropic/claude-haiku-5.5')).toEqual({
+      provider: 'vercel-gateway',
+      model: 'anthropic/claude-haiku-5.5',
+    })
+  })
+
+  it('refuses a missing colon, and an unknown provider or model', () => {
+    expect(() => modelSetting('claude-haiku-5.5')).toThrow('expected <provider>:<model>')
+    expect(() => modelSetting('nowhere:anthropic/claude-haiku-5.5')).toThrow('--model:')
+    expect(() => modelSetting('vercel-gateway:no-such-model')).toThrow('--model:')
   })
 })
