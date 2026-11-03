@@ -188,6 +188,23 @@ describe('the web API request limit', () => {
     ).toEqual([429])
   })
 
+  it("counts each caller behind Vercel on its own, by the address Vercel's edge wrote", async () => {
+    const { statuses } = limitedApp(undefined, { trustedProxies: ['vercel'] })
+    // The edge's own address is not known, and every caller arrives through it.
+    const edge = '192.0.2.250'
+    const from = (address: string) => ({ 'x-forwarded-for': address })
+    expect(await statuses(3, '/api/v1/auth/people', from('198.51.100.1'), edge)).toEqual([
+      200, 200, 429,
+    ])
+    // Another visitor is not locked out with the first.
+    expect(await statuses(2, '/api/v1/auth/people', from('198.51.100.2'), edge)).toEqual([200, 200])
+    // An address the caller put in front of the edge's does not open a new count: the last one,
+    // which the edge wrote, does.
+    expect(
+      await statuses(1, '/api/v1/auth/people', from('203.0.113.7, 198.51.100.1'), edge),
+    ).toEqual([429])
+  })
+
   it('ignores a forwarded address from a caller it does not trust', async () => {
     for (const trustedProxies of [[], ['10.0.0.0/8']]) {
       const { statuses } = limitedApp(undefined, { trustedProxies })

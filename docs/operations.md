@@ -40,8 +40,10 @@ instance counts on its own. An address is the connection's peer, unless the peer
 in `HEED_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
 `uniquelocal`, comma-separated): then it is the address that proxy forwards in `X-Forwarded-For`.
 The web image's nginx forwards the address of each caller, and drops one a caller sends, and
-`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. Unset,
-the service believes no forwarded address. `/health`, `/health/ready` and `/metrics` are not
+`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. `vercel`
+alone believes the one hop in front, Vercel's edge, which the Vercel function sets for itself
+([Run Heed on Vercel and Neon](vercel.md#callers-addresses-and-request-limits)). Unset, the
+service believes no forwarded address. `/health`, `/health/ready` and `/metrics` are not
 limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`

@@ -193,7 +193,7 @@ src/
   domain/         the item model (zod/mini), pure and shared with the server
   contract/       the API contract (oRPC, zod/mini): every operation once, used by the service and the app
   cli/            `heed`, the command-line tool: the contract client, never the service's code
-  server/         the Heed service: main.ts (composition root), app.ts, config, db, http, observability
+  server/         the Heed service: service.ts (composition root, used by main.ts and the Vercel function), app.ts, config, db, http, observability
     modules/        one folder per feature, reached only through its index.ts
       jobs/           scheduled jobs, heartbeats, the watchdog and the operations endpoints
       evals/          golden questions, answer tests through the MCP wire, judges, scorecards
@@ -253,8 +253,10 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run eval -- --area <id>`             | Runs a domain's test questions on the live edition now, with the mock model; `--real` needs a key and `--max-cost-usd`; `--resume <run id>` makes what an incomplete run is missing                                                   |
 | `npm run eval:ask-words`                  | Runs the cases of Ask's words on the scripted mock model; `--real` uses `models.assistant` and needs a key and `--max-cost-usd`                                                                                                       |
 | `npm run db:restore-drill`                | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
+| `npm run db:snapshot`                     | The demo as a file, for a database without a superuser such as Neon: `take`, `restore` and `reset` (see [Run Heed on Vercel and Neon](vercel.md))                                                                                     |
 | `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
 | `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/web` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
+| `npm run build:vercel`                    | The web app is built and the service is bundled into one file (only the service goes into that file), for Vercel (see [Run Heed on Vercel and Neon](vercel.md))                                                                       |
 | `npm run size`                            | Builds the web app as it ships (http mode) and checks its first load against the budget, with the bytes, the budget and the margin; `node scripts/check-bundle-size.mjs` checks the build already in `dist/web`                       |
 | `npm run typecheck`                       | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
 | `npm run lint`                            | ESLint, then Stylelint                                                                                                                                                                                                                |

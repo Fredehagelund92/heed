@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
+import Fastify, {
+  type FastifyBaseLogger,
+  type FastifyInstance,
+  type FastifyServerOptions,
+} from 'fastify'
 import { API_PREFIX } from '../contract/index.ts'
 import { systemClock, type Clock } from './clock.ts'
 import type { Database } from './db/database.ts'
@@ -75,9 +79,20 @@ export interface AppDependencies {
   /**
    * The proxies whose X-Forwarded-For and X-Forwarded-Proto the service believes
    * (HEED_TRUSTED_PROXIES): a caller's address, which limits count by, is then the one they
-   * forward. Defaults to none: the connection's peer.
+   * forward. `vercel` alone believes the one hop in front. Defaults to none: the connection's peer.
    */
   trustedProxies?: readonly string[]
+}
+
+/**
+ * Fastify's trustProxy for HEED_TRUSTED_PROXIES. Behind Vercel the edge is the only hop and its
+ * address is not known, so the hop itself is believed: the caller's address is the last one in
+ * X-Forwarded-For, the one the edge wrote, even if a caller sent a list of its own.
+ */
+export function trustProxy(trustedProxies: readonly string[]): FastifyServerOptions['trustProxy'] {
+  if (trustedProxies.length === 1 && trustedProxies[0] === 'vercel')
+    return (_address, hop) => hop === 0
+  return trustedProxies.length ? [...trustedProxies] : false
 }
 
 /** Builds the HTTP app without listening, so tests can drive it with `app.inject`. */
@@ -105,7 +120,7 @@ export function buildApp({
 }: AppDependencies): FastifyInstance {
   const app = Fastify({
     loggerInstance: logger,
-    trustProxy: trustedProxies.length ? [...trustedProxies] : false,
+    trustProxy: trustProxy(trustedProxies),
     // Every log line of a request carries its id (NFR-071). The id is always ours: a client's
     // own X-Request-Id is never trusted, so it cannot forge or inject log content.
     genReqId: () => randomUUID(),
