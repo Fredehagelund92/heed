@@ -11,6 +11,26 @@ describe('records answers on the mock binding', () => {
     }
   })
 
+  it('lists the conflicts as Context does, and the other words for them', async () => {
+    const { api } = createMockApi()
+    const conflicts = await api.conflicts({ whose: 'all' })
+    for (const question of [
+      'List me conflicts.',
+      'any conflicts?',
+      'conflicts in Context',
+      'what is unresolved',
+    ]) {
+      const records = (await api.ask({ question })).records
+      expect(records, question).toMatchObject({ refused: false, intent: 'conflicts' })
+      if (records?.refused !== false) continue
+      expect(records.total, question).toBe(conflicts.length)
+      expect(
+        records.rows.map((r) => (r.type === 'conflict' ? r.key : '')),
+        question,
+      ).toEqual(conflicts.slice(0, 5).map((c) => c.key))
+    }
+  })
+
   it('lists no values for a dimension its definition only counts', async () => {
     const { api } = createMockApi()
     const answer = await api.ask({ question: 'how many campaigns are there?' })

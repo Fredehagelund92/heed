@@ -16,10 +16,11 @@ import { normalizeName, type Term } from './vocabulary.ts'
   Ask answers them from what the workspace keeps about its context items, domains and owners, and
   from what agents asked this week, never from what an item says, and agents never read them.
 
-  The list of questions is closed: nine intents, read by fixed word patterns, each answered by a
+  The list of questions is closed: ten intents, read by fixed word patterns, each answered by a
   fixed read and a sentence template. Two of them are about the vocabulary itself, as Definitions
   shows it: its metrics and dimensions ("list 10 dimensions", "how many metrics are in Sales"),
-  and the values of a dimension ("what markets are there"). No model chooses or writes anything. A
+  and the values of a dimension ("what markets are there"). One is the conflicts, as Context's
+  Conflicts filter lists them ("list conflicts", "what is unresolved"). No model chooses or writes anything. A
   question none of them fits is left to the answer engine, which says when it looked nothing up. A
   model may later fill the same `RecordsAsk` for words the patterns miss; the reads, the
   permissions and the screen would not change.
@@ -272,11 +273,21 @@ const pluralOf = (word: string) =>
       : `${word}s`
 
 /**
+ * Words that ask for the conflicts: the pairs of context items an owner said disagree, which stay
+ * unsettled until an owner chooses ("list conflicts", "which items disagree", "what is unresolved").
+ */
+const CONFLICTS =
+  /\b(?:conflicts?|conflicting|conflicted|disagree|disagrees|disagreeing|disagreements?|contradict|contradicts|contradicting|contradictory|contradictions?|unresolved|unsettled|not (?:yet )?(?:settled|resolved))\b/
+
+/** The vocabulary's own words: a conflict among them is Definitions' own, not one between items. */
+const VOCABULARY = /\b(?:definitions?|metrics?|dimensions?|terms?|synonyms?|values?)\b/
+
+/**
  * Words that make a question one of the other records questions, one about what a name means, or
  * one about how the business did ("which products sold best", "why did campaigns drop").
  */
 const NOT_CATALOGUE =
-  /\b(?:why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
+  /\b(?:conflicts?|conflicting|disagree|disagrees|disagreeing|unresolved|unsettled|why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
 
 /**
  * Whether a dimension's plural is asked for as a list: after list, show, name or give me; in
@@ -427,6 +438,7 @@ export function recogniseRecords(
     )
   )
     return ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+  if (!(scoped && !noun) && CONFLICTS.test(t) && !VOCABULARY.test(t)) return ask('conflicts')
   const catalogue = catalogueAsk(t, named, terms)
   if (catalogue)
     return ask(catalogue.of === 'value' ? 'values' : 'terms', {
@@ -444,7 +456,8 @@ export function recogniseRecords(
       t,
     )
   )
-    return ask('due', { kind: kindOrNull(t) })
+    // Definitions are not checked here; "outdated definitions" is the context due for a check.
+    return ask('due', { kind: kindIn(t) })
   if (/\bhow many\b|\b(?:count|number) of\b|\bin total\b/.test(t) && noun)
     return ask('count', { kind: kindIn(t) })
 
@@ -513,6 +526,23 @@ export type RecordsWorld = {
     }[]
     minimum: number
   } | null
+  /**
+   * The conflicts as Context's Conflicts filter lists them to the person, in its order: pairs of
+   * live items they may read whole, a pair kept as both and unchanged since left out. Null when the
+   * question does not need them.
+   */
+  conflicts: readonly RecordsConflict[] | null
+}
+
+/** A conflict as the records keep it: the pair, by the item that holds the flag first. */
+export type RecordsConflict = {
+  key: string
+  holder: { id: string; title: string; areaId: string }
+  other: { id: string; title: string; areaId: string }
+  /** What both apply to, in words: "Orders in Norway". */
+  topic: string
+  /** The day agents started to get both, as an ISO date; null when not known. */
+  since: string | null
 }
 
 const count = (n: number) => n.toLocaleString('en-GB')
@@ -686,6 +716,10 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
               status: 'due',
             }
           : null,
+        note:
+          ask.kind === 'definition'
+            ? 'A definition needs no check: the context written about it does. Context whose definition changed is due for a check too.'
+            : null,
       }
     }
     case 'archived': {
@@ -716,6 +750,8 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
         note: 'Archived context items stay in Context. Agents no longer get them.',
       }
     }
+    case 'conflicts':
+      return conflictsAnswer(world, base, domain)
     case 'owner':
       return ownerAnswer(ask, world, base, area)
     case 'terms':
@@ -906,6 +942,54 @@ function ownerAnswer(
       cells: [names(a).length ? list(names(a)) : 'No owner'],
     })),
     total: world.areas.length,
+  }
+}
+
+/**
+ * The conflicts as Context lists them, in a domain when one is named: a pair is in it when either
+ * item is. Each row opens the pair's own page; nothing in an item's words is read.
+ */
+function conflictsAnswer(
+  world: RecordsWorld,
+  base: Omit<RecordsFound, 'understood' | 'sentence'>,
+  domain: { id: string; name: string } | null,
+): RecordsFound {
+  const pairs = (world.conflicts ?? []).filter(
+    (c) => !domain || c.holder.areaId === domain.id || c.other.areaId === domain.id,
+  )
+  const n = pairs.length
+  const where = domain ? ` in ${domain.name}` : ''
+  const conflicts = (k: number) => `${count(k)} ${k === 1 ? 'conflict' : 'conflicts'}`
+  return {
+    ...base,
+    understood: `Conflicts${domain ? `, in ${domain.name}` : ''}`,
+    read: `Read ${conflicts(n)}${where}`,
+    sentence: n
+      ? `There ${is(n)} ${conflicts(n)}${where}.`
+      : `There are no conflicts${where}. No context items disagree.`,
+    detail: n
+      ? 'Agents get both items of each and say the context disagrees, until an owner settles it.'
+      : null,
+    columns: ['Context items that disagree', 'About', 'Since'],
+    rows: pairs.slice(0, RECORDS_ROWS).map((c) => ({
+      type: 'conflict' as const,
+      key: c.key,
+      holder: { id: c.holder.id, title: c.holder.title },
+      other: { id: c.other.id, title: c.other.title },
+      cells: [c.topic, c.since ? dayWords(c.since) : 'Not recorded'],
+    })),
+    total: n,
+    shown:
+      n > RECORDS_ROWS ? `Showing ${RECORDS_ROWS} of ${count(n)}, as Context lists them` : null,
+    more: n
+      ? {
+          label: `Show all ${count(n)} in Context`,
+          to: 'context',
+          domain: domain?.id ?? null,
+          status: 'conflicts',
+        }
+      : null,
+    note: 'A conflict is two context items an owner said disagree. A pair kept as both, and unchanged since, is not one.',
   }
 }
 

@@ -12,7 +12,9 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
   answered inside the person's own request, from what the Context list shows them. A member, an
   owner and an administrator get the same answers over the same rows; an item an audience rule
   hides is never counted or named; a version never published is not in the records; a question
-  about one person's work is refused; and only which question it was is counted, by week.
+  about one person's work is refused; the conflicts are the pairs Context's Conflicts filter
+  lists, never one with an item the person may not read; and only which question it was is
+  counted, by week.
 */
 
 const { client, url } = testDatabase()
@@ -24,6 +26,10 @@ const reader = '00000000-0000-4000-8000-0000000000b1'
 const hidden = { id: 'itm_recvault01', title: 'Quokkasunrise harbour closure' }
 const archived = { id: 'itm_recgone001', title: 'Harbour opening hours, winter' }
 const draft = { id: 'itm_recdraft01', title: 'Zephyrdraft harbour note' }
+const clash = [
+  { id: 'itm_recclash01', title: 'Harbour fees include VAT' },
+  { id: 'itm_recclash02', title: 'Harbour fees exclude VAT' },
+]
 const canaries = [hidden.id, 'Quokkasunrise', draft.id, 'Zephyrdraft']
 
 const app = buildApp({
@@ -129,6 +135,26 @@ beforeAll(async () => {
     secretVersion = secret.id
     await accept(client, secret.id)
     await serve(secret.id)
+    // Two items an owner said disagree; the first also names the hidden one, a pair nobody here
+    // may read whole.
+    const second = await version(client, {
+      item: clash[1]!.id,
+      title: clash[1]!.title,
+      owner: people.owner,
+    })
+    await accept(client, second.id)
+    await serve(second.id)
+    const first = await version(client, {
+      item: clash[0]!.id,
+      title: clash[0]!.title,
+      owner: people.owner,
+    })
+    await client.query(
+      'insert into item_version_conflicts (version_id,other_item_id) values ($1,$2), ($1,$3)',
+      [first.id, clash[1]!.id, hidden.id],
+    )
+    await accept(client, first.id)
+    await serve(first.id)
     // A version written and never published: a draft is no context item.
     await version(client, { item: draft.id, title: draft.title })
   })
@@ -156,6 +182,7 @@ const questions = [
   'which domains have no owner?',
   'how many context items are there?',
   'what did agents ask that found nothing?',
+  'List me conflicts.',
 ]
 
 describe('records answers on PostgreSQL', () => {
@@ -172,7 +199,7 @@ describe('records answers on PostgreSQL', () => {
       const listed = library.json<{ items: { id: string; kind: string }[] }>().items
       const count = await counted(who, 'how many context items are there?')
       expect(count.total, who).toBe(listed.filter((i) => i.kind !== 'example').length)
-      expect(count.total, who).toBe(2)
+      expect(count.total, who).toBe(4)
       expect((await counted(who, 'what is archived?')).rows).toEqual([
         expect.objectContaining({ type: 'item', id: archived.id, title: archived.title }),
       ])
@@ -202,8 +229,31 @@ describe('records answers on PostgreSQL', () => {
       }
     // Both published items were created within the day; the hidden one is never among them.
     const created = await counted('reader', 'give me context created in last 24 hours?')
-    expect(created.sentence).toBe('2 context items were created in the last 24 hours.')
+    expect(created.sentence).toBe('4 context items were created in the last 24 hours.')
     expect(created.period?.label).toMatch(/, UTC$/)
+  })
+
+  it('lists the conflicts Context lists, each by its pair, and none with a hidden item', async () => {
+    for (const who of ['reader', 'owner', 'admin']) {
+      const found = await counted(who, 'List me conflicts.')
+      expect(found, who).toMatchObject({
+        intent: 'conflicts',
+        sentence: 'There is 1 conflict.',
+        total: 1,
+        rows: [
+          {
+            type: 'conflict',
+            key: `${clash[0]!.id}.${clash[1]!.id}`,
+            holder: clash[0],
+            other: clash[1],
+          },
+        ],
+        more: { to: 'context', status: 'conflicts' },
+      })
+    }
+    expect((await counted('reader', 'any conflicts in Marketing?')).sentence).toBe(
+      'There are no conflicts in Marketing. No context items disagree.',
+    )
   })
 
   it('names the owners of a domain as Context names them', async () => {

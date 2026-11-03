@@ -14,7 +14,7 @@ import {
 import type { Term } from '../../../src/domain/vocabulary.ts'
 
 /*
-  Records answers: the closed list of seven questions about the context's own records, read by
+  Records answers: the closed list of questions about the context's own records, read by
   fixed patterns, each answered by a fixed read and a template. The phrasings below are the set the
   design was measured on, with the context questions that must stay context questions; a miss
   leaves a question to the answer engine.
@@ -172,6 +172,18 @@ describe('reading a records question', () => {
     ['list the channels', 'values'],
     ['what are the values of Market?', 'values'],
     ['What values does Channel have?', 'values'],
+    // The question a person asked that Ask answered with what it can do instead (3 Nov 2026).
+    ['List me conflicts.', 'conflicts'],
+    ['list conflicts', 'conflicts'],
+    ['any conflicts?', 'conflicts'],
+    ['conflicts in Context', 'conflicts'],
+    ['what is unresolved', 'conflicts'],
+    ['what is still unsettled?', 'conflicts'],
+    ['which context items disagree?', 'conflicts'],
+    ['are there any conflicts in Sales?', 'conflicts'],
+    ['how many conflicts are there?', 'conflicts'],
+    ['show conflicting rules', 'conflicts'],
+    ['show outdated definitions', 'due'],
   ]
   it.each(positives)('reads "%s" as %s', (question, intent) => {
     expect(intentOf(question)).toBe(intent)
@@ -211,6 +223,11 @@ describe('reading a records question', () => {
     'which products sold best last month',
     'why did campaigns drop in October?',
     'which channels performed worst',
+    // A conflict about the business stays with the engine, which answers it as a Conflict.
+    'Is there a conflict about orders in Norway?',
+    'Why do orders in Norway disagree?',
+    // A clash among Definitions' own names is not a pair of context items.
+    'list conflicting definitions',
   ]
   it.each(negatives)('leaves "%s" to the answer engine', (question) => {
     expect(intentOf(question)).toBeNull()
@@ -288,6 +305,15 @@ describe('reading a records question', () => {
       expect(recognise(question)).toBeNull()
     },
   )
+
+  it('reads the domain the conflicts are asked in', () => {
+    expect(recognise('are there any conflicts in Sales?')).toMatchObject({
+      ask: { intent: 'conflicts', domain: 'sales' },
+    })
+    expect(recognise('List me conflicts.')).toMatchObject({
+      ask: { intent: 'conflicts', domain: null },
+    })
+  })
 
   it('takes the metric a question asks the owner of', () => {
     expect(recognise('who owns Orders?')).toMatchObject({
@@ -408,6 +434,7 @@ const world = (items: RecordsItem[], extra: Partial<RecordsWorld> = {}): Records
   people: { 'p-jon': 'Jon Abara', 'p-sofia': 'Sofia Brandt', 'p-lars': 'Lars Holm' },
   terms,
   asked: null,
+  conflicts: null,
   ...extra,
 })
 const ask = (over: Partial<RecordsAsk> & Pick<RecordsAsk, 'intent'>): RecordsAsk => ({
@@ -592,6 +619,74 @@ describe('a records answer', () => {
     )
   })
 
+  it('lists the conflicts as Context does, each opening its pair, five at most', () => {
+    const pair = (n: number, areaId = 'sales') => ({
+      key: `h${n}.o${n}`,
+      holder: { id: `h${n}`, title: `Holder ${n}`, areaId },
+      other: { id: `o${n}`, title: `Other ${n}`, areaId: 'marketing' },
+      topic: `Orders in market ${n}`,
+      since: n === 0 ? null : '2026-09-24',
+    })
+    const conflicts = [pair(0), ...Array.from({ length: 6 }, (_, n) => pair(n + 1, 'sandbox'))]
+    const a = answer(ask({ intent: 'conflicts' }), world([], { conflicts }))
+    expect(a.sentence).toBe('There are 7 conflicts.')
+    expect(a.understood).toBe('Conflicts')
+    expect(a.read).toBe('Read 7 conflicts')
+    expect(a.columns).toEqual(['Context items that disagree', 'About', 'Since'])
+    expect(a.rows[0]).toEqual({
+      type: 'conflict',
+      key: 'h0.o0',
+      holder: { id: 'h0', title: 'Holder 0' },
+      other: { id: 'o0', title: 'Other 0' },
+      cells: ['Orders in market 0', 'Not recorded'],
+    })
+    expect(a.rows[1]!.cells).toEqual(['Orders in market 1', '24 Sep 2026'])
+    expect(a.rows).toHaveLength(5)
+    expect(a.total).toBe(7)
+    expect(a.shown).toBe('Showing 5 of 7, as Context lists them')
+    expect(a.more).toEqual({
+      label: 'Show all 7 in Context',
+      to: 'context',
+      domain: null,
+      status: 'conflicts',
+    })
+    expect(recordsAnswerSchema.parse(a)).toEqual(a)
+  })
+
+  it('counts a conflict in a domain when either item is in it, and says plainly when there is none', () => {
+    const conflicts = [
+      {
+        key: 'h.o',
+        holder: { id: 'h', title: 'Holder', areaId: 'sales' },
+        other: { id: 'o', title: 'Other', areaId: 'marketing' },
+        topic: 'Orders in Norway',
+        since: '2026-10-12',
+      },
+    ]
+    const w = world([], { conflicts })
+    expect(answer(ask({ intent: 'conflicts', domain: 'marketing' }), w).sentence).toBe(
+      'There is 1 conflict in Marketing.',
+    )
+    const none = answer(ask({ intent: 'conflicts', domain: 'sandbox' }), w)
+    expect(none.sentence).toBe('There are no conflicts in Sandbox. No context items disagree.')
+    expect(none.rows).toEqual([])
+    expect(none.more).toBeNull()
+    const empty = answer(ask({ intent: 'conflicts' }), world([], { conflicts: [] }))
+    expect(empty.sentence).toBe('There are no conflicts. No context items disagree.')
+  })
+
+  it('answers outdated definitions with the context due for a check, and says why', () => {
+    const a = answer(
+      ask({ intent: 'due', kind: 'definition' }),
+      world([item({ id: 'due', status: 'due', checkFlag: 'needs_check' }), item({ id: 'live' })]),
+    )
+    expect(a.sentence).toBe('1 context item is due for a check.')
+    expect(a.rows[0]!.cells[0]).toBe('Definition changed')
+    expect(a.note).toBe(
+      'A definition needs no check: the context written about it does. Context whose definition changed is due for a check too.',
+    )
+  })
+
   it('refuses a question about one person with what Ask can say instead', () => {
     expect(refusedAnswer(world([]))).toMatchObject({
       refused: true,
@@ -612,6 +707,7 @@ describe('a records answer', () => {
   it('writes plain sentences: no dash for a pause, short enough to read at once', () => {
     const w = world([item({ id: 'a', status: 'due', reviewDate: '2026-01-01' })], {
       asked: { minimum: 5, rows: [] },
+      conflicts: [],
     })
     const intents = [
       'created',
@@ -621,6 +717,7 @@ describe('a records answer', () => {
       'owner',
       'count',
       'asked_nothing',
+      'conflicts',
     ] as const
     for (const intent of intents) {
       const a = answer(ask({ intent, domain: 'sales' }), w)

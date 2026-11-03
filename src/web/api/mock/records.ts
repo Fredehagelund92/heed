@@ -10,6 +10,7 @@ import type { Term } from '@domain/vocabulary'
 import { HIDE_UNDER } from '@/api/mock/obs-engine'
 import type { Definition } from '@/lib/definitions'
 import type { AskedRow } from '@/model/ask'
+import type { ConflictRow } from '@/model/conflicts'
 import type { DomainId, Fact } from '@/model/items'
 import { addDays } from '@domain/status'
 import { labelDay } from '@/model/validity'
@@ -156,6 +157,16 @@ function askedOf(
   }
 }
 
+/** The Conflicts filter's rows as the records read them; the demo says since when as "24 Sep". */
+const conflictsOf = (rows: readonly ConflictRow[]): NonNullable<RecordsWorld['conflicts']> =>
+  rows.map((r) => ({
+    key: r.key,
+    holder: { id: r.holder.id, title: r.holder.title ?? '', areaId: r.holder.domain },
+    other: { id: r.other.id, title: r.other.title ?? '', areaId: r.other.domain },
+    topic: r.topic,
+    since: r.since ? labelDay(`${r.since} ${RECORDS_NOW.slice(0, 4)}`) : null,
+  }))
+
 /**
  * The records answer to a typed question, or null when it is not a records question: the matcher
  * answers it then, as before.
@@ -167,6 +178,8 @@ export function recordsFor(
     domains: readonly { id: DomainId; name: string; owners: readonly string[] }[]
     definitions: readonly Definition[]
     asked: () => readonly AskedRow[]
+    /** The conflicts as Context's Conflicts filter lists them to the person. */
+    conflicts: () => readonly ConflictRow[]
     /** Whether the person manages a domain's topics: an administrator, or one of its owners. */
     manages: (domain: DomainId | undefined) => boolean
   },
@@ -191,6 +204,7 @@ export function recordsFor(
       people: Object.fromEntries([...names].map((n) => [n, n])),
       terms,
       asked: found.ask.intent === 'asked_nothing' ? askedOf(world.asked(), world.manages) : null,
+      conflicts: found.ask.intent === 'conflicts' ? conflictsOf(world.conflicts()) : null,
     },
     RECORDS_NOW,
   )

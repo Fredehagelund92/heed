@@ -6,8 +6,9 @@ import * as z from 'zod/mini'
 */
 
 /**
- * The questions Records answers, by a stable id. A usage count keeps only these ids. The last two
- * are about the vocabulary itself: its metrics and dimensions (`terms`), and a dimension's values.
+ * The questions Records answers, by a stable id. A usage count keeps only these ids. `terms` and
+ * `values` are about the vocabulary itself: its metrics and dimensions, and a dimension's values.
+ * `conflicts` is the pairs of context items an owner said disagree, as Context's Conflicts lists them.
  */
 export const recordsIntents = [
   'created',
@@ -19,6 +20,7 @@ export const recordsIntents = [
   'asked_nothing',
   'terms',
   'values',
+  'conflicts',
 ] as const
 export type RecordsIntent = (typeof recordsIntents)[number]
 
@@ -73,6 +75,15 @@ const rowSchema = z.union([
     page: z.string(),
     cells: z.array(z.string()),
   }),
+  /** A conflict: two context items an owner said disagree; it opens the pair's own page (`key`). */
+  z.object({
+    type: z.literal('conflict'),
+    /** `holderId.otherId`, the pair's address. */
+    key: z.string(),
+    holder: z.object({ id: z.string(), title: z.string() }),
+    other: z.object({ id: z.string(), title: z.string() }),
+    cells: z.array(z.string()),
+  }),
   /** A kind's counts, or all kinds together (`kind` null). */
   z.object({
     type: z.literal('kind'),
@@ -117,7 +128,8 @@ export const recordsAnswerSchema = z.union([
         label: z.string(),
         to: z.enum(['context', 'definitions', 'domain']),
         domain: z.nullable(z.string()),
-        status: z.nullable(z.enum(['due', 'archived'])),
+        /** Context's own filter: due for a check, archived, or only the items in a conflict. */
+        status: z.nullable(z.enum(['due', 'archived', 'conflicts'])),
         /** One Definitions page by its name, such as a dimension with all its values. */
         page: z.optional(z.string()),
       }),
