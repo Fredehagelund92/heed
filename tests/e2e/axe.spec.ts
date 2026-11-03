@@ -196,6 +196,21 @@ for (const { name, width, height } of widths) {
         expect(await violations(page)).toEqual([])
       })
 
+      test("a comment's emoji list, open on ':' alone", async ({ page }) => {
+        await page.goto(withTheme('/context/itm_norway_stop', theme))
+        const box = page.getByRole('textbox', { name: 'Write a comment' })
+        await box.scrollIntoViewIfNeeded()
+        await box.click()
+        await page.keyboard.type('Ship it :')
+        const list = page.getByRole('listbox', { name: 'Emoji' })
+        await expect(list).toBeVisible()
+        // The text box keeps the focus and names the active row (aria-activedescendant), and the
+        // arrows scroll it into view: the combobox pattern, which axe cannot tell from a scrolling
+        // region no key reaches. Only that one finding, on this list, is let through.
+        const reached = `serious: scrollable-region-focusable (#${await list.getAttribute('id')})`
+        expect((await violations(page)).filter((v) => v !== reached)).toEqual([])
+      })
+
       test('an answer that looked nothing up, with what Ask can answer', async ({ page }) => {
         await page.goto(withTheme('/ask?n=axe-unread', theme))
         const box = page.getByRole('textbox', { name: 'Ask a question' })

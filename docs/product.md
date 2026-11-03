@@ -323,7 +323,7 @@ The job specs, one line each:
 | J23 | Focus moves after J, K and a decision; the last decision says everything is handled, with Undo.                                                                                 |
 | J24 | Picking several rows works the same in every list (Shift range, Cmd toggle, X, Cmd A, Esc).                                                                                     |
 | J25 | Bulk actions from one bar: Archive with Undo, Delete for drafts only, skips with reasons, Retry.                                                                                |
-| J26 | Emoji where people talk (`:` and two letters), the five reactions; none in context text.                                                                                        |
+| J26 | Emoji where people talk (`:` opens the list), the five reactions; none in context text.                                                                                         |
 | J27 | Observability: its menu, range and domain, Overview, Questions, Quality, Feedback, Usage, Alerts.                                                                               |
 | J28 | Ask ideas: Share with state and sources, Show me where it says that, Asked this week.                                                                                           |
 | J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion.                                |

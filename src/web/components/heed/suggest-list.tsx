@@ -11,8 +11,8 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 
 // The one list a text box offers while typing: shadcn's Command list under the caret (a bottom sheet
-// on a phone), in groups, filtered as you type. '@' lists what can be mentioned; ':' and two letters
-// list emoji. One popover and one keyboard model for both: the keys stay in the text box, arrows
+// on a phone), in groups, filtered as you type. '@' lists what can be mentioned; ':' lists
+// emoji. One popover and one keyboard model for both: the keys stay in the text box, arrows
 // move, Enter or Tab adds, Esc closes. The box tells screen readers about the list (aria-controls and
 // the active option, which a text box may carry).
 

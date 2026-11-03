@@ -124,7 +124,7 @@ export function AskComposer({
         kinds: SCOPE_KINDS,
         empty: 'Mention a domain, a definition, a context item or a market.',
       }),
-      // Low-key here: no button, only ':' and two letters, for someone who types emoji anyway.
+      // Low-key here: no button, only ':', for someone who types emoji anyway.
       emojiExtension(),
     ],
     editorProps: {

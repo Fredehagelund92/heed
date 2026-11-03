@@ -1,8 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, go, test } from './go.ts'
 
-// J26: emoji where people talk to each other. ':' and two letters opens the same list as '@' (one
-// popover, one keyboard model), the five reactions and what was used lately first; Enter inserts the
+// J26: emoji where people talk to each other. ':' alone opens the same list as '@' (one popover,
+// one keyboard model), the five reactions and what was used lately first; Enter inserts the
 // character; ':tada:' typed out turns into 🎉; Esc closes. Context and definitions take no list: an
 // emoji pasted there gets a quiet note, because agents read that text.
 
@@ -41,6 +41,44 @@ test("a comment: ':th' offers thumbs up first, Enter inserts it, ':tada:' conver
   await expect(box).toHaveText('Looks right 👍')
   await page.keyboard.type(' shipped :tada:')
   await expect(box).toHaveText('Looks right 👍 shipped 🎉')
+})
+
+test("a comment: ':' alone opens the list, letters narrow it, the keys pick", async ({ page }) => {
+  await go(page, '/context/itm_norway_stop')
+  const box = page.getByRole('textbox', { name: 'Write a comment' })
+  await box.click()
+  await page.keyboard.type('Ship it :')
+  const list = emojiList(page)
+  await expect(list).toBeVisible()
+  // Only the short list: the reactions and the few everyone uses.
+  await expect(list.getByRole('group')).toHaveCount(1)
+  await expect(list.getByRole('option').first()).toHaveAccessibleName('thumbs up :thumbsup:')
+  await expect(list.getByRole('option')).toHaveCount(12)
+  // The text box names the active option, as for '@'.
+  const first = await list.getByRole('option').first().getAttribute('id')
+  await expect(box).toHaveAttribute('aria-activedescendant', first!)
+  await page.keyboard.press('ArrowDown')
+  await expect(box).toHaveAttribute(
+    'aria-activedescendant',
+    (await list.getByRole('option').nth(1).getAttribute('id'))!,
+  )
+  await page.keyboard.press('Enter')
+  await expect(list).toHaveCount(0)
+  await expect(box).toHaveText('Ship it 👀')
+  // One letter narrows it; Tab adds too.
+  await page.keyboard.type(' :p')
+  await expect(list).toBeVisible()
+  await expect(list.getByRole('option').first()).toHaveAccessibleName('folded hands :pray:')
+  await page.keyboard.press('Tab')
+  await expect(box).toHaveText('Ship it 👀 🙏')
+  // Esc leaves the colon, and a link, a time or '::' opens nothing.
+  await page.keyboard.type(' :')
+  await expect(list).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(list).toHaveCount(0)
+  await expect(box).toHaveText('Ship it 👀 🙏 :')
+  await page.keyboard.type(' see https://wiki.example at 18:30 ::')
+  await expect(list).toHaveCount(0)
 })
 
 test('Esc closes the list and keeps the words; a time like 10:30 opens nothing', async ({

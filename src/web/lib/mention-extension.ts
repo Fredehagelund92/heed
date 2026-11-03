@@ -15,12 +15,12 @@ import {
   MentionPicker,
   type PickerHandle,
 } from '@/components/heed/mention-picker'
-import { fromShortcode, rememberEmoji, type Emoji } from '@/lib/emoji'
+import { SHORTCODE, emojiQuery, fromShortcode, rememberEmoji, type Emoji } from '@/lib/emoji'
 import type { MentionKind } from '@/lib/mentions'
 
 // The text box's two lists, one popover and one keyboard model (components/heed/suggest-list.tsx):
 // '@' with the shared picker for one place's kinds (the Ask composer, the document editors and the
-// comment box), and ':' with two letters for emoji, where people talk to each other (comments, a
+// comment box), and ':' for emoji, where people talk to each other (comments, a
 // returned suggestion's note, the Ask composer). Context and definitions take no emoji list: agents
 // read that text.
 
@@ -141,13 +141,11 @@ export function mentionExtension({ kinds, empty }: MentionOptions) {
   })
 }
 
-/** ':' then at least two letters or digits, as the list and the closing colon read it. */
-const CODE = '[a-z0-9_+-]{2,}'
-
 /**
- * Emoji where people talk to each other: ':' and two letters opens the list, and a shortcode typed
- * out in full (":tada:") turns into its emoji on the closing colon. What goes in is the character
- * itself, plain text. A ':' inside a word or a time (10:30) opens nothing.
+ * Emoji where people talk to each other: ':' alone opens the list and the letters after it narrow
+ * it, and a shortcode typed out in full (":tada:") turns into its emoji on the closing colon. What
+ * goes in is the character itself, plain text. Where ':' opens it is lib/emoji.ts's emojiQuery: not
+ * inside a word, a link or a time (10:30).
  */
 export function emojiExtension() {
   const key = new PluginKey('emoji')
@@ -163,8 +161,20 @@ export function emojiExtension() {
           allowSpaces: false,
           placement: 'bottom-start',
           floatingUi: { strategy: 'fixed' },
-          allow: ({ state, range }) =>
-            new RegExp(`^:${CODE}$`, 'i').test(state.doc.textBetween(range.from, range.to)),
+          // The paragraph up to the caret, not only its last run of text: 'bold:' is still a word.
+          // A line break reads as a space, a mention as a word.
+          findSuggestionMatch: ({ $position }) => {
+            const before = $position.parent.textBetween(
+              0,
+              $position.parentOffset,
+              undefined,
+              (n) => (n.type.name === 'hardBreak' ? '\n' : '\ufffc'),
+            )
+            const query = emojiQuery(before)
+            if (query === null) return null
+            const to = $position.pos
+            return { range: { from: to - query.length - 1, to }, query, text: `:${query}` }
+          },
           items: () => [],
           command: ({ editor, range, props }) => {
             editor.chain().focus().insertContentAt(range, props.char).run()
@@ -176,7 +186,7 @@ export function emojiExtension() {
     addInputRules() {
       return [
         new InputRule({
-          find: new RegExp(`(^|\\s):(${CODE}):$`, 'i'),
+          find: new RegExp(`(^|\\s):(${SHORTCODE}+):$`, 'i'),
           handler: ({ state, range, match }) => {
             const x = fromShortcode(match[2]!)
             if (!x) return null
