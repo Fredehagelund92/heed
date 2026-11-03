@@ -447,6 +447,7 @@ export function SaveView({ filters, disabled }: { filters: Filters; disabled: bo
     <Popover
       open={open}
       onOpenChange={(o) => {
+        if (o && disabled) return
         setOpen(o)
         if (o) setName(suggested)
       }}
@@ -461,7 +462,6 @@ export function SaveView({ filters, disabled }: { filters: Filters; disabled: bo
             aria-description={
               disabled ? 'Filter the topics first: a view keeps its filters.' : undefined
             }
-            onClick={(e) => disabled && e.preventDefault()}
           />
         }
       >

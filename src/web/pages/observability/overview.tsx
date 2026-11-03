@@ -162,6 +162,7 @@ function Explorer({
   // An owner sees their own domains only.
   if (view.owned && (!filters.domain || !view.owned.includes(filters.domain)))
     filters.domain = view.domain
+  if (view.owned) delete filters.agent
   const viewId = query.get('view') ?? 'all'
   const sorting = sortingFrom(TOPIC_SORTS, query, 'asked')
   const sortBy = (s: Sorting<Sort>) => setQuery(sortingTo(TOPIC_SORTS, s, 'asked'))

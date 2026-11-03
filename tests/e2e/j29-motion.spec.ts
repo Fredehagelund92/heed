@@ -343,7 +343,7 @@ test('Overview: a changed number counts to its new value, and the bars move to t
   await expect(asked).toContainText('142')
   // Shown the first time, a number is simply there: it does not count up from nothing.
   expect(await asked.evaluate((el) => getComputedStyle(el).getPropertyValue('--count'))).toBe('142')
-  // Another range: what the number and the tallest bar show, each frame for 700ms.
+  // A filter (the Not found cell): what the number and the tallest bar show, each frame for 700ms.
   const seen = await page.evaluate(async () => {
     const count = () =>
       Number(
@@ -379,6 +379,27 @@ test('Overview: a changed number counts to its new value, and the bars move to t
   expect(end).toBeLessThan(142)
   await expect(asked).toContainText(String(end))
   const between = seen.counts.filter((n) => n < 142 && n > end)
+  // Once it has counted, each place draws its own digit, and a place above the number takes no room.
+  await expect
+    .poll(() =>
+      asked.evaluate((el) =>
+        [...el.querySelectorAll('.count-digit')]
+          .map((d) => ({
+            digit: getComputedStyle(d).counterReset.replace('digit ', ''),
+            width: d.getBoundingClientRect().width,
+          }))
+          .filter((d) => d.width > 0)
+          .map((d) => d.digit)
+          .join(''),
+      ),
+    )
+    .toBe(String(end))
+  const hidden = await asked.evaluate((el) =>
+    [...el.querySelectorAll('.count-digit')]
+      .map((d) => d.getBoundingClientRect().width)
+      .filter((w) => w === 0).length,
+  )
+  expect(hidden).toBe(Math.max(0, 3 - String(end).length))
   const moving = new Set(seen.bars).size
   if (await reduced(page)) {
     // With reduced motion the number is there at once, and so are the bars.
