@@ -193,7 +193,7 @@ src/
   domain/         the item model (zod/mini), pure and shared with the server
   contract/       the API contract (oRPC, zod/mini): every operation once, used by the service and the app
   cli/            `heed`, the command-line tool: the contract client, never the service's code
-  server/         the Heed service: main.ts (composition root), app.ts, config, db, http, observability
+  server/         the Heed service: service.ts (composition root, used by main.ts and the Vercel function), app.ts, config, db, http, observability
     modules/        one folder per feature, reached only through its index.ts
       jobs/           scheduled jobs, heartbeats, the watchdog and the operations endpoints
       evals/          golden questions, answer tests through the MCP wire, judges, scorecards
