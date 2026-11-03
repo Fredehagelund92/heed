@@ -80,7 +80,7 @@ export function Composer({
         kinds: PEOPLE_KINDS,
         empty: 'Mention anyone signed in to the workspace.',
       }),
-      // People talking to each other: ':' and two letters offers emoji.
+      // People talking to each other: ':' offers emoji.
       emojiExtension(),
       Placeholder.configure({ placeholder }),
     ],

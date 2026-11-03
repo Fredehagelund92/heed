@@ -359,7 +359,7 @@ The quick view of a context item or a definition is a note and one closed Detail
 
 ### 5.6 Mentions and emoji
 
-One `@` picker for Ask, the document editors and comments: a Command list under the caret (a sheet on a phone), grouped Domains, Definitions, Context items, Markets and People, with type icons, recent first. Each place offers its own kinds. Comments tag people, which marks the Inbox and brings the card back to Needs you (in the app only). In what `get_context` gives an agent, a mention is only its words. `:` and two letters opens the emoji list in comments, the Return note and the Ask composer; context, definitions, titles, search and filters take none (agents read that text, so an emoji pasted there gets a quiet note).
+One `@` picker for Ask, the document editors and comments: a Command list under the caret (a sheet on a phone), grouped Domains, Definitions, Context items, Markets and People, with type icons, recent first. Each place offers its own kinds. Comments tag people, which marks the Inbox and brings the card back to Needs you (in the app only). In what `get_context` gives an agent, a mention is only its words. `:` alone opens the emoji list (what was used lately and the common reactions, narrowed as letters follow) in comments, the Return note and the Ask composer; context, definitions, titles, search and filters take none (agents read that text, so an emoji pasted there gets a quiet note).
 
 ### 5.7 Comments and reactions
 

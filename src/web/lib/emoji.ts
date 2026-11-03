@@ -1,4 +1,4 @@
-// The emoji people can type with ':' and two letters, in comments and notes: about 150 common
+// The emoji people can type with ':' in comments and notes: about 150 common
 // ones, curated by hand, in four groups, each with its name (what a screen reader says) and the
 // shortcode Slack and GitHub use. No giant dataset and no skin tones: the plain emoji only. What is
 // inserted is the character itself, plain text. Context and definitions take no picker: agents read
@@ -188,6 +188,24 @@ export const GROUPS: EmojiGroup[] = ['Smileys', 'Gestures', 'Objects', 'Symbols'
 /** The five fixed reactions on a comment: they come first in the picker too. */
 export const REACTION_CHARS = ['👍', '👀', '✅', '🤔', '🙏']
 
+/** What ':' alone offers before a letter is typed: the reactions and a few more everyone uses. */
+export const STARTER_CHARS = [...REACTION_CHARS, '🎉', '❤️', '💯', '😄', '👏', '🚀', '🔥']
+
+/** How many ':' alone offers: what was used lately first, then the starters. */
+const STARTERS = 12
+
+/** ':' then the letters of a shortcode, as the list and the closing colon read them. */
+export const SHORTCODE = '[a-z0-9_+-]'
+
+/**
+ * The emoji search the text before the caret ends in, or null when it ends in none: ':' at the
+ * start or after a space, then nothing yet or the letters of a shortcode. A ':' inside a word, a
+ * link (https://) or a time (18:30), and a second ':' ("::"), open nothing.
+ */
+export function emojiQuery(before: string): string | null {
+  return new RegExp(`(?:^|\\s):(${SHORTCODE}*)$`, 'i').exec(before)?.[1] ?? null
+}
+
 const byShort = new Map(
   EMOJI.flatMap((x) => [[x.short, x] as const, ...(x.also ?? []).map((a) => [a, x] as const)]),
 )
@@ -235,13 +253,22 @@ function score(x: Emoji, q: string) {
 /**
  * The emoji a query finds, grouped: what was used lately and the five reactions first ("Frequently
  * used"), then the groups, the group with the best fit first and the best fits first in each. A
- * name that only contains the letters counts when nothing starts with them.
+ * name that only contains the letters counts when nothing starts with them. No letters yet is a
+ * short list of its own: what was used lately, then the starters.
  */
 export function searchEmoji(
   query: string,
   used: string[] = recent,
 ): { label: string; items: Emoji[] }[] {
   const q = query.toLowerCase().replace(/^:/, '')
+  if (!q) {
+    const chars = [...new Set([...used, ...STARTER_CHARS])]
+    const items = chars
+      .map((c) => EMOJI.find((x) => x.char === c))
+      .filter((x): x is Emoji => !!x)
+      .slice(0, STARTERS)
+    return [{ label: 'Frequently used', items }]
+  }
   const scored = EMOJI.map((x) => ({ x, s: score(x, q) })).filter((h) => h.s > 0)
   const best = Math.max(0, ...scored.map((h) => h.s))
   const hits = scored.filter((h) => best < 2 || h.s >= 2).sort((a, b) => b.s - a.s)
