@@ -13,11 +13,11 @@ import {
 import { savedCounts } from '@/model/saved-questions'
 import { useSavedQuestions } from '@/api/queries'
 import { BACK_TO_APP } from '@/lib/brand'
-import { OBS_SECTIONS } from '@/lib/obs'
+import { OBS_SECTIONS, obsHref, obsSectionOf } from '@/lib/obs'
 import { useMe } from '@/lib/workspace'
 
 // Inside Observability the app sidebar gives way to its own menu, as it does in Settings: the way
-// back to the app on top, then six pages in three small groups. Usage is for admins.
+// back to the app on top, then five pages in three small groups. Usage is for admins.
 
 export function ObservabilityNav({ section, close }: { section: string; close: () => void }) {
   const me = useMe()
@@ -52,8 +52,8 @@ export function ObservabilityNav({ section, close }: { section: string; close: (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       tooltip={item.title}
-                      isActive={section === item.id}
-                      render={<a href={`/observability/${item.id}`} onClick={close} />}
+                      isActive={obsSectionOf(section) === item.id}
+                      render={<a href={obsHref(item.id)} onClick={close} />}
                     >
                       <item.icon />
                       <span>{item.title}</span>

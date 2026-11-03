@@ -1,24 +1,17 @@
 import * as React from 'react'
-import { useDomains } from '@/lib/workspace'
-import { useObservability, useObsPageQuery } from '@/lib/obs'
-import type { Observability } from '@/model/observability'
-import type { Domains } from '@/model/people'
+import { useSavedViews, useSavedQuestions, useWrite } from '@/api/queries'
+import { toast } from 'sonner'
 import {
-  ArrowUpRightIcon,
   BotIcon,
   CalendarIcon,
   CircleCheckIcon,
   CircleDashedIcon,
-  CircleHelpIcon,
   EyeIcon,
-  HistoryIcon,
-  LayersIcon,
   ListChecksIcon,
-  LockIcon,
   MessageSquareIcon,
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
@@ -29,45 +22,71 @@ import {
 } from '@/components/ui/empty'
 import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
+import { BarSpacer, ListBar, SearchField, SortMenu } from '@/components/heed/list'
+import { CountUp } from '@/components/heed/count-up'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
-import { DomainDot } from '@/components/heed/tag-chip'
-import { BarRows, Legend, StackedBars } from '@/components/obs/charts'
-import { Kpi, kpiChange, moreOrFewer, ObsControls } from '@/components/obs/controls'
+import { Legend, StackedBars } from '@/components/obs/charts'
+import { Kpi, kpiChange, moreOrFewer, RangeSwitch } from '@/components/obs/controls'
+import { TopicTable } from '@/components/obs/topic-table'
 import {
-  dateLabel,
+  FilterChips,
+  FilterMenu,
+  GroupMenu,
+  MonthMenu,
+  SaveView,
+  ViewSwitch,
+  cleared,
+  viewCount,
+} from '@/components/obs/topic-filters'
+import {
   dayLabel,
-  GROUPINGS,
   groupCount,
   HIDE_UNDER,
-  monthsLabel,
-  noCounts,
+  share,
   SHOWN,
   shownCount,
+  TOPIC_SORTS,
+  type Count,
   type Grouping,
+  type Shown,
+  type Sort,
   type Topic,
-  type View,
+  type TopicGroup,
 } from '@/model/observability'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { savedCounts } from '@/model/saved-questions'
-import { useSavedQuestions } from '@/api/queries'
+import { openDock, useDock } from '@/lib/dock'
 import { open } from '@/lib/events'
-import { OBS_PURPOSE, useObsView } from '@/lib/obs'
+import { matches, usePublishOrder, useRowKeys } from '@/lib/list'
+import {
+  OBS_PURPOSE,
+  ObsDrawn,
+  obsPageInput,
+  useObsAddress,
+  useObservability,
+  useObsPageQuery,
+  useObsView,
+  type ObsView,
+} from '@/lib/obs'
+import {
+  BUILT_IN,
+  filtersFrom,
+  filtersTo,
+  narrowed,
+  passes,
+  sentence,
+  type Filters,
+} from '@/lib/obs-views'
 import { href, setQuery, useRoute } from '@/lib/router'
+import { clicked, sortingFrom, sortingTo, type Sorting } from '@/lib/sort'
+import { useDomains } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
-// Overview: one frame. Four numbers, each a way into its rows, a change marked up or down only when
-// it is bigger than chance would make it; questions per day, stacked by how they were answered,
-// with a dashed line at each publish; the topics asked most with the share that found nothing;
-// what found nothing (to the Inbox, where its draft or suggestion waits); what the last publish
-// changed; and, for admins, the kinds of agent that asked.
+// Overview: what agents asked and what they got, in one view over one state in the address. The
+// numbers, the questions per day and the topics all follow the same range, domain, kind of agent,
+// view and filters: the domain and the agent narrow the read itself, every other filter narrows
+// the topics, and the numbers then add up what those topics may show ("83+"). A row opens the
+// answer panel, a replay of what an agent gets for it. Questions' old address opens it at the
+// topics. Never the words of a question, never who asked.
 
 const pct = (n: number) => `${n > 0 ? '+' : ''}${n}`
 
@@ -76,20 +95,14 @@ const CHECKED = 'Checked answers'
 /** What a hidden headline count says: true whether it is small itself or keeps a small one safe. */
 const HIDDEN = 'hidden: under 5, or it would give one under 5 away'
 
-/** A question link into Questions, keeping the range and filters. */
-const questionsHref = (v: View, extra: Record<string, string | undefined> = {}) =>
-  href('/observability/questions', {
-    range: v.range === 7 ? undefined : String(v.range),
-    domain: v.domain,
-    agent: v.agent,
-    ...extra,
-  })
-
-/** A count's words inside a sentence: "asked fewer than 5 times", not "asked Fewer than 5 times". */
-const midSentence = (count: string) => count.charAt(0).toLowerCase() + count.slice(1)
-
-export function OverviewPage() {
-  const load = useObsPageQuery('overview')
+export function OverviewPage({ topicsFirst }: { topicsFirst?: boolean }) {
+  // Another range, domain or agent keeps this view until the next has loaded: the numbers count
+  // to the new ones and the bars move, instead of a skeleton.
+  const load = useObsPageQuery('overview', true)
+  const input = obsPageInput('overview', useObsAddress())
+  const [drawn, setDrawn] = React.useState(input)
+  if (load.data && !load.isPlaceholderData && JSON.stringify(drawn) !== JSON.stringify(input))
+    setDrawn(input)
   return (
     <ObsPage section="overview">
       <Loadable
@@ -97,313 +110,404 @@ export function OverviewPage() {
         what="the counts"
         skeleton={<ObsSkeleton section="overview" kpis={4} body="overview" />}
       >
-        <OverviewOf />
+        <ObsDrawn.Provider value={drawn}>
+          <OverviewOf topicsFirst={!!topicsFirst} busy={load.isPlaceholderData} />
+        </ObsDrawn.Provider>
       </Loadable>
     </ObsPage>
   )
 }
 
 /** The page for what its data says: nothing asked yet, too few to count, or the counts. */
-function OverviewOf() {
+function OverviewOf({ topicsFirst, busy }: { topicsFirst: boolean; busy: boolean }) {
   const view = useObsView()
   if (view.state === 'empty') return <NothingConnected />
   if (view.state === 'quiet') return <TooFew view={view} />
-  return <Overview view={view} />
+  return <Explorer view={view} topicsFirst={topicsFirst} busy={busy} />
 }
 
-function Head({
-  view,
-  children,
-}: {
-  view: ReturnType<typeof useObsView>
-  children?: React.ReactNode
-}) {
+function Head({ view }: { view: ObsView }) {
   const domains = useDomains()
+  // An owner reads their own domains: the line says so, as the Filter menu has no domain for them.
   const domainLine =
     view.owned && view.domain
-      ? `What agents asked about ${domains[view.domain]?.name} ${view.label}, and what they got.`
+      ? `What agents asked about ${domains[view.domain]?.name} ${view.label}, and what they got, by topic. You see the domains you own.`
       : OBS_PURPOSE.overview
-  // On a narrow page the filters take a row of their own under the title.
   return (
     <FrameSection
       title="Overview"
       description={domainLine}
-      action={<div className="hidden @3xl/main:block">{<ObsControls view={view} />}</div>}
-    >
-      <div className="px-4 pb-4 md:px-5 @3xl/main:hidden">
-        <ObsControls view={view} />
-      </div>
-      {children}
-    </FrameSection>
+      action={<RangeSwitch value={view.range} />}
+    />
   )
 }
 
-function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
+function Explorer({
+  view,
+  topicsFirst,
+  busy,
+}: {
+  view: ObsView
+  topicsFirst: boolean
+  busy: boolean
+}) {
   const domains = useDomains()
+  const write = useWrite()
   const obs = useObservability()
-  const n = obs.numbers()
-  const bars = obs.data.bars
-  const saved = savedCounts(useSavedQuestions(), view.domain)
-  // The top topics are the domain's the numbers are about, or every one.
-  const topics = obs.data.topics.filter((t) => !view.domain || t.domain === view.domain)
-  // Top topics grouped as Questions groups them: metric and market by default, the month kept inside.
   const { query } = useRoute()
-  const grouping: Grouping =
+  const dock = useDock()
+  const saved = useSavedViews()
+  const [text, setText] = React.useState('')
+  const filters = filtersFrom(query)
+  // An owner sees their own domains only.
+  if (view.owned && (!filters.domain || !view.owned.includes(filters.domain)))
+    filters.domain = view.domain
+  const viewId = query.get('view') ?? 'all'
+  const sorting = sortingFrom(TOPIC_SORTS, query, 'asked')
+  const sortBy = (s: Sorting<Sort>) => setQuery(sortingTo(TOPIC_SORTS, s, 'asked'))
+  // Grouping only joins rows for reading; the key under it stays the exact scope with its month.
+  const group: Grouping =
     query.get('group') === 'none' ? 'none' : query.get('group') === 'domain' ? 'domain' : 'metric'
-  const top = topRows(obs, domains, topics, grouping)
-  const unread = obs.data.couldNotRead
-  const pubs = obs.data.publishes
-  const marks = pubs
+  const custom = saved.find((v) => v.id === viewId)
+  const builtIn = BUILT_IN.find((v) => v.id === viewId) ?? (custom ? undefined : BUILT_IN[0])
+  const set = (f: Filters) => setQuery(filtersTo(f))
+  // What narrows the topics: a saved view's own filters, with those in the address over them.
+  const on = custom ? { ...custom.filters, ...filters } : filters
+
+  const all = obs.data.topics
+  const rows = all.filter(
+    (t) => (builtIn ? builtIn.has(t) : true) && passes(t, on) && matches(text, obs.topicName(t)),
+  )
+  usePublishOrder(
+    'obs-topics',
+    obs.rowOrder(rows, group, sorting).map((t) => t.id),
+  )
+  const peeked = dock?.kind === 'topic' ? dock.id : undefined
+  const onKeyDown = useRowKeys({
+    onMove: (id) => peeked && openDock('topic', id),
+    onEscape: () => !!peeked,
+  })
+  const said = sentence(filters, domains)
+  const chosen = custom ? custom.id : (builtIn?.id ?? 'all')
+  const narrow = narrowed(on, chosen, text)
+  // The chart counts questions, so it follows the answer filter; it cannot follow what narrows
+  // topics alone (a built-in view, the Inbox, the month, a search), and says so.
+  const behind =
+    (!!builtIn && builtIn.id !== 'all') || !!on.gap?.length || !!on.month || !!text.trim()
+  const totals = obs.selection(rows)
+  const topics = group === 'none' ? rows.length : obs.rollUp(rows).length
+  // Calls that could not be read have no topic, so they show only when nothing narrows the list.
+  const unread = !narrow ? obs.data.couldNotRead : 0
+
+  // Opened from Questions' old address or on a topic: the topics are what it was opened for.
+  const topicsAt = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (!topicsFirst && !peeked) return
+    let gone = false
+    // Once the font is in, so the lines above have their final height; the page's own scroller
+    // moves, never the shell around it.
+    void document.fonts.ready.then(() => {
+      const at = topicsAt.current
+      const scroller = at?.closest<HTMLElement>('[data-slot=page-scroll]')
+      if (gone || !at || !scroller) return
+      scroller.scrollTop += at.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+    })
+    return () => {
+      gone = true
+    }
+    // Only on arriving: a topic opened later leaves the page where it is.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const views = [...BUILT_IN, ...saved].map((v) => ({
+    id: v.id,
+    name: v.name,
+    count:
+      'has' in v
+        ? viewCount(all, v.has as (t: Topic) => boolean, filters)
+        : all.filter((t) => passes(t, v.filters)).length,
+  }))
+
+  return (
+    <Frame aria-busy={busy || undefined}>
+      <Head view={view} />
+      <div className="flex min-h-10 flex-wrap items-center gap-x-2 border-t px-4 py-1 md:px-5">
+        <ViewSwitch
+          views={views}
+          value={chosen}
+          onChange={(id) => {
+            const v = saved.find((x) => x.id === id)
+            setQuery({ view: id === 'all' ? undefined : id, ...(v ? filtersTo(v.filters) : {}) })
+          }}
+          onRemove={
+            custom
+              ? () => {
+                  void write('removeView', { id: custom.id })
+                  setQuery({ view: undefined })
+                  toast(`Removed the view ${custom.name}`)
+                }
+              : undefined
+          }
+        />
+        <span className="ml-auto">
+          <SaveView filters={filters} disabled={!said.length} />
+        </span>
+      </div>
+      <div className="border-t">
+        <ListBar>
+          <FilterMenu filters={filters} set={set} view={view} />
+          <MonthMenu filters={filters} set={set} />
+          <BarSpacer>
+            <SearchField value={text} onChange={setText} placeholder="Search topics" />
+          </BarSpacer>
+        </ListBar>
+      </div>
+      <FilterChips filters={filters} set={set} view={view} />
+      <Numbers view={view} narrow={narrow} totals={totals} topics={topics} />
+      <Chart view={view} answer={on.answer} behind={behind} />
+      <div ref={topicsAt}>
+        <FrameSection
+          title="Topics"
+          description="Each is a metric, a market and the month asked about, grouped here for reading."
+          action={
+            <span className="flex flex-wrap items-center gap-1">
+              <SortMenu keys={TOPIC_SORTS} sorting={sorting} onSort={sortBy} className="w-52" />
+              <GroupMenu value={group} />
+            </span>
+          }
+        />
+      </div>
+      <TopicTable
+        rows={rows}
+        grouping={group}
+        sorting={sorting}
+        onSort={(k) => sortBy(clicked(TOPIC_SORTS, sorting, k))}
+        view={view}
+        peeked={peeked}
+        unread={unread}
+        onKeyDown={onKeyDown}
+        empty={
+          <>
+            <p className="font-medium">No topics match</p>
+            <p className="mt-1 text-muted-foreground">
+              {[text && `Searching for “${text}”`, ...said].filter(Boolean).join(', ') ||
+                'Nothing in this view.'}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => (
+                setText(''),
+                setQuery({ ...filtersTo(cleared(view)), view: undefined })
+              )}
+            >
+              Clear search and filters
+            </Button>
+          </>
+        }
+      />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs text-muted-foreground md:px-5">
+        <span>
+          {topics} {topics === 1 ? 'topic' : 'topics'} -{' '}
+          {rows.length ? groupCount(totals.asked) : 0} calls{' '}
+          {view.label === 'this week' ? 'in 7 days' : `in ${view.range} days`}. A count under 5
+          shows as “fewer than 5”.
+        </span>
+        <Legend />
+      </div>
+    </Frame>
+  )
+}
+
+/** A count as a number cell says it: counting to its new value, "13+", "Fewer than 5" or "-". */
+function Figure({ count, plus, suffix }: { count: Count; plus?: boolean; suffix?: string }) {
+  if (count === null) return '-'
+  if (count > 0 && count < HIDE_UNDER && !suffix)
+    return <span className="text-base">{shownCount(count)}</span>
+  return <CountUp value={count} suffix={plus ? '+' : suffix} />
+}
+
+/**
+ * A sum as a number cell says it: the total, or what its shown parts add up to, "13+". Nothing
+ * shown is "Fewer than 5" for what was asked, as the table says it, and "-" for an answer state,
+ * which may be hidden to keep another count safe.
+ */
+const sumFigure = (g: Pick<TopicGroup, 'visible' | 'shown'>, state?: boolean) =>
+  g.visible !== null ? (
+    <Figure count={g.visible} />
+  ) : g.shown > 0 ? (
+    <Figure count={g.shown} plus />
+  ) : state ? (
+    '-'
+  ) : (
+    <span className="text-base">Fewer than 5</span>
+  )
+
+/**
+ * Four numbers, each a way into its topics: the view's own, with how they moved, when nothing
+ * narrows the topics; else what the topics in view add up to, from what they may show.
+ */
+function Numbers({
+  view,
+  narrow,
+  totals,
+  topics,
+}: {
+  view: ObsView
+  narrow: boolean
+  totals: ReturnType<ReturnType<typeof useObservability>['selection']>
+  topics: number
+}) {
+  const obs = useObservability()
+  const { query, path } = useRoute()
+  const n = obs.numbers()
+  const saved = savedCounts(useSavedQuestions(), view.domain)
+  const before = obs.data.range === 7 ? 'the 7 days before' : `the ${obs.data.range} days before`
+  // A number narrows the topics to its answers, here.
+  const drill = (answer: string) => {
+    const q = Object.fromEntries(query)
+    return href(path, { ...q, answer, dock: undefined })
+  }
+  const inTopics = `in ${topics} ${topics === 1 ? 'topic' : 'topics'}`
+  const checkedShare = narrow ? share(totals.checked.visible, totals.asked.visible) : null
+  const nothingShare = narrow ? share(totals.nothing.visible, totals.asked.visible) : null
+  return (
+    <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4">
+      {narrow ? (
+        <>
+          <Kpi
+            icon={<MessageSquareIcon />}
+            label="Asked"
+            value={sumFigure(totals.asked)}
+            sub={inTopics}
+          />
+          <Kpi
+            icon={<CircleCheckIcon />}
+            label={CHECKED}
+            value={
+              checkedShare !== null ? (
+                <CountUp value={checkedShare} suffix="%" />
+              ) : (
+                sumFigure(totals.checked, true)
+              )
+            }
+            sub={
+              totals.checked.visible === null && !totals.checked.shown
+                ? HIDDEN
+                : `${groupCount(totals.checked)} of ${groupCount(totals.asked).toLowerCase()} asked`
+            }
+            href={drill('grounded')}
+          />
+          <Kpi
+            icon={<CircleDashedIcon />}
+            label="Not found"
+            value={sumFigure(totals.nothing, true)}
+            sub={
+              totals.nothing.visible === null && !totals.nothing.shown
+                ? HIDDEN
+                : nothingShare !== null
+                  ? `${nothingShare}% of questions`
+                  : inTopics
+            }
+            href={drill('missing')}
+          />
+        </>
+      ) : (
+        <>
+          <Kpi
+            icon={<MessageSquareIcon />}
+            label="Asked"
+            value={<Figure count={n.asked} />}
+            // More questions is neither good nor bad: an arrow, never a colour.
+            change={kpiChange(n.askedChange, (c) =>
+              n.askedChange?.percent != null ? `${pct(n.askedChange.percent)}%` : moreOrFewer(c),
+            )}
+            sub={
+              n.asked === null
+                ? 'hidden: it would give a count under 5 away'
+                : n.askedBefore !== null
+                  ? `vs ${n.askedBefore.toLocaleString('en-GB')} ${before}`
+                  : undefined
+            }
+          />
+          <Kpi
+            icon={<CircleCheckIcon />}
+            label={CHECKED}
+            value={<Figure count={n.checkedShare} suffix="%" />}
+            change={kpiChange(n.checkedChange, (c) => `${pct(c.by)} pts`, 'up')}
+            sub={
+              n.checked !== null && n.asked !== null
+                ? `${n.checked.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')} asked`
+                : HIDDEN
+            }
+            href={drill('grounded')}
+          />
+          <Kpi
+            icon={<CircleDashedIcon />}
+            label="Not found"
+            // A hidden count may be under 5 or keep one under 5 safe, so it never says which.
+            value={<Figure count={n.nothing} />}
+            // A count under 5 shows no change and no share either: they would give the number away.
+            change={kpiChange(n.nothingChange, (c) => `${pct(c.by)} pts`, 'down')}
+            sub={
+              n.nothing === null
+                ? HIDDEN
+                : n.nothing < HIDE_UNDER || n.nothingShare === null
+                  ? undefined
+                  : `${n.nothingShare}% of questions`
+            }
+            href={drill('missing')}
+          />
+        </>
+      )}
+      <Kpi
+        icon={<ListChecksIcon />}
+        label="Saved questions"
+        value={<CountUp value={saved.same} />}
+        unit="same"
+        sub={`of ${saved.total}`}
+        href={href('/observability/quality', { domain: view.domain })}
+      />
+    </div>
+  )
+}
+
+/**
+ * Questions per day (per week over 90 days), stacked by how they were answered, with a dashed line
+ * at each publish. The answer filter keeps its states; what narrows topics alone it cannot follow,
+ * as it counts questions, not topics, and then it says so.
+ */
+function Chart({ view, answer, behind }: { view: ObsView; answer?: Shown[]; behind: boolean }) {
+  const obs = useObservability()
+  const { bars, publishes, range } = obs.data
+  const marks = publishes
     .map((p) => ({
       index: bars.findIndex((b, i) => (b.at ?? 0) <= p.at && (bars[i + 1]?.at ?? Infinity) > p.at),
       title: p.title,
     }))
     .filter((m) => m.index >= 0)
-  // Found nothing five or more times in 7 days, whatever the range, counted across a month edge.
-  const nothing = obs.notFoundGroups(view.domain)
-  const before = view.range === 7 ? 'the 7 days before' : `the ${view.range} days before`
+  const states = answer?.length ? SHOWN.filter((s) => answer.includes(s)) : SHOWN
+  const per = range === 90 ? 'week' : 'day'
   return (
-    <Frame>
-      <Head view={view} />
-      <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4">
-        <Kpi
-          icon={<MessageSquareIcon />}
-          label="Asked"
-          value={n.asked === null ? '-' : shownCount(n.asked)}
-          // More questions is neither good nor bad: an arrow, never a colour.
-          change={kpiChange(n.askedChange, (c) =>
-            n.askedChange?.percent != null ? `${pct(n.askedChange.percent)}%` : moreOrFewer(c),
-          )}
-          sub={
-            n.asked === null
-              ? 'hidden: it would give a count under 5 away'
-              : n.askedBefore !== null
-                ? `vs ${n.askedBefore.toLocaleString('en-GB')} ${before}`
-                : undefined
-          }
-          href={questionsHref(view)}
-        />
-        <Kpi
-          icon={<CircleCheckIcon />}
-          label={CHECKED}
-          value={n.checkedShare === null ? '-' : `${n.checkedShare}%`}
-          change={kpiChange(n.checkedChange, (c) => `${pct(c.by)} pts`, 'up')}
-          sub={
-            n.checked !== null && n.asked !== null
-              ? `${n.checked.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')} asked`
-              : HIDDEN
-          }
-          href={questionsHref(view, { answer: 'grounded' })}
-        />
-        <Kpi
-          icon={<CircleDashedIcon />}
-          label="Not found"
-          // A hidden count may be under 5 or keep one under 5 safe, so it never says which.
-          value={n.nothing === null ? '-' : shownCount(n.nothing)}
-          // A count under 5 shows no change and no share either: they would give the number away.
-          change={kpiChange(n.nothingChange, (c) => `${pct(c.by)} pts`, 'down')}
-          sub={
-            n.nothing === null
-              ? HIDDEN
-              : n.nothing < HIDE_UNDER || n.nothingShare === null
-                ? undefined
-                : `${n.nothingShare}% of questions`
-          }
-          href={questionsHref(view, { answer: 'missing' })}
-        />
-        <Kpi
-          icon={<ListChecksIcon />}
-          label="Saved questions"
-          value={saved.same}
-          unit="same"
-          sub={`of ${saved.total}`}
-          href={href('/observability/quality', { domain: view.domain })}
+    <FrameSection
+      title={`Questions per ${per}`}
+      description={
+        behind
+          ? 'Every question asked, as the chart counts questions, not topics. The numbers and the topics follow the view, the filters and the search.'
+          : 'What agents asked and how it was answered. A dashed line marks a publish.'
+      }
+    >
+      <div className="flex flex-col gap-3 px-4 pb-4 md:px-5">
+        <Legend states={states} />
+        <StackedBars
+          bars={bars}
+          marks={marks}
+          states={states}
+          caption={`Questions per ${per}, ${view.label}, by how they were answered`}
         />
       </div>
-      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-19-10)">
-        <FrameSection
-          title={view.range === 90 ? 'Questions per week' : 'Questions per day'}
-          description="What agents asked and how it was answered. A dashed line marks a publish."
-        >
-          <div className="flex flex-col gap-3 px-4 pb-4 md:px-5">
-            <Legend />
-            <StackedBars
-              bars={bars}
-              marks={marks}
-              caption={`Questions per ${view.range === 90 ? 'week' : 'day'}, ${view.label}, by how they were answered`}
-            />
-          </div>
-        </FrameSection>
-        <div className="border-t @4xl/main:border-t-0 @4xl/main:border-l">
-          <FrameSection
-            title="Top topics"
-            description="Asked most, with the share that was Not found."
-            action={
-              <span className="flex flex-wrap items-center gap-2">
-                <GroupMenu value={grouping} />
-                <a
-                  href={questionsHref(view, {
-                    group: grouping === 'metric' ? undefined : grouping,
-                  })}
-                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-                >
-                  <ArrowUpRightIcon data-icon="inline-start" />
-                  All topics
-                </a>
-              </span>
-            }
-          >
-            <div className="flex flex-col gap-3 px-4 pb-4 md:px-5">
-              <BarRows
-                caption="Top topics by questions asked"
-                rows={top.slice(0, 8).map((g) => ({
-                  key: g.key,
-                  name: g.name,
-                  label: g.name,
-                  value: g.visible ?? g.shown,
-                  display: groupCount(g),
-                  // What found nothing, as a share, only when both counts show.
-                  hatch: g.visible && g.counts.missing !== null ? g.counts.missing / g.visible : 0,
-                  href: g.id
-                    ? questionsHref(view, { dock: `topic.${g.id}` })
-                    : questionsHref(view, { group: 'domain' }),
-                }))}
-              />
-              <Legend states={['grounded', 'missing']} />
-              {unread !== 0 && unread !== null && (
-                <p className="flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground">
-                  <CircleHelpIcon className="mt-px size-3.5 shrink-0" aria-hidden />
-                  <span>
-                    <span className="font-medium text-foreground">
-                      Could not be read: {shownCount(unread)} calls.
-                    </span>{' '}
-                    No metric and no market from the definitions, so no topic. Counted, never the
-                    words.
-                  </span>
-                </p>
-              )}
-            </div>
-          </FrameSection>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-19-10)">
-        <FrameSection
-          title="Asked, not found"
-          description="Questions about the same thing, five or more times in 7 days."
-          action={
-            <a href="/inbox" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-              <ArrowUpRightIcon data-icon="inline-start" />
-              Open in Inbox
-            </a>
-          }
-        >
-          {nothing.length ? (
-            <ul className="border-t">
-              {nothing.map((t) => (
-                <li
-                  key={t.key}
-                  className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0 md:px-5"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground">
-                    <CircleDashedIcon className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <a
-                      href={questionsHref(view, { dock: `topic.${t.rows[0]!.id}` })}
-                      className="block truncate text-sm font-medium underline-offset-4 hover:underline"
-                    >
-                      {t.name}
-                    </a>
-                    {/* The dot stays beside the first line however the words wrap. */}
-                    <span className="flex items-start gap-x-1.5 text-xs text-muted-foreground">
-                      {t.domain && <DomainDot id={t.domain} className="mt-0.75" />}
-                      <span className="min-w-0">
-                        {t.domain ? domains[t.domain]?.name : 'No domain'} - asked{' '}
-                        {midSentence(groupCount(t))} times, not found{' '}
-                        {t.counts.missing === null
-                          ? '(hidden)'
-                          : midSentence(shownCount(t.counts.missing))}
-                        {t.months.length > 1
-                          ? `, across ${monthsLabel(t.months)}, counted together`
-                          : ''}
-                      </span>
-                    </span>
-                  </span>
-                  {t.rows[0]!.gap && (
-                    <a
-                      href={t.rows[0]!.gap.href}
-                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0')}
-                    >
-                      <ArrowUpRightIcon data-icon="inline-start" />
-                      {t.rows[0]!.gap.label}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="border-t px-4 py-6 text-sm text-muted-foreground md:px-5">
-              Nothing came up five times without an answer. Agents found something written down for
-              every topic.
-            </p>
-          )}
-        </FrameSection>
-        <div className="border-t @4xl/main:border-t-0 @4xl/main:border-l">
-          <FrameSection
-            title="What changed"
-            description="Each publish changes what agents get. Saved questions are checked against it."
-          >
-            <ul className="border-t">
-              {(pubs.length ? pubs.slice(0, 2) : []).map((p) => (
-                <li key={p.at} className="flex gap-3 border-b px-4 py-3 last:border-b-0 md:px-5">
-                  <HistoryIcon
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    aria-hidden
-                  />
-                  <span className="min-w-0 text-sm">
-                    <span className="font-medium">{p.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      Published {dateLabel(p.at)} by {p.by}. {p.checked}
-                    </span>
-                  </span>
-                </li>
-              ))}
-              {!pubs.length && (
-                <li className="px-4 py-4 text-sm text-muted-foreground md:px-5">
-                  Nothing was published{view.domain ? ` in ${domains[view.domain]?.name}` : ''}{' '}
-                  {view.label}.
-                </li>
-              )}
-            </ul>
-          </FrameSection>
-          {!view.owned ? (
-            <div className="border-t">
-              <FrameSection title="By agent" description="Kind of agent, never a person.">
-                <div className="px-4 pb-4 md:px-5">
-                  <BarRows
-                    quiet
-                    caption="Questions by kind of agent"
-                    rows={obs.data.agents.map((a) => ({
-                      key: a.name,
-                      name: a.name,
-                      label: a.name,
-                      value: a.count ?? 0,
-                      display: shownCount(a.count),
-                      onClick: () => setQuery({ agent: a.name }),
-                    }))}
-                  />
-                </div>
-              </FrameSection>
-            </div>
-          ) : (
-            <p className="flex items-start gap-2 border-t px-4 py-4 text-sm text-muted-foreground md:px-5">
-              <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-              You see the domains you own. Usage and the agents list are for admins.
-            </p>
-          )}
-        </div>
-      </div>
-    </Frame>
+    </FrameSection>
   )
 }
 
@@ -460,7 +564,7 @@ function NothingConnected() {
             <span className="flex size-9 items-center justify-center rounded-lg border text-muted-foreground">
               <BotIcon className="size-5" aria-hidden />
             </span>
-            <h2 className="text-lg font-semibold">No agent has asked anything yet</h2>
+            <h2 className="text-base font-semibold">No agent has asked anything yet</h2>
           </div>
           <p className="mb-4 max-w-caption text-sm text-muted-foreground">
             Nothing is connected, so there is nothing to show. Once an agent asks, this page fills
@@ -497,7 +601,7 @@ function NothingConnected() {
 }
 
 /** Fewer than 5 questions: no counts, because a small count could point to one person. */
-function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
+function TooFew({ view }: { view: ObsView }) {
   return (
     <Frame>
       <Head view={view} />
@@ -505,7 +609,7 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
         <Kpi
           icon={<MessageSquareIcon />}
           label="Asked"
-          value={<span className="text-xl">Fewer than 5</span>}
+          value={<span className="text-base">Fewer than 5</span>}
           sub={view.label}
         />
         <Kpi icon={<CircleCheckIcon />} label={CHECKED} value="-" sub="counts under 5 are hidden" />
@@ -533,68 +637,5 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
         )}
       </Empty>
     </Frame>
-  )
-}
-
-/** Top topics in a grouping: each exact scope with its month, metric and market (months joined), or a domain. */
-function topRows(obs: Observability, domains: Domains, topics: Topic[], grouping: Grouping) {
-  if (grouping === 'none')
-    return topics.map((t) => ({
-      ...obs.single(t),
-      name: obs.topicTitle(t),
-      id: t.id,
-    }))
-  const groups = obs.rollUp(topics).map((g) => ({ ...g, id: g.rows[0]!.id }))
-  if (grouping === 'metric') return groups
-  const by = new Map<string, typeof groups>()
-  for (const g of groups) by.set(g.domain ?? '', [...(by.get(g.domain ?? '') ?? []), g])
-  return [...by.entries()]
-    .map(([d, gs]) => {
-      const rows = gs.flatMap((g) => g.rows)
-      const counts = noCounts()
-      for (const k of SHOWN)
-        counts[k] = gs.every((g) => g.counts[k] !== null)
-          ? gs.reduce((n, g) => n + g.counts[k]!, 0)
-          : null
-      return {
-        ...gs[0]!,
-        ...obs.domainGroup(d ? d : undefined, rows),
-        key: d || 'none',
-        name: d ? (domains[d]?.name ?? 'No domain') : 'No domain',
-        rows,
-        counts,
-        id: undefined,
-      }
-    })
-    .sort((a, b) => (b.visible ?? b.shown) - (a.visible ?? a.shown))
-}
-
-/** The Top topics grouping, kept in the address with Questions' own. */
-function GroupMenu({ value }: { value: Grouping }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" className="gap-1.5 font-normal" />}
-      >
-        <LayersIcon data-icon="inline-start" />
-        <span className="sr-only">Group: </span>
-        {GROUPINGS[value]}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Group topics by</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={value}
-            onValueChange={(v) => setQuery({ group: v === 'metric' ? undefined : (v as string) })}
-          >
-            {(Object.keys(GROUPINGS) as Grouping[]).map((g) => (
-              <DropdownMenuRadioItem key={g} value={g}>
-                {GROUPINGS[g]}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }

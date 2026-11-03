@@ -2,9 +2,9 @@ import { monthName, SHOWN, STATE_WORDS, type Shown, type Topic } from '@/model/o
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 
-// Questions' filters and saved views. A view belongs to the workspace, as LangSmith's do: saved
-// once, everyone with access sees it as a tab. Five come with it; more are saved from the filters
-// and kept by the workspace (src/web/api).
+// Overview's filters and saved views. A view belongs to the workspace, as LangSmith's do: saved
+// once, everyone with access sees it beside the others. Six come with it; more are saved from the
+// filters and kept by the workspace (src/web/api).
 
 export type Gap = 'draft' | 'suggestion' | 'none'
 export type Filters = {
@@ -23,11 +23,18 @@ export type SavedView = {
 }
 
 /**
- * The five every workspace starts with: what most often needs a look. A topic is in a view as the
+ * The six every workspace starts with: what most often needs a look. A topic is in a view as the
  * binding says, from what a reader may see: a hidden count puts it in no view.
  */
 export const BUILT_IN: (SavedView & { has: (t: Topic) => boolean })[] = [
   { id: 'all', name: 'All topics', filters: {}, has: () => true },
+  // Anything but a checked answer, or a report: the other five views together.
+  {
+    id: 'look',
+    name: 'Needs a look',
+    filters: {},
+    has: (t) => t.in.notFound || t.in.reported || t.in.answers.some((s) => s !== 'grounded'),
+  },
   { id: 'not-covered', name: 'Not found', filters: {}, has: (t) => t.in.notFound },
   { id: 'disagree', name: 'Conflict', filters: {}, has: (t) => t.in.answers.includes('conflict') },
   { id: 'stale', name: 'Outdated', filters: {}, has: (t) => t.in.answers.includes('stale') },
@@ -61,6 +68,13 @@ export function passes(t: Topic, f: Filters) {
   if (f.gap?.length && !f.gap.includes(gapOf(t) as Gap)) return false
   return true
 }
+
+/**
+ * Whether the topics are narrowed to fewer than the view's own: by a view, a filter of the topics
+ * or a search. The domain and the kind of agent narrow the read itself, so they don't count.
+ */
+export const narrowed = (f: Filters, view: string, search: string) =>
+  view !== 'all' || !!(f.answer?.length || f.gap?.length || f.month || search.trim())
 
 /** The filters read back as a sentence, the way Context and Definitions say theirs. */
 export function sentence(f: Filters, domains: Domains) {

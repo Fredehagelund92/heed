@@ -4,7 +4,7 @@ Part of the [design contract](design-contract.md). It comes from the motion rule
 
 ## The idea
 
-Motion explains. It shows that something appeared, left or moved, or that an agent is working. Motion that explains nothing is out. There is no page-enter transition and no count-up number. A chart grows once, only after a wait the person saw. An exit is one step shorter than its entrance.
+Motion explains. It shows that something appeared, left or moved, or that an agent is working. Motion that explains nothing is out. There is no page-enter transition. A number that changes while you watch counts to its new value, and a bar already on screen moves to its new height, so a change of view reads as a change and not a new page. A chart grows once, only after a wait the person saw. An exit is one step shorter than its entrance.
 
 ## Three tiers
 
@@ -18,21 +18,21 @@ Motion explains. It shows that something appeared, left or moved, or that an age
 
 All durations and curves are tokens. A component never writes a raw time.
 
-| Token                  | Value                             | For                                                              |
-| ---------------------- | --------------------------------- | ---------------------------------------------------------------- |
-| `--dur-0`              | 0 ms                              | The keyboard, selection, the palette                             |
-| `--dur-1`              | 90 ms                             | Press, hover colour, icon swap, a menu leaving, a tooltip        |
-| `--dur-2`              | 150 ms                            | A popover entering, a row leaving, skeleton to content, a banner |
-| `--dur-3`              | 220 ms                            | Dock, sheet, a row entering, collapse and expand, a toast        |
-| `--dur-4`              | 320 ms                            | Arrival only: chart bars, the settle after a staged answer       |
-| `--dur-highlight`      | 600 ms                            | A changed value's tint fading out (it comes in at once)          |
-| `--dur-fade`           | 150 ms                            | The fade that explains a change: content arriving after a wait   |
-| `--ask-word-fade`      | `--dur-fade`, 150 ms              | A word of an Ask answer coming in as it is revealed              |
-| `--stagger`            | 30 ms                             | Arrival after a wait, at most 6 items                            |
-| `--dist-1`, `-2`, `-3` | 4, 8, 16 px                       | How far something travels                                        |
-| `ease-out`             | `cubic-bezier(0.23, 1, 0.32, 1)`  | Entering and leaving. The default                                |
-| `ease-move`            | `cubic-bezier(0.77, 0, 0.175, 1)` | Already on screen, and moving                                    |
-| `ease-panel`           | `cubic-bezier(0.32, 0.72, 0, 1)`  | The dock and sheets                                              |
+| Token                  | Value                             | For                                                                                       |
+| ---------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `--dur-0`              | 0 ms                              | The keyboard, selection, the palette                                                      |
+| `--dur-1`              | 90 ms                             | Press, hover colour, icon swap, a menu leaving, a tooltip                                 |
+| `--dur-2`              | 150 ms                            | A popover entering, a row leaving, skeleton to content, a banner                          |
+| `--dur-3`              | 220 ms                            | Dock, sheet, a row entering, collapse and expand, a toast, a bar moving to its new height |
+| `--dur-4`              | 320 ms                            | Chart bars arriving, the settle after a staged answer, a number counting to its new value |
+| `--dur-highlight`      | 600 ms                            | A changed value's tint fading out (it comes in at once)                                   |
+| `--dur-fade`           | 150 ms                            | The fade that explains a change: content arriving after a wait                            |
+| `--ask-word-fade`      | `--dur-fade`, 150 ms              | A word of an Ask answer coming in as it is revealed                                       |
+| `--stagger`            | 30 ms                             | Arrival after a wait, at most 6 items                                                     |
+| `--dist-1`, `-2`, `-3` | 4, 8, 16 px                       | How far something travels                                                                 |
+| `ease-out`             | `cubic-bezier(0.23, 1, 0.32, 1)`  | Entering and leaving. The default                                                         |
+| `ease-move`            | `cubic-bezier(0.77, 0, 0.175, 1)` | Already on screen, and moving                                                             |
+| `ease-panel`           | `cubic-bezier(0.32, 0.72, 0, 1)`  | The dock and sheets                                                                       |
 
 In a class: `duration-(--dur-3) ease-panel`. A `transition-*` class with no duration uses `--dur-2` and `ease-out` (set as the default). Linear is only for spinners, shimmer, progress and countdowns, never for movement.
 
@@ -53,24 +53,25 @@ Also out: shake, bounce, confetti, parallax, scroll-linked effects, and anything
 
 ## What moves, and how
 
-| Thing                                     | Motion                                                                                                                                                                                                                                         |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Popover, menu, select, tooltip            | A small step from the trigger: from 97 percent and 4 px towards it. In 150 ms, out 90 ms. Opened from the keyboard, or a second tooltip right after a first: at once                                                                           |
-| Dialog                                    | The same small scale and fade from the centre. The backdrop only fades                                                                                                                                                                         |
-| Dock                                      | The page moves in one frame. The dock slides in from 16 px to the right, fading, in 220 ms on the panel curve. A new peek in an open dock only fades, in 90 ms                                                                                 |
-| A row that leaves or arrives              | A row collapses and fades in 150 ms. One added later opens in 220 ms. A table row only fades. One presence pattern for all (`lib/presence.ts`). A row that left stays shut until its change has landed, so it never shows again on its way out |
-| A fold (a section, More, Details)         | Opens in 220 ms and shuts in 150 ms: the collapsible measures its height (`fold-motion`). With reduced motion it is open or shut at once                                                                                                       |
-| A copy                                    | The copy icon turns into a tick in 90 ms where it was pressed, and back after 1.5 s (`CopiedIcon`). The toast still says it                                                                                                                    |
-| A toast                                   | In 220 ms, out 150 ms, on the ease-out curve (the library's own 400 ms is overridden)                                                                                                                                                          |
-| A sheet                                   | From its edge: 16 px and a fade, in 220 ms on the panel curve, out 150 ms                                                                                                                                                                      |
-| Moving between places                     | Instant: the next page draws in the same frame, never a blank page on the way. A page whose code is not there yet waits by the loading rules below                                                                                             |
-| Moving between suggestions                | The change crossfades in 150 ms. With reduced motion the review does not start a transition                                                                                                                                                    |
-| A changed number                          | A tint there at once, fading over 600 ms. Shown for the first time, it is simply there. With reduced motion it is not drawn                                                                                                                    |
-| Chart bars                                | After a wait, each grows from the baseline in 320 ms, 30 ms after the one before, once. None with reduced motion                                                                                                                               |
-| Theme switch                              | The colours ease across in 220 ms. With reduced motion it switches at once                                                                                                                                                                     |
-| The wait after a decision                 | A bar that empties (the countdown). None with reduced motion                                                                                                                                                                                   |
-| The read hint                             | A bar that fills as the read counts (the read fill). None with reduced motion                                                                                                                                                                  |
-| The sidebar folding because a dock opened | Instant: the page reflows once. A person's own fold keeps its motion                                                                                                                                                                           |
+| Thing                                     | Motion                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Popover, menu, select, tooltip            | A small step from the trigger: from 97 percent and 4 px towards it. In 150 ms, out 90 ms. Opened from the keyboard, or a second tooltip right after a first: at once                                                                                                                                                              |
+| Dialog                                    | The same small scale and fade from the centre. The backdrop only fades                                                                                                                                                                                                                                                            |
+| Dock                                      | The page moves in one frame. The dock slides in from 16 px to the right, fading, in 220 ms on the panel curve. A new peek in an open dock only fades, in 90 ms                                                                                                                                                                    |
+| A row that leaves or arrives              | A row collapses and fades in 150 ms. One added later opens in 220 ms. A table row only fades. One presence pattern for all (`lib/presence.ts`). A row that left stays shut until its change has landed, so it never shows again on its way out                                                                                    |
+| A fold (a section, More, Details)         | Opens in 220 ms and shuts in 150 ms: the collapsible measures its height (`fold-motion`). With reduced motion it is open or shut at once                                                                                                                                                                                          |
+| A copy                                    | The copy icon turns into a tick in 90 ms where it was pressed, and back after 1.5 s (`CopiedIcon`). The toast still says it                                                                                                                                                                                                       |
+| A toast                                   | In 220 ms, out 150 ms, on the ease-out curve (the library's own 400 ms is overridden)                                                                                                                                                                                                                                             |
+| A sheet                                   | From its edge: 16 px and a fade, in 220 ms on the panel curve, out 150 ms                                                                                                                                                                                                                                                         |
+| Moving between places                     | Instant: the next page draws in the same frame, never a blank page on the way. A page whose code is not there yet waits by the loading rules below                                                                                                                                                                                |
+| Moving between suggestions                | The change crossfades in 150 ms. With reduced motion the review does not start a transition                                                                                                                                                                                                                                       |
+| A changed number                          | A tint there at once, fading over 600 ms. Shown for the first time, it is simply there. With reduced motion it is not drawn                                                                                                                                                                                                       |
+| A changed count in a number cell          | Overview's numbers count to the new value in 320 ms on the ease-out curve (`CountUp`: a registered CSS integer that transitions, each digit a counter of it; never a script frame by frame). Shown for the first time, it is simply there. With reduced motion it is there at once, and a reader only ever gets the number itself |
+| Chart bars                                | After a wait, each grows from the baseline in 320 ms, 30 ms after the one before, once. A bar already on screen moves to its new height in 220 ms on the move curve when the view changes (`bar-move`); another range draws new bars. None with reduced motion                                                                    |
+| Theme switch                              | The colours ease across in 220 ms. With reduced motion it switches at once                                                                                                                                                                                                                                                        |
+| The wait after a decision                 | A bar that empties (the countdown). None with reduced motion                                                                                                                                                                                                                                                                      |
+| The read hint                             | A bar that fills as the read counts (the read fill). None with reduced motion                                                                                                                                                                                                                                                     |
+| The sidebar folding because a dock opened | Instant: the page reflows once. A person's own fold keeps its motion                                                                                                                                                                                                                                                              |
 
 ## Loading
 

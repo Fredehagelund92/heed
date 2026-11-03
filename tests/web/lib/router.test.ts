@@ -25,17 +25,34 @@ describe('old addresses', () => {
   })
 
   it("take Observability's Summary and its digests to Overview, keeping the domain", () => {
-    expect(redirectFrom(at('/observability/summary'))).toBe('/observability/overview')
+    expect(redirectFrom(at('/observability/summary'))).toBe('/observability')
     expect(
       redirectFrom(at('/observability/summary', '?period=quarter&domain=area_marketing')),
-    ).toBe('/observability/overview?domain=area_marketing')
+    ).toBe('/observability?domain=area_marketing')
     expect(redirectFrom(at('/observability/summary/e37374a8-c76b-4356-8102-453f81531986'))).toBe(
-      '/observability/overview',
+      '/observability',
     )
     expect(redirectFrom(at('/', '', '/observability/summary?theme=dark'))).toBe(
-      '/observability/overview?theme=dark',
+      '/observability?theme=dark',
     )
-    expect(redirectFrom(at('/observability/overview', '?range=30'))).toBeNull()
+  })
+
+  it("take Overview's old address to Observability's own, keeping the view", () => {
+    expect(redirectFrom(at('/observability/overview'))).toBe('/observability')
+    expect(redirectFrom(at('/observability/overview/'))).toBe('/observability')
+    expect(redirectFrom(at('/observability/overview', '?range=30&domain=area_sales'))).toBe(
+      '/observability?range=30&domain=area_sales',
+    )
+    expect(redirectFrom(at('/', '', '/observability/overview?theme=dark'))).toBe(
+      '/observability?theme=dark',
+    )
+    expect(redirectFrom(at('/observability', '?range=30'))).toBeNull()
+  })
+
+  it("leave Questions' old address where it is: it opens Overview at the topics", () => {
+    expect(redirectFrom(at('/observability/questions'))).toBeNull()
+    expect(redirectFrom(at('/observability/questions', '?answer=missing&group=none'))).toBeNull()
+    expect(redirectFrom(at('/observability/questions', '?dock=topic.t1'))).toBeNull()
   })
 
   it('take the old Conflicts list to the Context list filtered to conflicts, keeping the rest', () => {

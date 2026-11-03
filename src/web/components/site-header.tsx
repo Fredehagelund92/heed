@@ -236,6 +236,7 @@ export function Page({
       </SiteHeader>
       <div
         ref={bodyRef}
+        data-slot="page-scroll"
         className={cn('@container/main min-h-0 flex-1 overflow-y-auto', className)}
       >
         {children}

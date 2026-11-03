@@ -418,6 +418,36 @@ export function observability(data: ObsData) {
   }
 
   /**
+   * What a selection of topics adds up to, from what may be shown, as Overview's numbers say it
+   * when the topics are narrowed: what was asked from the domains' own totals when every topic of
+   * a domain is in it, else from the topics' shown counts; each answer state from the subjects'
+   * own counts, as the table's rows show them, when all of a subject's months are in it. A part
+   * that is hidden makes the sum "83+", never a number worked out from the others.
+   */
+  function selection(rows: Topic[]) {
+    const byDomain = [...new Set(rows.map((t) => t.domain))].map((d) =>
+      domainGroup(
+        d,
+        rows.filter((t) => t.domain === d),
+      ),
+    )
+    const asked: Pick<TopicGroup, 'visible' | 'shown'> = {
+      visible: byDomain.every((g) => g.visible !== null)
+        ? byDomain.reduce((n, g) => n + g.visible!, 0)
+        : null,
+      shown: byDomain.reduce((n, g) => n + (g.visible ?? g.shown), 0),
+    }
+    const groups = rollUp(rows)
+    const state = (k: Shown): Pick<TopicGroup, 'visible' | 'shown'> => ({
+      visible: groups.every((g) => g.counts[k] !== null)
+        ? groups.reduce((n, g) => n + g.counts[k]!, 0)
+        : null,
+      shown: groups.reduce((n, g) => n + (g.counts[k] ?? 0), 0),
+    })
+    return { asked, checked: state('grounded'), nothing: state('missing') }
+  }
+
+  /**
    * The headline numbers of the view, and how they compare with the range before: what was asked,
    * in calls; what was checked (only Checked, never an answer with a warning) and what found
    * nothing, by their shares. A change is null when a count is hidden or too small to compare.
@@ -459,6 +489,7 @@ export function observability(data: ObsData) {
     rowOrder,
     topicMonths,
     notFoundGroups,
+    selection,
     numbers,
   }
 }

@@ -34,7 +34,8 @@ export function hrefOf(subject: RaiseSubject): string {
   if ('card' in subject) return `/inbox?card=${subject.card}`
   if ('topic' in subject) return `/observability/questions?dock=topic.${subject.topic}`
   if ('connector' in subject) return `/settings/integrations/${subject.connector}`
-  return `/observability/${subject.page}`
+  // Overview is Observability's own address.
+  return subject.page === 'overview' ? '/observability' : `/observability/${subject.page}`
 }
 
 /**

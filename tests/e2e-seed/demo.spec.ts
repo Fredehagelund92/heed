@@ -82,12 +82,12 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
 
   // Jon owns Sales: what an owner reads of Observability and Settings.
   for (const [address, heading] of [
-    ['/observability/overview', 'Overview'],
+    ['/observability', 'Overview'],
     ['/settings/domains', 'Domains and owners'],
   ] as const) {
     await page.goto(address)
     await drawn(page, heading)
-    if (address === '/observability/overview')
+    if (address === '/observability')
       await expect(page.getByText('No agent has asked anything yet')).toHaveCount(0)
   }
   expect(failed).toEqual([])

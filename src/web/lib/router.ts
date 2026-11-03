@@ -16,14 +16,17 @@ export function bindRouter(r: AnyRouter) {
 
 /** Observability's Summary, or one of its monthly digests. */
 const SUMMARY = /^\/observability\/summary(\/[^/]*)?\/?$/
+/** Observability's Overview by its old name: it is Observability's own address now. */
+const OVERVIEW = /^\/observability\/overview\/?$/
 
 /**
  * Old addresses keep working: a #/ link from the hash router, the Library that became Context and
  * Definitions, the Definitions tab that became the Cube integration, About our business that became
  * General, a peek's `fact` that became `context`, Observability's Summary and its monthly
- * digests, which went: they land on Overview, without the Summary's own `period`, and the Conflicts
- * list that became the Context list filtered to what is in a conflict. Returns where to go
- * instead, or null.
+ * digests, which went: they land on Overview, without the Summary's own `period`, Overview's own
+ * old address (Overview is Observability's now), and the Conflicts list that became the Context
+ * list filtered to what is in a conflict. Questions' old address stays: it opens Overview at the
+ * topics. Returns where to go instead, or null.
  */
 export function redirectFrom(
   location: Pick<ParsedLocation, 'pathname' | 'searchStr' | 'hash'>,
@@ -39,7 +42,8 @@ export function redirectFrom(
     .replace(/^\/library(?=\/|$)/, '/context')
     .replace(/^\/settings\/definitions(?=\/|$)/, '/settings/integrations/cube')
     .replace(/^\/settings\/about(?=\/|$)/, '/settings/general')
-    .replace(SUMMARY, '/observability/overview')
+    .replace(SUMMARY, '/observability')
+    .replace(OVERVIEW, '/observability')
   const kept = summary
     ? search
         .split('&')

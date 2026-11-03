@@ -66,12 +66,12 @@ describe('a replay', () => {
   })
 })
 
-describe("Questions' views and filters", () => {
+describe("Overview's views and filters", () => {
   const all = page.topics
   // A view counts what a reader can see: a month of a subject over several is in the views its
   // subject's counts say, so September of Orders in Norway is in Outdated with October.
-  it('start with five views that count 16, 4, 3, 5 and 1 exact topics', () => {
-    expect(BUILT_IN.map((v) => all.filter(v.has).length)).toEqual([16, 4, 3, 5, 1])
+  it('start with six views that count 16, 15, 4, 3, 5 and 1 exact topics', () => {
+    expect(BUILT_IN.map((v) => all.filter(v.has).length)).toEqual([16, 15, 4, 3, 5, 1])
   })
 
   it('filter by answer, domain and gap', () => {

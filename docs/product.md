@@ -138,17 +138,19 @@ Inside Settings, the app sidebar gives way to the settings menu, with Back to ap
 
 ### Observability (admins and domain owners)
 
-Inside Observability the sidebar gives way to its own menu, with Back to app on top: Agents (Overview, Questions), Answers (Quality, Feedback), System (Usage for admins, Alerts). `/observability` opens on Overview, and an old link to Summary or one of its digests (`/observability/summary`, `/observability/summary/<id>`) lands there, keeping its domain. Every page takes `range=7|30|90`. Admins also take `domain=` and `agent=`. An owner sees only their own domains.
+Inside Observability the sidebar gives way to its own menu, with Back to app on top: Agents (Overview), Answers (Quality, Feedback), System (Usage for admins, Alerts). `/observability` is Overview. Every page takes `range=7|30|90`. Admins also take `domain=` and `agent=`. An owner sees only their own domains.
 
-| Screen                                | Address                                    |
-| ------------------------------------- | ------------------------------------------ |
-| Overview                              | `/observability/overview`                  |
-| Questions, grouped by topic           | `/observability/questions`                 |
-| The answer panel, a replay of a topic | `/observability/questions?dock=topic.<id>` |
-| Quality, the saved questions          | `/observability/quality`                   |
-| Feedback                              | `/observability/feedback`                  |
-| Usage (admins)                        | `/observability/usage`                     |
-| Alerts                                | `/observability/alerts`                    |
+Overview is one view over one state in the address: the numbers (Asked, Checked answers, Not found, saved questions), questions per day by how they were answered with a dashed line at each publish, and the topics, with the built-in views (All topics, Needs a look, Not found, Conflict, Outdated, Reported) and the workspace's saved views beside them. They all follow the same range, domain, kind of agent, view, filters (`answer=`, `gap=`, `month=`) and search. The domain and the kind of agent narrow what is read, so the numbers and the chart are theirs; the other filters narrow the topics, and the numbers then add up what those topics may show ("83+"). The chart counts questions, so it follows the answer filter and says when it cannot follow the rest. A number is a way into its topics: Checked answers and Not found narrow them to that answer. Changed numbers count to their new value and the bars move to theirs ([motion](design/motion.md)). Old addresses keep working: `/observability/overview` and an old link to Summary or one of its digests (`/observability/summary`, `/observability/summary/<id>`) land on Overview, keeping their view (Summary's own period goes); Questions' address opens Overview at the topics, with its filters and a topic's answer panel.
+
+| Screen                                  | Address                                    |
+| --------------------------------------- | ------------------------------------------ |
+| Overview: the numbers, chart and topics | `/observability`                           |
+| Overview, opened at the topics          | `/observability/questions`                 |
+| The answer panel, a replay of a topic   | `/observability/questions?dock=topic.<id>` |
+| Quality, the saved questions            | `/observability/quality`                   |
+| Feedback                                | `/observability/feedback`                  |
+| Usage (admins)                          | `/observability/usage`                     |
+| Alerts                                  | `/observability/alerts`                    |
 
 ### Help, documentation and sign-in
 
@@ -324,7 +326,7 @@ The job specs, one line each:
 | J24 | Picking several rows works the same in every list (Shift range, Cmd toggle, X, Cmd A, Esc).                                                                                     |
 | J25 | Bulk actions from one bar: Archive with Undo, Delete for drafts only, skips with reasons, Retry.                                                                                |
 | J26 | Emoji where people talk (`:` opens the list), the five reactions; none in context text.                                                                                         |
-| J27 | Observability: its menu, range and domain, Overview, Questions, Quality, Feedback, Usage, Alerts.                                                                               |
+| J27 | Observability: its menu, range and domain, Overview with its topics, Quality, Feedback, Usage, Alerts.                                                                          |
 | J28 | Ask ideas: Share with state and sources, Show me where it says that, Asked this week.                                                                                           |
 | J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion.                                |
 | J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                                                   |

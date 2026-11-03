@@ -2,18 +2,17 @@ import * as React from 'react'
 import { Page } from '@/components/site-header'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { FramePage } from '@/components/heed/frame'
-import { OBS_TITLES, seesObservability, type ObsSection } from '@/lib/obs'
+import { OBS_TITLES, obsHref, obsSectionOf, seesObservability, type ObsSection } from '@/lib/obs'
 import { SettingsCrumbs } from '@/pages/settings'
 import { useMe } from '@/lib/workspace'
 import { OverviewPage } from '@/pages/observability/overview'
-import { QuestionsPage } from '@/pages/observability/questions'
 import { QualityPage } from '@/pages/observability/quality'
 import { FeedbackPage } from '@/pages/observability/feedback'
 import { UsagePage } from '@/pages/observability/usage'
 import { AlertsPage } from '@/pages/observability/alerts'
 
 // Observability: what agents asked and what they got, as counts and scopes, never the words of a
-// question or who asked. Six pages in three groups (components/obs/obs-nav.tsx), Overview first,
+// question or who asked. Five pages in three groups (components/obs/obs-nav.tsx), Overview first,
 // for admins and, for their own domains, owners. Usage and spend are for admins.
 
 // A topic's answer panel, the dock these pages open (App.tsx): it loads with them.
@@ -30,8 +29,8 @@ export function ObsCrumbs({
   return (
     <SettingsCrumbs
       trail={[
-        { label: 'Observability', href: '/observability/overview' },
-        { label: OBS_TITLES[section], href: `/observability/${section}` },
+        { label: 'Observability', href: '/observability' },
+        { label: OBS_TITLES[section], href: obsHref(section) },
         ...rest,
       ]}
     />
@@ -58,10 +57,13 @@ export function ObsPage({
   )
 }
 
-/** A page of Observability; Overview when the address names none, or one that is not a page. */
+/**
+ * A page of Observability; Overview when the address names none, or one that is not a page.
+ * Questions' old address opens Overview at its topics.
+ */
 export function ObservabilityPage({ section }: { section?: string }) {
   const me = useMe()
-  const current = (section && section in OBS_TITLES ? section : 'overview') as ObsSection
+  const current = obsSectionOf(section)
   if (!seesObservability(me) || (current === 'usage' && !me.admin))
     return (
       <Page title="Observability">
@@ -74,15 +76,14 @@ export function ObservabilityPage({ section }: { section?: string }) {
             </EmptyTitle>
             <EmptyDescription>
               {current === 'usage'
-                ? 'Owners see Overview, Questions, Quality, Feedback and Alerts for their domains.'
+                ? 'Owners see Overview, Quality, Feedback and Alerts for their domains.'
                 : 'It shows what agents asked and what they got. Ask an owner of your domain, or an admin.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       </Page>
     )
-  if (current === 'overview') return <OverviewPage />
-  if (current === 'questions') return <QuestionsPage />
+  if (current === 'overview') return <OverviewPage topicsFirst={section === 'questions'} />
   if (current === 'quality') return <QualityPage />
   if (current === 'feedback') return <FeedbackPage />
   if (current === 'usage') return <UsagePage />

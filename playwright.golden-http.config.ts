@@ -32,6 +32,8 @@ export default defineConfig({
     /\/visual-inbox-pane\.spec\.ts$/,
     // The definition answers' baselines are of the mock's demo data too.
     /\/visual-ask-definition\.spec\.ts$/,
+    // So are Overview's.
+    /\/visual-overview\.spec\.ts$/,
     /\/docs-controls\.spec\.ts$/,
     // J8 asks the mock for a loading, failed or offline state (?state=), which the service has not.
     /\/j8-states\.spec\.ts$/,

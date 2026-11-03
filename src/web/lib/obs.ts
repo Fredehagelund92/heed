@@ -4,10 +4,9 @@ import {
   LayoutGridIcon,
   ListChecksIcon,
   MessageSquareWarningIcon,
-  ScanSearchIcon,
 } from '@/components/icons'
 import * as React from 'react'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { ObsPageInput } from '@/api/client'
 import { observabilityPageQuery, replayQuery } from '@/api/queries'
 import {
@@ -23,16 +22,14 @@ import type { DomainId } from '@/model/items'
 import { useRoute } from '@/lib/router'
 import { useDomains, useMe } from '@/lib/workspace'
 
-// Observability's map: six pages in three small groups, who sees them, and what each is for.
-// Overview comes first, and is where Observability opens.
+// Observability's map: five pages in three small groups, who sees them, and what each is for.
+// Overview comes first, and is where Observability opens: the numbers, the chart and the topics in
+// one view. Questions was a page of its own; its address now opens Overview at the topics.
 
 export const OBS_SECTIONS = [
   {
     group: 'Agents',
-    items: [
-      { id: 'overview', title: 'Overview', icon: LayoutGridIcon },
-      { id: 'questions', title: 'Questions', icon: ScanSearchIcon },
-    ],
+    items: [{ id: 'overview', title: 'Overview', icon: LayoutGridIcon }],
   },
   {
     group: 'Answers',
@@ -59,9 +56,7 @@ export const seesObservability = (me: { admin: boolean; owns: string[] }) =>
 /** What each page is for, in a line under its title. */
 export const OBS_PURPOSE: Record<ObsSection, string> = {
   overview:
-    'What agents asked and what they got. Counts only: the words of a question are never kept.',
-  questions:
-    'What agents asked about, grouped by the same thing: a metric, a market and dates. Never the words, never who asked.',
+    'What agents asked and what they got, by topic: a metric, a market and the month asked about. Counts only: never the words, never who asked.',
   quality:
     'Saved questions are checked against every change. Free, no model key needed. It checks what agents get, not how an agent words it.',
   feedback:
@@ -75,6 +70,17 @@ export const OBS_PURPOSE: Record<ObsSection, string> = {
 export const OBS_TITLES = Object.fromEntries(
   OBS_SECTIONS.flatMap((g) => g.items.map((i) => [i.id, i.title])),
 ) as Record<ObsSection, string>
+
+/** A page's address: Overview is Observability's own. */
+export const obsHref = (section: ObsSection) =>
+  section === 'overview' ? '/observability' : `/observability/${section}`
+
+/**
+ * The page an address shows: Overview when it names none, and for Questions' old address, which
+ * opens Overview at the topics so its links (and an Inbox card's) keep working.
+ */
+export const obsSectionOf = (part: string | undefined): ObsSection =>
+  part && part in OBS_PURPOSE ? (part as ObsSection) : 'overview'
 
 /** The view in the address: its range, and a domain or a kind of agent; an owner's own domains. */
 export type ObsAddress = View & { owned: DomainId[] | null; label: string }
@@ -101,25 +107,42 @@ export function useObsAddress(): ObsAddress {
 }
 
 /**
- * What a page reads for its view. Questions reads every domain the person sees, so its filters can
- * count them; the other pages read the domain in the address.
+ * What a page reads for its view: the range, the domain and the kind of agent in the address. The
+ * numbers and the chart are the domain's; the topics are every domain the person sees, in the same
+ * pass, so Overview's filters can count them.
  */
 export const obsPageInput = (section: ObsSection, a: ObsAddress): ObsPageInput => ({
   section,
   range: a.range,
-  ...(section !== 'questions' && a.domain ? { domain: a.domain } : {}),
+  ...(a.domain ? { domain: a.domain } : {}),
   ...(a.agent ? { agent: a.agent } : {}),
 })
 
-/** A page's own read, which its loading state shows. */
-export const useObsPageQuery = (section: ObsSection) =>
-  useQuery(observabilityPageQuery(obsPageInput(section, useObsAddress())))
+/**
+ * A page's own read, which its loading state shows. With `keep`, a new view (another range, domain
+ * or agent) keeps the last one on screen until it has loaded, so its numbers can count to the new
+ * ones and its bars move to their new heights instead of the page going back to a skeleton.
+ */
+export const useObsPageQuery = (section: ObsSection, keep?: boolean) =>
+  useQuery({
+    ...observabilityPageQuery(obsPageInput(section, useObsAddress())),
+    ...(keep ? { placeholderData: keepPreviousData } : {}),
+  })
+
+/**
+ * The view a page draws while it keeps the last one (`useObsPageQuery`): what is under it reads
+ * that view, which has loaded, instead of the one in the address, which may still be on its way.
+ */
+export const ObsDrawn = React.createContext<ObsPageInput | null>(null)
 
 /** The page in the address, which its own read loaded before anything under it draws. */
 function useObsData(): ObsData {
   const { parts } = useRoute()
-  const section = (parts[1] && parts[1] in OBS_PURPOSE ? parts[1] : 'overview') as ObsSection
-  return useSuspenseQuery(observabilityPageQuery(obsPageInput(section, useObsAddress()))).data
+  const address = useObsAddress()
+  const drawn = React.useContext(ObsDrawn)
+  return useSuspenseQuery(
+    observabilityPageQuery(drawn ?? obsPageInput(obsSectionOf(parts[1]), address)),
+  ).data
 }
 
 /** The view of a page that has loaded: what the address asks for, and what its data says it is. */

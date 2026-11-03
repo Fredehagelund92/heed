@@ -11,6 +11,7 @@ import {
   test,
   topicId,
 } from './go.ts'
+import type { Page } from '@playwright/test'
 
 // J27: Observability, what agents asked and what they got. One row at the sidebar's foot for admins
 // and owners, between Help and Settings; it swaps the sidebar to its own menu, as Settings does.
@@ -32,16 +33,10 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   expect(foot[at + 1]?.trim()).toBe('Settings')
   await sidebar.getByRole('link', { name: 'Observability' }).click()
   await expect(page).toHaveURL(/\/observability/)
-  for (const name of [
-    'Back to app',
-    'Overview',
-    'Questions',
-    'Quality',
-    'Feedback',
-    'Usage',
-    'Alerts',
-  ])
+  for (const name of ['Back to app', 'Overview', 'Quality', 'Feedback', 'Usage', 'Alerts'])
     await expect(sidebar.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
+  // Questions is part of Overview now, and Summary went.
+  await expect(sidebar.getByRole('link', { name: /^Questions/ })).toHaveCount(0)
   await expect(sidebar.getByRole('link', { name: /^Summary/ })).toHaveCount(0)
   // Quality's badge counts what needs a look, from the saved questions.
   await expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2')
@@ -49,7 +44,7 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   await expect(page).toHaveURL(/\/inbox/)
 })
 
-test('it opens on Overview, and an old link to Summary or one of its digests lands there too', async ({
+test('it opens on Overview, and old links to Overview, Questions and Summary land there too', async ({
   page,
 }) => {
   await go(page, '/observability')
@@ -57,15 +52,32 @@ test('it opens on Overview, and an old link to Summary or one of its digests lan
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
   await expect(page).toHaveTitle(/^Overview - /)
   await expect(sidebar.getByRole('link', { name: /^Overview/ })).toHaveAttribute('data-active')
+  await expect(sidebar.getByRole('link', { name: /^Overview/ })).toHaveAttribute(
+    'href',
+    '/observability',
+  )
   await expect(page.getByRole('link', { name: /^Checked answers/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Topics' })).toBeVisible()
+  // Overview's own old address keeps its view.
+  await go(page, `/observability/overview?range=30&domain=${domainId('marketing')}`)
+  await expect(page).toHaveURL(
+    new RegExp(`/observability\\?range=30&domain=${domainId('marketing')}$`),
+  )
+  await expect(page.getByRole('radio', { name: '30 days' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByText('Domain is Marketing')).toBeVisible()
+  // Questions' old address opens the same page at its topics, with its filters, and Overview lit.
+  await go(page, '/observability/questions?answer=missing&group=none')
+  await expect(page).toHaveURL(/\/observability\/questions\?answer=missing&group=none$/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
+  await expect(sidebar.getByRole('link', { name: /^Overview/ })).toHaveAttribute('data-active')
+  await expect(page.getByText('Answer is Not found')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Topics' })).toBeInViewport()
   // The Summary's own period goes; the domain stays.
   await go(page, `/observability/summary?period=quarter&domain=${domainId('marketing')}`)
-  await expect(page).toHaveURL(
-    new RegExp(`/observability/overview\\?domain=${domainId('marketing')}$`),
-  )
+  await expect(page).toHaveURL(new RegExp(`/observability\\?domain=${domainId('marketing')}$`))
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
   await go(page, '/observability/summary/0b6e3c3e-5d8f-4f0c-9a51-7b0d7a3a9f10')
-  await expect(page).toHaveURL(/\/observability\/overview$/)
+  await expect(page).toHaveURL(/\/observability$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
 })
 
@@ -89,15 +101,19 @@ test('owners see it for their domains without Usage; someone who only suggests h
   await expect(page.getByText('Observability is for owners and admins')).toBeVisible()
 })
 
+/** One of Overview's number cells, by its label. */
+const cell = (page: Page, label: string) =>
+  page.locator('[data-slot=kpi]').filter({ has: page.getByText(label, { exact: true }) })
+
 test("Overview: the Inbox's own numbers, a way into each, and the range and filters in the address", async ({
   page,
 }) => {
-  await go(page, '/observability/overview')
-  const cells = page.locator('a', { hasText: 'Asked' }).first()
-  await expect(cells).toContainText('142')
+  await go(page, '/observability')
+  const asked = cell(page, 'Asked')
+  await expect(asked).toContainText('142')
   // 142 against 129 the 7 days before is a move chance would make: no arrow, no colour, no per cent.
-  await expect(cells).toContainText('About the same')
-  await expect(cells).not.toContainText('%')
+  await expect(asked).toContainText('About the same')
+  await expect(asked).not.toContainText('%')
   // The checked share counts Checked answers only: 94 of 142, not the 117 that found something.
   const checked = page.getByRole('link', { name: /^Checked answers/ })
   await expect(checked).toContainText('66%')
@@ -143,45 +159,92 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await expect(up.locator('svg')).toHaveCount(1)
   await expect(up).toHaveClass(/text-good-ink/)
 
-  // A number is a way into its rows.
+  // A number narrows the topics to its answers, on the same page: the chart keeps that answer, and
+  // the numbers add up what those topics may show.
+  await page.getByRole('radio', { name: '7 days' }).click()
   await page.getByRole('link', { name: /^Not found/ }).click()
-  await expect(page).toHaveURL(/observability\/questions.*answer=missing/)
+  await expect(page).toHaveURL(/\/observability\?answer=missing$/)
+  await expect(page.getByText('Answer is Not found')).toBeVisible()
+  await expect(asked).toContainText(/in \d+ topics/)
+  await expect(asked).not.toContainText('About the same')
+  const chart = page.locator('table').filter({ hasText: 'Questions per day' })
+  await expect(chart.getByRole('columnheader')).toHaveText(['Day', 'Not found'])
+  // Each chip comes off on its own.
+  await page.getByRole('button', { name: 'Remove the filter: Answer is Not found' }).click()
+  await expect(page).toHaveURL(/\/observability$/)
+  await expect(asked).toContainText('142')
+})
+
+test('Overview: one filter moves the numbers, the chart and the topics together', async ({
+  page,
+}) => {
+  await go(page, '/observability')
+  await expect(page.locator('tbody [data-row-open]').first()).toBeVisible()
+  const topics = await page.locator('tbody [data-row-open]').count()
+  // A domain narrows the read itself: its own numbers and chart, and its topics.
+  await page.getByRole('button', { name: /^Filter/ }).click()
+  await page.getByRole('menuitem', { name: 'Domain' }).hover()
+  await page.getByRole('menuitemradio', { name: /^Marketing/ }).click()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(new RegExp(`domain=${domainId('marketing')}`))
+  await expect(page.getByText('Domain is Marketing')).toBeVisible()
+  await expect(cell(page, 'Asked')).not.toContainText('142')
+  expect(await page.locator('tbody [data-row-open]').count()).toBeLessThan(topics)
+  // The kinds of agent, with how often each asked: a kind, never a person.
+  await page.getByRole('button', { name: /^Filter/ }).click()
+  await page.getByRole('menuitem', { name: 'Agent' }).hover()
+  await expect(page.getByText('Kind of agent, never a person')).toBeVisible()
+  await expect(page.getByRole('menuitemradio', { name: /^Claude Code/ })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Remove the filter: Domain is Marketing' }).click()
+  await expect(cell(page, 'Asked')).toContainText('142')
+  // A view narrows the topics; the chart counts questions and says it cannot follow.
+  await page.getByRole('radio', { name: /^Needs a look/ }).click()
+  await expect(page).toHaveURL(/view=look/)
+  await expect(page.getByText(/as the chart counts questions, not topics/)).toBeVisible()
+  await expect(cell(page, 'Asked')).toContainText(/in \d+ topics/)
 })
 
 test("Overview: nothing connected, too few to show, and an owner's own domain", async ({
   page,
 }) => {
-  await go(page, '/observability/overview?state=empty')
+  await go(page, '/observability?state=empty')
   await expect(page.getByRole('heading', { name: 'No agent has asked anything yet' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect an agent' })).toBeVisible()
   await onMockOnly('review flag for too few questions', async () => {
-    await go(page, '/observability/overview?state=quiet')
+    await go(page, '/observability?state=quiet')
     await expect(page.getByText('Too few questions to show')).toBeVisible()
     await expect(page.getByText('Fewer than 5').first()).toBeVisible()
   })
 
   await go(page, '/observability?demo=week')
   await signInAs(page, 'Tomas Eriksen')
-  await go(page, '/observability/overview')
+  await go(page, '/observability')
   await expect(page.getByText('What agents asked about Marketing this week')).toBeVisible()
-  await expect(page.getByRole('link', { name: /^Asked/ })).toContainText('24')
-  await expect(page.getByRole('heading', { name: 'By agent' })).toHaveCount(0)
   await expect(page.getByText('You see the domains you own.')).toBeVisible()
+  await expect(cell(page, 'Asked')).toContainText('24')
+  // An owner's domain is theirs, not a filter to take off; the kinds of agent are for admins.
+  await expect(page.getByText('Domain is Marketing')).toHaveCount(0)
+  await page.getByRole('button', { name: /^Filter/ }).click()
+  await expect(page.getByRole('menuitem', { name: 'Domain' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Agent' })).toHaveCount(0)
 })
 
-test('Questions: saved views, a filter that reads as a sentence, and a view saved for everyone', async ({
+test("Overview's topics: views with counts, a filter as a chip, and a view saved for everyone", async ({
   page,
 }) => {
   await go(page, '/observability/questions')
-  const views = page.getByRole('tablist', { name: 'Saved views' })
+  const views = page.getByRole('radiogroup', { name: 'Views' })
   // Views count exact topics (16); the table groups them by metric and market, so Germany's two months are one row.
-  await expect(views.getByRole('tab', { name: /^All topics 16/ })).toHaveAttribute(
-    'aria-selected',
+  await expect(views.getByRole('radio', { name: /^All topics 16/ })).toHaveAttribute(
+    'aria-checked',
     'true',
   )
-  await views.getByRole('tab', { name: /^Not found 4/ }).click()
+  await views.getByRole('radio', { name: /^Not found 4/ }).click()
   await expect(page.locator('tbody [data-row-open]')).toHaveCount(3)
-  await views.getByRole('tab', { name: /^All topics/ }).click()
+  await views.getByRole('radio', { name: /^All topics/ }).click()
 
   await page.getByRole('button', { name: /^Filter/ }).click()
   await page.getByRole('menuitem', { name: 'Answer' }).hover()
@@ -196,11 +259,13 @@ test('Questions: saved views, a filter that reads as a sentence, and a view save
   await page.getByRole('button', { name: 'Save this view' }).click()
   await page.getByLabel('Name the view').fill('Found nothing')
   await page.getByRole('button', { name: 'Save for everyone' }).click()
-  await expect(views.getByRole('tab', { name: /^Found nothing/ })).toHaveAttribute(
-    'aria-selected',
+  await expect(views.getByRole('radio', { name: /^Found nothing/ })).toHaveAttribute(
+    'aria-checked',
     'true',
   )
-  await expect(page.getByText('Everyone in the workspace has it as a tab.')).toBeVisible()
+  await expect(page.getByText('Everyone in the workspace has it beside the others.')).toBeVisible()
+  await page.getByRole('button', { name: 'Remove the view Found nothing' }).click()
+  await expect(views.getByRole('radio', { name: /^Found nothing/ })).toHaveCount(0)
 })
 
 test('The answer panel replays a topic: what an agent gets, the steps, and what to look at', async ({

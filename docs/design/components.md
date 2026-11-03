@@ -89,16 +89,17 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### Chips, marks and identity
 
-| Part             | File                                           | Job                                                                  |
-| ---------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
-| Tag chip         | `components/heed/tag-chip.tsx`, `lib/tones.ts` | The one chip: 24 px, 6 px radius, type icon, tinted by what it names |
-| Mention chip     | `components/heed/mention-chip.tsx`             | A mention with its type icon; dashed when the target is gone         |
-| Avatars and bits | `components/heed/bits.tsx`                     | People, soft tint from the name, domain dot, small shared pieces     |
-| Kind icons       | `components/heed/kind-icons.ts`                | Event, Warning, Rule, Guide                                          |
-| Definition marks | `components/heed/definition.tsx`               | Sigma, split, whole-word and equals tiles                            |
-| Tool logo        | `components/heed/tool-logo.tsx`                | An integration's real logo in a white tile                           |
-| Changed value    | `components/heed/changed.tsx`                  | A number that changed while you watched, with a fading tint          |
-| Mark             | `components/heed/mark.tsx`                     | Marked text in four roles: Needs you, Differs, Wrong, Good           |
+| Part             | File                                           | Job                                                                   |
+| ---------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
+| Tag chip         | `components/heed/tag-chip.tsx`, `lib/tones.ts` | The one chip: 24 px, 6 px radius, type icon, tinted by what it names  |
+| Mention chip     | `components/heed/mention-chip.tsx`             | A mention with its type icon; dashed when the target is gone          |
+| Avatars and bits | `components/heed/bits.tsx`                     | People, soft tint from the name, domain dot, small shared pieces      |
+| Kind icons       | `components/heed/kind-icons.ts`                | Event, Warning, Rule, Guide                                           |
+| Definition marks | `components/heed/definition.tsx`               | Sigma, split, whole-word and equals tiles                             |
+| Tool logo        | `components/heed/tool-logo.tsx`                | An integration's real logo in a white tile                            |
+| Changed value    | `components/heed/changed.tsx`                  | A number that changed while you watched, with a fading tint           |
+| Counting number  | `components/heed/count-up.tsx`                 | A count that counts to its new value in CSS; a reader gets the number |
+| Mark             | `components/heed/mark.tsx`                     | Marked text in four roles: Needs you, Differs, Wrong, Good            |
 
 ### The state line and Ask
 
@@ -189,8 +190,9 @@ Unused primitives in the mockup (about seven) are not imported.
 
 | Part            | File                                                                                              | Job                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Pages           | `pages/observability/*`                                                                           | Overview, Questions, Quality, Feedback, Usage, Alerts         |
-| Controls        | `components/obs/controls.tsx`                                                                     | Range, domain, agent, kept in the address; Kpi and Definition |
+| Pages           | `pages/observability/*`                                                                           | Overview (with its topics), Quality, Feedback, Usage, Alerts  |
+| Controls        | `components/obs/controls.tsx`                                                                     | Range, kept in the address; Kpi and Definition                |
+| Topic filters   | `components/obs/topic-filters.tsx`                                                                | Overview's views, Filter, Month, Group, chips and Save a view |
 | Charts          | `components/obs/charts.tsx`                                                                       | Small SVG on the tokens, with a table for screen readers      |
 | Topic table     | `components/obs/topic-table.tsx`, `data/observability.ts`, `lib/obs.ts`, `lib/obs-views.ts`       | Topics as rows, in three groupings                            |
 | Answer panel    | `components/obs/answer-panel.tsx`, `lib/replay.ts`                                                | A replay of a topic, now or before the last publish           |

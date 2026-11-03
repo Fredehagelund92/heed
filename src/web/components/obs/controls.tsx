@@ -1,35 +1,16 @@
 import * as React from 'react'
-import { useObservability } from '@/lib/obs'
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  BotIcon,
-  ChevronDownIcon,
-  InfoIcon,
-  LayersIcon,
-} from '@/components/icons'
+import { ArrowDownIcon, ArrowUpIcon, InfoIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Changed } from '@/components/heed/changed'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import type { Change } from '@domain/observability'
 import { RANGES, type Range } from '@/model/observability'
-import { useDomainList, useDomains } from '@/lib/workspace'
-import type { ObsView } from '@/lib/obs'
 import { setQuery } from '@/lib/router'
 
-// The controls every Observability page shares, kept in the address so a link (or Back) lands the
-// same way: 7, 30 or 90 days, a domain and a kind of agent. An owner who isn't an admin sees only
-// the domains they own, and no agent filter (the agents list is for admins).
+// The controls and number cells Observability's pages share. The range is kept in the address so a
+// link (or Back) lands the same way: 7, 30 or 90 days. Overview's domain and kind of agent are in
+// its Filter menu (components/obs/topic-filters.tsx).
 
 /** 7, 30 or 90 days: one row of three, a radio group to a screen reader. */
 export function RangeSwitch({ value }: { value: Range }) {
@@ -54,94 +35,6 @@ export function RangeSwitch({ value }: { value: Range }) {
           {r} days
         </button>
       ))}
-    </div>
-  )
-}
-
-function Filter({
-  icon,
-  label,
-  value,
-  options,
-  onChange,
-  heading,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (v: string) => void
-  heading: string
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 font-normal max-sm:h-10" />
-        }
-      >
-        {icon}
-        <span className="sr-only">{heading}: </span>
-        {label}
-        <ChevronDownIcon className="size-3.5 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>{heading}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as string)}>
-            {options.map((o) => (
-              <DropdownMenuRadioItem key={o.value} value={o.value}>
-                {o.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-/** The domain filter alone: every domain or one for admins, an owner's own domains. */
-export function DomainFilter({ view }: { view: Pick<ObsView, 'domain' | 'owned'> }) {
-  const domains = useDomains()
-  const domainIds = useDomainList().map((d) => d.id)
-  const doms = view.owned ?? domainIds.filter((d) => !domains[d]?.sandbox)
-  if (view.owned?.length === 1) return null
-  return (
-    <Filter
-      heading="Domain"
-      icon={<LayersIcon className="size-3.5" />}
-      label={view.domain ? (domains[view.domain]?.name ?? 'All domains') : 'All domains'}
-      value={view.domain ?? 'all'}
-      options={[
-        ...(view.owned ? [] : [{ value: 'all', label: 'All domains' }]),
-        ...doms.map((d) => ({ value: d, label: domains[d]?.name ?? d })),
-      ]}
-      onChange={(v) => setQuery({ domain: v === 'all' ? undefined : v })}
-    />
-  )
-}
-
-/** The page's filters: a domain, a kind of agent (admins), and the range. */
-export function ObsControls({ view, compact }: { view: ObsView; compact?: boolean }) {
-  const obs = useObservability()
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {!compact && <DomainFilter view={view} />}
-      {!compact && !view.owned && (
-        <Filter
-          heading="Agent"
-          icon={<BotIcon className="size-3.5" />}
-          label={view.agent ?? 'All agents'}
-          value={view.agent ?? 'all'}
-          options={[
-            { value: 'all', label: 'All agents' },
-            ...obs.data.agents.map((a) => ({ value: a.name, label: a.name })),
-          ]}
-          onChange={(v) => setQuery({ agent: v === 'all' ? undefined : v })}
-        />
-      )}
-      <RangeSwitch value={view.range} />
     </div>
   )
 }
@@ -263,6 +156,7 @@ export function Kpi({
   const cls = 'flex min-w-0 flex-col bg-background px-4 py-3 md:px-5 md:py-4'
   return href ? (
     <a
+      data-slot="kpi"
       href={href}
       className={cn(
         cls,
@@ -272,6 +166,8 @@ export function Kpi({
       {body}
     </a>
   ) : (
-    <div className={cls}>{body}</div>
+    <div data-slot="kpi" className={cls}>
+      {body}
+    </div>
   )
 }

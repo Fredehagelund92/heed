@@ -4,7 +4,7 @@ import { expect, go, inMockUntil, onMockOnly, test } from './go.ts'
 // rows for reading; a month under 5 is never given away; a gap counts across a month edge; calls
 // that could not be read are counted, never their words.
 
-test('Questions groups by metric and market, opens to the months, and never gives a small month away', async ({
+test('Overview groups topics by metric and market, opens to the months, and never gives a small month away', async ({
   page,
 }) => {
   await go(page, '/observability/questions')
@@ -41,7 +41,7 @@ test('Questions groups by metric and market, opens to the months, and never give
   )
 })
 
-test('Questions shows each exact scope, or a domain at a time, and filters by month', async ({
+test('Overview shows each exact topic, or a domain at a time, and filters by month', async ({
   page,
 }) => {
   await go(page, '/observability/questions?group=none')
@@ -59,14 +59,19 @@ test('Questions shows each exact scope, or a domain at a time, and filters by mo
 })
 
 test('a gap counts across a month edge: Overview, Alerts and the Inbox', async ({ page }) => {
-  await go(page, '/observability/overview')
-  // Under Asked, not found: the list of what found nothing, not the top topics beside it.
+  // Overview's Not found view: what found nothing, its months counted together.
+  await go(page, '/observability?view=not-covered')
   const germany = page
-    .getByRole('listitem')
-    .filter({ hasText: 'Orders in Germany' })
-    .filter({ hasText: /times, not found/ })
-  await expect(germany).toContainText('across Oct, Nov 2026, counted together')
-  await expect(page.getByText(/Could not be read: 9 calls/)).toBeVisible()
+    .getByRole('row')
+    .filter({ has: page.getByRole('button', { name: /^Orders in Germany/ }) })
+  await expect(germany).toContainText('Oct, Nov 2026')
+  await expect(germany).toContainText('Counted across a month edge')
+  // Calls that could not be read have no topic, so only the whole list says them.
+  await expect(page.getByRole('row').filter({ hasText: 'Could not be read' })).toHaveCount(0)
+  await go(page, '/observability')
+  await expect(page.getByRole('row').filter({ hasText: 'Could not be read' })).toContainText(
+    '9 calls',
+  )
   // The alert it raises, and its Not found card in the Inbox, come with P12b.
   await inMockUntil('P12b', 'alerts and the Not found card across a month edge', async () => {
     await go(page, '/observability/alerts')
