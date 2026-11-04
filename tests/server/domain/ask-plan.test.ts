@@ -261,6 +261,13 @@ describe('when the planner reads a question', () => {
       }),
     ).toBeNull()
     expect(reason('why did orders drop in Norway?', { previous })).toBeNull()
+    expect(
+      reason('what did Anna change?', { previous, records: { type: 'refused' }, rules: rules('no_match') }),
+    ).toBeNull()
+    // Words that point back at the last answer still make a follow-up when the rules answered.
+    expect(
+      reason('is that a conflict?', { previous, records: { type: 'records' }, rules: rules('no_match') }),
+    ).toBe('follow-up')
     // Unread, a market alone, or the answer to a question Ask asked back is still read.
     expect(reason('why?', { previous, rules: rules('need_more_detail') })).toBe('follow-up')
     expect(reason('what about Sweden?', { previous, rules: rules('no_match') })).toBe('follow-up')

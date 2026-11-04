@@ -415,8 +415,8 @@ const POINTS_BACK =
  * the rules can: a short question that starts from the last one or points back at it ("why?",
  * "what about Sweden?", "is that a conflict?"), one that names no metric after a turn that had
  * one, and any answer to a question Ask asked back. A question the rules answered in full (a
- * records question, or a metric found) keeps their answer, unless it answers a question Ask
- * asked back.
+ * records question, a refusal, or a metric found) keeps their answer, unless it points back at
+ * the last answer or answers a question Ask asked back.
  */
 export function readsAsFollowUp(
   question: string,
@@ -425,16 +425,15 @@ export function readsAsFollowUp(
 ): boolean {
   if (!previous) return false
   if (previous.asked) return true
-  if (read.answered) return false
   const t = normalizeName(question)
     .replace(/[^\p{L}\p{N}' ]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   if (t.split(' ').length > 12) return false
+  if (POINTS_BACK.test(t)) return true
+  if (read.answered) return false
   return (
-    FOLLOW_ON.test(t) ||
-    POINTS_BACK.test(t) ||
-    (read.metrics === 0 && (previous.scope?.metrics.length ?? 0) > 0)
+    FOLLOW_ON.test(t) || (read.metrics === 0 && (previous.scope?.metrics.length ?? 0) > 0)
   )
 }
 
@@ -585,13 +584,9 @@ export function plannerReason(c: {
 }): PlannerReason | null {
   if (c.scoped) return null
   const metrics = c.rules.scope?.metrics.length ?? 0
-  const answered =
-    c.records?.type === 'records'
-      ? !c.records.loose
-      : !c.records &&
-        metrics > 0 &&
-        c.rules.status !== 'need_more_detail' &&
-        c.rules.status !== 'no_match'
+  const answered = c.records
+    ? c.records.type === 'refused' || !c.records.loose
+    : metrics > 0 && c.rules.status !== 'need_more_detail' && c.rules.status !== 'no_match'
   if (readsAsFollowUp(c.question, c.previous, { metrics, answered })) return 'follow-up'
   if (c.records) return c.records.type === 'records' && c.records.loose ? 'business change' : null
   if (c.rules.status === 'need_more_detail') return 'unread'

@@ -425,6 +425,13 @@ export const planCases: PlanCase[] = [
     expect: { route: 'records', intent: 'owner' },
   },
   {
+    id: 'after-refused-person',
+    what: 'A question about a person after a metric answer: the rules refuse it, not a follow-up.',
+    question: 'what did Anna change?',
+    after: 'B1',
+    expect: { route: 'records' },
+  },
+  {
     id: 'after-complete-why',
     what: 'A complete why question after a metric answer: the rules, not a follow-up.',
     question: B1,

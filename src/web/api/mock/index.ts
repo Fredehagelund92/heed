@@ -250,10 +250,9 @@ export function createMockApi() {
     const read = readQuestion(question)
     const recognised = recognisedFor(question, world)
     const ruled = askQuestion(question, pool)
-    const answered =
-      recognised?.type === 'records'
-        ? !recognised.loose
-        : !recognised && !!read.metric && ruled.state !== null
+    const answered = recognised
+      ? recognised.type === 'refused' || !recognised.loose
+      : !!read.metric && ruled.state !== null
     if (followsOn(question, previous, world, { metrics: read.metric ? 1 : 0, answered })) {
       const a = planned()
       if (a) return a
