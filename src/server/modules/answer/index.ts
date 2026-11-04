@@ -25,6 +25,7 @@ export {
   type PlanOutcome,
   type PlanRoute,
 } from './plan-cases.ts'
+export { stewardCases } from './steward-cases.ts'
 export { PLAN_NOW, PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
 export {
   askForPlan,

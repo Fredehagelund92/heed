@@ -4,6 +4,7 @@ import {
   planProblems,
   runPlanCases,
   scriptedPlan,
+  stewardCases,
 } from '../../src/server/modules/answer/index.ts'
 
 // The planner cases (FR-710, FR-719) on the scripted planner, in every build: each question is
@@ -51,5 +52,13 @@ describe('with no planner (no model, a spending limit, a slow provider)', async 
       expect(got.answer.status).toBe('need_more_detail')
       expect(got.answer.items).toEqual([])
     }
+  })
+})
+
+describe('what Ask promises (FR-720), on the scripted planner', async () => {
+  const got = await runPlanCases(stewardCases, scriptedPlan)
+
+  it.each(stewardCases.map((c) => [`${c.class} ${c.id}`, c] as const))('%s', (_id, c) => {
+    expect(planProblems(c, got.get(c.id)!)).toEqual([])
   })
 })

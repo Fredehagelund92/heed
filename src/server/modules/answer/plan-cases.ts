@@ -1,12 +1,27 @@
 import type { AnswerState } from '../../../domain/answer.ts'
 import { asksAgain } from '../../../domain/ask-again.ts'
 import type { ChatTurn } from '../../../domain/ask-chat.ts'
-import type { PlanKind, PlanPeriod } from '../../../domain/ask-plan.ts'
+import type { AuditFacet } from '../../../domain/audit.ts'
+import type { PlanKind, PlanMiss, PlanPeriod } from '../../../domain/ask-plan.ts'
 import { chatOf, routeQuestion, type Planner, type Routed } from '../../../domain/ask-route.ts'
 import type { ItemKind } from '../../../domain/item.ts'
-import { recogniseRecords, type RecordsIntent } from '../../../domain/records.ts'
-import { readQuestion } from '../../../domain/scope.ts'
-import { PLAN_NOW, PLAN_TODAY, planAreas, planBundle, planItem } from './plan-world.ts'
+import {
+  answerRecords,
+  recogniseRecords,
+  refusedAnswer,
+  type RecordsAnswer,
+  type RecordsIntent,
+} from '../../../domain/records.ts'
+import { asksDefinition, readQuestion } from '../../../domain/scope.ts'
+import {
+  PLAN_NOW,
+  PLAN_TODAY,
+  planAreas,
+  planBundle,
+  planDefinitions,
+  planItem,
+  planRecords,
+} from './plan-world.ts'
 
 /*
   The planner cases (FR-710, FR-719): the 42 questions a scout asked the live Ask on 3 November
@@ -38,6 +53,10 @@ export type PlanCase = {
   sources?: string[]
   /** Scoped with @, so the browser sends no chat with it. */
   scoped?: true
+  /** The class of question it tests (FR-720): reads, analysis, synthesis, beyond, and the rest. */
+  class?: 'D' | 'R' | 'S' | 'A' | 'X'
+  /** Asked with no model, with a planner that gave up, or with this plan as the model's. */
+  with?: { planner: 'none' | 'missed' } | { raw: unknown }
   expect: {
     route: PlanRoute
     /** The reads, or the reply, the plan must choose. */
@@ -66,6 +85,20 @@ export type PlanCase = {
     says?: RegExp
     /** What was carried from the last question, in words. */
     carried?: string[]
+    /** The facets the audit must read, in any order. */
+    audit?: AuditFacet[]
+    /** The state must be one of these. */
+    stateIn?: AnswerState[]
+    /** The limit sentence the answer must lead with, by its reason. */
+    limit?: string
+    /** The honest exit it must take, by its reason. */
+    cannot?: string
+    /** Why the scripted plan must be refused. */
+    miss?: PlanMiss
+    /** What the rendered answer must say. */
+    must?: readonly (string | RegExp)[]
+    /** What the rendered answer must never say. */
+    refuse?: readonly (string | RegExp)[]
   }
 }
 
@@ -673,6 +706,12 @@ export type PlanOutcome = {
   titles: string[]
   /** The turn a follow-up sends. */
   turn: ChatTurn
+  /** The records answer, as the person may see it. */
+  records: RecordsAnswer | null
+  /** The answer as a person reads it: what `must` and `refuse` are read against. */
+  rendered: string
+  /** Why the plan was refused, when a case scripts one. */
+  miss?: PlanMiss
 }
 
 const titleOf = new Map(planBundle.items.map((item) => [item.id, item.title]))
@@ -718,6 +757,18 @@ export async function askPlanCase(
     routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
   const sources = answer?.items.map((item) => item.id) ?? []
   const found = routed.kind === 'records' ? routed.found : null
+  const records =
+    found?.type === 'refused'
+      ? refusedAnswer(planRecords)
+      : found
+        ? answerRecords(found.ask, planRecords, PLAN_NOW)
+        : null
+  const define =
+    routed.kind === 'reads'
+      ? routed.planned.defines
+      : routed.kind === 'rules' && asksDefinition(c.question)
+        ? (routed.answer.scope?.metrics ?? [])
+        : []
   return {
     route:
       routed.kind === 'rules'
@@ -730,6 +781,8 @@ export async function askPlanCase(
     calls,
     routed,
     titles: sources.map((id) => titleOf.get(id) ?? id),
+    records,
+    rendered: renderedOf(routed, records, define),
     turn: {
       question: c.question,
       scope: answer?.scope ?? null,
@@ -746,6 +799,47 @@ export async function askPlanCase(
         : {}),
     },
   }
+}
+
+/** A records answer as a person reads it, line by line. */
+export function recordsText(r: RecordsAnswer): string[] {
+  if (r.refused) return [r.sentence, r.detail]
+  const rowText = (row: Extract<RecordsAnswer, { refused: false }>['rows'][number]) => {
+    const name =
+      row.type === 'item' || row.type === 'topic'
+        ? row.title
+        : row.type === 'conflict'
+          ? `${row.holder.title} and ${row.other.title}`
+          : row.type === 'kind'
+            ? row.label
+            : row.name
+    const link = row.type === 'topic' && row.gap ? (row.gap.draft ? 'Write it' : 'Open the card') : ''
+    return [name, ...row.cells, link].filter(Boolean).join(' | ')
+  }
+  return [
+    r.sentence,
+    r.detail ?? '',
+    r.detailItem?.title ?? '',
+    ...r.rows.map(rowText),
+    r.shown ?? '',
+    r.more?.label ?? '',
+    r.note ?? '',
+  ].filter(Boolean)
+}
+
+/** The answer as a person reads it, in plain lines. */
+function renderedOf(routed: Routed, records: RecordsAnswer | null, define: string[]): string {
+  const lines: string[] = []
+  if (routed.kind === 'reply') lines.push(routed.reply.text)
+  if (records) lines.push(...recordsText(records))
+  const answer =
+    routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
+  if (answer) {
+    lines.push(answer.say)
+    lines.push(...define.flatMap((key) => planDefinitions[key] ?? []))
+    lines.push(...answer.items.map((item) => item.title))
+  }
+  return lines.join('\n')
 }
 
 /** The kinds a routed answer's plan chose, in order. */
@@ -836,6 +930,19 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     if (!standalone || !e.standalone.test(standalone))
       problems.push(`read alone as ${standalone ?? 'nothing'}, not ${e.standalone}`)
   }
+  if (e.stateIn) {
+    const state = answer ? answer.state : null
+    if (!state || !e.stateIn.includes(state))
+      problems.push(`state ${state}, not one of ${e.stateIn.join(',')}`)
+  }
+  const said = (p: string | RegExp) =>
+    typeof p === 'string' ? got.rendered.includes(p) : p.test(got.rendered)
+  for (const p of e.must ?? []) if (!said(p)) problems.push(`does not say ${p}`)
+  for (const p of e.refuse ?? []) if (said(p)) problems.push(`says ${p}`)
+  if (e.miss && got.miss !== e.miss) problems.push(`refused as ${got.miss ?? 'nothing'}, not ${e.miss}`)
+  if (e.audit) problems.push(`no audit read: wants ${e.audit.join(',')}`)
+  if (e.limit) problems.push(`no limit read: wants ${e.limit}`)
+  if (e.cannot) problems.push(`no exit read: wants ${e.cannot}`)
   // No reply after the first message suggests a question to ask, and none lists choices as chips.
   if (routed.kind === 'reply' && /\n|- |•/.test(routed.reply.text))
     problems.push('a reply with a list')
@@ -852,7 +959,7 @@ export async function runPlanCases(
   onCase?: (c: PlanCase, got: PlanOutcome) => void,
 ): Promise<Map<string, PlanOutcome>> {
   const got = new Map<string, PlanOutcome>()
-  const byId = new Map(planCases.map((c) => [c.id, c]))
+  const byId = new Map([...planCases, ...cases].map((c) => [c.id, c]))
   /** The cases a case follows, oldest first: the chat it is asked in. */
   const chain = (c: PlanCase): PlanCase[] => {
     const before = c.after ? byId.get(c.after) : undefined
@@ -866,9 +973,23 @@ export async function runPlanCases(
     for (const before of chat) turns.push((await ask(before)).turn)
     // Asked again in words: the last question, with the chat before it, as the browser sends it.
     const repeated = asksAgain(c.question) ? chat.at(-1) : undefined
-    const outcome = repeated
-      ? await askPlanCase(repeated, planner, turns.slice(0, -1))
-      : await askPlanCase(c, planner, turns)
+    let miss: PlanMiss | undefined
+    const own: Planner | null = !c.with
+      ? planner
+      : 'raw' in c.with
+        ? async (_input, check) => {
+            const checked = check((c.with as { raw: unknown }).raw)
+            if (checked.ok) return checked.plan
+            miss = checked.why
+            return null
+          }
+        : c.with.planner === 'none'
+          ? null
+          : async () => null
+    const asked = repeated
+      ? await askPlanCase(repeated, own, turns.slice(0, -1))
+      : await askPlanCase(c, own, turns)
+    const outcome = { ...asked, ...(miss ? { miss } : {}) }
     got.set(c.id, outcome)
     onCase?.(c, outcome)
     return outcome
