@@ -4,14 +4,14 @@ import { cn } from '@/lib/utils'
 import { CollapsibleTrigger } from '@/components/ui/collapsible'
 
 // The section folds, Details, the panels' groups and the inline toggles open from one trigger
-// (docs/design/components.md, "Folds"); the list's group rows, Overview's month rows and an
-// integration's More settings keep their own toggle. A section's
-// fold is a full-width row at least 44 px tall: what it holds in 14 px at weight 500, a muted
-// summary only while it is closed, and the chevron at the end, pointing down and turning half a
-// turn with the panel. An inline toggle (Ask's look-up, a figure's query, the Text diff's
-// unchanged lines) keeps its own size and gets a 44 px area under a finger. A section header's
-// fold (Settings) is its chevron, stretched over the whole header row. Hover changes a colour,
-// and focus is the contract's ring, drawn inside the row.
+// (docs/design/design-contract.md, "The fold"); the list's group rows, Overview's month rows and
+// an integration's More settings keep their own toggle. A section's fold is a full-width row at
+// least 44 px tall: what it holds in 14 px at weight 500, a muted summary only while it is
+// closed, and the chevron at the end, pointing down and turning half a turn with the panel. An
+// inline toggle (Ask's look-up, a figure's query, the Text diff's unchanged lines) keeps its own
+// size and gets a 44 px area under a finger. A section header's fold (Settings) is its chevron,
+// stretched over the whole header row. Hover changes a colour, and focus is the contract's ring,
+// drawn inside the row.
 
 /** The chevron of every fold: at the end, pointing down, turning in step with the panel. */
 export function FoldChevron({ className }: { className?: string }) {
