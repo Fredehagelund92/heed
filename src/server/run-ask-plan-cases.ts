@@ -249,7 +249,7 @@ const planOf = (outcome: PlanOutcome) => {
 }
 
 const flipped = (cases: readonly PlanCase[], runs: readonly ReadonlyMap<string, PlanOutcome>[]) =>
-  cases.filter((c) => new Set(runs.map((run) => planOf(run.get(c.id)!))).size > 1)
+  cases.filter((c) => new Set(runs.flatMap((run) => planOf(run.get(c.id)!))).size > 1)
 
 /** The release gate over a run, or over several tries of it, by class. */
 function gate(
@@ -284,7 +284,8 @@ function gate(
   for (const [rule, ids] of Object.entries(score.zero))
     console.log(`Zero: ${rule}: ${ids.length ? ids.join(', ') : 'none'}`)
   console.log(`get_context digest: ${engineDigest(cases)}`)
-  const same = runs.length > 1 ? cases.length - flipped(cases, runs).length : cases.length
+  // The first three tries ask every case; later ones ask only those that flipped.
+  const same = cases.length - flipped(cases, runs.slice(0, 3)).length
   const sameShare = same / cases.length
   console.log(`Same plan on every try: ${same}/${cases.length} (${Math.round(sameShare * 100)}%)`)
   const rules = cases.filter((c) => c.expect.route !== 'planner' && !c.with)

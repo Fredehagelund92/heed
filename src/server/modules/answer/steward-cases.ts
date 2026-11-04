@@ -1123,7 +1123,7 @@ const X: PlanCase[] = [
       audit: ['asked_most'],
       state: null,
       must: [/fewer than 5 times/],
-      refuse: [/\b[1-4] of \d/],
+      refuse: [/\| [1-4](?: of \d+)?$/m],
     },
   },
   {

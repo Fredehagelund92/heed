@@ -788,6 +788,7 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
           .map((i) => itemRow(i, [reason(i), i.checkedAt ? dayWords(i.checkedAt) : 'Never'])),
         total: n,
         shown: n > RECORDS_ROWS ? `Showing the ${RECORDS_ROWS} oldest` : null,
+        ranked: n > 1 ? 'Oldest check date first.' : null,
         more: n
           ? {
               label: `Show all ${count(n)} in Context`,

@@ -914,7 +914,9 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
   if (got.route !== e.route) problems.push(`read by ${got.route}, not ${e.route}`)
   if (e.route !== 'planner' && got.calls && !c.with)
     problems.push('asked the planner for a question the rules read')
-  if (e.plan && planKinds(routed).join(',') !== e.plan.join(','))
+  // Two reads of one kind are the same read as one with both: compare the kinds.
+  const once = (kinds: readonly PlanKind[]) => [...new Set(kinds)].join(',')
+  if (e.plan && once(planKinds(routed)) !== once(e.plan))
     problems.push(`planned ${planKinds(routed).join(',') || 'nothing'}, not ${e.plan.join(',')}`)
   const answer =
     routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
@@ -998,8 +1000,10 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
   if (e.miss && got.miss !== e.miss)
     problems.push(`refused as ${got.miss ?? 'nothing'}, not ${e.miss}`)
   if (e.audit) {
+    // One facet is the same read as the records question of that name (FR-720, section 7.2).
+    const same = records && e.audit.length === 1 && records.intent === e.audit[0]
     const facets = records?.audit?.facets ?? []
-    if ([...facets].sort().join(',') !== [...e.audit].sort().join(','))
+    if (!same && [...facets].sort().join(',') !== [...e.audit].sort().join(','))
       problems.push(`read facets ${facets.join(',') || 'none'}, not ${e.audit.join(',')}`)
   }
   if (e.limit) {
