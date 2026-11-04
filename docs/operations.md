@@ -1,6 +1,6 @@
 # Run and operate the service
 
-Running the Heed service on your own computer, its configuration, health checks, scheduled jobs and metrics, and the administration API, import and export. The [Quick start](../README.md#quick-start) runs all of it in containers with `docker compose up`, and [Self-host Heed on one computer](self-hosting.md) says how to back that up, restore, upgrade and roll back.
+Running the Heed service on your own computer, its configuration, health checks, scheduled jobs and metrics, and the administration API, import and export. The [Quick start](../README.md#quick-start) runs all of it in containers with `docker compose up`, and [Self-host Heed on one computer](self-hosting.md) says how to back that up, restore, upgrade and roll back. [Where to run Heed](where-to-run.md) compares the ways to run it.
 
 ## Run the service locally
 
@@ -40,11 +40,10 @@ instance counts on its own. An address is the connection's peer, unless the peer
 in `HEED_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
 `uniquelocal`, comma-separated): then it is the address that proxy forwards in `X-Forwarded-For`.
 The web image's nginx forwards the address of each caller, and drops one a caller sends, and
-`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. `vercel`
-alone believes the one hop in front, Vercel's edge, which the Vercel function sets for itself
-([Run Heed on Vercel and Neon](vercel.md#callers-addresses-and-request-limits)). Unset, the
-service believes no forwarded address. `/health`, `/health/ready` and `/metrics` are not
-limited.
+`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. Behind
+any other proxy, name that proxy ([Where to run Heed](where-to-run.md#the-proxy-in-front) says
+what your host needs). Unset, the service believes no forwarded address. `/health`,
+`/health/ready` and `/metrics` are not limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
 (the weekly counts Observability keeps without limit, and what Heed caught each week, see [Observability](reference.md#observability)),
@@ -140,7 +139,8 @@ database settings):
    host: the built-in login server for agents needs https in production. Put a TLS proxy in front
    that sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly and
    only the rest (the web app's files) to the web image, with the public host.
-4. Name that TLS proxy in `HEED_TRUSTED_PROXIES`, so each caller has a request limit of its own.
+4. Name that TLS proxy in `HEED_TRUSTED_PROXIES`, so each caller has a request limit of its own
+   ([The proxy in front](where-to-run.md#the-proxy-in-front)).
    The web image's nginx overwrites `X-Forwarded-For` with its own peer's address, so it gives
    per-caller limits only where it is the first proxy, as in `compose.yaml`.
 
