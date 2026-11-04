@@ -40,15 +40,16 @@ worker for its compiler, and Google Drive, which reads the changes since its cur
 snapshot a definitions read is gathered into and the pipeline that stores it; the server's demo
 source is the last one written to it. The other connector documents:
 
-| Document                                                    | For                                                                                     |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [Security and egress](connectors/security.md)               | Where connector code runs, the hosts it may reach, the secret store and its output      |
-| [Writing a connector](connectors/authoring.md)              | Authors of a new connector: the template, the steps, the rules, the kit and a checklist |
-| [Connectors as packages](connectors/packaging.md)           | The design for loading connectors from packages later; not built                        |
-| [The Cube connector](connectors/cube.md)                    | The Cube model setup, its settings, the demo model, compilation and change marks        |
-| [Cube](../src/connectors/cube/README.md)                    | The Cube connector's page: its settings, what a read does, its schedule and its limits  |
-| [Markdown in Git](../src/connectors/git-markdown/README.md) | The first content connector: its settings, its folders and what a read suggests         |
-| [Google Drive](../src/connectors/google-drive/README.md)    | Google Docs through a service account: setting it up, full reads and change reads       |
+| Document                                                     | For                                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| [Security and egress](connectors/security.md)                | Where connector code runs, the hosts it may reach, the secret store and its output             |
+| [Writing a connector](connectors/authoring.md)               | Authors of a new connector: the template, the steps, the rules, the kit and a checklist        |
+| [Connectors as packages](connectors/packaging.md)            | The design for loading connectors from packages later; not built                               |
+| [The Cube connector](connectors/cube.md)                     | The Cube model setup, its settings, the demo model, compilation and change marks               |
+| [Cube](../src/connectors/cube/README.md)                     | The Cube connector's page: its settings, what a read does, its schedule and its limits         |
+| [dbt MetricFlow](../src/connectors/dbt-metricflow/README.md) | The dbt connector's page: the file it reads, the CI recipe, where `meta` goes and its warnings |
+| [Markdown in Git](../src/connectors/git-markdown/README.md)  | The first content connector: its settings, its folders and what a read suggests                |
+| [Google Drive](../src/connectors/google-drive/README.md)     | Google Docs through a service account: setting it up, full reads and change reads              |
 
 ## Invariants
 

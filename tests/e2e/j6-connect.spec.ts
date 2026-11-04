@@ -18,6 +18,10 @@ test.beforeAll(async () => {
       '# Orders in Germany\n\nOrders in Germany include marketplace orders.\n',
     'docs/marketing/campaigns.md': '# Spring campaigns\n\nThe spring sale runs in April.\n',
   })
+  const { legacyManifest } = await import('../server/connectors/dbt-metricflow-fixture.ts')
+  await started.repository('shop-metrics', {
+    'semantic/semantic_manifest.json': JSON.stringify(legacyManifest),
+  })
   host = started
 })
 test.afterAll(async () => {
@@ -121,4 +125,45 @@ test('an admin connects a repository in five steps, changes its folders, and dis
   await expect(page.getByText('Markdown in Git disconnected')).toBeVisible()
   await expect(page).toHaveURL(/\/settings\/integrations$/)
   await expect(cell.getByRole('link', { name: 'Connect' }).last()).toBeVisible()
+})
+
+test('an admin connects dbt in five steps: no calculation, no link to a file', async ({ page }) => {
+  await go(page, '/settings/integrations')
+  await page.locator('a[href$="/dbt-metricflow/connect"]').click()
+
+  await step(page, 'Pick')
+  await expect(page.getByRole('heading', { name: 'dbt', exact: true })).toBeVisible()
+  await expect(page.getByText('What it will never hold')).toBeVisible()
+  await expect(page.getByText('A link back to')).toBeHidden()
+  await button(page, 'Continue').click()
+
+  // Connect: the manifest's form, its defaults filled in.
+  await step(page, 'Connect')
+  await expect(page.getByLabel('Branch, tag or commit')).toHaveValue('main')
+  await expect(page.getByLabel('File', { exact: true })).toHaveValue('semantic_manifest.json')
+  await page
+    .getByLabel('Repository', { exact: true })
+    .fill(host?.address('shop-metrics') ?? 'https://git.example.com/analytics/shop-metrics.git')
+  if (host) {
+    await page.getByLabel('Folder').fill('semantic')
+    await page.getByLabel('Read-only token').fill(token)
+  }
+  await testAndGoOn(page)
+
+  // Choose: its semantic models, and the metrics that span them.
+  await step(page, 'Choose')
+  await expect(page.getByText('It would hold 12 metrics and 7 dimensions.')).toBeVisible()
+  await expect(page.getByText('_shared')).toBeVisible()
+  await button(page, 'Continue').click()
+
+  await step(page, 'Map')
+  await expect(page.getByText('dbt view')).toBeVisible()
+  await mapToSales(page)
+  await button(page, 'Continue').click()
+
+  await step(page, 'Schedule')
+  await expect(page.getByText("If dbt can't be reached", { exact: false })).toBeVisible()
+  await button(page, 'Add dbt').click()
+  await expect(page).toHaveURL(/\/settings\/integrations\/[a-z0-9-]+$/)
+  await expect(page.getByRole('heading', { name: /dbt/ }).first()).toBeVisible()
 })

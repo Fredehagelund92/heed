@@ -6,6 +6,13 @@ import { manifest as templateManifest } from '../../../src/connectors/_template/
 import { runtime as templateRuntime } from '../../../src/connectors/_template/runtime.ts'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
 import { defineConnector } from '../../../src/domain/connector-runtime.ts'
+import {
+  deepReorder,
+  legacyManifest,
+  otherTarget,
+  withChangedRevenue,
+  withMissingInput,
+} from './dbt-metricflow-fixture.ts'
 import { builtInFolder, describeConnector, type FixtureSource } from './kit.ts'
 import { driveHost, type DriveHost } from './drive-server.ts'
 import { gitHost, type GitHost } from './git-server.ts'
@@ -99,6 +106,21 @@ beforeAll(async () => {
     'metrics/metrics.json': JSON.stringify(withoutRevenue(metrics)),
   })
   await host.repository('example-wrong', { 'metrics/metrics.json': '{ "metrics": [] }' })
+  const semantic = (file: unknown, space?: number) => ({
+    'semantic/semantic_manifest.json': JSON.stringify(file, null, space),
+  })
+  await host.repository('shop-metrics', semantic(legacyManifest))
+  await host.repository(
+    'shop-metrics-reformatted',
+    semantic(deepReorder(otherTarget(legacyManifest)), 4),
+  )
+  await host.repository('shop-metrics-changed', semantic(withChangedRevenue(legacyManifest)))
+  await host.repository('shop-metrics-partial', semantic(withMissingInput(legacyManifest)))
+  // dbt's other artifact, where these lists are objects: what a wrong file setting points at.
+  await host.repository(
+    'shop-metrics-wrong',
+    semantic({ metadata: {}, nodes: {}, semantic_models: {}, metrics: {} }),
+  )
   // Small pages, so every list is read page by page.
   drive = await driveHost({ pageSize: 2 })
   driveKey = drive.key()
@@ -306,6 +328,80 @@ const driveSource = (key: string, address = drive.address, signIn = drive.signIn
     { id: driveIds.data!, title: 'Data team', domain: 'sales' },
     { id: driveIds.marketing!, title: 'Marketing', domain: 'marketing' },
   ],
+})
+
+const dbtSource = (name: string, token: string | null = TOKEN): FixtureSource => ({
+  config: {
+    repository: host.address(name),
+    ref: 'main',
+    folder: 'semantic',
+    file: 'semantic_manifest.json',
+  },
+  secrets: token === null ? {} : { token },
+})
+
+describeConnector(module('dbt-metricflow'), {
+  folder: builtInFolder('dbt-metricflow'),
+  good: () => dbtSource('shop-metrics'),
+  refused: () => dbtSource('shop-metrics', 'not-the-token'),
+  unreachable: () => ({
+    ...dbtSource('shop-metrics'),
+    config: { ...dbtSource('shop-metrics').config, repository: 'http://127.0.0.1:9/nothing.git' },
+  }),
+  invalid: [
+    { config: { ref: 'main' }, field: 'repository' },
+    { config: { repository: 'ftp://git.example.test/a.git', ref: 'main' }, field: 'repository' },
+    {
+      config: { repository: 'https://user:pass@git.example.test/a.git', ref: 'main' },
+      field: 'repository',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: '--upload-pack' },
+      field: 'ref',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', folder: '../up' },
+      field: 'folder',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', file: 'a/../../b' },
+      field: 'file',
+    },
+    {
+      config: {
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        domainNames: { 'Customer Care': 'Not a domain' },
+      },
+      field: 'domainNames',
+    },
+  ],
+  partial: () => dbtSource('shop-metrics-partial'),
+  calculation: [
+    'case when',
+    '0.6 * amount',
+    "'completed'",
+    'nullif',
+    'revenue - discounts',
+    'Dimension(',
+    'order_id',
+    'example_db',
+    'example_schema',
+  ],
+  expected: new URL('../../fixtures/dbt-metricflow/definitions.json', import.meta.url),
+  reformat: () => dbtSource('shop-metrics-reformatted'),
+  meaningChange: () => ({
+    source: dbtSource('shop-metrics-changed'),
+    moved: [
+      'dbt:_shared.revenue_per_customer',
+      'dbt:orders.average_order_value',
+      'dbt:orders.net_revenue',
+      'dbt:orders.revenue',
+      'dbt:orders.revenue_to_date',
+    ],
+  }),
+  wrongFormat: () => dbtSource('shop-metrics-wrong'),
+  planted: TOKEN,
 })
 
 describeConnector(module('google-drive'), {

@@ -470,6 +470,7 @@ describe('a source of a connector written to interface 3', () => {
     }[]
     expect(listed.map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
       ['cube', 3],
+      ['dbt-metricflow', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
       ['google-drive', 3],

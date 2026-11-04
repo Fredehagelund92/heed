@@ -1,0 +1,5 @@
+order_id,customer_id,ordered_at,status,channel,amount,discount
+10,1,2026-02-01,completed,web,40.00,0.00
+11,2,2026-02-03,completed,shop,25.50,2.50
+12,1,2026-02-10,returned,web,12.00,0.00
+13,3,2026-03-01,completed,web,60.00,5.00

@@ -98,6 +98,7 @@ describe('the registry of connectors', () => {
       registry.connectors().map((connector) => [connector.manifest.id, connector.writtenTo]),
     ).toEqual([
       ['cube', 3],
+      ['dbt-metricflow', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
       ['google-drive', 3],
@@ -363,6 +364,7 @@ describe('the sources admins add, over the registry', () => {
     })
     expect(service.types().map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
       ['cube', 3],
+      ['dbt-metricflow', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
       ['google-drive', 3],

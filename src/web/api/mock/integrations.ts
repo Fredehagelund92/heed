@@ -20,7 +20,7 @@ import {
 } from '@/model/integrations'
 import { ApiError } from '../errors'
 import { connectFormOf, connectionOf, formTakes, minutesOf } from '../http-integrations'
-import { demoPageOf, demoTools, integrationState } from './data/integrations'
+import { demoPageOf, demoSemanticModels, demoTools, integrationState } from './data/integrations'
 import type { Address } from './scenario'
 
 /** How long a read the mock runs takes: Read again shows Reading for this long. */
@@ -103,6 +103,15 @@ const pureChecks: Record<
   (manifest: ConnectorManifest, values: ConnectValues) => ConnectTest
 > = {
   'static-definitions': checkStaticList,
+  // Its file is in a repository the mock cannot reach: what the invented shop's file holds.
+  'dbt-metricflow': () => ({
+    ok: true,
+    steps: [
+      { title: 'Reach the file', status: 'ok' },
+      { title: 'Read the semantic manifest', status: 'ok', detail: '12 metrics and 7 dimensions.' },
+    ],
+    scopes: demoSemanticModels,
+  }),
 }
 
 /** A tool's check on the mock, for a tool the demo world has no test of. */
@@ -142,7 +151,8 @@ export function connectFormFor(
     changedAt: null,
     changedBy: null,
   }
-  const form = connectFormOf(manifest, settings)
+  // A tool the demo world says nothing of starts from its manifest's defaults, as on the service.
+  const form = connectFormOf(manifest, live || demo ? settings : null)
   if (!form) return null
   return {
     ...form,

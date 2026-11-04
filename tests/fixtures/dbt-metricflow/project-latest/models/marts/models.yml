@@ -1,0 +1,164 @@
+models:
+  - name: metricflow_time_spine
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+  - name: orders
+    description: One row per order placed in the invented shop.
+    semantic_model:
+      enabled: true
+      config:
+        meta:
+          domain: sales
+    agg_time_dimension: ordered_at
+    columns:
+      - name: order_id
+        entity:
+          type: primary
+          name: order
+      - name: customer_id
+        entity:
+          type: foreign
+          name: customer
+      - name: ordered_at
+        granularity: day
+        dimension:
+          type: time
+          label: Order date
+      - name: status
+        description: Where the order is, completed or returned.
+        dimension:
+          type: categorical
+          label: Order status
+      - name: channel
+        description: Web or shop.
+        dimension:
+          type: categorical
+          config:
+            meta:
+              synonyms: ['sales channel', 'Sales Channel', 'route to market']
+    metrics:
+      - name: orders
+        label: Orders
+        description: Orders placed, whatever their status.
+        type: simple
+        agg: count
+        expr: order_id
+        config:
+          meta:
+            domain: sales
+            synonyms: ['purchases', 'order count']
+      - name: revenue
+        label: Revenue
+        description: The amount ordered before discounts.
+        type: simple
+        agg: sum
+        expr: amount
+      - name: completed_orders
+        label: Completed orders
+        description: Orders that were not returned.
+        type: simple
+        agg: count
+        expr: order_id
+        filter: |
+          {{ Dimension('order__status') }} = 'completed'
+      - name: discounts
+        label: Discounts
+        type: simple
+        agg: sum
+        expr: discount
+      - name: ordering_customers
+        type: simple
+        agg: count_distinct
+        expr: customer_id
+        hidden: true
+      - name: gross_margin
+        label: Gross margin
+        description: '{{ doc("gross_margin_doc") }}'
+        type: simple
+        agg: sum
+        expr: amount - discount - 0.6 * amount
+  - name: customers
+    description: One row per customer.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: signed_up_at
+    columns:
+      - name: customer_id
+        entity:
+          type: primary
+          name: customer
+      - name: signed_up_at
+        granularity: day
+        dimension:
+          type: time
+      - name: region
+        dimension:
+          type: categorical
+          label: Region
+      - name: status
+        description: Whether the customer is active.
+        dimension:
+          type: categorical
+          label: Customer status
+      - name: tier
+        dimension:
+          type: categorical
+          config:
+            meta:
+              domain: Customer Care
+    metrics:
+      - name: customers
+        label: Customers
+        description: Customers who signed up.
+        type: simple
+        agg: count
+        expr: customer_id
+        config:
+          meta:
+            domain: Customer Care
+metrics:
+  - name: net_revenue
+    label: Net revenue
+    description: Revenue less discounts.
+    type: derived
+    expr: revenue - discounts
+    input_metrics:
+      - name: revenue
+      - name: discounts
+  - name: average_order_value
+    label: Average order value
+    description: Revenue divided by orders.
+    type: ratio
+    numerator: revenue
+    denominator: orders
+  - name: revenue_to_date
+    label: Revenue to date
+    description: Revenue from the first order up to each day.
+    type: cumulative
+    input_metric: revenue
+  - name: weekly_ordering_customers
+    label: Weekly ordering customers
+    description: Customers who ordered in the last 7 days.
+    type: cumulative
+    input_metric: ordering_customers
+    window: 7 days
+  - name: revenue_per_customer
+    label: Revenue per customer
+    description: Revenue divided by customers who signed up. It spans two semantic models.
+    type: derived
+    expr: revenue / nullif(customers, 0)
+    input_metrics:
+      - name: revenue
+      - name: customers
+  - name: ordering_rate
+    label: Ordering rate
+    description: Share of customers who order within 30 days of signing up.
+    type: conversion
+    entity: customer
+    calculation: conversion_rate
+    base_metric: customers
+    conversion_metric: ordering_customers
+    window: 30 days

@@ -12,11 +12,19 @@ import { logos, type Connector, type ConnectorKind } from './integrations'
  * their domain, and an example of its data endpoint. All of it is optional: a connector without
  * an entry is drawn from its manifest alone.
  */
-const words: Record<string, Pick<Connector, 'lead' | 'domainField' | 'endpointExample'>> = {
+const words: Record<
+  string,
+  Pick<Connector, 'lead' | 'domainField' | 'endpointExample' | 'noFileLinks'>
+> = {
   cube: {
     lead: "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. It has two connections: definitions from Git, and figures, when switched on, from Cube's data API at the time of the answer.",
     domainField: 'meta.domain',
     endpointExample: 'https://cube.example.com/cubejs-api/v1/load',
+  },
+  'dbt-metricflow': {
+    lead: 'Reads the semantic manifest dbt writes, kept in Git. Read-only, and it keeps no calculation and no value.',
+    domainField: 'meta.domain',
+    noFileLinks: true,
   },
   'google-drive': {
     lead: 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.',
@@ -51,15 +59,6 @@ export function connectorOf(manifest: ConnectorManifest): Connector {
  * manifest yet. A design list only: when one gets a manifest, it leaves this list.
  */
 const soon: Connector[] = [
-  {
-    id: 'dbt',
-    name: 'dbt',
-    kind: 'definitions',
-    logo: logos.dbt!,
-    blurb: 'Metrics from dbt MetricFlow, read from your project in Git.',
-    soon: true,
-    access: [],
-  },
   {
     id: 'notion',
     name: 'Notion',

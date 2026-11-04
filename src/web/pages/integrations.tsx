@@ -2361,7 +2361,7 @@ function PickStep({ c }: { c: Connector }) {
               ? [
                   'The name, title and a short description of each definition',
                   'Its type, its domain and a change mark',
-                  ...(c.git ? [`A link back to the ${c.name} file`] : []),
+                  ...(c.git && !c.noFileLinks ? [`A link back to the ${c.name} file`] : []),
                 ]
               : [
                   'The link and title of each document',

@@ -74,7 +74,9 @@ worded in the manifest and sent as `<id>.<code>`.
 - **Where the input comes from.** A file or folder in a Git repository (`ctx.git`), the folder
   whoever runs the server names (`ctx.folder`), or an https API (`ctx.fetch`). Prefer the tool's
   own resolved output (a built artifact) to its source files: re-implementing a tool's parser is
-  guessing. Never run the tool.
+  guessing. Never run the tool. A runtime should read `ctx.folder` when it is there, but today the
+  core hands one only to Cube's source (`CUBE_MODEL_DIR`): for any other connector, an
+  administrator's route is Git or an API, and your README must say so.
 - **What a group is.** The part of a name before the last dot. Integrations lists groups in the
   Choose and Map steps, and an administrator maps each to a domain. A name without a dot is in no
   group, and Integrations cannot list it.
@@ -105,20 +107,26 @@ worded in the manifest and sent as `<id>.<code>`.
    (`ctx.worker`, T1); Cube's compiler is the example.
 5. **Record the fixture** in `tests/fixtures/<id>/`: the tool's input, invented, with a
    `REBUILD.md` that says how it was made, and the expected `definitions.json` (written by the kit
-   with `-u`, step 8). See [fixtures](#fixtures).
+   with `-u`, step 9). See [fixtures](#fixtures).
 6. **List the connector twice**: its manifest in `src/connectors/manifests.ts` (the web app's
    list) and `defineConnector(manifest, runtime)` in `src/connectors/index.ts` (the server's). A
-   test fails when a folder is not listed, or when the two lists differ. Nothing else: the
-   Integrations cell, the connect form and every word on screen come from the manifest. A logo
-   is optional: add the tool's to `logos` in `src/web/model/integrations.ts`, or the cell shows
-   the manifest's `icon`.
+   test fails when a folder is not listed, or when the two lists differ. Two tests name every
+   connector and order them as these lists do: add yours to the list in
+   `tests/server/connectors/platform.test.ts` (twice) and in `tests/integration/sources.test.ts`.
+   Nothing else in the app: the Integrations cell, the connect form and every word on screen come
+   from the manifest. A logo is optional: add the tool's to `logos` in `src/web/model/integrations.ts`, keyed by your
+   connector's id, or the cell shows the manifest's `icon`. When the tool has a Soon cell in
+   `src/web/model/catalogue.ts`, remove it: the manifest replaces it. The lead of its page and the
+   name of its domain setting are optional too, in `words` in the same file.
 7. **Add a `describeConnector` block** to `tests/server/connectors/conformance.test.ts` with the
    fixture hooks of [the kit](#the-kit). The template's block, at the end of that file, is the
    one to copy.
-8. **Write the README** with its sections (Settings, What a read does, Schedule and limits,
-   Tests) and no TODO left: a test refuses a listed connector's README otherwise.
+8. **Write the README**, which holds the manifest's `title` as its heading, with its sections
+   (Settings, What a read does, Schedule and limits, Tests) and no TODO left: a test refuses a
+   listed connector's README otherwise.
 9. **Run the checks**: `npx vitest run --project server tests/server/connectors` (add `-u` once to
-   write `definitions.json`, then read it), then `npm test`, `npm run typecheck`, `npm run lint`
+   write `definitions.json`, then read it; with the README not written yet, the kit's README test
+   fails on that first run, and the file is still written), then `npm test`, `npm run typecheck`, `npm run lint`
    and `npm run test:integration`.
 
 ## Mapping rules
@@ -126,16 +134,21 @@ worded in the manifest and sent as `<id>.<code>`.
 Every definitions connector follows these. The template does each of them.
 
 - **Refs and groups.** `<prefix>:<group>.<name>`. The same member gives the same ref on every
-  read, whatever the order of the input. Send each ref once. A ref never moves to another member.
+  read, whatever the order of the input. Send each ref once: when two members of a group can have
+  one name, keep one and warn with your own code. A ref never moves to another member.
 - **Titles and descriptions.** The tool's label and description as they are, or null. A
   description longer than 500 characters is cut by `descriptionCopy`, and you warn with your own
   `description_cut`, worded at `info`.
 - **Domains.** `domainHint(value, config.domainNames)` reads the tool's value through the
   source's domain names. A member's own valid domain wins over its group's. A group whose tool
   names no domain warns `missing_domain`; a value that is not a domain id warns
-  `invalid_domain` and gives no hint.
+  `invalid_domain` and gives no hint, so a member with such a value takes its group's domain, if
+  any. If the tool copies a group's value onto its members, warn once, on the group.
 - **Synonyms.** `synonymsOf` trims them, keeps each once whatever its case, and keeps at most 20.
 - **Value types.** The tool's own word, from a list you know. Anything else is null.
+- **Records built on records.** Hash an input once and put its digest in what is built on it,
+  rather than nesting its meaning: a shared input nested at each use grows without limit, and a
+  file an administrator commits must not stall a read. Sort warnings as well as definitions.
 
 **Unknown, not guessed.** Your connector only says what the tool says. When the tool does not
 name a domain, the definition has `areaHint: null` and `domainSource: 'none'`, and the read warns
@@ -242,9 +255,11 @@ means an input's calculation is not.
 ## Worked example
 
 The template (`src/connectors/_template/`, with `tests/fixtures/template/`) is the worked example
-today: an invented tool's metrics file read from Git, every mapping rule above, and every kit
-hook. The dbt MetricFlow connector, built by following this guide, will be the first worked
-example for a real tool.
+for an invented tool: its metrics file read from Git, every mapping rule above, and every kit
+hook. [dbt MetricFlow](../../src/connectors/dbt-metricflow/README.md), built by following this
+guide, is the worked example for a real tool: a pure mapping of a tool's built artifact with two
+shapes for one meaning (`mapping.ts`), `tests/fixtures/dbt-metricflow/` with its `REBUILD.md`, its
+kit block, and `tests/server/connectors/dbt-metricflow.test.ts` for its own mapping tests.
 
 ## Publishing as a package
 

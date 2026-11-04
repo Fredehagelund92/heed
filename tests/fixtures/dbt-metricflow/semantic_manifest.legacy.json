@@ -1,0 +1,946 @@
+{
+  "semantic_models": [
+    {
+      "name": "orders",
+      "defaults": {
+        "agg_time_dimension": "ordered_at"
+      },
+      "description": "One row per order placed in the invented shop.",
+      "node_relation": {
+        "alias": "orders",
+        "schema_name": "example_schema",
+        "database": "example_db",
+        "relation_name": "\"example_db\".\"example_schema\".\"orders\""
+      },
+      "primary_entity": null,
+      "entities": [
+        {
+          "name": "order",
+          "description": null,
+          "type": "primary",
+          "role": null,
+          "expr": "order_id",
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "customer",
+          "description": null,
+          "type": "foreign",
+          "role": null,
+          "expr": "customer_id",
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        }
+      ],
+      "measures": [
+        {
+          "name": "order_count",
+          "agg": "count",
+          "description": "Every order, whatever its status.",
+          "create_metric": false,
+          "expr": "order_id",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "order_amount",
+          "agg": "sum",
+          "description": null,
+          "create_metric": false,
+          "expr": "amount",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "discount_amount",
+          "agg": "sum",
+          "description": null,
+          "create_metric": false,
+          "expr": "discount",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "ordering_customers",
+          "agg": "count_distinct",
+          "description": null,
+          "create_metric": false,
+          "expr": "customer_id",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "margin_amount",
+          "agg": "sum",
+          "description": null,
+          "create_metric": false,
+          "expr": "amount - discount - 0.6 * amount",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "ordered_at",
+          "description": null,
+          "type": "time",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": {
+            "time_granularity": "day",
+            "validity_params": null
+          },
+          "expr": null,
+          "metadata": null,
+          "label": "Order date",
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "status",
+          "description": "Where the order is, completed or returned.",
+          "type": "categorical",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": null,
+          "expr": null,
+          "metadata": null,
+          "label": "Order status",
+          "config": {
+            "meta": {
+              "domain": "sales"
+            }
+          }
+        },
+        {
+          "name": "channel",
+          "description": "Web or shop.",
+          "type": "categorical",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": null,
+          "expr": "case when channel = 'web' then 'online' else 'in person' end",
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "sales",
+              "synonyms": ["sales channel", "Sales Channel", "route to market"]
+            }
+          }
+        }
+      ],
+      "label": "Orders",
+      "metadata": null,
+      "config": {
+        "meta": {
+          "domain": "sales"
+        }
+      }
+    },
+    {
+      "name": "customers",
+      "defaults": {
+        "agg_time_dimension": "signed_up_at"
+      },
+      "description": "One row per customer.",
+      "node_relation": {
+        "alias": "customers",
+        "schema_name": "example_schema",
+        "database": "example_db",
+        "relation_name": "\"example_db\".\"example_schema\".\"customers\""
+      },
+      "primary_entity": null,
+      "entities": [
+        {
+          "name": "customer",
+          "description": null,
+          "type": "primary",
+          "role": null,
+          "expr": "customer_id",
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {}
+          }
+        }
+      ],
+      "measures": [
+        {
+          "name": "customer_count",
+          "agg": "count",
+          "description": null,
+          "create_metric": false,
+          "expr": "customer_id",
+          "agg_params": null,
+          "metadata": null,
+          "non_additive_dimension": null,
+          "agg_time_dimension": null,
+          "label": null,
+          "config": {
+            "meta": {}
+          }
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "signed_up_at",
+          "description": null,
+          "type": "time",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": {
+            "time_granularity": "day",
+            "validity_params": null
+          },
+          "expr": null,
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {}
+          }
+        },
+        {
+          "name": "region",
+          "description": null,
+          "type": "categorical",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": null,
+          "expr": null,
+          "metadata": null,
+          "label": "Region",
+          "config": {
+            "meta": {}
+          }
+        },
+        {
+          "name": "status",
+          "description": "Whether the customer is active.",
+          "type": "categorical",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": null,
+          "expr": "case when tier = 'gold' then 'active' else 'dormant' end",
+          "metadata": null,
+          "label": "Customer status",
+          "config": {
+            "meta": {}
+          }
+        },
+        {
+          "name": "tier",
+          "description": null,
+          "type": "categorical",
+          "datatype": null,
+          "is_partition": false,
+          "type_params": null,
+          "expr": null,
+          "metadata": null,
+          "label": null,
+          "config": {
+            "meta": {
+              "domain": "Customer Care"
+            }
+          }
+        }
+      ],
+      "label": null,
+      "metadata": null,
+      "config": {
+        "meta": {}
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "name": "orders",
+      "description": "Orders placed, whatever their status.",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "order_count",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Orders",
+      "config": {
+        "meta": {
+          "domain": "sales",
+          "synonyms": ["purchases", "order count"]
+        }
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "revenue",
+      "description": "The amount ordered before discounts.",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "order_amount",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Revenue",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "completed_orders",
+      "description": "Orders that were not returned.",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "order_count",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": {
+        "where_filters": [
+          {
+            "where_sql_template": "{{ Dimension('order__status') }} = 'completed'\n"
+          }
+        ]
+      },
+      "metadata": null,
+      "label": "Completed orders",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "discounts",
+      "description": "",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "discount_amount",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "discount_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Discounts",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "net_revenue",
+      "description": "Revenue less discounts.",
+      "type": "derived",
+      "datatype": null,
+      "type_params": {
+        "measure": null,
+        "numerator": null,
+        "denominator": null,
+        "expr": "revenue - discounts",
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [
+          {
+            "name": "revenue",
+            "filter": null,
+            "alias": null,
+            "offset_window": null,
+            "offset_to_grain": null
+          },
+          {
+            "name": "discounts",
+            "filter": null,
+            "alias": null,
+            "offset_window": null,
+            "offset_to_grain": null
+          }
+        ],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          {
+            "name": "discount_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Net revenue",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "average_order_value",
+      "description": "Revenue divided by orders.",
+      "type": "ratio",
+      "datatype": null,
+      "type_params": {
+        "measure": null,
+        "numerator": {
+          "name": "revenue",
+          "filter": null,
+          "alias": null,
+          "offset_window": null,
+          "offset_to_grain": null
+        },
+        "denominator": {
+          "name": "orders",
+          "filter": null,
+          "alias": null,
+          "offset_window": null,
+          "offset_to_grain": null
+        },
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          {
+            "name": "order_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Average order value",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "revenue_to_date",
+      "description": "Revenue from the first order up to each day.",
+      "type": "cumulative",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "order_amount",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": {
+          "window": null,
+          "grain_to_date": null,
+          "period_agg": "first",
+          "metric": null
+        },
+        "input_measures": [
+          {
+            "name": "order_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Revenue to date",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "weekly_ordering_customers",
+      "description": "Customers who ordered in the last 7 days.",
+      "type": "cumulative",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "ordering_customers",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": {
+          "window": {
+            "count": 7,
+            "granularity": "day"
+          },
+          "grain_to_date": null,
+          "period_agg": "first",
+          "metric": null
+        },
+        "input_measures": [
+          {
+            "name": "ordering_customers",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Weekly ordering customers",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "customers",
+      "description": "Customers who signed up.",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "customer_count",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "customer_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Customers",
+      "config": {
+        "meta": {
+          "domain": "Customer Care"
+        }
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "revenue_per_customer",
+      "description": "Revenue divided by customers who signed up. It spans two semantic models.",
+      "type": "derived",
+      "datatype": null,
+      "type_params": {
+        "measure": null,
+        "numerator": null,
+        "denominator": null,
+        "expr": "revenue / nullif(customers, 0)",
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [
+          {
+            "name": "revenue",
+            "filter": null,
+            "alias": null,
+            "offset_window": null,
+            "offset_to_grain": null
+          },
+          {
+            "name": "customers",
+            "filter": null,
+            "alias": null,
+            "offset_window": null,
+            "offset_to_grain": null
+          }
+        ],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "order_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          {
+            "name": "customer_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Revenue per customer",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "gross_margin",
+      "description": "Gross margin is revenue less the cost of the goods sold, as booked by the invented shop's finance team at the end of each day. It leaves out shipping, which the shop books apart, and returns, which reduce revenue only on the day they arrive. A margin read before the day is closed is provisional and may move by a few percent. This sentence is here to make the description longer than five hundred characters, so that the connector must cut it and say so with a warning, never silently, never by guessing what the end said.",
+      "type": "simple",
+      "datatype": null,
+      "type_params": {
+        "measure": {
+          "name": "margin_amount",
+          "filter": null,
+          "alias": null,
+          "join_to_timespine": false,
+          "fill_nulls_with": null
+        },
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": null,
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "margin_amount",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Gross margin",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    },
+    {
+      "name": "ordering_rate",
+      "description": "Share of customers who order within 30 days of signing up.",
+      "type": "conversion",
+      "datatype": null,
+      "type_params": {
+        "measure": null,
+        "numerator": null,
+        "denominator": null,
+        "expr": null,
+        "window": null,
+        "grain_to_date": null,
+        "metrics": [],
+        "conversion_type_params": {
+          "base_measure": {
+            "name": "customer_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          "base_metric": null,
+          "conversion_measure": {
+            "name": "ordering_customers",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          "conversion_metric": null,
+          "entity": "customer",
+          "calculation": "conversion_rate",
+          "window": {
+            "count": 30,
+            "granularity": "day"
+          },
+          "constant_properties": null
+        },
+        "cumulative_type_params": null,
+        "input_measures": [
+          {
+            "name": "customer_count",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          },
+          {
+            "name": "ordering_customers",
+            "filter": null,
+            "alias": null,
+            "join_to_timespine": false,
+            "fill_nulls_with": null
+          }
+        ],
+        "metric_aggregation_params": null,
+        "join_to_timespine": false,
+        "fill_nulls_with": null,
+        "is_private": null
+      },
+      "filter": null,
+      "metadata": null,
+      "label": "Ordering rate",
+      "config": {
+        "meta": {}
+      },
+      "time_granularity": null
+    }
+  ],
+  "project_configuration": {
+    "time_spine_table_configurations": [],
+    "metadata": null,
+    "dsi_package_version": {
+      "major_version": "0",
+      "minor_version": "213",
+      "patch_version": "0"
+    },
+    "time_spines": [
+      {
+        "node_relation": {
+          "alias": "metricflow_time_spine",
+          "schema_name": "example_schema",
+          "database": "example_db",
+          "relation_name": "\"example_db\".\"example_schema\".\"metricflow_time_spine\""
+        },
+        "primary_column": {
+          "name": "date_day",
+          "time_granularity": "day"
+        },
+        "custom_granularities": []
+      }
+    ]
+  },
+  "saved_queries": []
+}
