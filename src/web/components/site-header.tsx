@@ -138,10 +138,20 @@ export function SiteHeader({
   const { isMobile } = useSidebar()
   // The tab says the page's heading: the header's, or the page's own under it (an item's title).
   const ref = React.useRef<HTMLElement>(null)
+  // An item's heading arrives with its data, after this header has rendered, so the title also
+  // follows the page as it changes.
   React.useEffect(() => {
-    const h1 = ref.current?.querySelector('h1') ?? ref.current?.parentElement?.querySelector('h1')
-    const next = pageTitle(h1?.textContent)
-    if (document.title !== next) document.title = next
+    const sync = () => {
+      const h1 = ref.current?.querySelector('h1') ?? ref.current?.parentElement?.querySelector('h1')
+      const next = pageTitle(h1?.textContent)
+      if (document.title !== next) document.title = next
+    }
+    sync()
+    const root = ref.current?.parentElement
+    if (!root) return
+    const watch = new MutationObserver(sync)
+    watch.observe(root, { childList: true, subtree: true, characterData: true })
+    return () => watch.disconnect()
   })
   return (
     <>
