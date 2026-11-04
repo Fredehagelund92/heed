@@ -443,7 +443,10 @@ function windowOf(
   }
   // "Before 19 January 2026" is every date up to that day.
   const before = /^(?:before|until|up to|prior to) (.+)$/i.exec(words)
-  const read = readDates(normalizeName(before?.[1] ?? words), ctx.today)
+  const named = normalizeName(before?.[1] ?? words)
+  // A month alone is that month: the reader takes it as "in May".
+  const first = readDates(named, ctx.today)
+  const read = first.status === 'read' ? first : readDates(`in ${named}`, ctx.today)
   if (read.status !== 'read') throw new Miss('dates not read')
   return {
     window: before ? { start: anyDate.start, end: read.window.start } : read.window,
