@@ -798,8 +798,8 @@ and `next` as before.
   own and no question that fits ("hmm", or "try again" with nothing to repeat) gets `nothing_asked`
   with no model call. A message that only asks again never reaches the service as such: the browser
   sends the last question instead (`src/domain/ask-again.ts`). A plan that fails the check, a limit,
-  an error or a slow call leaves the rules' answer, and the log says why (`ask plan not used`, a reason only). The planner cases
-  (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
+  an error or a slow call leaves the rules' answer, and the log says why (`ask plan not used`, a
+  reason only). The planner cases (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
   `npm run eval:ask-plan` (mock), or `-- --real --max-cost-usd <dollars>`, which also asks for the
   words of each planned answer and reports the planner's time and the cost of a planned question.
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
