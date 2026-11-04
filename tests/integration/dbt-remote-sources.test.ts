@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createServer as createRawServer, type Server as RawServer, type Socket } from 'node:net'
 import { Writable } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { SourceCheck, SourceSettings } from '../../src/contract/sources.ts'
@@ -153,8 +154,9 @@ afterAll(async () => {
   await rm(secretsDir, { recursive: true, force: true })
 })
 
+let source: SourceSettings
+
 describe('a semantic manifest at a signed link', () => {
-  let source: SourceSettings
   const signature = () => new URL(objects.link('/link/shop.json')).searchParams.get('sig')!
 
   it('is tested with what a read would hold, and the test keeps nothing', async () => {
@@ -323,5 +325,183 @@ describe('a semantic manifest at a signed link', () => {
       reason: 'Back to a link',
     })
     expect(response.body).toContain('Give the file address.')
+  })
+})
+
+/*
+  Hardening, on the same service: a host that misbehaves fails a read safely. The service answers
+  afterwards, nothing is kept from the failed read, and no secret is in an answer, a row or a log
+  line. The raw listener below is a second port on this machine, the one a redirect must not reach.
+*/
+describe('a host that misbehaves', () => {
+  let raw: RawServer
+  let rawPort = 0
+  const rawHeads: string[] = []
+  const sockets = new Set<Socket>()
+  const rawAddress = (path: string) => `http://127.0.0.1:${rawPort}${path}`
+
+  beforeAll(async () => {
+    raw = createRawServer((socket) => {
+      sockets.add(socket)
+      socket.on('close', () => sockets.delete(socket))
+      socket.on('error', () => {})
+      socket.once('data', (chunk) => {
+        const head = chunk.toString()
+        rawHeads.push(head)
+        socket.end('HTTP/1.1 700 Nope\r\nconnection: close\r\ncontent-length: 2\r\n\r\nno')
+      })
+    })
+    await new Promise<void>((resolve) => raw.listen(0, '127.0.0.1', resolve))
+    rawPort = (raw.address() as { port: number }).port
+  })
+  afterAll(async () => {
+    for (const socket of sockets) socket.destroy()
+    await new Promise<void>((resolve) => raw.close(() => resolve()))
+  })
+
+  const addByLink = async (name: string, link: string) =>
+    ok<SourceSettings>(
+      call('POST', '/sources', 'admin', {
+        type: 'dbt-metricflow',
+        name,
+        config: { location: 'address' },
+        secrets: { fileAddress: link },
+        reason: 'Our pipeline uploads the file',
+      }),
+      201,
+    )
+  const testLink = (link: string) =>
+    ok<SourceCheck>(
+      call('POST', '/sources/test', 'admin', {
+        type: 'dbt-metricflow',
+        config: { location: 'address' },
+        secrets: { fileAddress: link },
+      }),
+    )
+  const nextReadAt = async (id: string) =>
+    (
+      await client.query<{ at: Date | null }>('select next_read_at as at from connectors where id = $1', [
+        id,
+      ])
+    ).rows[0]!.at
+  const stillAnswers = async () => {
+    const listed = await call('GET', '/sources', 'admin')
+    expect(listed.statusCode, listed.body).toBe(200)
+  }
+
+  it('[hardening 1] answers a status above 599: the service stays up and the read fails with a worded code', async () => {
+    const link = `${rawAddress('/seven-hundred')}?sig=hundredsecret`
+    const before = await kept()
+    const check = await testLink(link)
+    expect(check.ok).toBe(false)
+    expect(check.warnings[0]).toMatchObject({ code: 'unreachable' })
+    expect(JSON.stringify(check)).not.toContain('hundredsecret')
+    expect(await kept()).toBe(before)
+    const source = await addByLink('Seven hundred', link)
+    expect(await read(source.id)).toMatchObject({ status: 'failed' })
+    const rows = await snapshots(source.id)
+    expect(rows.at(-1)).toMatchObject({ status: 'failed', definitions_seen: 0 })
+    expect(await seen(source.id)).toHaveLength(0)
+    expect(await kept()).not.toContain('hundredsecret')
+    expect(logged.join('')).not.toContain('hundredsecret')
+    await stillAnswers()
+  }, 120_000)
+
+  for (const value of ['315360000', '1e20']) {
+    it(`[hardening 2] a Retry-After of ${value} is stored as a failed read, and the next read is soon`, async () => {
+      const path = `/public/busy-${value}.json`
+      objects.refuse(path, 429, value)
+      const link = objects.address(path)
+      const source = await addByLink(`Busy ${value}`, link)
+      expect(await read(source.id)).toMatchObject({ status: 'failed' })
+      expect((await snapshots(source.id)).at(-1)).toMatchObject({ status: 'failed' })
+      const at = await nextReadAt(source.id)
+      expect(at).toBeInstanceOf(Date)
+      expect(Number.isNaN(at!.getTime())).toBe(false)
+      expect(at!.getTime() - Date.now()).toBeLessThan(2 * 24 * 3_600_000)
+      await stillAnswers()
+    }, 120_000)
+  }
+
+  it('[hardening 3] a cursor left under other settings is not trusted: a full read with the new settings', async () => {
+    // The shop source holds these names, so it is the one that reads: back at its link.
+    const back = await ok<SourceSettings>(call('GET', `/sources/${source.id}`, 'admin'))
+    await ok(
+      call('PUT', `/sources/${source.id}`, 'admin', {
+        id: source.id,
+        revision: back.revision,
+        name: back.name,
+        config: { location: 'address' },
+        secrets: { fileAddress: objects.link('/link/shop.json') },
+        reason: 'Back to the link',
+      }),
+    )
+    expect(await read(source.id)).toMatchObject({ status: 'ok', definitionsSeen: 19 })
+    const left = (
+      await client.query<{ cursor: string | null }>(
+        'select cursor from connector_snapshots where connector_id = $1 order by fetched_at desc limit 1',
+        [source.id],
+      )
+    ).rows[0]!.cursor
+    expect(left).not.toBeNull()
+    const current = await ok<SourceSettings>(call('GET', `/sources/${source.id}`, 'admin'))
+    await ok(
+      call('PUT', `/sources/${source.id}`, 'admin', {
+        id: source.id,
+        revision: current.revision,
+        name: current.name,
+        config: { ...current.config, domainNames: { sales: 'finance' } },
+        secrets: {},
+        reason: 'Sales is finance here',
+      }),
+    )
+    // The snapshot is newer than the change, as a read on old settings leaves it: only the
+    // settings the cursor was left under can tell it is stale.
+    await client.query(
+      `update connectors set changed_at = changed_at - interval '1 hour' where id = $1`,
+      [source.id],
+    )
+    const before = objects.requests.length
+    expect(await read(source.id)).toMatchObject({ status: 'ok', definitionsSeen: 19 })
+    expect(objects.requests.slice(before)).toMatchObject([{ status: 200, ifNoneMatch: null }])
+  }, 120_000)
+
+  it('[hardening 4] a redirect to another port, or to a private or link-local address, is refused and never followed', async () => {
+    const targets = [
+      rawAddress('/seven-hundred'),
+      'http://169.254.169.254/latest/meta-data',
+      'http://10.0.0.5/semantic_manifest.json',
+    ]
+    const asked = rawHeads.length
+    for (const [index, target] of targets.entries()) {
+      objects.redirect(`/bucket/dbt/moved-${index}.json`, target)
+      const check = await ok<SourceCheck>(
+        call('POST', '/sources/test', 'admin', {
+          type: 'dbt-metricflow',
+          config: {
+            location: 'storage',
+            provider: 's3-compatible',
+            objectAddress: objects.address(`/bucket/dbt/moved-${index}.json`),
+          },
+          secrets: { accessKey: objects.accessKey, secretKey: objects.secretKey },
+        }),
+      )
+      expect(check.ok).toBe(false)
+      expect(check.warnings[0]!.code).toMatch(/^(redirect_refused|private_address)$/)
+      expect(JSON.stringify(check)).not.toContain(objects.secretKey)
+    }
+    expect(rawHeads).toHaveLength(asked)
+    expect(rawHeads.join('')).not.toMatch(/authorization/i)
+    expect(logged.join('')).not.toContain(objects.secretKey)
+    expect(await kept()).not.toContain(objects.secretKey)
+    await stillAnswers()
+  }, 120_000)
+
+  it('[hardening 5] only reads reach the store: no write of any method arrived', () => {
+    // The runtime asks for GET only; a DELETE, PUT or a POST to a host not declared for signing
+    // in is refused in the core (tests/server/connectors/dbt-metricflow-hardening.test.ts), and
+    // cannot be asked from a source, so what is provable at this level is what the host saw.
+    expect(objects.requests.length).toBeGreaterThan(0)
+    expect(objects.requests.every((request) => request.method === 'GET')).toBe(true)
   })
 })

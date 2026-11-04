@@ -138,7 +138,7 @@ describe('what a host may ask of a read', () => {
   it('never writes: only GET, HEAD and a sign-in POST go', async () => {
     const link = store.address('/public/shop.json')
     const asked = store.requests.length
-    for (const method of ['DELETE', 'PUT', 'PATCH'])
+    for (const method of ['DELETE', 'PUT', 'PATCH', 'POST'])
       expect(
         await codeOf(
           fetcher(link)(link, { method } as unknown as Parameters<ReturnType<typeof fetcher>>[1]),
