@@ -2,6 +2,7 @@ import { answer, type Answer, type AnswerAsk, type AnswerState } from './answer.
 import { asksNothing, nothingAskedSaid } from './ask-again.ts'
 import { chatSources, fitChat, type ChatTurn } from './ask-chat.ts'
 import {
+  asksUndefinedWords,
   checkPlan,
   limitOf,
   plannerPrompt,
@@ -139,7 +140,7 @@ export function planContextOf(
   bundle: RouteBundle,
   question: string,
   turns: readonly ChatTurn[],
-  moment: { today: string; now: string },
+  moment: { today: string; now: string; business?: boolean },
 ): PlanContext {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
   return {
@@ -148,6 +149,7 @@ export function planContextOf(
     areas: bundle.areas,
     today: moment.today,
     now: moment.now,
+    ...(moment.business ? { business: true } : {}),
     previous: turns.at(-1) ?? null,
     earlier: turns.slice(0, -1),
     readable: (id) => {
@@ -231,6 +233,8 @@ export async function routeQuestion(c: {
   const names = readQuestion(ask.question, bundle.terms, today).terms.length > 0
   if (!scoped && !names && asksNothing(ask.question, turns))
     return nothingAsked(ask.question, turns)
+  if (!scoped && asksUndefinedWords(ask.question))
+    return { ...cannot('not_yet'), reason: null, asked: false }
   const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
   const reason = plannerReason({
     question: ask.question,
@@ -239,10 +243,11 @@ export async function routeQuestion(c: {
     records: c.records,
     rules,
   })
+  const business = reason === 'business change'
   const asks = !!reason && !!c.planner
   const plan = asks
     ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) =>
-        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now })),
+        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now, business })),
       )
     : null
   const missed = plan === 'missed'

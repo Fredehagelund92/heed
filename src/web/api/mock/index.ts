@@ -1,7 +1,7 @@
 import type { HeedApi, HeedApiMethod, Inbox } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
-import { limitOf, readsBeyond } from '@domain/ask-plan'
+import { asksUndefinedWords, limitOf, readsBeyond } from '@domain/ask-plan'
 import { limitSaid } from '@domain/records'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
@@ -255,6 +255,14 @@ export function createMockApi() {
         kind: 'nothing_asked',
         text: nothingAskedSaid(question, turns ?? []),
       })
+    if (asksUndefinedWords(question))
+      return cannotAnswer(
+        question,
+        { reason: 'not_yet', metrics: [], filters: {} },
+        {
+          definitions: definitions.list(),
+        },
+      )
     // Ask's planner reads what the rules cannot, and a follow-up first, as on the service (FR-719).
     const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
     const source = {
@@ -268,8 +276,8 @@ export function createMockApi() {
       // The person's own Inbox: their cards, by group, as the Inbox counts them.
       queue: () => queueOf(state.fresh ? [] : cards.filter((c) => c.for === me())),
     }
-    const planned = () => {
-      const a = plannedFor(question, turns, world, (ask) => recordsOf(ask, source))
+    const planned = (business = false) => {
+      const a = plannedFor(question, turns, world, (ask) => recordsOf(ask, source), business)
       return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
     }
     const read = readQuestion(question)
@@ -287,7 +295,7 @@ export function createMockApi() {
     // about what changed that names nothing Heed keeps is the business's first, and a word of
     // judgement is the planner's first, with an honest exit when no plan reads it.
     if (recognised?.type === 'records' && recognised.loose) {
-      const a = planned()
+      const a = planned(!recognised.judgement)
       if (a) return a
       if (recognised.judgement && recognised.ask.intent !== 'audit')
         return cannotAnswer(question, { reason: 'not_yet', metrics: [], filters: {} }, world)

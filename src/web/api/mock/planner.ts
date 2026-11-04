@@ -119,13 +119,15 @@ export function plannedFor(
   world: PlannerWorld,
   /** A records question the plan chose, answered from what the person may see. */
   records: (ask: RecordsAsk) => RecordsAnswer,
+  /** The rules read it as a question about what changed in the business. */
+  business = false,
 ): Answer | null {
   const raw = fixturePlan(question, given?.at(-1)?.question ?? null)
   if (!raw) return null
   const { bundle, turns, last } = turnOf(world, given)
   const checked = checkPlan(
     raw,
-    planContextOf(bundle, question, turns, { today: TODAY, now: RECORDS_NOW }),
+    planContextOf(bundle, question, turns, { today: TODAY, now: RECORDS_NOW, business }),
   )
   if (!checked.ok) return null
   const plan = checked.plan

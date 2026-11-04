@@ -171,7 +171,9 @@ async function main() {
       if (!reply) return 'missed'
       plans.set(input.prompt, reply.text)
       const checked = check(parsePlan(reply.text))
-      if (!checked.ok) console.log(`\tthe plan failed the check: ${checked.why}`)
+      // The cases are made up, so what the model wrote may be shown.
+      if (!checked.ok)
+        console.log(`\tthe plan failed the check: ${checked.why}: ${reply.text.slice(0, 200)}`)
       return checked.ok ? checked.plan : 'missed'
     }
     const got = await runPlanCases(cases, planner)

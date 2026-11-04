@@ -90,8 +90,6 @@ const alone: Record<string, RawPlan> = {
     records: { intent: 'owner', metric: 'metric:churn_rate' },
   },
   'are any two definitions the same': audit(['duplicates'], { kind: 'definition' }),
-  'what terms are used in context but not defined': { cannot: 'not_yet' },
-  'which words do we use without saying what they mean': { cannot: 'not_yet' },
   'what should i work on this week': { queue: true, audit: { facets: ['asked_nothing'] } },
   'what context should i write next': audit(['asked_nothing', 'no_context']),
   'what do we know about norway': one(explore([], { values: ['val:market/norway'] })),

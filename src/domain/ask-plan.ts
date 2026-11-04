@@ -199,6 +199,8 @@ export type PlanContext = {
   earlier?: readonly ChatTurn[]
   /** Whether an item may be read: an agent would be given it (`canRead`). */
   readable: (id: string) => boolean
+  /** The rules read it as a question about what changed in the business. */
+  business?: boolean
 }
 
 /** Why a plan was not used, for the service log: a fixed reason, never the words. */
@@ -294,6 +296,12 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   }
   const open = leftOpen(ctx)
   if ('records' in raw) {
+    // The rules read this as about the business: the context's own changes would be a nearby read.
+    if (ctx.business && raw.records.intent === 'changed')
+      return planOf(
+        { reads: [{ kind: 'explore', kinds: ['event'], dates: raw.records.period ?? null }] },
+        ctx,
+      )
     const { ask, carried } = carryIntoRecords(recordsAskOf(raw.records, ctx), open, ctx)
     if (!fits(ask, ctx.question)) throw new Miss('does not fit')
     return { kind: 'records', ask, carried, ...restated }
@@ -658,8 +666,8 @@ function recordsAskOf(raw: z.infer<typeof recordsSchema>, ctx: PlanContext): Rec
   if (words && !period) throw new Miss('dates not read')
   const dated = raw.intent === 'created' || raw.intent === 'changed' || raw.intent === 'archived'
   const of = raw.of ?? null
+  // With no analysis before it, a question about owners is only that.
   const over = raw.over_last ? (ctx.previous?.audit ?? null) : null
-  if (raw.over_last && !over) throw new Miss('no last answer')
   const catalogue: CatalogueAsk | undefined =
     raw.intent === 'terms' || raw.intent === 'values'
       ? {
@@ -987,6 +995,15 @@ const NUMBERS =
 /** Words that ask for a verdict on a definition, or for something to be written. */
 const VERDICT =
   /\bwell defined\b|\bdefined (?:well|clearly|properly)\b|^(?:please )?(?:draft|write|rewrite)\b/
+
+/**
+ * Whether the question asks which words are used with no definition: no read here sees that yet, so
+ * Ask says so, with no model, and never answers with what the source gives no words for.
+ */
+export const asksUndefinedWords = (question: string) =>
+  /\b(?:words?|terms?|phrases?)\b.*\b(?:not defined|undefined|without (?:saying|defining|a definition)|no meaning|not explained)\b/.test(
+    followUpWords(question),
+  )
 
 /** Whether the words reach beyond what a rule reads, so the planner reads the question first. */
 export const readsBeyond = (question: string) =>
