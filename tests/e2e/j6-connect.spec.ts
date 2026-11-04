@@ -1,13 +1,17 @@
 import type { Page } from '@playwright/test'
+import type { ObjectHost } from '../server/connectors/object-server.ts'
 import { expect, go, mode, test } from './go.ts'
 
 // J6, connecting a tool: an admin connects Markdown in Git in five steps (Pick, Connect, Choose,
 // Map, Schedule), changes the folders it reads, and disconnects it. Nothing is published by any of
 // it. On the service the repository is a Git host on this machine, behind a token invented here;
-// the mock reads the address its form starts with.
+// the mock reads the address its form starts with. dbt's file also lives at an address and in
+// object storage, which on the service is a store on this machine with a key invented when it
+// starts.
 
 const token = `j6-${Math.random().toString(36).slice(2, 14)}`
 let host: { address: (name: string) => string; close: () => Promise<void> } | undefined
+let store: ObjectHost | undefined
 
 test.beforeAll(async () => {
   if (mode !== 'http') return
@@ -23,9 +27,14 @@ test.beforeAll(async () => {
     'semantic/semantic_manifest.json': JSON.stringify(legacyManifest),
   })
   host = started
+  const { objectHost } = await import('../server/connectors/object-server.ts')
+  store = await objectHost()
+  store.put('/link/semantic_manifest.json', JSON.stringify(legacyManifest))
+  store.put('/bucket/dbt/semantic_manifest.json', JSON.stringify(legacyManifest))
 })
 test.afterAll(async () => {
   await host?.close()
+  await store?.close()
 })
 
 const step = (page: Page, name: string) =>
@@ -137,15 +146,16 @@ test('an admin connects dbt in five steps: no calculation, no link to a file', a
   await expect(page.getByText('A link back to')).toBeHidden()
   await button(page, 'Continue').click()
 
-  // Connect: the manifest's form, its defaults filled in.
+  // Connect: where the file lives, then that place's fields, its defaults filled in.
   await step(page, 'Connect')
+  await page.getByRole('radio', { name: /^Git repository/ }).click()
   await expect(page.getByLabel('Branch, tag or commit')).toHaveValue('main')
   await expect(page.getByLabel('File', { exact: true })).toHaveValue('semantic_manifest.json')
   await page
     .getByLabel('Repository', { exact: true })
     .fill(host?.address('shop-metrics') ?? 'https://git.example.com/analytics/shop-metrics.git')
   if (host) {
-    await page.getByLabel('Folder').fill('semantic')
+    await page.getByLabel('Folder', { exact: true }).fill('semantic')
     await page.getByLabel('Read-only token').fill(token)
   }
   await testAndGoOn(page)
@@ -166,4 +176,122 @@ test('an admin connects dbt in five steps: no calculation, no link to a file', a
   await button(page, 'Add dbt').click()
   await expect(page).toHaveURL(/\/settings\/integrations\/[a-z0-9-]+$/)
   await expect(page.getByRole('heading', { name: /dbt/ }).first()).toBeVisible()
+})
+
+/** dbt's connect form, at Connect. */
+async function atDbtConnect(page: Page) {
+  await go(page, '/settings/integrations/dbt-metricflow/connect?step=2')
+  await step(page, 'Connect')
+}
+
+/** The test's result: what a read would hold, and that nothing is kept yet. */
+async function testRead(page: Page) {
+  await button(page, 'Test connection').click()
+  await expect(page.getByText('Testing the connection…')).toBeHidden({ timeout: 30_000 })
+  await expect(page.getByText('A read would hold 12 metrics and 7 dimensions.')).toBeVisible()
+  await expect(page.getByText('Nothing is saved until you finish.')).toBeVisible()
+  await expect(page.getByText('No domain named')).toBeVisible()
+}
+
+test('an admin connects dbt from a signed link: masked, with a recipe and a test read', async ({
+  page,
+}) => {
+  await atDbtConnect(page)
+  await expect(page.getByRole('radio', { name: /^Address/ })).toBeChecked()
+  await expect(
+    page.getByText('Upload target/semantic_manifest.json', { exact: false }),
+  ).toBeVisible()
+  await expect(page.getByText('aws s3 presign', { exact: false })).toBeVisible()
+  const address = page.getByLabel('File address')
+  await expect(address).toHaveAttribute('type', 'password')
+  await expect(button(page, 'Continue')).toBeDisabled()
+  await address.fill(store?.link('/link/semantic_manifest.json') ?? 'https://files.example.com/a')
+  await testRead(page)
+  await button(page, 'Continue').click()
+  await step(page, 'Choose')
+  await button(page, 'Continue').click()
+  await step(page, 'Map')
+  await mapToSales(page)
+  await button(page, 'Continue').click()
+  await step(page, 'Schedule')
+  await button(page, 'Add dbt').click()
+  await expect(page).toHaveURL(/\/settings\/integrations\/[a-z0-9-]+$/)
+
+  // Change settings: the link is set, and never shown again.
+  await button(page, 'More for dbt').click()
+  await page.getByRole('menuitem', { name: 'Change settings' }).click()
+  await step(page, 'Connect')
+  await expect(page.getByRole('radio', { name: /^Address/ })).toBeChecked()
+  await expect(page.getByLabel('File address')).toHaveValue('')
+  await expect(page.getByLabel('File address')).toHaveAttribute(
+    'placeholder',
+    'Set. Leave it empty to keep it',
+  )
+
+  await button(page, 'Cancel').click()
+  await button(page, 'More for dbt').click()
+  await page.getByRole('menuitem', { name: 'Disconnect' }).click()
+  await page
+    .getByRole('dialog', { name: 'Disconnect dbt?' })
+    .getByRole('button', { name: 'Disconnect' })
+    .click()
+  await expect(page.getByText('dbt disconnected')).toBeVisible()
+})
+
+test('object storage asks for each service what that service needs', async ({ page }) => {
+  await atDbtConnect(page)
+  await page.getByRole('radio', { name: /^Object storage/ }).click()
+  await expect(page.getByLabel('Access key')).toHaveAttribute('type', 'password')
+  await expect(page.getByLabel('Secret key')).toHaveAttribute('type', 'password')
+  await expect(page.getByText('s3:GetObject', { exact: false })).toBeVisible()
+  const service = async (name: string) => {
+    await page.getByLabel('Storage service').click()
+    await page.getByRole('option', { name }).click()
+  }
+
+  await service('Google Cloud Storage')
+  await expect(page.getByText('gcloud storage cp', { exact: false })).toBeVisible()
+  await service('Azure Blob Storage')
+  await expect(page.getByText('az storage blob upload', { exact: false })).toBeVisible()
+  await expect(page.getByLabel('Shared access signature')).toBeVisible()
+  await expect(page.getByLabel('Access key')).toBeHidden()
+
+  await service('S3-compatible store')
+  await expect(page.getByLabel('Region')).toBeVisible()
+  await page
+    .getByLabel('File address')
+    .fill(store?.address('/bucket/dbt/semantic_manifest.json') ?? 'https://s3.example.com/b/f')
+  await page.getByLabel('Access key').fill(store?.accessKey ?? 'an-access-key')
+  await page.getByLabel('Secret key').fill(store?.secretKey ?? 'a-secret-key')
+  await testRead(page)
+  await expect(button(page, 'Continue')).toBeEnabled()
+
+  // A change to the settings asks for a new test.
+  await page.getByLabel('Region').fill('eu-west-1')
+  await expect(button(page, 'Continue')).toBeDisabled()
+})
+
+test('a server folder explains itself, and nothing can be sent from here', async ({ page }) => {
+  await atDbtConnect(page)
+  await page.getByRole('radio', { name: /^Server folder/ }).click()
+  await expect(page.getByText('HEED_SERVER_FOLDERS', { exact: false })).toBeVisible()
+  await expect(button(page, 'Test connection')).toBeHidden()
+  await expect(button(page, 'Continue')).toBeDisabled()
+  await expect(page.getByLabel('File address')).toBeHidden()
+})
+
+test('moving between places sends only the place chosen', async ({ page }) => {
+  await atDbtConnect(page)
+  await page.getByLabel('File address').fill('https://files.example.com/left-behind')
+  await page.getByRole('radio', { name: /^Git repository/ }).click()
+  await page
+    .getByLabel('Repository', { exact: true })
+    .fill(host?.address('shop-metrics') ?? 'https://git.example.com/analytics/shop-metrics.git')
+  if (host) {
+    await page.getByLabel('Folder', { exact: true }).fill('semantic')
+    await page.getByLabel('Read-only token').fill(token)
+  }
+  await button(page, 'Test connection').click()
+  await expect(page.getByText('Testing the connection…')).toBeHidden({ timeout: 30_000 })
+  await expect(button(page, 'Continue')).toBeEnabled()
 })

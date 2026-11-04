@@ -154,6 +154,10 @@ const envSchema = z
         return z.NEVER
       })
       .optional(),
+    // Hosts on this machine or a private network that connectors may reach over https, as a
+    // comma-separated list of names or addresses: an internal artifact server. The connectors
+    // read it themselves through `egressPrivateHosts`.
+    HEED_EGRESS_PRIVATE_HOSTS: z.string().optional(),
     HEED_DOMAIN_OVERRIDES: z.string().optional(),
     // A JSON file of renamed Cube members, old id to new id (CON-512).
     CUBE_RENAMES_FILE: z.string().optional(),

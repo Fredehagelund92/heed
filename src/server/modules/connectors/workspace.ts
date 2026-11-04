@@ -11,6 +11,7 @@ import type {
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
 import { builtInManifests } from '../../../connectors/manifests.ts'
+import { secretsInUse } from '../../../domain/connector-config.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
 import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
 import { durationText } from '../../../domain/source-schedule.ts'
@@ -202,7 +203,8 @@ export function createWorkspaceSources({
     tx: Queryable,
     connector: RegisteredConnector,
     input: { name: string; config: SourceConfig; secrets: Record<string, string>; reason: string },
-    needsSecrets: boolean,
+    /** The secrets the source keeps with these settings; none when it is new. */
+    keeps: (config: SourceConfig) => Readonly<Record<string, string>> | null,
   ): Promise<SourceConfig> {
     plainReason(input.reason)
     const problems: FieldProblem[] = []
@@ -213,10 +215,15 @@ export function createWorkspaceSources({
     for (const key of Object.keys(input.secrets))
       if (!keys.includes(key))
         problems.push({ field: key, message: 'This source has no such secret.' })
-    if (needsSecrets)
-      for (const secret of connector.manifest.secrets)
-        if (secret.required && !input.secrets[secret.key])
+    if ('config' in parsed) {
+      const inUse = secretsInUse(connector.manifest, parsed.config)
+      for (const key of Object.keys(input.secrets))
+        if (keys.includes(key) && !inUse.some((secret) => secret.key === key))
+          problems.push({ field: key, message: 'These settings do not use this secret.' })
+      for (const secret of inUse)
+        if (secret.required && !input.secrets[secret.key] && !keeps(parsed.config)?.[secret.key])
           problems.push({ field: secret.key, message: `Give the ${secret.label.toLowerCase()}.` })
+    }
     if (Object.keys(input.secrets).length && !secrets.available)
       for (const key of Object.keys(input.secrets))
         problems.push({
@@ -399,7 +406,7 @@ export function createWorkspaceSources({
     ): Promise<SourceSettings> {
       const connector = typeOf(input.type)
       if (!connector) invalid([{ field: 'type', message: "We can't add a source of this type." }])
-      const config = await checkInput(tx, connector!, input, true)
+      const config = await checkInput(tx, connector!, input, () => null)
       const plan = await checkPlan(tx, connector!, input.scopes ?? [], input.schedule ?? null)
       await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.sources.add', 0))")
       const existing = await tx.query<{ id: string }>('select id from connectors')
@@ -472,7 +479,10 @@ export function createWorkspaceSources({
       const connector = typeOf(row.type)
       if (!connector)
         invalid([{ field: 'type', message: "We can't change a source of this type." }])
-      const config = await checkInput(tx, connector!, input, false)
+      const before = await held(row.secret_ref)
+      const config = await checkInput(tx, connector!, input, (after) =>
+        rebinds(connector!, row.config, after) ? null : before,
+      )
       const plan = await checkPlan(
         tx,
         connector!,
@@ -489,7 +499,6 @@ export function createWorkspaceSources({
             'Someone changed this source after you opened it. Look at the latest version, then try again.',
         })
       let ref = row.secret_ref
-      const before = await held(row.secret_ref)
       // A stored secret goes only where it was given for: a new address forgets it, so an
       // administrator cannot send a token they never saw to a host of their choosing.
       const rebound = rebinds(connector!, row.config, config)

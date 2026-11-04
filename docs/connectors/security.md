@@ -3,7 +3,7 @@ title: 'Connectors: security and egress'
 line: 'The rules every connector follows to reach a tool, keep its credentials and hand over its output.'
 group: Connectors
 order: 4
-reviewed: 2026-11-03
+reviewed: 2026-11-04
 ---
 
 The rules every connector follows to reach a tool, keep its credentials and hand its output to
@@ -45,6 +45,12 @@ A connector reaches only the hosts its manifest declares, over https, on public 
 link-local, shared or documentation network are refused. Development and tests may use a host on
 this machine.
 
+Whoever runs the server may let `ctx.fetch` reach hosts on a private network by name
+(`HEED_EGRESS_PRIVATE_HOSTS`, [Operations](../operations.md)), for an internal artifact server. It
+is a list in the server's own settings, not in the app: an administrator in the app cannot
+open the private network, and Git and figures do not take it. An allowed host is still https only,
+and still has to be one the manifest declares.
+
 ### Git
 
 In production the repository must be on a public address: an address that names this machine, a
@@ -79,17 +85,25 @@ Connectors that call an HTTP API get `ctx.fetch`, built on the same address rule
 allows:
 
 - https only (plain http only to this machine, outside production);
-- only the hosts the manifest declares: a fixed name, a wildcard such as `*.cubecloud.dev`, or
-  the host of a settings field (`{ fromField: 'repository' }`);
+- only the hosts the manifest declares: a fixed name, the host of a settings field
+  (`{ fromField: 'repository' }`), or the host of an address kept as a secret
+  (`{ fromSecret: 'fileAddress' }`);
 - GET and HEAD only, except a POST with its body to a host the manifest declares for signing in
   (`signIn: true`), where a connector trades its credential for a short-lived token; it writes
   nothing to the tool (built);
 - public addresses only, with the same block list as Git, the name resolved once and the
-  connection pinned to the address that was checked;
-- redirects checked hop by hop and refused across hosts;
-- capped response sizes, a timeout from the manifest's limits, and the manifest's request rate,
-  with `Retry-After` honoured;
-- logs without query strings.
+  connection pinned to the address that was checked (`pinned-fetch.ts`), or a host whoever runs
+  the server allows;
+- redirects checked hop by hop, on the same host only and at most three, and refused otherwise
+  (`redirect_refused`), so a signature or a key never reaches another host;
+- answers capped at 20 MB, or at the less a connector asks for (`maxBytes`), by the length the
+  host says and by what arrives; over it, the read of the body fails with `unreadable_file`;
+- a timeout from the manifest's limits;
+- no request or address in a log or an error: what the network says of a failure is dropped, and
+  a failure names a host at most (`unreachable`).
+
+There is no rate limit of the core's yet: `limits` in a manifest has none. A connector passes on
+what a host says in `Retry-After` through `SourceError.retryAfter`.
 
 A connector never calls the platform's `fetch`, opens a socket or starts a program itself.
 
@@ -128,6 +142,12 @@ so an administrator cannot send a token they never saw to a host of their choosi
 history log and snapshots never hold it, the service never logs it, and it never reaches the
 browser bundle: the form sends it with the request and forgets it. `tests/integration/sources.test.ts`
 checks every answer, row, history entry, retry record and log line of a run for it.
+
+A secret may be the address itself. A signed link, such as a pre-signed S3 address, is as good as
+a key, so a connector keeps it in a secret slot and not in a setting, and declares its host with
+`{ fromSecret: <slot> }`. It is kept and shown as any other secret: only as set, in no answer, row
+or log. A failure names its host, never its path or query. It carries its own destination, so it
+is bound to the setting that says it is in use, and a move away from it forgets it.
 
 ### What interface 3 adds
 

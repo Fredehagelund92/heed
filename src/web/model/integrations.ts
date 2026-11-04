@@ -1,4 +1,4 @@
-import type { ConnectorManifest } from '@domain/connector-manifest'
+import type { ConnectorManifest, ManifestField } from '@domain/connector-manifest'
 import cube from '@/assets/logos/cube.svg'
 import dbt from '@/assets/logos/dbt.svg'
 import googledrive from '@/assets/logos/googledrive.svg'
@@ -47,6 +47,8 @@ export type Connector = {
   keyFile?: string
   /** It reads from a Git repository. */
   git?: true
+  /** It reads one file from a place the form lets you choose, Git among them. */
+  places?: true
   /** It finds what may be chosen to read (folders, spaces), rather than reading it all. */
   discovers?: true
   /** What it may reach, said before anything is given: its manifest's own words. */
@@ -59,6 +61,8 @@ export type Connector = {
   domainField?: string
   /** An example of its data endpoint, shown in the empty field where figures are set up. */
   endpointExample?: string
+  /** The words of its own warnings, by code. */
+  warnings?: ConnectorManifest['warnings']
 }
 
 /**
@@ -235,16 +239,30 @@ export type FigureConnection = {
  */
 export type ConnectField = {
   key: string
-  kind: 'text' | 'address' | 'path' | 'ref' | 'json'
+  kind: 'text' | 'address' | 'path' | 'ref' | 'json' | 'radio' | 'select'
   label: string
   description: string
   placeholder?: string
+  /** The choices of a radio or a select. */
+  options?: ConnectOption[]
+  /** It shows only while another field has this value. */
+  visibleIf?: ManifestField['visibleIf']
   /** The most characters it may hold, where its manifest says. */
   maxLength?: number
   required: boolean
   /** Folded under More settings: what most people leave as it is. */
   advanced: boolean
   value: string
+}
+
+/** A choice of a form's field, and what to do outside the app for it, where it says. */
+export type ConnectOption = {
+  value: string
+  label: string
+  description?: string
+  recipe?: { lead: string; code: string }
+  /** Set up where the server runs: the form explains it and goes no further. */
+  serverOnly?: boolean
 }
 
 /**
@@ -257,6 +275,8 @@ export type ConnectSecret = {
   description: string
   required: boolean
   set: boolean
+  /** It shows only while a field has this value. */
+  visibleIf?: ManifestField['visibleIf']
   /** A key file the form already holds: its name, and the account it reads as, when known. */
   file?: { name: string; account: string | null }
 }
@@ -313,6 +333,15 @@ export type ConnectTest = {
   scopes: ConnectScope[]
   /** Why it could not read, in words, when no step says. */
   failure?: string
+  /** What the test's read found, for a definitions tool: nothing of it is kept. */
+  read?: ConnectRead
+}
+
+/** What a test's read found: how many definitions, and its warnings, each once with a count. */
+export type ConnectRead = {
+  metrics: number
+  dimensions: number
+  warnings: { title: string; detail?: string; level?: 'warning' | 'info'; count: number }[]
 }
 
 /** A view or folder chosen to read, and the domain it maps to (none: a view left shared). */

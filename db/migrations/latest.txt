@@ -1,1 +1,1 @@
-0039_word_comparison.sql
+0040_dbt_file_location.sql

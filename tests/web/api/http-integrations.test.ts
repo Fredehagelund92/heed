@@ -7,6 +7,7 @@ import type {
   SourceSettings,
 } from '@contract/sources'
 import { manifest as cubeManifest } from '../../../src/connectors/cube/manifest'
+import { manifest as dbtManifest } from '../../../src/connectors/dbt-metricflow/manifest'
 import { manifest as gitManifest } from '../../../src/connectors/git-markdown/manifest'
 import { manifest as staticManifest } from '../../../src/connectors/static-definitions/manifest'
 import {
@@ -583,5 +584,92 @@ describe('the connect flow, on the manifests', () => {
         { repository: 'https://git.example/b.git', folder: '' },
       ),
     ).toEqual({ repository: 'https://git.example/b.git', domainNames: { shop: 'sales' } })
+  })
+})
+
+describe('a tool whose file lives in a place you choose', () => {
+  const settings = (config: SourceSettings['config'], set: string[]): SourceSettings => ({
+    id: 'dbt',
+    type: 'dbt-metricflow',
+    name: 'dbt',
+    revision: 2,
+    config,
+    secrets: dbtManifest.secrets.map(({ key }) => ({ key, set: set.includes(key) })),
+    scopes: [],
+    schedule: null,
+    nextReadAt: null,
+    changedAt: null,
+    changedBy: null,
+  })
+
+  it('starts on an address, with each choice and what it depends on in the form', () => {
+    const form = connectFormOf(dbtManifest, null)!
+    const field = (key: string) => form.fields.find((f) => f.key === key)!
+    expect(field('location')).toMatchObject({ kind: 'radio', value: 'address' })
+    expect(field('location').options?.map((option) => option.label)).toEqual([
+      'Address',
+      'Object storage',
+      'Git repository',
+      'Server folder',
+    ])
+    expect(field('provider')).toMatchObject({
+      value: 's3',
+      visibleIf: { field: 'location', equals: 'storage' },
+    })
+    expect(form.secrets.find((s) => s.key === 'fileAddress')?.visibleIf).toEqual({
+      field: 'location',
+      equals: 'address',
+    })
+  })
+
+  it('gives a source on one place the defaults of the others, and never a secret', () => {
+    const form = connectFormOf(dbtManifest, settings({ location: 'address' }, ['fileAddress']))!
+    expect(form.fields.find((f) => f.key === 'location')?.value).toBe('address')
+    expect(form.fields.find((f) => f.key === 'provider')?.value).toBe('s3')
+    expect(form.fields.find((f) => f.key === 'ref')?.value).toBe('main')
+    expect(form.secrets.find((s) => s.key === 'fileAddress')).toMatchObject({ set: true })
+    expect(JSON.stringify(form.secrets)).not.toContain('value')
+  })
+
+  it('shows a source’s place in words, and only the secrets it uses, as set', () => {
+    expect(connectionOf(settings({ location: 'address' }, ['fileAddress']), dbtManifest)).toEqual([
+      { label: 'Where the file lives', value: 'Address' },
+      { label: 'File address', value: 'Set, only used for reading' },
+    ])
+  })
+
+  it('says what a test’s read found, each warning once, in its own words', () => {
+    const test = connectTestOf(
+      {
+        ok: true,
+        steps: [],
+        version: 'abc',
+        complete: true,
+        views: 2,
+        metrics: 12,
+        dimensions: 7,
+        warnings: [
+          { code: 'missing_domain', target: 'customers' },
+          { code: 'missing_domain', target: 'orders' },
+          { code: 'dbt-metricflow.description_cut', target: 'dbt:orders.a' },
+          { code: 'something_new', target: 'x' },
+        ],
+      },
+      'dbt-metricflow',
+    )
+    expect(test.read).toEqual({
+      metrics: 12,
+      dimensions: 7,
+      warnings: [
+        expect.objectContaining({ title: 'No domain named', count: 2 }),
+        {
+          title: 'A description was cut',
+          detail: 'Only the first 500 characters of a description are kept, as a copy.',
+          level: 'info',
+          count: 1,
+        },
+        { title: 'something new', count: 1 },
+      ],
+    })
   })
 })

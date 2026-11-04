@@ -55,13 +55,21 @@ export function isGitRef(value: string): boolean {
   return /^[A-Za-z0-9._/-]{1,200}$/.test(value) && !/^[-/]|\/$|\.lock$|\.\.|\/\//.test(value)
 }
 
-/** Whether a field shows: always, or while the field it depends on has the value it names. */
+/**
+ * Whether a field or a secret shows: always, or while the field it depends on shows and has the
+ * value it names, or one of them. A manifest's dependencies go back up the form, so this ends.
+ */
 export function fieldVisible(
   field: Pick<ManifestField, 'visibleIf'>,
   config: Readonly<Record<string, unknown>>,
+  fields: readonly Pick<ManifestField, 'key' | 'visibleIf'>[],
 ): boolean {
   if (!field.visibleIf) return true
-  return config[field.visibleIf.field] === field.visibleIf.equals
+  const { field: key, equals } = field.visibleIf
+  const value = config[key]
+  if (!(Array.isArray(equals) ? equals.includes(value as string) : value === equals)) return false
+  const parent = fields.find((candidate) => candidate.key === key)
+  return parent === undefined || fieldVisible(parent, config, fields)
 }
 
 const lower = (label: string) => label.charAt(0).toLowerCase() + label.slice(1)
@@ -158,6 +166,8 @@ function parseValue(
         !field.options?.some((o) => o.value === text)
       )
         return { problem: 'Choose one of the options.' }
+      if (field.options?.find((option) => option.value === text)?.serverOnly)
+        return { problem: 'This is set where the server runs, not here.' }
       if (field.kind === 'json')
         try {
           JSON.parse(text)
@@ -192,7 +202,7 @@ export function parseConnectorConfig(
       })
   const stored: ConnectorConfig = {}
   for (const field of fields) {
-    if (!fieldVisible(field, config)) continue
+    if (!fieldVisible(field, config, fields)) continue
     const parsed = parseValue(field, config[field.key])
     if ('problem' in parsed) problems.push({ field: field.key, message: parsed.problem })
     else if (parsed.value !== undefined) stored[field.key] = parsed.value
@@ -218,6 +228,8 @@ export function connectorConfigDomains(
   return [...new Set(named)]
 }
 
-/** The secrets a source of this connector must be given when it is added. */
-export const requiredSecrets = (manifest: Pick<ConnectorManifest, 'secrets'>) =>
-  manifest.secrets.filter((secret) => secret.required)
+/** The secrets a source with these settings uses: the others are not asked for or kept. */
+export const secretsInUse = (
+  manifest: Pick<ConnectorManifest, 'config' | 'secrets'>,
+  config: Readonly<Record<string, unknown>>,
+) => manifest.secrets.filter((secret) => fieldVisible(secret, config, manifest.config.fields))

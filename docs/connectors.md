@@ -390,7 +390,7 @@ reference.
 
 The form is a restricted JSON Schema: no `anyOf`, `allOf`, `if`/`then`/`else` or
 `patternProperties`; alternatives are a `oneOf` with a constant. Hints for the screen: `order`,
-`group`, `advanced`, `visibleIf`, `widget`, `patternMessage`, `placeholder`, `default`, and
+`group`, `advanced`, `visibleIf`, `patternMessage`, `placeholder`, `default`, and
 `examples.invalid` for the kit. Field kinds: `text`, `address`, `path`, `ref`, `secret` (from the
 manifest's secrets), `select`, `radio`, `boolean`, `integer`, `list`, `json` and `domain_map`
 (interface 2's `domain_names`). The core adds Name, Why and Schedule to every form, and a scopes
@@ -458,6 +458,12 @@ interface Context<Config> {
     with a warning, so a broken scope never empties the catalogue or withdraws every draft.
 - The **cursor** is opaque, stored only with a good read and in the same transaction as what it
   covers. A connector that reads deltas also does a full read now and then (`deletions: 'both'`).
+- A definitions read that finds its input as the cursor names it ends with
+  `end { unchanged: true }` and sends no definition. The core keeps what the last read found, as a
+  new read with the same version, counts and warnings, and every definition stays seen. A cursor
+  goes to a read only after a complete read since the source's settings last changed; put what
+  your mapping depends on in it, so a new version of the mapping does not rest on an old read
+  (the dbt connector's `reader`).
 
 ### Warnings, health and schedules
 
@@ -470,7 +476,7 @@ interface Context<Config> {
   source's page and through the operations API.
 - Each source has its own schedule, at or above its manifest's minimum, and its own Read again
   (CON-115). A transient failure backs off per source, never past half of `staleAfter`.
-- `ctx.fetch` enforces the manifest's request rate and honours `Retry-After`.
+- A connector honours `Retry-After` by passing it on in its `SourceError` (`retryAfter`).
 
 ### The two pipelines
 
@@ -557,9 +563,11 @@ capabilities a manifest declares:
 
 ### Versions
 
-- **Interface version**, a semver: 3.2 today (3.1 added `capabilities.mergeDimensions` and a
-  secret's `file`, and 3.2 `capabilities.serverFolder`, so a connector that uses them says that
-  version). A minor version only adds; a
+- **Interface version**, a semver: 3.3 today (3.1 added `capabilities.mergeDimensions` and a
+  secret's `file`, 3.2 `capabilities.serverFolder`, and 3.3 a host from a secret
+  (`egress.hosts[].fromSecret`), a secret's `visibleIf`, a list in `visibleIf`, an option's `recipe`
+  and `serverOnly`, `maxBytes` on `ctx.fetch` and `end.unchanged`, so a connector that uses them
+  says that version). A minor version only adds; a
   major one may break. Heed runs the current and the previous major for at least 12 months or two
   releases, whichever is longer, and warns on a source's page when its connector uses a major that
   will stop being supported (CON-109). Experimental parts are open to built-in connectors only.
@@ -601,8 +609,13 @@ Where the build differs from the decided text above:
 - **The form** is `config: { groups, fields }`, a list of fields with these hints: `required`,
   `placeholder`, `default`, `options` (select and radio), `group`, `advanced` (folded under More
   settings), `visibleIf`, `pattern` with `patternMessage`, `minimum`, `maximum`, `maxLength` and
-  `maxItems`. A field's place in the list is its order. `widget` and `examples.invalid` come with
-  the conformance kit. The core adds Name and Why to every form. The API takes a source's
+  `maxItems`. A field's place in the list is its order. `examples.invalid` comes with the
+  conformance kit. The web app's form draws `text`, `address`, `path`, `ref`, `json`, `radio` and
+  `select`; a setting of another kind can only be left out, so a connector that requires one cannot
+  be connected there. `visibleIf` hides a field, and with it the fields that depend on it; a secret
+  takes it too. An option may hold a `recipe` (a line and commands the form shows when it is
+  chosen) and `serverOnly` (the form explains it and goes no further, and a source cannot be saved
+  with it). The core adds Name and Why to every form. The API takes a source's
   schedule and, for content, its scopes (`sources.add`, `sources.update`); the old Sources form
   adds definition sources only, and the web app's five-step connect draws both.
 - **The icon** is a name from a short list (`database`, `git`, `file`, `list`, `cloud`, `book`),
@@ -679,8 +692,8 @@ whose compiler runs in its worker (T1), its model fetched through `ctx.git` or r
   `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` producing the same entry.
 - The connector's version and mark version stored on every read (a migration), shown on the
   source's page, and the first read after a mark version change stored without flags (CON-116).
-- `ctx.fetch` pinned to the address it checked, with the manifest's request rate and
-  `Retry-After`; `ctx.log` into the server's log, codes and targets only.
+- A request rate in the manifest for `ctx.fetch`; `ctx.log` into the server's log, codes and
+  targets only.
 - The rest of the conformance kit (cursors and deletions, egress and limits) and a README per
   connector with its tables from the manifest; the operator's list of connectors to allow
   (`HEED_CONNECTORS`).

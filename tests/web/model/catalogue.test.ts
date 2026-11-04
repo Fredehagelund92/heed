@@ -14,7 +14,7 @@ describe('the dbt cell', () => {
       blurb: manifest.summary,
       logo: logos['dbt-metricflow'],
       access: manifest.access,
-      git: true,
+      places: true,
       domainField: 'meta.domain',
     })
     expect(connectorById('dbt-metricflow')?.soon).toBeUndefined()
@@ -46,7 +46,12 @@ describe('dbt on the mock', () => {
   })
 
   it('finds its semantic models to choose from, once it has a repository', () => {
-    const config = { repository: 'https://git.example.com/a.git', ref: 'main', file: 'a.json' }
+    const config = {
+      location: 'git',
+      repository: 'https://git.example.com/a.git',
+      ref: 'main',
+      file: 'a.json',
+    }
     const test = testFor('dbt-metricflow', { config, secrets: {} })
     expect(test.ok).toBe(true)
     expect(test.scopes.map((scope) => [scope.id, scope.metrics, scope.dimensions])).toEqual([
