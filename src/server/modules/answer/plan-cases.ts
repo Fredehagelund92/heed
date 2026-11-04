@@ -12,7 +12,7 @@ import {
   type RecordsAnswer,
   type RecordsIntent,
 } from '../../../domain/records.ts'
-import { asksDefinition, readQuestion } from '../../../domain/scope.ts'
+import { asksDefinition, asksDefinitionInAsk, readQuestion } from '../../../domain/scope.ts'
 import {
   PLAN_NOW,
   PLAN_TODAY,
@@ -732,6 +732,7 @@ export async function askPlanCase(
     terms: planBundle.terms,
     domains: planAreas,
     now: PLAN_NOW,
+    ...(asksDefinition(c.question) ? { glossary: planRecords.glossary ?? [] } : {}),
   })
   const given = c.sources
     ? chat.map((turn, i) =>
@@ -766,7 +767,7 @@ export async function askPlanCase(
   const define =
     routed.kind === 'reads'
       ? routed.planned.defines
-      : routed.kind === 'rules' && asksDefinition(c.question)
+      : routed.kind === 'rules' && asksDefinitionInAsk(c.question)
         ? (routed.answer.scope?.metrics ?? [])
         : []
   return {
@@ -786,6 +787,14 @@ export async function askPlanCase(
     turn: {
       question: c.question,
       scope: answer?.scope ?? null,
+      ...(shown && !shown.refused && shown.audit
+        ? {
+            audit: shown.audit,
+            rows: [...shown.rows, ...(shown.sections ?? []).flatMap((s) => s.rows)]
+              .flatMap((row) => (row.type === 'term' ? [row.key] : []))
+              .slice(0, 10),
+          }
+        : {}),
       sources: sources.slice(0, 10),
       ...(answer ? { state: answer.state } : {}),
       ...(found?.type === 'records'
@@ -801,6 +810,8 @@ export async function askPlanCase(
   }
 }
 
+const titleOfTerm = (key: string) => planBundle.terms.find((t) => t.key === key)?.name ?? key
+
 /** A records answer as a person reads it, line by line. */
 export function recordsText(r: RecordsAnswer): string[] {
   if (r.refused) return [r.sentence, r.detail]
@@ -810,34 +821,60 @@ export function recordsText(r: RecordsAnswer): string[] {
         ? row.title
         : row.type === 'conflict'
           ? `${row.holder.title} and ${row.other.title}`
-          : row.type === 'kind'
-            ? row.label
-            : row.name
+          : row.type === 'pair'
+            ? `${row.holder.title} and ${row.other.title}`
+            : row.type === 'kind' || row.type === 'line'
+              ? row.label
+              : row.name
     const link = row.type === 'topic' && row.gap ? (row.gap.draft ? 'Write it' : 'Open the card') : ''
     return [name, ...row.cells, link].filter(Boolean).join(' | ')
   }
   return [
+    r.period ? `Understood as ${r.understood} (${r.period.label})` : '',
+    r.limit?.sentence ?? '',
     r.sentence,
     r.detail ?? '',
     r.detailItem?.title ?? '',
     ...r.rows.map(rowText),
     r.shown ?? '',
     r.more?.label ?? '',
+    ...(r.sections ?? []).flatMap((section) => [
+      `${section.title}: ${section.count}`,
+      ...section.rows.map(rowText),
+      section.shown ?? '',
+      section.more?.label ?? '',
+    ]),
+    ...(r.clear ?? []),
+    r.ranked ?? '',
     r.note ?? '',
+    r.notSeen ?? '',
   ].filter(Boolean)
 }
 
 /** The answer as a person reads it, in plain lines. */
 function renderedOf(routed: Routed, records: RecordsAnswer | null, define: string[]): string {
   const lines: string[] = []
-  if (routed.kind === 'reply') lines.push(routed.reply.text)
+  const limit = routed.kind === 'rules' || routed.kind === 'reads' ? routed.limit : null
+  if (routed.kind === 'reply') {
+    lines.push(routed.reply.text)
+    if (routed.reply.kind === 'cannot') {
+      lines.push(...routed.reply.metrics.flatMap((key) => planDefinitions[key] ?? []))
+      if (routed.reply.reason === 'write') lines.push('Write context')
+    }
+  }
   if (records) lines.push(...recordsText(records))
   const answer =
     routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
   if (answer) {
+    if (limit) lines.push(limit.sentence)
     lines.push(answer.say)
     lines.push(...define.flatMap((key) => planDefinitions[key] ?? []))
     lines.push(...answer.items.map((item) => item.title))
+    if (!answer.items.length)
+      for (const key of define)
+        lines.push(`Nothing else is written about ${titleOfTerm(key)} yet.`)
+    if (routed.kind === 'reads' && routed.planned.reading.left)
+      lines.push(`Not answered here: ${routed.planned.reading.left}`)
   }
   return lines.join('\n')
 }
@@ -845,9 +882,28 @@ function renderedOf(routed: Routed, records: RecordsAnswer | null, define: strin
 /** The kinds a routed answer's plan chose, in order. */
 function planKinds(routed: Routed): PlanKind[] {
   if (routed.kind === 'reply') return [routed.reply.kind]
-  if (routed.kind === 'records') return routed.planned ? ['records'] : []
+  if (routed.kind === 'records') {
+    if (!routed.planned) return []
+    const intent = routed.found.type === 'records' ? routed.found.ask.intent : null
+    return [intent === 'audit' || intent === 'queue' ? intent : 'records']
+  }
   if (routed.kind === 'reads') return routed.planned.reads.map((r) => r.kind)
   return []
+}
+
+/** A row of a records answer that names something the world does not hold. */
+function invented(found: RecordsAnswer | null): string[] {
+  if (!found || found.refused) return []
+  const items = new Set(planRecords.items.map((i) => i.title))
+  const terms = new Set(planRecords.terms.map((t) => t.name))
+  const topics = new Set(planRecords.asked?.rows.map((r) => r.title))
+  return [...found.rows, ...(found.sections ?? []).flatMap((s) => s.rows)].flatMap((row) =>
+    (row.type === 'item' && !items.has(row.title)) ||
+    (row.type === 'term' && !terms.has(row.name)) ||
+    (row.type === 'topic' && !topics.has(row.title))
+      ? [`invents a row: ${JSON.stringify(row)}`]
+      : [],
+  )
 }
 
 /** What is wrong with what a case's question got, if anything. */
@@ -856,7 +912,7 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
   const problems: string[] = []
   const routed = got.routed
   if (got.route !== e.route) problems.push(`read by ${got.route}, not ${e.route}`)
-  if (e.route !== 'planner' && got.calls)
+  if (e.route !== 'planner' && got.calls && !c.with)
     problems.push('asked the planner for a question the rules read')
   if (e.plan && planKinds(routed).join(',') !== e.plan.join(','))
     problems.push(`planned ${planKinds(routed).join(',') || 'nothing'}, not ${e.plan.join(',')}`)
@@ -940,9 +996,23 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
   for (const p of e.must ?? []) if (!said(p)) problems.push(`does not say ${p}`)
   for (const p of e.refuse ?? []) if (said(p)) problems.push(`says ${p}`)
   if (e.miss && got.miss !== e.miss) problems.push(`refused as ${got.miss ?? 'nothing'}, not ${e.miss}`)
-  if (e.audit) problems.push(`no audit read: wants ${e.audit.join(',')}`)
-  if (e.limit) problems.push(`no limit read: wants ${e.limit}`)
-  if (e.cannot) problems.push(`no exit read: wants ${e.cannot}`)
+  if (e.audit) {
+    const facets = records?.audit?.facets ?? []
+    if ([...facets].sort().join(',') !== [...e.audit].sort().join(','))
+      problems.push(`read facets ${facets.join(',') || 'none'}, not ${e.audit.join(',')}`)
+  }
+  if (e.limit) {
+    const limit =
+      routed.kind === 'rules' || routed.kind === 'reads' ? routed.limit?.reason : records?.limit
+    if (limit !== e.limit) problems.push(`limit ${limit ?? 'none'}, not ${e.limit}`)
+  }
+  if (e.cannot) {
+    const reason =
+      routed.kind === 'reply' && routed.reply.kind === 'cannot' ? routed.reply.reason : 'none'
+    if (reason !== e.cannot) problems.push(`exit ${reason}, not ${e.cannot}`)
+  }
+  // Grounded: every row is one the person may see in the world, whatever the model chose.
+  problems.push(...invented(got.records))
   // No reply after the first message suggests a question to ask, and none lists choices as chips.
   if (routed.kind === 'reply' && /\n|- |•/.test(routed.reply.text))
     problems.push('a reply with a list')
@@ -981,11 +1051,11 @@ export async function runPlanCases(
             const checked = check((c.with as { raw: unknown }).raw)
             if (checked.ok) return checked.plan
             miss = checked.why
-            return null
+            return 'missed'
           }
         : c.with.planner === 'none'
           ? null
-          : async () => null
+          : async () => 'missed'
     const asked = repeated
       ? await askPlanCase(repeated, own, turns.slice(0, -1))
       : await askPlanCase(c, own, turns)

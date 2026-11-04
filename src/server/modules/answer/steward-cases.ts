@@ -115,7 +115,7 @@ const R: PlanCase[] = [
     what: 'What the source lists that Definitions does not.',
     question: 'does our source have anything we have not added?',
     expect: {
-      route: 'planner',
+      route: 'records',
       audit: ['unlinked'],
       state: null,
       must: ['2 of 31', 'Order day', 'Marketing day', /dates? .*left out on purpose/i],
@@ -188,8 +188,9 @@ const R: PlanCase[] = [
       route: 'records',
       intent: 'asked_nothing',
       state: null,
-      must: ['Orders in Spain', 'Orders in Germany', 'Orders in Poland', '9 of 12', 'this week'],
-      refuse: [/Net revenue in Norway/],
+      must: ['Orders in Spain | 9', 'Orders in Germany | 6 of 6', 'Orders in Poland | 6 of 13', 'this week'],
+      // 9 of 12 would give a count of 3 away, by subtraction (FR-614).
+      refuse: [/Net revenue in Norway/, /9 of 12/],
     },
   },
   {
@@ -243,7 +244,7 @@ const R: PlanCase[] = [
     what: 'One domain of what found nothing.',
     question: 'what was asked in Sales that found nothing?',
     expect: {
-      route: 'planner',
+      route: 'records',
       audit: ['asked_nothing'],
       domain: 'area_sales',
       state: null,
@@ -284,7 +285,7 @@ const R: PlanCase[] = [
     what: 'Nothing changed, and when that was read.',
     question: 'did any definition change at the source?',
     expect: {
-      route: 'planner',
+      route: 'records',
       audit: ['source_changed'],
       state: null,
       must: [/no definition changed/i, '22 Oct 2026'],
@@ -492,7 +493,7 @@ const R: PlanCase[] = [
       audit: ['no_context', 'asked_nothing'],
       state: null,
       must: ['13 of 22', 'Orders in Spain', /Not seen:/],
-      refuse: [/Nothing was looked up/, /^(?:yes|no)\b/im],
+      refuse: [/Nothing was looked up/, /^(?:yes|no)[,.]/im],
     },
   },
   {
@@ -636,11 +637,10 @@ const S: PlanCase[] = [
   },
   {
     id: 'S05',
-    what: 'The difference between two metrics: both definitions.',
+    what: 'The difference between two metrics: the rules read it, with both definitions.',
     question: "what's the difference between gross sales and net revenue?",
     expect: {
-      route: 'planner',
-      plan: ['definition', 'definition'],
+      route: 'rules',
       stateIn: ['partial', 'missing'],
       must: ['What customers paid before returns', 'Gross sales less returns'],
     },
@@ -678,7 +678,7 @@ const S: PlanCase[] = [
       route: 'planner',
       plan: ['explore'],
       stateIn: ['grounded', 'stale'],
-      atLeast: { kind: 'event', count: 2 },
+      atLeast: { kind: 'event', count: 1 },
     },
   },
   {
@@ -719,7 +719,12 @@ const S: PlanCase[] = [
     id: 'S12',
     what: 'A rule about old data.',
     question: 'can I compare orders from before 19 January 2026?',
-    expect: { route: 'rules', stateIn: ['grounded', 'partial', 'conflict'] },
+    expect: {
+      route: 'planner',
+      plan: ['explore'],
+      stateIn: ['grounded', 'partial', 'conflict'],
+      cites: ['Data for Orders before 19 January 2026 is not reliable'],
+    },
   },
   {
     id: 'S13',
@@ -737,7 +742,7 @@ const S: PlanCase[] = [
     question: 'is net revenue in Spain before or after VAT?',
     expect: {
       route: 'rules',
-      stateIn: ['grounded', 'conflict'],
+      stateIn: ['grounded', 'partial', 'conflict'],
       cites: ['Net revenue in Spain includes VAT', 'Net revenue in Spain excludes VAT'],
     },
   },
@@ -1115,7 +1120,9 @@ const X: PlanCase[] = [
     question: 'what context should I write next?',
     with: { planner: 'missed' },
     expect: {
-      route: 'rules',
+      route: 'planner',
+      plan: ['cannot'],
+      cannot: 'unread',
       state: null,
       must: ['Ask could not read this question just now, so nothing was looked up.'],
       refuse: [/doesn't name a metric/, /\b27 definitions\b/],

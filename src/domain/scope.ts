@@ -389,6 +389,13 @@ export function asksDefinition(question: string): boolean {
 }
 
 /**
+ * Whether Ask shows the definitions of what a question names: when it asks what they are, and when
+ * it asks how two differ, which their definitions say. Agents get them as `asksDefinition` says.
+ */
+export const asksDefinitionInAsk = (question: string) =>
+  asksDefinition(question) || /\bdifference between\b/.test(wordsOf(question))
+
+/**
  * Whether a question asks what a metric is or means, so that in Ask its definition is the answer
  * and comes first ("What is discount cost?", "What does churn rate mean?"). Words about meaning
  * always count; a question that only starts "What is" counts when it names no market and no

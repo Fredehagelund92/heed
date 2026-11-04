@@ -433,6 +433,8 @@ export const planDefinitions: Readonly<Record<string, string>> = {
   'metric:active_customers': 'Customers who placed at least one order in the last 90 days.',
 }
 
+type AuditKind = RecordsItem['kind']
+
 const statusOf = (s: Seed): RecordsItem['status'] =>
   s.reviewDate && s.reviewDate < PLAN_TODAY ? 'due' : 'live'
 
@@ -453,6 +455,16 @@ const itemRecord = (s: Seed): RecordsItem => ({
 
 /** The items a person here may see: never the one for the Finance group. */
 const seen = seeds.filter((s) => !s.groups)
+
+/** What agents asked this week: each topic, its domain, its calls, those that found nothing. */
+const asked: [string, string, number, number, string[], boolean?][] = [
+  ['Orders in Norway', SALES, 31, 0, ['metric:orders', 'val:market/norway']],
+  ['Net revenue in Norway', SALES, 17, 0, ['metric:net_revenue', 'val:market/norway']],
+  ['Orders in Poland', SALES, 13, 6, ['metric:orders', 'val:market/poland']],
+  ['Orders in Spain', SALES, 12, 9, ['metric:orders', 'val:market/spain'], true],
+  ['Cost per acquisition', MARKETING, 10, 0, ['metric:cost_per_acquisition']],
+  ['Orders in Germany', SALES, 6, 6, ['metric:orders', 'val:market/germany']],
+]
 
 const owners: Record<string, string[]> = {
   [SALES]: ['per_jon', 'per_sofia'],
@@ -478,7 +490,17 @@ export const planRecords: RecordsWorld = {
   ),
   asked: {
     minimum: 5,
-    rows: [],
+    rows: asked.map(([title, area, count, nothing, keys, gap]) => ({
+      title,
+      area,
+      count,
+      atLeast: count,
+      nothing,
+      state: nothing ? 'missing' : 'grounded',
+      gap: gap ? { card: 'gap:spain', draft: null } : null,
+      metrics: keys.filter((k) => k.startsWith('metric:')),
+      values: keys.filter((k) => k.startsWith('val:')),
+    })),
   },
   conflicts: [
     {
@@ -491,6 +513,67 @@ export const planRecords: RecordsWorld = {
       },
       topic: 'Orders in Norway',
       since: '2026-09-24',
+    },
+  ],
+  audit: {
+    terms: planTerms
+      .filter((t) => t.kind === 'metric' || t.kind === 'dimension')
+      .map((t) => {
+        const named = seen.filter((s) =>
+          t.kind === 'metric'
+            ? s.metrics.includes(t.key.slice('metric:'.length))
+            : t.key === 'dim:market' && (s.markets?.length ?? 0) > 0,
+        )
+        const count = (kind: ItemKind) => named.filter((s) => s.kind === kind).length
+        return {
+          key: t.key,
+          kind: t.kind as 'metric' | 'dimension',
+          name: t.name,
+          areaId: planBundle.metricArea[t.key] ?? null,
+          state: 'current' as const,
+          words:
+            t.key === 'metric:on_time_shipping_rate'
+              ? null
+              : (planDefinitions[t.key] ?? `What ${t.name} counts.`),
+          shelf: {
+            event: count('event'),
+            issue: count('issue'),
+            note: count('note'),
+            guide: count('guide'),
+          },
+        }
+      }),
+    items: seen.map((s) => ({
+      id: s.id,
+      kind: s.kind as AuditKind,
+      title: s.title,
+      areaId: s.area,
+      metrics: s.metrics.map((m) => `metric:${m}`),
+      values: (s.markets ?? []).map((m) => `val:market/${m}`),
+      start: s.from,
+      end: s.until ?? null,
+      conflicts: s.conflicts ?? [],
+    })),
+    members: {
+      total: 31,
+      unlinked: [
+        { name: 'Order day', valueType: 'Date', suggested: false },
+        { name: 'Marketing day', valueType: 'Date', suggested: false },
+      ],
+    },
+    readAt: '2026-10-22T06:00:00.000Z',
+  },
+  queue: [
+    { group: 'gap', count: 1 },
+    { group: 'flag', count: 2 },
+    { group: 'check', count: 2 },
+    { group: 'suggestion', count: 3 },
+  ],
+  glossary: [
+    {
+      name: 'Store credit',
+      meaning:
+        'Money a customer holds with us from a gift card or a refund, spent like cash at checkout.',
     },
   ],
 }

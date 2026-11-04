@@ -509,6 +509,8 @@ export type TopicCount = {
   /** The first day of the month, `YYYY-MM-01`. */
   month: string
   calls: number
+  /** The calls that delivered no item. */
+  noItem?: number
 }
 
 /**
@@ -551,6 +553,8 @@ export type AskedTopic = {
   month: string
   count: number | null
   atLeast: number
+  /** How many of the calls delivered no item; null under the minimum. */
+  nothing: number | null
 }
 /**
  * Topics asked about this week, one row per metric, market and dimension with its months joined
@@ -601,6 +605,10 @@ export function askedTopics(
       month: months[0] ?? `${today.slice(0, 7)}-01`,
       count: list.length > 1 ? visibleTotal(total, atLeast, minimum) : visibleCount(total, minimum),
       atLeast,
+      nothing: visibleCount(
+        list.reduce((sum, row) => sum + (row.noItem ?? 0), 0),
+        minimum,
+      ),
       total,
     }
   })

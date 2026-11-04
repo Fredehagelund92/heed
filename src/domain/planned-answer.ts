@@ -44,6 +44,8 @@ export type PlanReading = {
   standalone?: string
   /** Where the dates came from, for the answer to say when it took some. */
   period: PlanPeriod | null
+  /** The part of the question these reads do not answer, as a short question (FR-720). */
+  left?: string
 }
 
 /** A bundle the planned reads run on: what the engine reads, with the domains a search names. */
@@ -502,6 +504,7 @@ export function plannedAnswer(
     /** The chat, oldest first: what the read may have carried. */
     turns?: readonly ChatTurn[]
     standalone?: string
+    left?: string
     now?: () => number
   },
 ): PlannedAnswer {
@@ -522,6 +525,7 @@ export function plannedAnswer(
       ),
       period: dated?.period ?? null,
       ...(c.standalone ? { standalone: c.standalone } : {}),
+      ...(c.left ? { left: c.left } : {}),
     },
     defines: [...new Set(ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])))],
   }

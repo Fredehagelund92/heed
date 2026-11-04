@@ -16,6 +16,7 @@ import {
   readWordsModel,
   runPlanCases,
   scriptedPlan,
+  stewardCases,
   wordsInputOf,
   type PlanCase,
   type PlanOutcome,
@@ -61,7 +62,9 @@ const percentile = (sorted: readonly number[], p: number) =>
   sorted.length ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)]! : 0
 
 async function main() {
-  const cases = planCases.filter((c) => !values.case?.length || values.case.includes(c.id))
+  const cases = [...planCases, ...stewardCases].filter(
+    (c) => !values.case?.length || values.case.includes(c.id),
+  )
   if (!cases.length) {
     console.error(`No case matches. ${usage}`)
     return 2

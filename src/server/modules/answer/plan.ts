@@ -82,9 +82,10 @@ export type PlannerMiss = {
 }
 
 /**
- * The checked plan for a question, or null when Ask is to answer it as with no model: the limits
- * leave no room, the provider is slow or fails, or the plan fails `check`. A Stop (`signal`)
- * ends the call and is no miss. `onCall` hears what the call cost, as the ledger keeps it.
+ * The checked plan for a question, or `missed` when the planner gave none: the limits leave no
+ * room, the provider is slow or fails, or the plan fails `check`. Ask then answers as the rules do
+ * and says why it could not read a question they cannot. A Stop (`signal`) ends the call and is no
+ * miss. `onCall` hears what the call cost, as the ledger keeps it.
  */
 export async function planQuestion(
   deps: {
@@ -97,7 +98,7 @@ export async function planQuestion(
   },
   input: PlannerInput,
   check: (raw: unknown) => PlanCheck,
-): Promise<AskPlan | null> {
+): Promise<AskPlan | null | 'missed'> {
   const { database, call } = deps
   const next = costMicros(call.choice.prices, {
     inputTokens: tokens(input.system) + tokens(input.vocabulary) + tokens(input.prompt),
@@ -110,7 +111,7 @@ export async function planQuestion(
     )
     if (stop) {
       deps.onMiss?.({ reason: 'spending limit' })
-      return null
+      return 'missed'
     }
     const meter = createCallMeter({
       database,
@@ -135,7 +136,7 @@ export async function planQuestion(
         finishReason: reply.finishReason,
         reasoningTokens: reply.reasoningTokens,
       })
-      return null
+      return 'missed'
     }
     return checked.plan
   } catch (error) {
@@ -143,7 +144,7 @@ export async function planQuestion(
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))
       deps.onMiss?.({ reason: 'too slow' })
     else deps.onError?.(error)
-    return null
+    return 'missed'
   }
 }
 

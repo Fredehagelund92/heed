@@ -3,6 +3,7 @@ import { asksNothing, nothingAskedSaid } from './ask-again.ts'
 import { chatSources, fitChat, type ChatTurn } from './ask-chat.ts'
 import {
   checkPlan,
+  limitOf,
   plannerPrompt,
   plannerReason,
   plannerSystem,
@@ -21,8 +22,9 @@ import {
   type PlannedAnswer,
   type PlannedBundle,
 } from './planned-answer.ts'
-import type { RecordsRecognition } from './records.ts'
-import { offTopicSaid, scopeWords } from './say.ts'
+import { limitSaid, type RecordsRecognition } from './records.ts'
+import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
+import { cannotSaid, offTopicSaid, scopeWords } from './say.ts'
 import { readQuestion } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
 
@@ -36,11 +38,14 @@ import { dateWindowSchema } from './validity.ts'
 
 /** What the planner reads: its instructions, the vocabulary, and the question with the chat. */
 export type PlannerInput = { system: string; vocabulary: string; prompt: string }
-/** The planner: the checked plan for a question, or null to answer it as with no model. */
+/**
+ * The planner: the checked plan for a question, null to answer it as with no model, or `missed`
+ * when it was asked and gave none (a limit, a slow provider, a plan that failed the check).
+ */
 export type Planner = (
   input: PlannerInput,
   check: (raw: unknown) => PlanCheck,
-) => Promise<AskPlan | null>
+) => Promise<AskPlan | null | 'missed'>
 
 /** A bundle Ask's reads run on, with its domains. */
 export type RouteBundle = PlannedBundle & { areas: readonly { id: string; name: string }[] }
@@ -73,6 +78,7 @@ export function chatOf(
     return {
       ...turn,
       scope,
+      ...(turn.rows ? { rows: turn.rows.filter((key) => keys.has(key)) } : {}),
       domain: bundle.areas.some((a) => a.id === turn.domain) ? turn.domain : null,
       sources: turn.sources.filter((id) => {
         const item = byId.get(id)
@@ -117,6 +123,7 @@ export function plannerInputOf(
         return [{ title: item.title, kind: item.kind, number }]
       }),
       ...(turn.asked ? { asked: turn.asked } : {}),
+      ...(turn.rows?.length ? { rows: turn.rows } : {}),
     }
   })
   const [previous = null, ...earlier] = newestFirst
@@ -150,10 +157,37 @@ export function planContextOf(
   }
 }
 
+/**
+ * Nothing looked up: a question back, the sentence for a question off topic or for a message that
+ * asks nothing, or a fixed sentence that says what Ask cannot do (FR-720), with the metrics whose
+ * definitions it shows and what a draft would start from.
+ */
+export type RoutedReply =
+  | { kind: 'clarify' | 'off_topic' | 'nothing_asked'; text: string }
+  | {
+      kind: 'cannot'
+      reason: CannotReason
+      text: string
+      metrics: string[]
+      filters: Record<string, string[]>
+    }
+
+const cannot = (
+  reason: CannotReason,
+  metrics: string[] = [],
+  filters: Record<string, string[]> = {},
+): { kind: 'reply'; reply: RoutedReply } => ({
+  kind: 'reply',
+  reply: { kind: 'cannot', reason, text: cannotSaid[reason], metrics, filters },
+})
+
+const limitOfReason = (reason: LimitReason | null | undefined): AnswerLimit | null =>
+  reason ? { reason, sentence: limitSaid[reason] } : null
+
 /** How a question was read, and what answers it. */
 export type Routed =
-  /** The rules' answer, as with no model. */
-  | { kind: 'rules'; answer: Answer }
+  /** The rules' answer, as with no model, under a limit when the words reach beyond what is written. */
+  | { kind: 'rules'; answer: Answer; limit: AnswerLimit | null }
   /**
    * A records question, as the rules read it or the planner chose it, with what the planner
    * carried from the last question and the question as it reads alone.
@@ -166,12 +200,12 @@ export type Routed =
       standalone?: string
     }
   /** The planner's reads, run, with what the working line says while they run. */
-  | { kind: 'reads'; planned: PlannedAnswer; working: string }
+  | { kind: 'reads'; planned: PlannedAnswer; working: string; limit: AnswerLimit | null }
   /**
    * One short question back, the sentence for a question off topic, or the sentence for a message
    * that asks nothing: nothing is looked up.
    */
-  | { kind: 'reply'; reply: { kind: 'clarify' | 'off_topic' | 'nothing_asked'; text: string } }
+  | { kind: 'reply'; reply: RoutedReply }
 
 /**
  * Reads a question: a message that asks nothing is told so, with no model call; then the rules'
@@ -211,12 +245,21 @@ export async function routeQuestion(c: {
         checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now })),
       )
     : null
+  const missed = plan === 'missed'
   const routed = ((): Routed => {
-    if (!plan)
-      return c.records
-        ? { kind: 'records', found: c.records, planned: false }
-        : { kind: 'rules', answer: rules }
+    if (!plan || missed) {
+      // A word of judgement a read cannot answer: the honest exit, never the nearest read.
+      const judged =
+        c.records?.type === 'records' && c.records.judgement && c.records.ask.intent !== 'audit'
+      if (judged) return cannot('not_yet')
+      if (c.records) return { kind: 'records', found: c.records, planned: false }
+      // The planner was asked and gave nothing: that is why it was not read, not a missing name.
+      if (missed && rules.status === 'need_more_detail') return cannot('unread')
+      return { kind: 'rules', answer: rules, limit: limitOfReason(limitOf(ask.question)) }
+    }
     switch (plan.kind) {
+      case 'cannot':
+        return cannot(plan.reason, plan.metrics, plan.filters)
       case 'clarify':
         return { kind: 'reply', reply: { kind: 'clarify', text: plan.question } }
       case 'off_topic':
@@ -240,9 +283,11 @@ export async function routeQuestion(c: {
             previous,
             turns,
             ...(plan.standalone ? { standalone: plan.standalone } : {}),
+            ...(plan.left ? { left: plan.left } : {}),
             ...(c.clock ? { now: c.clock } : {}),
           }),
           working: workingWords(bundle, plan.reads),
+          limit: limitOfReason(plan.limit ?? limitOf(ask.question)),
         }
     }
   })()
