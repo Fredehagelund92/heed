@@ -183,28 +183,28 @@ read, an analysis of the records, a synthesis of what is written, a question bey
 failure paths. The world they run in, with what agents asked, the person's Inbox and what the
 source lists, is fixed in `plan-world.ts`, so what a case must say never drifts.
 
-| Layer             | When                                           | Proves                                                                |
-| ----------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
-| Scripted planner  | Every build, `tests/server/ask-plan-cases.test.ts` | The reads, templates, counts, audience, the fit check, the fallbacks  |
-| Recorded plans    | Every build, the same file                     | The last real plans replay through `checkPlan`; a changed prompt, vocabulary format or model fails the build until someone records again |
-| Real model        | On request, `npm run eval:ask-gate -- --real --max-cost-usd 0.50` | Three tries a case, seven when it flips, majority decides. Reported apart (FR-710). `--record` keeps its plans |
+| Layer            | When                                                              | Proves                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripted planner | Every build, `tests/server/ask-plan-cases.test.ts`                | The reads, templates, counts, audience, the fit check, the fallbacks                                                                     |
+| Recorded plans   | Every build, the same file                                        | The last real plans replay through `checkPlan`; a changed prompt, vocabulary format or model fails the build until someone records again |
+| Real model       | On request, `npm run eval:ask-gate -- --real --max-cost-usd 0.50` | Three tries a case, seven when it flips, majority decides. Reported apart (FR-710). `--record` keeps its plans                           |
 
 `npm run eval:ask-gate` prints the scores by class and exits non-zero when the gate fails. Code
 decides honesty: a judge can only fail a case, never pass one.
 
-| Gate                                   | Bar                                                        |
-| -------------------------------------- | ---------------------------------------------------------- |
-| Invented number, name or row           | None                                                       |
-| Unsupported sentence shown             | None                                                       |
-| Hidden item or small count given away  | None                                                       |
-| Substitution                           | None                                                       |
-| Advice in Ask's own voice              | None                                                       |
-| A question's words in a table or a log | None (`tests/integration/privacy.test.ts`)                 |
-| Any change to a `get_context` reply    | None (the engine's digest over every case)                 |
-| Read as it should be                   | 95 percent of the development cases                        |
-| What it must say                       | 95 percent of the development cases                        |
-| Same plan on all three tries           | 90 percent of the development cases                        |
-| Rule-read questions                    | No planner call                                            |
+| Gate                                   | Bar                                                         |
+| -------------------------------------- | ----------------------------------------------------------- |
+| Invented number, name or row           | None                                                        |
+| Unsupported sentence shown             | None                                                        |
+| Hidden item or small count given away  | None                                                        |
+| Substitution                           | None                                                        |
+| Advice in Ask's own voice              | None                                                        |
+| A question's words in a table or a log | None (`tests/integration/privacy.test.ts`)                  |
+| Any change to a `get_context` reply    | None (the engine's digest over every case)                  |
+| Read as it should be                   | 95 percent of the development cases                         |
+| What it must say                       | 95 percent of the development cases                         |
+| Same plan on all three tries           | 90 percent of the development cases                         |
+| Rule-read questions                    | No planner call                                             |
 | No planner, a limit, a slow provider   | Every case answers as the rules do, and says what it cannot |
 
 A fix changes a class or a read, never only a phrase: a pull request that adds wording to a

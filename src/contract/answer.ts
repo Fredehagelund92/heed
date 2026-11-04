@@ -309,7 +309,9 @@ export const lookupEventSchema = z.union([
       /** For `cannot` (FR-720): why, what a definition says, and what a draft would start from. */
       reason: z.optional(z.enum(cannotReasons)),
       definitions: z.optional(z.array(askDefinitionSchema)),
-      write: z.optional(z.object({ metric: z.nullable(z.string()), market: z.nullable(z.string()) })),
+      write: z.optional(
+        z.object({ metric: z.nullable(z.string()), market: z.nullable(z.string()) }),
+      ),
     }),
   }),
   z.object({ type: z.literal('step'), step: answerStepSchema }),

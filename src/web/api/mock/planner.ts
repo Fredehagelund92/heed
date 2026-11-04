@@ -122,8 +122,10 @@ export function plannedFor(
   /** The rules read it as a question about what changed in the business. */
   business = false,
 ): Answer | null {
-  const raw = fixturePlan(question, given?.at(-1)?.question ?? null)
-  if (!raw) return null
+  const scripted = fixturePlan(question, given?.at(-1)?.question ?? null)
+  if (!scripted) return null
+  // The scripted plans name the seed's domains (area_sales); the demo world's are plain (sales).
+  const raw = JSON.parse(JSON.stringify(scripted).replaceAll('"area_', '"')) as unknown
   const { bundle, turns, last } = turnOf(world, given)
   const checked = checkPlan(
     raw,

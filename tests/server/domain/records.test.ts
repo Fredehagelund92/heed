@@ -604,10 +604,31 @@ describe('a records answer', () => {
           state: 'missing',
           gap: { card: 'gap:1', draft: null },
         },
-        { title: 'Returns in France', count: null, atLeast: 13, nothing: 6, state: 'grounded', gap: null },
+        {
+          title: 'Returns in France',
+          count: null,
+          atLeast: 13,
+          nothing: 6,
+          state: 'grounded',
+          gap: null,
+        },
         // What the topic reads as now is no matter: agents' calls found something this week.
-        { title: 'Net revenue in Norway', count: 17, atLeast: 17, nothing: 0, state: 'missing', gap: null },
-        { title: 'Orders in Germany', count: 6, atLeast: 6, nothing: 6, state: 'grounded', gap: null },
+        {
+          title: 'Net revenue in Norway',
+          count: 17,
+          atLeast: 17,
+          nothing: 0,
+          state: 'missing',
+          gap: null,
+        },
+        {
+          title: 'Orders in Germany',
+          count: 6,
+          atLeast: 6,
+          nothing: 6,
+          state: 'grounded',
+          gap: null,
+        },
       ],
     }
     const a = answer(ask({ intent: 'asked_nothing' }), world([], { asked }))
