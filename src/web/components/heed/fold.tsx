@@ -103,8 +103,8 @@ export function FoldTrigger({
         </span>
       </>
     )
-  const describedBy =
-    props['aria-describedby'] ?? (summary != null && variant === 'row' ? summaryId : undefined)
+  const summaryDescription = summary != null && variant === 'row' ? summaryId : undefined
+  const callerDescription = props['aria-describedby']
   if (expanded !== undefined)
     return (
       <button
@@ -112,13 +112,22 @@ export function FoldTrigger({
         aria-expanded={expanded}
         className={look}
         {...props}
-        aria-describedby={describedBy}
+        aria-describedby={callerDescription ?? (expanded ? undefined : summaryDescription)}
       >
         {content}
       </button>
     )
   return (
-    <CollapsibleTrigger className={look} {...props} aria-describedby={describedBy}>
+    <CollapsibleTrigger
+      className={look}
+      {...props}
+      render={(triggerProps, state) => (
+        <button
+          {...triggerProps}
+          aria-describedby={callerDescription ?? (state.open ? undefined : summaryDescription)}
+        />
+      )}
+    >
       {content}
     </CollapsibleTrigger>
   )

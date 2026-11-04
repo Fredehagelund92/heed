@@ -82,7 +82,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | Document shell     | `components/heed/document-shell.tsx`                                                  | Header, 40 px toolbar row, tinted canvas with the 56rem sheet, side panel, footer bar  |
 | Truncated title    | `components/heed/truncated.tsx`                                                       | A title cut with an ellipsis that shows in full when it is cut                         |
 | Show more          | `components/heed/show-more.tsx`                                                       | "Show 10 more (24 not shown)", the one way a long list asks for more                   |
-| Fold               | `components/heed/fold.tsx`                                                            | One trigger for every fold: a 44 px row, an inline toggle, a header's chevron          |
+| Fold               | `components/heed/fold.tsx`                                                            | One trigger for section folds, Details, panel groups, inline toggles                   |
 | Loading states     | `components/heed/load-state.tsx`, `lib/loading.ts`, `components/obs/obs-skeleton.tsx` | Skeleton in the page's shape, a failed load with Retry, offline                        |
 | Presence           | `lib/presence.ts`                                                                     | Rows that leave and arrive                                                             |
 

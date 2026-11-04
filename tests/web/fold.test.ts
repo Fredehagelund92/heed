@@ -53,6 +53,11 @@ describe('FoldTrigger', () => {
     expect(button.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
     act(() => button.click())
     expect(button.getAttribute('aria-expanded')).toBe('true')
+    expect(button.hasAttribute('aria-describedby')).toBe(false)
+    act(() => button.click())
+    expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(
+      'Kind, Status',
+    )
   })
 
   it("keeps a description its caller names, as the context item's row does", () => {
@@ -65,6 +70,8 @@ describe('FoldTrigger', () => {
         }),
       ),
     )
+    expect(button.getAttribute('aria-describedby')).toBe('meta')
+    act(() => button.click())
     expect(button.getAttribute('aria-describedby')).toBe('meta')
   })
 
