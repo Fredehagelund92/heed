@@ -151,7 +151,8 @@ async function main() {
     const timing: number[] = []
     const planCost: number[] = []
     const planTokens: PlanTokens[] = []
-    const plans = new Map<string, string>()
+    /** What the model wrote for each prompt, every try: the commonest plan is the one kept. */
+    const plans = new Map<string, string[]>()
     const planner: Planner = async (input, check) => {
       const at = performance.now()
       const before = calls.length
@@ -169,7 +170,7 @@ async function main() {
         output: made.reduce((t, c) => t + c.outputTokens, 0),
       })
       if (!reply) return 'missed'
-      plans.set(input.prompt, reply.text)
+      plans.set(input.prompt, [...(plans.get(input.prompt) ?? []), reply.text])
       const checked = check(parsePlan(reply.text))
       // The cases are made up, so what the model wrote may be shown.
       if (!checked.ok)
@@ -188,7 +189,7 @@ async function main() {
       const recorded = {
         digest: plannerDigest(choice.id),
         model: choice.id,
-        plans: Object.fromEntries(plans),
+        plans: Object.fromEntries([...plans].map(([prompt, texts]) => [prompt, commonest(texts)])),
       }
       await writeFile(recordedPlansFile, `${JSON.stringify(recorded, null, 2)}\n`)
       console.log(`Recorded ${plans.size} plans.`)
@@ -233,6 +234,11 @@ async function main() {
     await database.close()
   }
 }
+
+const commonest = (texts: readonly string[]) =>
+  [...texts].sort(
+    (a, b) => texts.filter((t) => t === b).length - texts.filter((t) => t === a).length,
+  )[0]!
 
 /** The plan a run read a case as, to compare tries. */
 const planOf = (outcome: PlanOutcome) => {
