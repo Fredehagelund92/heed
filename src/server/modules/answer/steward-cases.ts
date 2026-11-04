@@ -215,7 +215,7 @@ const R: PlanCase[] = [
     what: 'Asked most and covered least: the rule, and the join.',
     question: 'which metrics are asked about most and covered least?',
     expect: {
-      route: 'planner',
+      route: 'records',
       audit: ['asked_most', 'no_context'],
       state: null,
       must: ['Cost per acquisition', /asked most/i],

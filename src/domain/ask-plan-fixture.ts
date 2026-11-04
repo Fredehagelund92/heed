@@ -82,7 +82,6 @@ const alone: Record<string, RawPlan> = {
   'does our source have anything we have not added': audit(['unlinked']),
   'what are our weakest metrics': audit(['no_context', 'asked_nothing']),
   'what questions do we not have answers for': audit(['asked_nothing']),
-  'which metrics are asked about most and covered least': audit(['asked_most', 'no_context']),
   'is there an open not found card': audit(['asked_nothing']),
   'what was asked in sales that found nothing': audit(['asked_nothing'], { domain: 'area_sales' }),
   'did any definition change at the source': audit(['source_changed']),

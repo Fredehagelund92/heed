@@ -22,7 +22,7 @@ import {
   type PlannedAnswer,
   type PlannedBundle,
 } from './planned-answer.ts'
-import { limitSaid, type RecordsRecognition } from './records.ts'
+import { limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
 import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
 import { cannotSaid, offTopicSaid, scopeWords } from './say.ts'
 import { readQuestion } from './scope.ts'
@@ -269,7 +269,7 @@ export async function routeQuestion(c: {
       case 'records':
         return {
           kind: 'records',
-          found: { type: 'records', ask: plan.ask },
+          found: { type: 'records', ask: withRulesFacets(plan.ask, c.records) },
           planned: true,
           carried: plan.carried,
           ...(plan.standalone ? { standalone: plan.standalone } : {}),
@@ -292,6 +292,20 @@ export async function routeQuestion(c: {
     }
   })()
   return { ...routed, reason, asked: asks }
+}
+
+/**
+ * An analysis the rules read keeps what they read: a plan may add to it, never leave a part out,
+ * so the same words get at least the same answer whatever the model chose.
+ */
+function withRulesFacets(ask: RecordsAsk, rules: RecordsRecognition | null): RecordsAsk {
+  const floor = rules?.type === 'records' && rules.ask.intent === 'audit' ? rules.ask.audit : null
+  if (!floor || ask.intent !== 'audit' || !ask.audit) return ask
+  const facets = [...new Set([...floor.facets, ...ask.audit.facets])]
+  return {
+    ...ask,
+    audit: { ...ask.audit, facets, of: floor.of, kind: floor.kind ?? ask.audit.kind },
+  }
 }
 
 /** What a message that asks nothing gets: one sentence, nothing looked up and no model called. */

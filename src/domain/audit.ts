@@ -1000,7 +1000,10 @@ export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?
   })
   if (/\bwaiting (?:on|for) me\b|\bneeds? me\b|\bmy (?:inbox|queue)\b/.test(t))
     return { ...read([]), queue: true }
-  if (scoped || /\bmost\b.*\bleast\b/.test(t)) return null
+  // What is asked most and written least: the two reads, joined.
+  if (!scoped && /\bmost\b.*\b(?:least|covered|written)\b/.test(t) && /\basked\b/.test(t))
+    return read(['asked_most', 'no_context'])
+  if (scoped) return null
   if (/\bduplicat(?:es?|ed)\b|\b(?:written|said|listed) twice\b/.test(t))
     return read(['duplicates'])
   if (/\boverlap(?:s|ping)?\b/.test(t)) return read(['overlaps'])
