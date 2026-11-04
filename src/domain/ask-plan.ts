@@ -432,9 +432,7 @@ export function readsAsFollowUp(
   if (t.split(' ').length > 12) return false
   if (POINTS_BACK.test(t)) return true
   if (read.answered) return false
-  return (
-    FOLLOW_ON.test(t) || (read.metrics === 0 && (previous.scope?.metrics.length ?? 0) > 0)
-  )
+  return FOLLOW_ON.test(t) || (read.metrics === 0 && (previous.scope?.metrics.length ?? 0) > 0)
 }
 
 /* ---------- what the model is told ---------- */
