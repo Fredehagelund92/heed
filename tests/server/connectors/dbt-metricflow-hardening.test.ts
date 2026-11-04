@@ -45,7 +45,7 @@ beforeAll(async () => {
       rawRequests.push(line)
       const path = line.split(' ')[1]!
       const behave = behaviours.get(path)
-      if (behave) behave(socket)
+      if (typeof behave === 'function') behave(socket)
       else socket.end('HTTP/1.1 404 Not Found\r\nconnection: close\r\ncontent-length: 0\r\n\r\n')
     })
   })
