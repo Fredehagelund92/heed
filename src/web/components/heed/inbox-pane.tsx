@@ -1,25 +1,33 @@
-import type * as React from 'react'
+import * as React from 'react'
 import {
   AtSignIcon,
   BellIcon,
   CalendarClockIcon,
-  ChevronRightIcon,
   CircleDashedIcon,
   ClockIcon,
   FlagIcon,
   GitPullRequestArrowIcon,
+  ShieldAlertIcon,
   TriangleAlertIcon,
 } from '@/components/icons'
-import { cn } from '@/lib/utils'
+import { and, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
+import { FreshDot, StatusIcon, TimeGlyph } from '@/components/heed/columns'
+import { kindIcons } from '@/components/heed/kind-icons'
+import { PeekFact } from '@/components/heed/peek'
+import { ScopeChips } from '@/components/heed/scope-chips'
 import { DomainDot, TagChip } from '@/components/heed/tag-chip'
 import { DifferingWords } from '@/components/heed/differing-words'
 import { StateLine } from '@/components/heed/state-line'
 import { useDomains } from '@/lib/workspace'
 import type { AnswerState } from '@/model/ask'
-import type { DomainId } from '@/model/items'
+import { kindLabel, type DomainId, type Fact } from '@/model/items'
+import { ownersOf } from '@/model/people'
+import { plainText } from '@/lib/mentions'
+import { parseWhen, timeLong } from '@/lib/timeframe'
 import { ANSWER_SIDES, type Answers, type PaneState } from '@/model/inbox-pane'
 
 // The Inbox pane's own parts, shared with the review's quick view in the dock: a head that says
@@ -268,26 +276,105 @@ export function AskedAbout({ scope, times }: { scope: string[]; times: number })
 /** A fold for the evidence under the answers: closed until it is wanted, with a hairline above. */
 export function Fold({
   title,
+  summary,
   defaultOpen = false,
   children,
 }: {
   title: string
+  /** What is inside in a few words, shown while it is closed. */
+  summary?: string
   defaultOpen?: boolean
   children: React.ReactNode
 }) {
   return (
     <Collapsible defaultOpen={defaultOpen} render={<section className="border-t" />}>
-      <h3>
-        <CollapsibleTrigger className="group/fold flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-          <ChevronRightIcon
-            aria-hidden
-            className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/fold:rotate-90"
-          />
-          {title}
-        </CollapsibleTrigger>
+      {/* The row runs out to the pane's edges, its words in line with the text above. */}
+      <h3 className="-mx-4 @md:-mx-7">
+        <FoldTrigger label={title} summary={summary} className="px-4 @md:px-7" />
       </h3>
       <CollapsibleContent keepMounted>
         <div className="flex flex-col gap-3 pb-4 text-sm leading-relaxed">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/**
+ * The context item a card is about, folded to the row the Context list draws: its kind, its title
+ * and what it is in words, and from 560 px of pane its status, when and freshness. Opened, what it
+ * applies to, its text, what not to conclude, and the way to its page, unless the card's own
+ * decision already leads there.
+ */
+export function ItemFold({ fact, link = true }: { fact: Fact; link?: boolean }) {
+  const domains = useDomains()
+  const id = React.useId()
+  const Kind = kindIcons[fact.kind]
+  const time = parseWhen(fact.when)
+  return (
+    <Collapsible render={<section className="border-t" />}>
+      <h3 className="-mx-4 @md:-mx-7">
+        {/* Its name is the type and the title, as a screen reader hears it; the line under the
+            title and the marks are its description. */}
+        <FoldTrigger
+          aria-describedby={id}
+          className="min-h-14 gap-3 px-4 @md:px-7"
+          lead={
+            <Kind
+              aria-hidden
+              className="size-4 shrink-0 text-muted-foreground"
+              strokeWidth={1.75}
+            />
+          }
+          label={
+            <span className="flex flex-col">
+              <span className="truncate">
+                <span className="sr-only">The context item: </span>
+                {fact.title}
+              </span>
+              <span
+                id={id}
+                aria-hidden
+                className="relative truncate text-xs font-normal text-muted-foreground"
+              >
+                Context item - {kindLabel[fact.kind]} - {domains[fact.domain]?.name} - owned by{' '}
+                {and(ownersOf(fact, domains))}
+                <span className="sr-only">
+                  . {fact.status}, {timeLong(time)}
+                </span>
+              </span>
+            </span>
+          }
+          trail={
+            <span aria-hidden className="hidden items-center gap-3 @pane-split:flex">
+              <StatusIcon status={fact.status} plain />
+              <TimeGlyph time={time} plain />
+              <FreshDot fact={fact} plain />
+            </span>
+          }
+        />
+      </h3>
+      <CollapsibleContent keepMounted>
+        <div className="flex flex-col gap-3 pb-4 pl-7 text-sm leading-relaxed">
+          {fact.where.length > 0 && (
+            <p className="flex flex-wrap gap-1.5">
+              <ScopeChips fact={fact} />
+            </p>
+          )}
+          <p className="text-reading">{plainText(fact.summary)}</p>
+          {fact.dontConclude && (
+            <PeekFact icon={ShieldAlertIcon}>
+              <b>Don&apos;t conclude:</b> {fact.dontConclude}
+            </PeekFact>
+          )}
+          {link && (
+            <a
+              href={`/context/${fact.id}`}
+              className="w-fit text-primary underline-offset-4 hover:underline"
+            >
+              Open the context item
+            </a>
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )

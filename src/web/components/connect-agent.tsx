@@ -1,6 +1,5 @@
 import * as React from 'react'
 import {
-  ChevronRightIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleXIcon,
@@ -14,7 +13,8 @@ import { toast } from 'sonner'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { FrameSection } from '@/components/heed/frame'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import {
   Dialog,
@@ -455,25 +455,18 @@ function ByHand({
             render={<li id={`guide-${g.id}`} className="scroll-mt-4 border-t first:border-t-0" />}
           >
             <h4>
-              <CollapsibleTrigger
-                className={cn(
-                  'group/g flex min-h-12 w-full items-center gap-3 text-left text-sm font-medium outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-                  pad,
-                )}
-              >
-                <ToolLogo c={g} size="sm" />
-                <span className="flex-1">
-                  {g.id === 'claude-app'
+              <FoldTrigger
+                lead={<ToolLogo c={g} size="sm" />}
+                label={
+                  g.id === 'claude-app'
                     ? 'Claude, the app'
                     : g.id === 'other'
                       ? 'Other agents'
-                      : g.name}
-                </span>
-                <ChevronRightIcon
-                  aria-hidden
-                  className="mr-1.5 size-4 text-muted-foreground transition-transform group-aria-expanded/g:rotate-90"
-                />
-              </CollapsibleTrigger>
+                      : g.name
+                }
+                // The chevron lines up with the section header's above it.
+                className={cn('min-h-12 gap-3', pad, 'pr-5.5 md:pr-6.5')}
+              />
             </h4>
             <CollapsibleContent id={`by-hand-${g.id}`} keepMounted>
               <ol className={cn('flex max-w-208 flex-col gap-3 pt-1 pb-4', pad)}>

@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { ChevronRightIcon } from '@/components/icons'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import type { ReactNode } from 'react'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { cn } from '@/lib/utils'
 
 // The context item as a document, laid out the way editorcn's Simple Document Editor template lays out its
@@ -77,18 +77,13 @@ export function MoreProperties({
   children: ReactNode
   label?: string
 }) {
-  const [open, setOpen] = useState(false)
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="group/more flex min-h-8 w-full min-w-0 items-center gap-1.5 rounded-md text-left text-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-        {/* One tight line, one click target: the chevron, the label, then what is set, muted. */}
-        <ChevronRightIcon
-          aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/more:rotate-90"
-        />
-        <span className="shrink-0 font-medium">{label}</span>
-        {!open && <span className="ml-1 min-w-0 truncate text-muted-foreground">{summary}</span>}
-      </CollapsibleTrigger>
+    <Collapsible>
+      {/* One line, one target: the label, then what is set, muted, then the chevron. Its band
+          reaches a little past the words, which stay in line with the rows above. */}
+      <div className="-mx-2">
+        <FoldTrigger label={label} summary={summary} className="rounded-md px-2" />
+      </div>
       <CollapsibleContent keepMounted render={<dl />} className="flex flex-col gap-0.5">
         {children}
       </CollapsibleContent>

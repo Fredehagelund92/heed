@@ -1,11 +1,12 @@
 import * as React from 'react'
 import { toast } from 'sonner'
-import { ChevronDownIcon, KeyRoundIcon } from '@/components/icons'
+import { KeyRoundIcon } from '@/components/icons'
 import { ConnectAgent } from '@/components/connect-agent'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import {
   Dialog,
   DialogClose,
@@ -439,12 +440,11 @@ function AgentRow({
   onTool: (tool: AgentToolName, on: boolean) => void
   onRename: () => void
 }) {
-  const [open, setOpen] = React.useState(false)
   const off = toolsOn(r).length === 0
   const who = r.kind === 'key' ? `Access key, made by ${r.who}` : r.who
   return (
     <li data-leaving={leaving || undefined} className="row-presence border-t first:border-t-0">
-      <Collapsible open={open} onOpenChange={setOpen}>
+      <Collapsible>
         <div
           className={cn(
             'grid grid-cols-(--cols-around) items-center gap-x-3 px-4 py-3 md:px-5',
@@ -482,26 +482,15 @@ function AgentRow({
             <span className="mr-3 hidden text-xs text-muted-foreground first-letter:uppercase @xl/main:inline">
               {usedLine(r)}
             </span>
-            <CollapsibleTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label={
-                    r.kind === 'key'
-                      ? `Details of ${r.agent}`
-                      : `Details of ${r.agent} for ${r.who}`
-                  }
-                />
+            {/* The fold's own toggle, drawn as the ghost button beside it. */}
+            <FoldTrigger
+              variant="inline"
+              label="Details"
+              aria-label={
+                r.kind === 'key' ? `Details of ${r.agent}` : `Details of ${r.agent} for ${r.who}`
               }
-            >
-              Details
-              <ChevronDownIcon
-                aria-hidden
-                className={cn('size-4 transition-transform', open && 'rotate-180')}
-              />
-            </CollapsibleTrigger>
+              className="h-7 rounded-md px-2.5 text-control-sm font-medium text-muted-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
+            />
             <Button
               variant="ghost"
               size="sm"
