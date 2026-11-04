@@ -2243,7 +2243,8 @@ export function describeHeedApi(
       const found = answer.records
       if (!found || found.refused) throw new Error(`"${question}" got no records answer`)
       expect(found.rows.length).toBeLessThanOrEqual(5)
-      expect(found.rows.length).toBe(Math.min(found.total, 5))
+      // An analysis of several parts has its rows in sections.
+      if (!found.sections) expect(found.rows.length).toBe(Math.min(found.total, 5))
       return found
     }
     /** The Context list as the person sees it, published and archived: what Records counts. */
@@ -2330,6 +2331,27 @@ export function describeHeedApi(
         expect(markets.intent).toBe('values')
         expect(markets.sentence).toMatch(/^Market has \d+ values/)
         expect(markets.rows[0]).toMatchObject({ type: 'term', kind: 'value', page: 'Market' })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      'analyses the records alike: every count has its denominator, and it says what it cannot see',
+      async () => {
+        const missing = await records('what definitions are missing?')
+        expect(missing.intent).toBe('audit')
+        expect(missing.audit?.facets).toContain('no_context')
+        expect(missing.notSeen).toMatch(/^Not seen: /)
+        for (const section of missing.sections ?? []) {
+          expect(section.count).toMatch(/\d+ of \d+|\d+ (?:card|pair|conflict|topic)/)
+          expect(section.rows.length).toBeLessThanOrEqual(5)
+        }
+        expect(missing.sections?.length ?? 0).toBeLessThanOrEqual(4)
+        const metrics = await records('which metrics have no context written?')
+        expect(metrics.intent).toBe('audit')
+        expect(metrics.sentence).toMatch(/^\d+ of \d+ metrics /)
+        const owners = await records('which metrics have no owner?')
+        expect(owners.audit?.facets).toEqual(['no_domain'])
+        expect(owners.sentence).not.toMatch(/^Every domain/)
       },
     )
 

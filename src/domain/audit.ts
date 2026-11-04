@@ -855,13 +855,14 @@ function queuePart(lines: readonly QueueLine[]): Part {
           title: 'Waiting on you',
           count: `${count(n)} ${noun(n, 'card', 'cards')}`,
           columns: ['Group', 'Cards'],
-          rows: open.map((l) => ({
+          rows: open.slice(0, SECTION_ROWS).map((l) => ({
             type: 'line' as const,
             label: groupWords[l.group]!,
             cells: [count(l.count)],
             more: null,
           })),
-          shown: null,
+          shown:
+            open.length > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${open.length} groups` : null,
           more: { label: 'Open your Inbox', to: 'inbox', domain: null, status: null },
         }
       : null,
@@ -918,8 +919,7 @@ export function auditAnswer(
   const lead = asksDefinitions
     ? 'Nothing here says a definition is missing from your source. This is what the records show.'
     : 'This is what the records show.'
-  const uses = (...wanted: AuditFacet[]) =>
-    facets.some((f) => f === 'review' || wanted.includes(f))
+  const uses = (...wanted: AuditFacet[]) => facets.some((f) => f === 'review' || wanted.includes(f))
   const allTerms = world.audit?.terms ?? []
   const metrics = allTerms.filter((t) => t.kind === 'metric').length
   const items = world.items.filter((i) => i.status !== 'archived').length

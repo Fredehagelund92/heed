@@ -656,7 +656,8 @@ const S: PlanCase[] = [
       route: 'planner',
       plan: ['explore'],
       stateIn: ['partial', 'conflict'],
-      refuse: [/Nothing is written down for Norway/],
+      // Nothing written is true only when nothing was given: never beside items.
+      refuse: [/Nothing is written down for Norway[\s\S]*Online sales to Norway/],
     },
   },
   {

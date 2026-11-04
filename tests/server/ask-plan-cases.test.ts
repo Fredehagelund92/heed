@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  engineDigest,
+  gatePasses,
   planCases,
   planProblems,
   runPlanCases,
+  scoreRun,
   scriptedPlan,
   stewardCases,
 } from '../../src/server/modules/answer/index.ts'
@@ -61,4 +64,33 @@ describe('what Ask promises (FR-720), on the scripted planner', async () => {
   it.each(stewardCases.map((c) => [`${c.class} ${c.id}`, c] as const))('%s', (_id, c) => {
     expect(planProblems(c, got.get(c.id)!)).toEqual([])
   })
+
+  it('passes the release gate: the scripted plans prove the reads, not the model', async () => {
+    const all = [...planCases, ...stewardCases]
+    const run = await runPlanCases(all, scriptedPlan)
+    const score = scoreRun(all, run)
+    expect(score.problems).toEqual({})
+    expect(gatePasses(score)).toBe(true)
+  })
+
+  it('leaves what get_context says as it was', () => {
+    expect(engineDigest([...planCases, ...stewardCases])).toBe('be23418b7e7d7350')
+  })
+})
+
+describe('with no planner, a limit or a slow provider, every case says what it cannot', async () => {
+  for (const [name, planner] of [
+    ['no model', null],
+    ['a planner that gave up', async () => 'missed' as const],
+  ] as const) {
+    const plain = await runPlanCases(stewardCases, planner)
+
+    it.each(stewardCases.map((c) => [c.id, c] as const))(`${name}: %s`, (id, c) => {
+      const got = plain.get(id)!
+      // No count in place of what is missing, and no refused words, whoever read it.
+      for (const p of c.expect.refuse ?? [])
+        expect(got.rendered).not.toMatch(typeof p === 'string' ? new RegExp(p) : p)
+      expect(got.rendered).not.toMatch(/Finance counts/)
+    })
+  }
 })

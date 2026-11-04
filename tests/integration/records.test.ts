@@ -280,11 +280,15 @@ describe('records answers on PostgreSQL', () => {
     await recordsOf('reader', 'what is archived?')
     await recordsOf('owner', 'what is archived?')
     await recordsOf('admin', 'what did owner write this week?')
+    await recordsOf('reader', 'which metrics have no context written?')
+    await recordsOf('owner', 'what is waiting on me?')
     const { rows } = await client.query<{ week: string; intent: string; asks: number }>(
       "select to_char(week,'YYYY-MM-DD') as week, intent, asks from records_asked_weekly order by intent",
     )
     expect(rows).toEqual([
       { week: '2026-10-05', intent: 'archived', asks: 2 },
+      { week: '2026-10-05', intent: 'audit', asks: 1 },
+      { week: '2026-10-05', intent: 'queue', asks: 1 },
       { week: '2026-10-05', intent: 'refused', asks: 1 },
     ])
   })
