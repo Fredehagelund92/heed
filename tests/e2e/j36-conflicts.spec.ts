@@ -221,9 +221,13 @@ test('the item page and its peek say what it disagrees with, and lead to the com
   const holder = pairPath!.split('/').pop()!.split('.')[0]!
   await go(page, `/context/${holder}`)
   await expect(page.getByRole('heading', { name: 'Disagrees with' })).toBeVisible()
-  await expect(
-    page.getByText(/Agents say Conflict for \d+ questions this week\./).first(),
-  ).toBeVisible()
+  // The count is said only when agents asked: the mock has asked questions, the seed has not.
+  await onMockOnly('questions asked', async () => {
+    await expect(
+      page.getByText(/Agents say Conflict for [1-9]\d* questions? this week\./).first(),
+    ).toBeVisible()
+  })
+  await expect(page.getByText(/Agents say Conflict for 0 /)).toHaveCount(0)
   await page.getByRole('button', { name: 'Compare and decide' }).first().click()
   await expect(page).toHaveURL(/dock=conflict\./)
   await go(page, `/context?dock=context.${holder}`)
