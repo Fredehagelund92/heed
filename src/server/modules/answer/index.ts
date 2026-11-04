@@ -28,6 +28,7 @@ export {
 export { stewardCases } from './steward-cases.ts'
 export {
   classOf,
+  OWN_VOICE,
   engineDigest,
   GATE_BUDGETS,
   gatePasses,

@@ -9,6 +9,7 @@ import {
   askForPlan,
   askForWords,
   classOf,
+  OWN_VOICE,
   engineDigest,
   GATE_BUDGETS,
   gatePasses,
@@ -193,6 +194,7 @@ async function main() {
     // The words of each planned answer with items, as Ask asks for them, held to Ask's check.
     const wordsCost: number[] = []
     let wordsFailed = 0
+    const voiced: string[] = []
     for (const [id, outcome] of got) {
       if (outcome.routed.kind !== 'reads' || !outcome.routed.planned.answer.items.length) continue
       const planned = outcome.routed.planned
@@ -200,6 +202,7 @@ async function main() {
         ...planned.answer,
         target: { kind: 'live' },
         reading: planned.reading,
+        ...(outcome.routed.limit ? { limit: outcome.routed.limit } : {}),
       })
       const before = calls.length
       const reply = await askForWords(metered, input).catch(() => null)
@@ -209,6 +212,7 @@ async function main() {
         ? checkWords(reply.text, input)
         : { ok: false as const, why: 'no words' }
       if (!checked.ok) wordsFailed++
+      else if (OWN_VOICE.test(checked.text)) voiced.push(id)
       console.log(
         `words\t${id}\t${checked.ok ? 'pass' : `FAIL ${checked.why}`}\t${reply?.text.replace(/\s+/g, ' ') ?? ''}`,
       )
@@ -222,7 +226,7 @@ async function main() {
       spent: meter.costMicros,
     })
     await meter.settled()
-    return values.gate ? gate(cases, runs, { timing, planCost }, choice.id) : code
+    return values.gate ? gate(cases, runs, { timing, planCost, voiced }, choice.id) : code
   } finally {
     await database.close()
   }
@@ -251,7 +255,7 @@ const flipped = (cases: readonly PlanCase[], runs: readonly ReadonlyMap<string, 
 function gate(
   cases: readonly PlanCase[],
   runs: readonly ReadonlyMap<string, PlanOutcome>[],
-  measured: { timing: number[]; planCost: number[] } | null,
+  measured: { timing: number[]; planCost: number[]; voiced: string[] } | null,
   by: string,
 ): number {
   // The majority of a case's tries decides.
@@ -265,6 +269,8 @@ function gate(
     }),
   )
   const score = scoreRun(cases, decided)
+  // Sentences that passed the check are what a person sees: they hold no advice of Ask's own.
+  score.zero.advice.push(...(measured?.voiced ?? []))
   console.log(`\nThe release gate of Ask's promises, on ${by}.`)
   for (const cls of ['R', 'S', 'D', 'A', 'X', 'earlier'] as const) {
     const of = cases.filter((c) => classOf(c) === cls)
