@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ChatTurn } from '../../../src/domain/ask-chat.ts'
 import {
   checkPlan,
   checkedQuestionBack,
@@ -11,8 +12,8 @@ import {
   readsAsFollowUp,
   recentWindow,
   type PlanContext,
-  type PreviousTurn,
 } from '../../../src/domain/ask-plan.ts'
+import { plannerInputOf } from '../../../src/domain/ask-route.ts'
 import { combined, explore, plannedAnswer } from '../../../src/domain/planned-answer.ts'
 import { anyDate } from '../../../src/domain/validity.ts'
 import type { Term } from '../../../src/domain/vocabulary.ts'
@@ -24,7 +25,7 @@ import { PLAN_NOW, PLAN_TODAY, planBundle } from '../../../src/server/modules/an
 const titles = (ids: readonly string[]) =>
   ids.map((id) => planBundle.items.find((item) => item.id === id)!.title)
 
-const previous: PreviousTurn = {
+const previous: ChatTurn = {
   question: 'why did orders drop in Norway?',
   scope: {
     metrics: ['metric:orders'],
@@ -92,7 +93,7 @@ describe('a plan as the model writes it', () => {
             },
           ],
         },
-        ctx(),
+        ctx({ question: 'orders in Sweden' }),
       )
       if (!checked.ok || checked.plan.kind !== 'reads') throw new Error(JSON.stringify(checked))
       const [first] = checked.plan.reads
@@ -470,5 +471,180 @@ describe('the reads a plan runs', () => {
     expect(titles(planned.answer.items.map((i) => i.id))).toEqual([
       'Data for Orders before 19 January 2026 is not reliable',
     ])
+  })
+})
+
+describe('a follow-up keeps what it does not change', () => {
+  const lookup = (values: string[]) => ({
+    reads: [{ kind: 'lookup', values, metrics: [], dates: null, why: false }],
+  })
+
+  it('keeps the metric when the plan left it out, and changes the market', () => {
+    const got = checkPlan(lookup(['val:market/sweden']), ctx({ question: 'and in Sweden?' }))
+    expect(got).toMatchObject({
+      ok: true,
+      plan: {
+        reads: [
+          {
+            scope: { metrics: ['metric:orders'], filters: { 'dim:market': ['val:market/sweden'] } },
+          },
+        ],
+      },
+    })
+  })
+
+  it('keeps the dates of a dated question, and says they were carried', () => {
+    const window = { start: '2026-05-01', end: '2026-06-01' }
+    const dated = {
+      ...previous,
+      question: 'why did orders drop in Norway in May 2026?',
+      scope: { ...previous.scope!, window },
+    }
+    const got = checkPlan(
+      lookup(['val:market/sweden']),
+      ctx({
+        question: 'and in Sweden?',
+        previous: { ...dated, scope: { ...dated.scope, window } },
+      }),
+    )
+    expect(got).toMatchObject({ ok: true, plan: { reads: [{ period: 'carried' }] } })
+    if (got.ok && got.plan.kind === 'reads' && got.plan.reads[0]?.kind === 'lookup')
+      expect(got.plan.reads[0].scope.window).toEqual(window)
+  })
+
+  it('stays a question about why, at any date, when the last one was', () => {
+    const got = checkPlan(
+      { reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: null, why: false }] },
+      ctx({ question: 'and in Sweden?' }),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { reads: [{ why: true, period: 'any', scope: { window: anyDate } }] },
+    })
+  })
+
+  it('keeps nothing for a question with a subject of its own', () => {
+    const got = checkPlan(
+      { reads: [{ kind: 'explore', kinds: ['event'], dates: 'August' }] },
+      ctx({ question: 'what events happened in August?' }),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { reads: [{ scope: { metrics: [], filters: {} } }] },
+    })
+  })
+
+  it('keeps no market for a question about all of them', () => {
+    const got = checkPlan(
+      { reads: [{ kind: 'explore', kinds: ['event'], dates: 'August' }] },
+      ctx({ question: 'and overall in August?' }),
+    )
+    expect(got).toMatchObject({ ok: true, plan: { reads: [{ scope: { filters: {} } }] } })
+  })
+
+  it('keeps the domain of a records question', () => {
+    const got = checkPlan(
+      { records: { intent: 'owner' } },
+      ctx({
+        question: 'and the owner?',
+        previous: {
+          question: 'what is due in Paid media?',
+          sources: [],
+          domain: 'area_paid_media',
+        },
+      }),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { domain: 'area_paid_media' }, carried: ['Paid media'] },
+    })
+  })
+
+  it('reads a records question that leans on the last one as a follow-up, not a refusal', () => {
+    expect(readsAsFollowUp('and the owner?', previous, { metrics: 0, answered: true })).toBe(true)
+    expect(
+      readsAsFollowUp('and what did Anna change?', previous, {
+        metrics: 0,
+        answered: true,
+        refused: true,
+      }),
+    ).toBe(false)
+    expect(readsAsFollowUp('and Orders in Sweden?', previous, { metrics: 1, answered: true })).toBe(
+      false,
+    )
+  })
+})
+
+describe('the question as it reads alone', () => {
+  const reads = [{ kind: 'lookup', metrics: ['metric:orders'], dates: null, why: false }]
+  const standalone = (text: string) => {
+    const got = checkPlan({ standalone: text, reads }, ctx())
+    return got.ok && got.plan.kind === 'reads' ? got.plan.standalone : 'no plan'
+  }
+
+  it('is kept when it says only what the chat said and Heed holds', () => {
+    expect(standalone('Why did Orders drop in Sweden?')).toBe('Why did Orders drop in Sweden?')
+    expect(standalone('What about Orders in Sweden in August?')).toBeDefined()
+  })
+
+  it('is left out, and the plan stands, when it says anything else', () => {
+    for (const text of [
+      'Orders in Sweden.',
+      'Why did Orders drop 12 percent in Sweden?',
+      'Why did Orders drop in Atlantis?',
+      'First this. Then what?',
+      'x'.repeat(170) + '?',
+    ])
+      expect(standalone(text), text).toBeUndefined()
+  })
+})
+
+describe('the chat the planner reads', () => {
+  const turn = (n: number, over: Partial<ChatTurn> = {}): ChatTurn => ({
+    question: `question ${n}`,
+    sources: [],
+    ...over,
+  })
+
+  it('numbers the last answer first, then the first few of each earlier one', () => {
+    const turns = [
+      turn(1, { sources: ['evt_norway_stop', 'rul_norway_cash', 'rul_norway_credit'] }),
+      turn(2, { sources: ['rul_norway_cash'] }),
+    ]
+    const { prompt } = plannerInputOf(
+      { ...planBundle, areas: planBundle.areas ?? [] },
+      'is that a conflict?',
+      turns,
+      PLAN_TODAY,
+    )
+    expect(prompt).toContain('Earlier in the chat, oldest first:')
+    expect(prompt).toMatch(/\[1\] rule: /)
+    expect(prompt).toMatch(/sources: \[2\] event: /)
+    const got = checkPlan(
+      { reads: [{ kind: 'about_previous', sources: [2] }] },
+      ctx({ previous: turns[1]!, earlier: turns.slice(0, 1) }),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { reads: [{ ids: ['evt_norway_stop'] }] },
+    })
+  })
+
+  it('never shows the answers’ words, only how each turn was read and what it found', () => {
+    const { prompt } = plannerInputOf(
+      { ...planBundle, areas: planBundle.areas ?? [] },
+      'and in Sweden?',
+      [
+        turn(1, {
+          understood: 'Orders in Norway',
+          state: 'missing',
+          headline: '0 context items about Orders in Norway.',
+        }),
+      ],
+      PLAN_TODAY,
+    )
+    expect(prompt).toContain(
+      'Last question answered: Not found: 0 context items about Orders in Norway.',
+    )
   })
 })

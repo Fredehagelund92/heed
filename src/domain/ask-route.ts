@@ -1,17 +1,19 @@
-import { answer, type Answer, type AnswerAsk } from './answer.ts'
+import { answer, type Answer, type AnswerAsk, type AnswerState } from './answer.ts'
+import { asksNothing, nothingAskedSaid } from './ask-again.ts'
+import { chatSources, fitChat, type ChatTurn } from './ask-chat.ts'
 import {
   checkPlan,
   plannerPrompt,
   plannerReason,
   plannerSystem,
   plannerVocabulary,
+  turnIsDated,
   type AskPlan,
   type PlanCheck,
   type PlanContext,
+  type PlannerPrevious,
   type PlannerReason,
-  type PreviousTurn,
 } from './ask-plan.ts'
-import { readDates } from './dates.ts'
 import { canRead } from './links.ts'
 import {
   plannedAnswer,
@@ -21,9 +23,7 @@ import {
 } from './planned-answer.ts'
 import type { RecordsRecognition } from './records.ts'
 import { offTopicSaid, scopeWords } from './say.ts'
-import type { ResolvedScope } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
-import { normalizeName } from './vocabulary.ts'
 
 /*
   How Ask reads one question (FR-701, FR-718, FR-719), the same on the service, in the planner
@@ -33,7 +33,7 @@ import { normalizeName } from './vocabulary.ts'
   the records question the rules read, if any, and the planner, if there is one.
 */
 
-/** What the planner reads: its instructions, the vocabulary, and the question with the last turn. */
+/** What the planner reads: its instructions, the vocabulary, and the question with the chat. */
 export type PlannerInput = { system: string; vocabulary: string; prompt: string }
 /** The planner: the checked plan for a question, or null to answer it as with no model. */
 export type Planner = (
@@ -44,74 +44,85 @@ export type Planner = (
 /** A bundle Ask's reads run on, with its domains. */
 export type RouteBundle = PlannedBundle & { areas: readonly { id: string; name: string }[] }
 
-/** The last turn as the browser sent it, before it is checked. */
-export type GivenTurn = {
-  question: string
-  scope?: ResolvedScope | null | undefined
-  sources: readonly string[]
-  asked?: string | undefined
-}
-
 /**
- * The last turn as the browser sent it, kept to what the edition holds: its sources an agent would
- * still be given, and its scope's keys the vocabulary has. Never stored.
+ * The chat as the browser sent it, kept to what the planner may read and what the edition holds:
+ * the newest turns within the caps, their sources an agent would still be given, their scopes'
+ * keys the vocabulary has, and a domain Heed has. Never stored.
  */
-export function previousOf(
+export function chatOf(
   bundle: RouteBundle,
-  given: GivenTurn | undefined,
+  given: readonly ChatTurn[] | undefined,
   today: string,
-): PreviousTurn | null {
-  if (!given) return null
+): ChatTurn[] {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
   const keys = new Set(bundle.terms.map((t) => t.key))
-  const scope =
-    given.scope && dateWindowSchema.safeParse(given.scope.window).success
-      ? {
-          metrics: given.scope.metrics.filter((key) => keys.has(key)),
-          filters: Object.fromEntries(
-            Object.entries(given.scope.filters)
-              .filter(([dimension]) => keys.has(dimension))
-              .map(([dimension, values]) => [dimension, values.filter((key) => keys.has(key))]),
-          ),
-          window: given.scope.window,
-        }
-      : null
-  return {
-    question: given.question,
-    scope,
-    sources: given.sources.filter((id) => {
-      const item = byId.get(id)
-      return !!item && canRead(bundle, item, today)
-    }),
-    ...(given.asked ? { asked: given.asked } : {}),
-  }
+  return fitChat(given ?? []).map((turn) => {
+    const scope =
+      turn.scope && dateWindowSchema.safeParse(turn.scope.window).success
+        ? {
+            metrics: turn.scope.metrics.filter((key) => keys.has(key)),
+            filters: Object.fromEntries(
+              Object.entries(turn.scope.filters)
+                .filter(([dimension]) => keys.has(dimension))
+                .map(([dimension, values]) => [dimension, values.filter((key) => keys.has(key))]),
+            ),
+            window: turn.scope.window,
+          }
+        : null
+    return {
+      ...turn,
+      scope,
+      domain: bundle.areas.some((a) => a.id === turn.domain) ? turn.domain : null,
+      sources: turn.sources.filter((id) => {
+        const item = byId.get(id)
+        return !!item && canRead(bundle, item, today)
+      }),
+    }
+  })
+}
+
+const stateWord: Record<AnswerState, string> = {
+  grounded: 'Checked',
+  partial: 'Partial',
+  missing: 'Not found',
+  conflict: 'Conflict',
+  stale: 'Outdated',
+  failed: 'Not checked',
 }
 
 /** What the planner reads for a question on this edition. */
 export function plannerInputOf(
   bundle: RouteBundle,
   question: string,
-  previous: PreviousTurn | null,
+  turns: readonly ChatTurn[],
   today: string,
 ): PlannerInput {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
+  const numbers = new Map(chatSources(turns).map((id, i) => [id, i + 1]))
+  const seen = new Set<string>()
+  // Newest first, so each source is listed on the newest turn that gave it.
+  const newestFirst = [...turns].reverse().map((turn): PlannerPrevious => {
+    const answered = [turn.state ? stateWord[turn.state] : null, turn.headline]
+    return {
+      question: turn.question,
+      dated: turnIsDated(turn, today),
+      read: turn.understood ?? (turn.scope ? scopeWords(bundle, turn.scope) : null),
+      answered: answered.filter(Boolean).join(': ') || null,
+      sources: turn.sources.flatMap((id) => {
+        const item = byId.get(id)
+        const number = numbers.get(id)
+        if (!item || !number || seen.has(id)) return []
+        seen.add(id)
+        return [{ title: item.title, kind: item.kind, number }]
+      }),
+      ...(turn.asked ? { asked: turn.asked } : {}),
+    }
+  })
+  const [previous = null, ...earlier] = newestFirst
   return {
     system: plannerSystem,
     vocabulary: plannerVocabulary(bundle.terms, bundle.areas),
-    prompt: plannerPrompt({
-      question,
-      today,
-      previous: previous && {
-        question: previous.question,
-        dated: readDates(normalizeName(previous.question), today).status === 'read',
-        read: previous.scope ? scopeWords(bundle, previous.scope) : null,
-        sources: previous.sources.flatMap((id) => {
-          const item = byId.get(id)
-          return item ? [{ title: item.title, kind: item.kind }] : []
-        }),
-        ...(previous.asked ? { asked: previous.asked } : {}),
-      },
-    }),
+    prompt: plannerPrompt({ question, today, previous, earlier: earlier.reverse() }),
   }
 }
 
@@ -119,7 +130,7 @@ export function plannerInputOf(
 export function planContextOf(
   bundle: RouteBundle,
   question: string,
-  previous: PreviousTurn | null,
+  turns: readonly ChatTurn[],
   moment: { today: string; now: string },
 ): PlanContext {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
@@ -129,7 +140,8 @@ export function planContextOf(
     areas: bundle.areas,
     today: moment.today,
     now: moment.now,
-    previous,
+    previous: turns.at(-1) ?? null,
+    earlier: turns.slice(0, -1),
     readable: (id) => {
       const item = byId.get(id)
       return !!item && canRead(bundle, item, moment.today)
@@ -141,22 +153,36 @@ export function planContextOf(
 export type Routed =
   /** The rules' answer, as with no model. */
   | { kind: 'rules'; answer: Answer }
-  /** A records question, as the rules read it or the planner chose it. */
-  | { kind: 'records'; found: RecordsRecognition; planned: boolean }
+  /**
+   * A records question, as the rules read it or the planner chose it, with what the planner
+   * carried from the last question and the question as it reads alone.
+   */
+  | {
+      kind: 'records'
+      found: RecordsRecognition
+      planned: boolean
+      carried?: string[]
+      standalone?: string
+    }
   /** The planner's reads, run, with what the working line says while they run. */
   | { kind: 'reads'; planned: PlannedAnswer; working: string }
-  /** One short question back, or the sentence for a question off topic: nothing is looked up. */
-  | { kind: 'reply'; reply: { kind: 'clarify' | 'off_topic'; text: string } }
+  /**
+   * One short question back, the sentence for a question off topic, or the sentence for a message
+   * that asks nothing: nothing is looked up.
+   */
+  | { kind: 'reply'; reply: { kind: 'clarify' | 'off_topic' | 'nothing_asked'; text: string } }
 
 /**
- * Reads a question: the rules' answer and records question, then, when the planner is to read
- * it (`plannerReason`) and there is one, its checked plan. `reason` says why the planner read
- * it, and `asked` whether it was asked (a call the planner made, whatever came of it).
+ * Reads a question: a message that asks nothing is told so, with no model call; then the rules'
+ * answer and records question, then, when the planner is to read it (`plannerReason`) and there is
+ * one, its checked plan. `reason` says why the planner read it, and `asked` whether it was asked
+ * (a call the planner made, whatever came of it).
  */
 export async function routeQuestion(c: {
   bundle: RouteBundle
   ask: Extract<AnswerAsk, { question: string }>
-  previous: PreviousTurn | null
+  /** The chat so far, oldest first (`chatOf`). */
+  turns: readonly ChatTurn[]
   records: RecordsRecognition | null
   today: string
   /** The moment it is now, an ISO instant, for the records' periods. */
@@ -164,19 +190,22 @@ export async function routeQuestion(c: {
   planner?: Planner | undefined
   clock?: () => number
 }): Promise<Routed & { reason: PlannerReason | null; asked: boolean }> {
-  const { bundle, ask, previous, today } = c
+  const { bundle, ask, turns, today } = c
+  const previous = turns.at(-1) ?? null
+  const scoped = !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window)
+  if (!scoped && asksNothing(ask.question, turns)) return nothingAsked(ask.question, turns)
   const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
   const reason = plannerReason({
     question: ask.question,
     previous,
-    scoped: !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window),
+    scoped,
     records: c.records,
     rules,
   })
   const asks = !!reason && !!c.planner
   const plan = asks
-    ? await c.planner!(plannerInputOf(bundle, ask.question, previous, today), (raw) =>
-        checkPlan(raw, planContextOf(bundle, ask.question, previous, { today, now: c.now })),
+    ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) =>
+        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now })),
       )
     : null
   const routed = ((): Routed => {
@@ -189,8 +218,16 @@ export async function routeQuestion(c: {
         return { kind: 'reply', reply: { kind: 'clarify', text: plan.question } }
       case 'off_topic':
         return { kind: 'reply', reply: { kind: 'off_topic', text: offTopicSaid } }
+      case 'nothing_asked':
+        return nothingAsked(ask.question, turns)
       case 'records':
-        return { kind: 'records', found: { type: 'records', ask: plan.ask }, planned: true }
+        return {
+          kind: 'records',
+          found: { type: 'records', ask: plan.ask },
+          planned: true,
+          carried: plan.carried,
+          ...(plan.standalone ? { standalone: plan.standalone } : {}),
+        }
       case 'reads':
         return {
           kind: 'reads',
@@ -198,6 +235,8 @@ export async function routeQuestion(c: {
             question: ask.question,
             today,
             previous,
+            turns,
+            ...(plan.standalone ? { standalone: plan.standalone } : {}),
             ...(c.clock ? { now: c.clock } : {}),
           }),
           working: workingWords(bundle, plan.reads),
@@ -206,3 +245,11 @@ export async function routeQuestion(c: {
   })()
   return { ...routed, reason, asked: asks }
 }
+
+/** What a message that asks nothing gets: one sentence, nothing looked up and no model called. */
+export const nothingAsked = (question: string, turns: readonly ChatTurn[]) => ({
+  kind: 'reply' as const,
+  reply: { kind: 'nothing_asked' as const, text: nothingAskedSaid(question, turns) },
+  reason: null,
+  asked: false,
+})

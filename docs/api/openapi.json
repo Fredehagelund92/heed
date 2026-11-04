@@ -90018,89 +90018,158 @@
                     ],
                     "additionalProperties": false
                   },
-                  "previous": {
-                    "type": "object",
-                    "properties": {
-                      "question": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 2000
-                      },
-                      "scope": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "metrics": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "filters": {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {
+                  "turns": {
+                    "type": "array",
+                    "maxItems": 6,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "question": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "scope": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "metrics": {
                                   "type": "array",
                                   "items": {
                                     "type": "string"
                                   }
-                                }
-                              },
-                              "window": {
-                                "type": "object",
-                                "properties": {
-                                  "start": {
+                                },
+                                "filters": {
+                                  "type": "object",
+                                  "propertyNames": {
                                     "type": "string"
                                   },
-                                  "end": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ]
+                                  "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
                                   }
                                 },
-                                "required": [
-                                  "start",
-                                  "end"
-                                ]
-                              }
+                                "window": {
+                                  "type": "object",
+                                  "properties": {
+                                    "start": {
+                                      "type": "string"
+                                    },
+                                    "end": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "start",
+                                    "end"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "metrics",
+                                "filters",
+                                "window"
+                              ]
                             },
-                            "required": [
-                              "metrics",
-                              "filters",
-                              "window"
-                            ]
-                          },
-                          {
-                            "type": "null"
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "sources": {
+                          "type": "array",
+                          "maxItems": 10,
+                          "items": {
+                            "type": "string",
+                            "maxLength": 64
                           }
-                        ]
-                      },
-                      "sources": {
-                        "type": "array",
-                        "maxItems": 10,
-                        "items": {
+                        },
+                        "asked": {
                           "type": "string",
-                          "maxLength": 64
+                          "maxLength": 300
+                        },
+                        "understood": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "domain": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "period": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "dated": {
+                          "type": "boolean"
+                        },
+                        "state": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "failed",
+                                "missing",
+                                "conflict",
+                                "partial",
+                                "stale",
+                                "grounded"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "headline": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
-                      "asked": {
-                        "type": "string",
-                        "maxLength": 300
-                      }
-                    },
-                    "required": [
-                      "question",
-                      "sources"
-                    ],
-                    "additionalProperties": false
+                      "required": [
+                        "question",
+                        "sources"
+                      ],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "required": [
@@ -90171,7 +90240,8 @@
                                     "kind": {
                                       "enum": [
                                         "clarify",
-                                        "off_topic"
+                                        "off_topic",
+                                        "nothing_asked"
                                       ],
                                       "type": "string"
                                     },
@@ -91850,6 +91920,9 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "standalone": {
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -92429,6 +92502,23 @@
                                         "offers"
                                       ]
                                     }
+                                  ]
+                                },
+                                "reading": {
+                                  "type": "object",
+                                  "properties": {
+                                    "carried": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "standalone": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "carried"
                                   ]
                                 }
                               },
@@ -100177,6 +100267,9 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "standalone": {
+                              "type": "string"
                             }
                           },
                           "required": [

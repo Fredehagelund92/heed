@@ -41,7 +41,7 @@ import {
   useSession,
   useWrite,
 } from '@/api/queries'
-import { previousOf, type Answer, type AskInput, type QuestionPart } from '@/model/ask'
+import { chatTurnOf, type Answer, type AskInput, type QuestionPart } from '@/model/ask'
 import {
   askedTurn,
   doneTurn,
@@ -62,14 +62,39 @@ import { TruncatedText } from '@/components/heed/truncated'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { Answering, Suggestions } from '@/components/heed/suggestions'
 import { arriveRef, leaveThen, useLeaving } from '@/lib/presence'
+import { asksAgain } from '@domain/ask-again'
+import { fitChat } from '@domain/ask-chat'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. A question shows
 // the moment it is sent; its answer follows the look-up as it runs, the words a sentence at a time.
 
-/** What a turn passes on to the next question, once its answer is in. */
-const carriedFrom = (turn: Turn | undefined) =>
-  turn?.answered && !turn.error ? previousOf(turn.answer) : undefined
+/** What a chat passes on to the next question: its answered turns, within the caps. */
+const chatFrom = (turns: readonly Turn[]) =>
+  fitChat(
+    turns.flatMap((turn) => {
+      const carried = turn.answered && !turn.error ? chatTurnOf(turn.answer) : undefined
+      return carried ? [carried] : []
+    }),
+  )
+
+/** The words a turn asked: the ones it repeated, when it was asked again in words. */
+const askedWords = ({ again, question, parts, scope }: Answer) =>
+  again ?? { question, parts, scope }
+
+/** What a turn asks when it is asked again: the same words, with the chat before it. */
+const askAgainInput = (turns: readonly Turn[], i: number): AskInput => {
+  const { answer } = turns[i]!
+  const { question, parts, scope } = askedWords(answer)
+  const chat = chatFrom(turns.slice(0, i))
+  return answer.state === 'failed'
+    ? { question, reread: { dates: answer.dates } }
+    : { question, parts, scope, ...(chat.length ? { turns: chat } : {}) }
+}
+
+/** The turn a message that asks again repeats: the last that asked something. */
+const lastAsked = (turns: readonly Turn[]) =>
+  turns.findLastIndex((turn) => turn.answer.reply !== 'nothing_asked')
 
 /** What Ask is asked for a chat's first answer: its example, or its question. */
 const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
@@ -239,10 +264,17 @@ export function AskChat({
       // An example's question, typed or picked, opens the example. Any other is asked here, one that
       // is already a chat too: once answered it joins that chat, so the history never has it twice.
       if (index === 0 && onExample?.(q)) return
-      // A follow-up carries the chat's last answered turn; it stays in the browser (FR-717).
-      const previous = carriedFrom(turns.at(-1))
+      // "Try again" asks the last question again, as Ask again does, with no model in between.
+      const repeats = asksAgain(q) ? lastAsked(turns) : -1
+      const again = repeats < 0 ? null : askAgainInput(turns, repeats)
+      const repeated = repeats < 0 ? null : askedWords(turns[repeats]!.answer)
+      // A follow-up carries the chat's last answered turns; they stay in the browser (FR-717).
+      const chat = chatFrom(turns)
       // The question is in the chat at once; its answer follows as the look-up runs.
-      setTurns((ts) => [...ts, askedTurn(id, q, { parts, scope })])
+      setTurns((ts) => [
+        ...ts,
+        askedTurn(id, q, repeated ? { again: repeated, scope: repeated.scope } : { parts, scope }),
+      ])
       keepFocus()
       // The chat this starts joins the history once its answer is in.
       let joined = index !== 0
@@ -254,7 +286,7 @@ export function AskChat({
       try {
         const answer = await answerTurn(
           id,
-          { question: q, parts, scope, ...(previous ? { previous } : {}) },
+          again ?? { question: q, parts, scope, ...(chat.length ? { turns: chat } : {}) },
           join,
         )
         if (!answer) return
@@ -280,17 +312,13 @@ export function AskChat({
   const askAgain = (i: number) =>
     one(async () => {
       const before = turns[i]!
-      const { question, parts, scope, id, state, dates } = before.answer
-      const previous = carriedFrom(turns[i - 1])
+      const { question, parts, scope, id, again } = before.answer
       follow.current = true
-      setTurns((ts) => ts.map((t, j) => (j === i ? askedTurn(id, question, { parts, scope }) : t)))
+      setTurns((ts) =>
+        ts.map((t, j) => (j === i ? askedTurn(id, question, { parts, scope, again }) : t)),
+      )
       try {
-        await answerTurn(
-          id,
-          state === 'failed'
-            ? { question, reread: { dates } }
-            : { question, parts, scope, ...(previous ? { previous } : {}) },
-        )
+        await answerTurn(id, askAgainInput(turns, i))
       } catch (e) {
         // The answer it had stays.
         setTurns((ts) => ts.map((t, j) => (j === i ? before : t)))

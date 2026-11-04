@@ -35,7 +35,7 @@ describe('with no planner (no model, a spending limit, a slow provider)', async 
   it.each(planCases.map((c) => [c.id, c] as const))('%s is answered as with no model', (id, c) => {
     const got = plain.get(id)!
     expect(got.calls).toBe(0)
-    expect(['rules', 'records']).toContain(got.route)
+    expect(['rules', 'records', 'nothing']).toContain(got.route)
     // What the rules read, they read the same with a planner.
     if (c.expect.route !== 'planner' && !c.after) {
       const routed = planned.get(id)!.routed

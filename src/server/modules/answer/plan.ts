@@ -26,8 +26,8 @@ import {
 
 /** The longest the planner may take; past it Ask answers as it does with no model. */
 export const PLAN_TIMEOUT_MS = 3_000
-/** Enough for a plan of three reads. */
-export const PLAN_MAX_TOKENS = 300
+/** Enough for a plan of three reads and the question as it reads alone. */
+export const PLAN_MAX_TOKENS = 350
 /** One try: a person is waiting, and a plan that comes late is worth less than the rules' answer. */
 const planRetry: RetryPolicy = { tries: 1, budgetMs: PLAN_TIMEOUT_MS, baseMs: 0, capMs: 0 }
 const tokens = (text: string) => Math.ceil(text.length / 4)

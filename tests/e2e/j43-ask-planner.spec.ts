@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, go, test } from './go.ts'
+import { expect, go, mode, test } from './go.ts'
 
 // J43: Ask's planner (FR-719). A question the rules cannot read is read by the model, which only
 // chooses Ask's reads: "any interesting jumps that can be explained?" gets the guides and events
@@ -97,4 +97,71 @@ test('a question off topic gets its own sentence, not the one about names', asyn
   await expect(turn.getByText("The question doesn't name a metric or a market.")).toHaveCount(0)
   await expect(turn.getByText(/^Ask answers three kinds of question/)).toHaveCount(0)
   await suggestsNothing(page)
+})
+
+/** Picks a name from the @ list as a person does. */
+async function mention(page: Page, name: string) {
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.pressSequentially(`@${name}`)
+  await page
+    .getByRole('option', { name: new RegExp(`^${name}`) })
+    .first()
+    .click()
+  await box.pressSequentially(' ')
+}
+
+test('try again asks the last question again, with its mentions, and no model reads it', async ({
+  page,
+}) => {
+  // The chat of 4 November 2026, as it was asked: the last question is scoped to Paid media.
+  await go(page, '/ask?n=j43')
+  await ask(page, 'what context do i need to go through today?')
+  await expect(page.getByRole('status').filter({ hasText: 'Answer written.' })).toBeVisible()
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('I am working in ')
+  await mention(page, 'Sales')
+  await ask(page, 'what are the context that needs checking?')
+  await box.click()
+  await box.pressSequentially('I am in ')
+  await mention(page, 'Paid media')
+  await ask(page, 'what contexts are needing check?')
+  // On the service the records answer it; the mock reads the @ scope.
+  const lastAnswer = mode === 'http' ? 'Nothing in Paid media is due for a check.' : /^Paid media: /
+  await expect(newest(page).getByText(lastAnswer)).toBeVisible()
+  await ask(page, 'try again')
+  const turn = newest(page)
+  // The message stays as typed; the answer is the last question's, and says so.
+  await expect(turn.getByText('try again', { exact: true })).toBeVisible()
+  await expect(
+    turn.getByText(/^Asked again: I am in @?Paid media what contexts are needing check\?$/),
+  ).toBeVisible()
+  await expect(turn.getByText(lastAnswer)).toBeVisible()
+  await expect(turn.getByText(/Read by the model/)).toHaveCount(0)
+  await expect(turn.getByText(/store credit/)).toHaveCount(0)
+  await suggestsNothing(page)
+  // Asked again once more, it is still that question.
+  await ask(page, 'again')
+  await expect(newest(page).getByText(/^Asked again: I am in/)).toBeVisible()
+  await expect(newest(page).getByText(lastAnswer)).toBeVisible()
+})
+
+test('a message with nothing to repeat gets one sentence, and no search', async ({ page }) => {
+  await go(page, '/ask?n=j43')
+  await ask(page, 'try again')
+  const turn = newest(page)
+  await expect(
+    turn.getByText('There is no earlier question to repeat, so what should Ask look at?'),
+  ).toBeVisible()
+  await expect(turn.getByText(/^Ask answers three kinds of question/)).toHaveCount(0)
+  await expect(turn.getByRole('button', { name: /^Source \d+/ })).toHaveCount(0)
+  await suggestsNothing(page)
+})
+
+test('a follow-up says how it reads on its own', async ({ page }) => {
+  await go(page, '/ask?n=j43')
+  await ask(page, 'why did orders drop in Norway?')
+  await expect(page.getByRole('status').filter({ hasText: 'Answer written.' })).toBeVisible()
+  await ask(page, 'what about Sweden?')
+  await expect(newest(page).getByText('Understood as Why did Orders drop in Sweden?')).toBeVisible()
 })

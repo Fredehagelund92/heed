@@ -661,11 +661,13 @@ describe('Ask with its planner (FR-719)', () => {
     const first = answerIn(await lookup({ question: 'why did orders drop in Norway?' }))!
     const sent = await lookup({
       question: 'and in September?',
-      previous: {
-        question: 'why did orders drop in Norway?',
-        scope: first.scope,
-        sources: first.items.map((item) => item.id).slice(0, 10),
-      },
+      turns: [
+        {
+          question: 'why did orders drop in Norway?',
+          scope: first.scope,
+          sources: first.items.map((item) => item.id).slice(0, 10),
+        },
+      ],
     })
     const answer = answerIn(sent)!
     expect(answer.scope).toMatchObject({
@@ -677,6 +679,26 @@ describe('Ask with its planner (FR-719)', () => {
     const after = await tableContents(client, ['auth.sessions', 'public.setup_marks'])
     expect(after.join('\n')).not.toContain('and in September')
     expect(after.join('\n')).not.toContain('why did orders drop')
+  })
+
+  it('tells a message that asks nothing so, with no model call and nothing looked up', async () => {
+    const spent = await assistantCalls()
+    const sent = await lookup({ question: 'try again' })
+    expect(sent.map((e) => e.type)).toEqual(['reply'])
+    const [reply] = sent
+    expect(reply?.type === 'reply' && reply.reply.kind).toBe('nothing_asked')
+    expect(await assistantCalls()).toBe(spent)
+  })
+
+  it('refuses a chat longer than the planner reads', async () => {
+    const turn = { question: 'why did orders drop in Norway?', sources: [] }
+    const response = await planned.inject({
+      method: 'POST',
+      url: '/api/v1/ask/lookup',
+      headers: { ...signedIn, 'idempotency-key': randomUUID() },
+      payload: { question: 'and in Sweden?', turns: Array.from({ length: 7 }, () => turn) },
+    })
+    expect(response.statusCode).toBe(400)
   })
 
   it('answers a question off topic with its own sentence, and looks nothing up', async () => {
@@ -702,7 +724,7 @@ describe('Ask with its planner (FR-719)', () => {
   it('never reads a source the browser sends that no agent may be given', async () => {
     const sent = await lookup({
       question: 'tell me more about the first one',
-      previous: { question: 'why did orders drop in Norway?', sources: ['itm_does_not_exist'] },
+      turns: [{ question: 'why did orders drop in Norway?', sources: ['itm_does_not_exist'] }],
     })
     // With nothing it may read, the plan names no source: the rules answer as with no model.
     expect(sent.some((e) => e.type === 'plan')).toBe(false)

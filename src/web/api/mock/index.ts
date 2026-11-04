@@ -1,5 +1,6 @@
 import type { HeedApi, HeedApiMethod, Inbox } from '../client'
 import { agentNameProblem } from '@domain/agents'
+import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
 import { mentionNotesOf, type Subject } from '@/model/comments'
@@ -52,7 +53,7 @@ import {
   type Kept,
 } from './integrations'
 import { figureFor, figureTryFor } from './data/figures'
-import { recordsAnswer, reportedOn, type AskInput } from '@/model/ask'
+import { recordsAnswer, replyAnswer, reportedOn, type AskInput } from '@/model/ask'
 import { recognisedFor, recordsFor } from './records'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
@@ -234,7 +235,7 @@ export function createMockApi() {
   }
 
   /** Ask's answer, from the context as it is now. */
-  const answer = ({ question = '', parts, scope, example, reread, previous }: AskInput) => {
+  const answer = ({ question = '', parts, scope, example, reread, turns }: AskInput) => {
     const pool = factsOf(state)
     if (example) return exampleAnswer(example)
     if (scope?.length) return answerForScope(question, scope, parts, pool)
@@ -245,19 +246,26 @@ export function createMockApi() {
         alias: read.alias,
       }
     }
+    // A message that asks nothing is told so, with no model, as on the service.
+    if (asksNothing(question, turns ?? []))
+      return replyAnswer(question, {
+        kind: 'nothing_asked',
+        text: nothingAskedSaid(question, turns ?? []),
+      })
     // Ask's planner reads what the rules cannot, and a follow-up first, as on the service (FR-719).
     const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
     const planned = () => {
-      const a = plannedFor(question, previous, world)
+      const a = plannedFor(question, turns, world)
       return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
     }
     const read = readQuestion(question)
     const recognised = recognisedFor(question, world)
     const ruled = askQuestion(question, pool)
+    const refused = recognised?.type === 'refused'
     const answered = recognised
-      ? recognised.type === 'refused' || !recognised.loose
+      ? refused || !recognised.loose
       : !!read.metric && ruled.state !== null
-    if (followsOn(question, previous, world, { metrics: read.metric ? 1 : 0, answered })) {
+    if (followsOn(question, turns, world, { metrics: read.metric ? 1 : 0, answered, refused })) {
       const a = planned()
       if (a) return a
     }

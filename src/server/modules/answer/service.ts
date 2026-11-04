@@ -10,7 +10,7 @@ import type {
   Replay,
 } from '../../../contract/answer.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
-import { previousOf, routeQuestion, type Planner } from '../../../domain/ask-route.ts'
+import { chatOf, routeQuestion, type Planner } from '../../../domain/ask-route.ts'
 import { overlaps } from '../../../domain/validity.ts'
 import {
   answer,
@@ -122,10 +122,11 @@ export type LookupDeps = {
  *
  * Given a `planner` (FR-719), a question the rules cannot read, a market asked about alone that
  * finds nothing, a question about what changed in the business, and a follow-up of the chat's
- * last turn (`input.previous`, from the browser, never stored) are read by the planner first
+ * last turns (`input.turns`, from the browser, never stored) are read by the planner first
  * (src/domain/ask-route.ts): a `plan` event says what is looked up, and the checked plan's reads
  * run as Ask's own, with the state from what they read; or the answer is one short question back,
- * or the sentence for a question off topic. With no plan, the answer is the rules' own.
+ * or the sentence for a question off topic. With no plan, the answer is the rules' own. A message
+ * that asks nothing gets one sentence, with no model call.
  */
 export async function lookupQuestion(
   tx: Queryable,
@@ -137,11 +138,11 @@ export async function lookupQuestion(
   const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
   const today = clock.today()
   const reads = deps.records && { ...deps.records, areas: once(deps.records.areas) }
-  const { previous: given, ...ask } = input
+  const { turns: given, ...ask } = input
   const routed = await routeQuestion({
     bundle,
     ask,
-    previous: previousOf(bundle, given, today),
+    turns: chatOf(bundle, given, today),
     records: reads ? await recogniseRecordsOf(clock, bundle, input, reads) : null,
     today,
     now: clock.now().toISOString(),
@@ -176,7 +177,11 @@ export async function lookupQuestion(
     }
     if (found && routed.kind === 'records') {
       if (routed.planned) yield { type: 'plan', plan: { kind: 'records', working: COUNTING } }
-      yield { type: 'records', records: found }
+      const { carried = [], standalone } = routed
+      const reading = routed.planned
+        ? { reading: { carried, ...(standalone ? { standalone } : {}) } }
+        : {}
+      yield { type: 'records', records: found, ...reading }
       return
     }
     if (routed.kind === 'reads') {

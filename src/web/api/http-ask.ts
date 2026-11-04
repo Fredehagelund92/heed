@@ -230,7 +230,16 @@ function engineAnswerOf(
       : {}),
     // How it was read, as keys, for the next question to carry; and the planner's reading.
     ...(scope ? { keys: scope } : {}),
-    ...(a.reading ? { reading: { words: a.reading.words, carried: a.reading.carried } } : {}),
+    ...(a.reading
+      ? {
+          reading: {
+            words: a.reading.words,
+            carried: a.reading.carried,
+            period: a.reading.period,
+            ...(a.reading.standalone ? { standalone: a.reading.standalone } : {}),
+          },
+        }
+      : {}),
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'

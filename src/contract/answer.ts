@@ -8,6 +8,7 @@
  */
 import * as z from 'zod/mini'
 import { answerStates, leftOutReasons } from '../domain/answer.ts'
+import { CHAT_LINE, CHAT_SOURCES, CHAT_TURNS } from '../domain/ask-chat.ts'
 import { itemKinds } from '../domain/item.ts'
 import { recordsAnswerSchema } from '../domain/records-answer.ts'
 import { tryItInputSchema } from './connect.ts'
@@ -221,33 +222,43 @@ export const answerSchema = z.object({
       words: z.string(),
       carried: z.array(z.string()),
       period: z.nullable(z.enum(['asked', 'carried', 'today', 'recent', 'any'])),
+      /** The question as it reads alone, as the model restated it, when the chat matters. */
+      standalone: z.optional(z.string()),
     }),
   ),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 
 /**
- * The chat's last turn, sent from the browser with a follow-up so Ask can carry what it asked
- * (FR-713, FR-719): its question, how it was read, as keys, its sources by id, and the question
- * Ask asked back, when it did. Never stored on the service, like the question (FR-602, FR-717).
+ * One turn of the chat, sent from the browser with each question so Ask can carry what it asked
+ * (FR-713, FR-719): its question, how it was read, in words and as keys, its answer state and one
+ * sentence from a template, its sources by id, and the question Ask asked back, when it did. Never
+ * the answer's words or a data value, and never stored on the service, like the question (FR-602,
+ * FR-717).
  */
-export const previousTurnSchema = z.strictObject({
+export const chatTurnSchema = z.strictObject({
   question: z.string().check(z.minLength(1), z.maxLength(2000)),
   scope: z.optional(z.nullable(readScopeSchema)),
-  sources: z.array(z.string().check(z.maxLength(64))).check(z.maxLength(10)),
+  sources: z.array(z.string().check(z.maxLength(64))).check(z.maxLength(CHAT_SOURCES)),
   asked: z.optional(z.string().check(z.maxLength(300))),
+  understood: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
+  domain: z.optional(z.nullable(z.string().check(z.maxLength(64)))),
+  period: z.optional(z.nullable(z.string().check(z.maxLength(64)))),
+  dated: z.optional(z.boolean()),
+  state: z.optional(z.nullable(answerStateSchema)),
+  headline: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
 })
-export type PreviousTurnInput = z.infer<typeof previousTurnSchema>
+export type ChatTurnInput = z.infer<typeof chatTurnSchema>
 
 /**
  * A question for Ask: its words, and the names a person picked beside them (the @ chips), read as
- * get_context reads an agent's, and the chat's last turn. The words are read in memory and never
- * stored or logged (FR-602); sent in a POST body for that reason.
+ * get_context reads an agent's, and the chat's last turns, oldest first. The words are read in
+ * memory and never stored or logged (FR-602); sent in a POST body for that reason.
  */
 export const lookupInputSchema = z.strictObject({
   question: z.string().check(z.minLength(1), z.maxLength(2000)),
   ...tryItInputSchema.shape,
-  previous: z.optional(previousTurnSchema),
+  turns: z.optional(z.array(chatTurnSchema).check(z.maxLength(CHAT_TURNS))),
 })
 export type LookupInput = z.infer<typeof lookupInputSchema>
 /**
@@ -264,7 +275,8 @@ export type LookupInput = z.infer<typeof lookupInputSchema>
  *
  * When Ask's planner reads the question (FR-719), `plan` comes first, saying what is looked up so
  * the working line can say it; then the reads' steps and answer as above, or one `reply`: a short
- * question back, or the sentence for a question off topic, with nothing looked up and no state.
+ * question back, the sentence for a question off topic, or the sentence for a message that asks
+ * nothing, with nothing looked up and no state.
  */
 export const lookupEventSchema = z.union([
   z.object({
@@ -277,13 +289,23 @@ export const lookupEventSchema = z.union([
   }),
   z.object({
     type: z.literal('reply'),
-    reply: z.object({ kind: z.enum(['clarify', 'off_topic']), text: z.string() }),
+    reply: z.object({
+      kind: z.enum(['clarify', 'off_topic', 'nothing_asked']),
+      text: z.string(),
+    }),
   }),
   z.object({ type: z.literal('step'), step: answerStepSchema }),
   z.object({ type: z.literal('answer'), answer: answerSchema }),
   z.object({ type: z.literal('sentence'), text: z.string() }),
   z.object({ type: z.literal('words-end') }),
-  z.object({ type: z.literal('records'), records: recordsAnswerSchema }),
+  z.object({
+    type: z.literal('records'),
+    records: recordsAnswerSchema,
+    /** When Ask's planner chose it: what it carried, and the question as it reads alone. */
+    reading: z.optional(
+      z.object({ carried: z.array(z.string()), standalone: z.optional(z.string()) }),
+    ),
+  }),
 ])
 export type RecordsAnswer = z.infer<typeof recordsAnswerSchema>
 export type LookupEvent = z.infer<typeof lookupEventSchema>

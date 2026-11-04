@@ -1,7 +1,9 @@
 import type { AnswerResult } from '@contract/answer'
+import { nothingAskedSaid } from '@domain/ask-again'
 import { checkPlan, readsAsFollowUp } from '@domain/ask-plan'
 import { fixturePlan } from '@domain/ask-plan-fixture'
-import { planContextOf, previousOf, type RouteBundle } from '@domain/ask-route'
+import type { ChatTurn } from '@domain/ask-chat'
+import { chatOf, planContextOf, type RouteBundle } from '@domain/ask-route'
 import type { AnswerSource } from '@domain/answer'
 import { plannedAnswer, workingWords } from '@domain/planned-answer'
 import { offTopicSaid } from '@domain/say'
@@ -9,7 +11,7 @@ import type { Term } from '@domain/vocabulary'
 import { answerOf, type Names } from '@/api/http-ask'
 import type { Definition } from '@/lib/definitions'
 import { plainText } from '@/lib/mentions'
-import { replyAnswer, type Answer, type AskPrevious } from '@/model/ask'
+import { replyAnswer, type Answer } from '@/model/ask'
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 import { toServerValidity } from '@/model/validity'
 import { RECORDS_NOW, termsOf } from './records'
@@ -86,22 +88,23 @@ export type PlannerWorld = {
   domains: readonly { id: DomainId; name: string }[]
 }
 
-/** The planner's turn: the vocabulary, the edition, and the last turn as Ask keeps it. */
-function turnOf(world: PlannerWorld, previous: AskPrevious | undefined) {
+/** The planner's turn: the vocabulary, the edition, and the chat as Ask keeps it. */
+function turnOf(world: PlannerWorld, given: readonly ChatTurn[] | undefined) {
   const terms = termsOf(world.definitions)
   const bundle = bundleOf(world.pool, terms, world.domains)
-  return { terms, bundle, last: previousOf(bundle, previous, TODAY) }
+  const turns = chatOf(bundle, given, TODAY)
+  return { terms, bundle, turns, last: turns.at(-1) ?? null }
 }
 
 /** Whether the planner reads a question first: it follows on from the last turn (FR-719). */
 export function followsOn(
   question: string,
-  previous: AskPrevious | undefined,
+  turns: readonly ChatTurn[] | undefined,
   world: PlannerWorld,
-  read: { metrics: number; answered: boolean },
+  read: { metrics: number; answered: boolean; refused?: boolean },
 ): boolean {
-  if (!previous) return false
-  return readsAsFollowUp(question, turnOf(world, previous).last, read)
+  if (!turns?.length) return false
+  return readsAsFollowUp(question, turnOf(world, turns).last, read)
 }
 
 /**
@@ -111,15 +114,15 @@ export function followsOn(
  */
 export function plannedFor(
   question: string,
-  previous: AskPrevious | undefined,
+  given: readonly ChatTurn[] | undefined,
   world: PlannerWorld,
 ): Answer | null {
-  const raw = fixturePlan(question, previous?.question ?? null)
+  const raw = fixturePlan(question, given?.at(-1)?.question ?? null)
   if (!raw) return null
-  const { bundle, last } = turnOf(world, previous)
+  const { bundle, turns, last } = turnOf(world, given)
   const checked = checkPlan(
     raw,
-    planContextOf(bundle, question, last, { today: TODAY, now: RECORDS_NOW }),
+    planContextOf(bundle, question, turns, { today: TODAY, now: RECORDS_NOW }),
   )
   if (!checked.ok) return null
   const plan = checked.plan
@@ -127,9 +130,20 @@ export function plannedFor(
     return replyAnswer(question, { kind: 'clarify', text: plan.question })
   if (plan.kind === 'off_topic')
     return replyAnswer(question, { kind: 'off_topic', text: offTopicSaid })
+  if (plan.kind === 'nothing_asked')
+    return replyAnswer(question, {
+      kind: 'nothing_asked',
+      text: nothingAskedSaid(question, turns),
+    })
   // A records plan is the records reader's: the demo's records questions are read by their words.
   if (plan.kind === 'records') return null
-  const planned = plannedAnswer(bundle, plan.reads, { question, today: TODAY, previous: last })
+  const planned = plannedAnswer(bundle, plan.reads, {
+    question,
+    today: TODAY,
+    previous: last,
+    turns,
+    ...(plan.standalone ? { standalone: plan.standalone } : {}),
+  })
   const { overlay: _overlay, ...answered } = planned.answer
   const result: AnswerResult = {
     ...answered,
