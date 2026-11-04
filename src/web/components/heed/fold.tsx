@@ -3,7 +3,9 @@ import { ChevronDownIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { CollapsibleTrigger } from '@/components/ui/collapsible'
 
-// Every fold in the app opens from one trigger (docs/design/components.md, "Folds"). A section's
+// The section folds, Details, the panels' groups and the inline toggles open from one trigger
+// (docs/design/components.md, "Folds"); the list's group rows, Overview's month rows and an
+// integration's More settings keep their own toggle. A section's
 // fold is a full-width row at least 44 px tall: what it holds in 14 px at weight 500, a muted
 // summary only while it is closed, and the chevron at the end, pointing down and turning half a
 // turn with the panel. An inline toggle (Ask's look-up, a figure's query, the Text diff's
@@ -56,7 +58,7 @@ type FoldTriggerProps = Omit<React.ComponentProps<'button'>, 'children'> & {
   expanded?: boolean
 }
 
-/** The one trigger of every fold. */
+/** The one trigger of the section folds, Details, panel groups and inline toggles. */
 export function FoldTrigger({
   variant = 'row',
   label,

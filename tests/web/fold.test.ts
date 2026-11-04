@@ -6,7 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { FoldTrigger } from '@/components/heed/fold'
 
-// The one trigger of every fold: it opens the collapsible around it, names what the fold holds
+// The one trigger of the section folds, Details, panel groups and inline toggles: it opens the collapsible around it, names what the fold holds
 // and describes it with its summary, keeps a header fold's name for a screen reader, and serves a
 // reveal that is not a collapsible with the state it is given.
 
