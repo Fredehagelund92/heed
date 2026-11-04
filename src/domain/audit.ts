@@ -932,7 +932,7 @@ export function auditAnswer(
       ? `${count(metrics)} metrics and ${count(allTerms.length - metrics)} dimensions`
       : null,
     uses('due', 'conflicts', 'duplicates', 'overlaps') ? `${count(items)} context items` : null,
-    uses('unlinked') ? 'what the source lists' : null,
+    facets.includes('unlinked') ? 'what the source lists' : null,
     uses('asked_nothing', 'asked_most') ? 'what agents asked this week' : null,
     queue ? 'your Inbox' : null,
   ].filter(Boolean) as string[]
