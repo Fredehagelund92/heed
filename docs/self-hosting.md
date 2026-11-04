@@ -2,7 +2,7 @@
 title: Self-host Heed on one computer
 line: 'Run it with docker compose on one computer, back it up, restore it, upgrade it and roll an upgrade back.'
 group: Run the service
-order: 1
+order: 2
 reviewed: 2026-11-03
 ---
 

@@ -2,7 +2,7 @@
 title: 'Security, scanning and the restore drill'
 line: 'How dependencies and commits are scanned, and how a backup is proved restorable.'
 group: Run the service
-order: 4
+order: 5
 reviewed: 2026-10-31
 ---
 

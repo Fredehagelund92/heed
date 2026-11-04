@@ -25,6 +25,7 @@ export type SiteGroup = (typeof siteGroups)[number]
 
 /** The pages outside docs/help, by their path under docs/. */
 export const operatorPages = [
+  'where-to-run',
   'self-hosting',
   'operations',
   'vercel',

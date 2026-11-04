@@ -2,7 +2,7 @@
 title: Run and operate the service
 line: 'Run the service, set it up, and use its health checks, scheduled jobs, metrics and administration API.'
 group: Run the service
-order: 2
+order: 3
 reviewed: 2026-11-03
 ---
 
