@@ -20,18 +20,17 @@ import {
   PeekAttention,
   PeekBand,
   PeekBands,
-  PeekDetails,
   PeekFact,
   PeekFacts,
+  PeekFold,
   PeekLink,
   PeekMeaning,
   PeekTitle,
+  PeekToolbar,
 } from '@/components/heed/peek'
 import { Button } from '@/components/ui/button'
-import { kindLabel } from '@/model/items'
 import { ownersOf } from '@/model/people'
-import { Related } from '@/components/heed/related'
-import { useRelated } from '@/hooks/use-related'
+import { DetailsBody, detailsSummary } from '@/components/heed/details-body'
 import { countComments } from '@/components/templates/comment-box/utils'
 import { closeDock, openDock } from '@/lib/dock'
 import { useComments } from '@/lib/comments'
@@ -40,12 +39,12 @@ import { useQuery } from '@tanstack/react-query'
 import { conflictQuery, itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
-import { ScopeChips } from '@/components/heed/scope-chips'
 
-// The context quick view: the note and one closed Details. Title once, the words, its domain, who
-// owns it and whether it is still right, where it comes from, the one action. One attention line only when a
-// decision is needed (a flag, an overlap, an overdue check), with one button; the choice itself is
-// made on the page. What agents get, history and the full source are not here.
+// The context quick view: the note, one closed Details and a toolbar under it. Title once, the
+// words, its domain, who owns it and whether it is still right, where it comes from, the one
+// action. One attention line only when a decision is needed (a flag, an overlap, an overdue check),
+// with one button; the choice itself is made on the page. What agents get, history and the full
+// source are not here.
 
 export function FactPeek({ id }: { id: string }) {
   const listed = useFact(id)
@@ -60,7 +59,6 @@ export function FactPeek({ id }: { id: string }) {
   const write = useWrite()
   const { query } = useRoute()
   const comments = useComments(`context:${id}`)
-  const related = useRelated(`context:${id}`)
   const flagCard = cards.find((c) => c.id === query.get('flag'))
   // Opened here counts as read: only items someone opened can be marked checked together.
   const found = !!fact
@@ -136,7 +134,9 @@ export function FactPeek({ id }: { id: string }) {
       }
     >
       Disagrees with “{overlap.title}”.
-      {pair && ` Agents say Conflict for ${pair.asked} questions this week.`}
+      {pair &&
+        pair.asked > 0 &&
+        ` Agents say Conflict for ${pair.asked} ${pair.asked === 1 ? 'question' : 'questions'} this week.`}
     </PeekAttention>
   ) : stale && fact.status !== 'Archived' ? (
     <PeekAttention
@@ -225,6 +225,7 @@ export function FactPeek({ id }: { id: string }) {
               <PeekFact icon={CircleCheckIcon}>
                 <b>{domains[fact.domain]?.name}</b> - owned by <b>{and(owners)}</b> - checked{' '}
                 {fact.checkedOn}
+                {fact.status === 'Needs checking' && (flag || overlap) && ', needs checking'}
               </PeekFact>
             )}
             {fact.source && (
@@ -243,65 +244,28 @@ export function FactPeek({ id }: { id: string }) {
           </PeekFacts>
         </PeekBand>
         <PeekBand flush>
-          <PeekDetails
-            rows={[
-              [
-                'Applies to',
-                fact.where.length ? (
-                  <span key="w" className="flex flex-wrap gap-1">
-                    <ScopeChips fact={fact} />
-                  </span>
-                ) : (
-                  'Read from the text'
-                ),
-              ],
-              ['When', fact.when],
-              ['Kind', kindLabel[fact.kind]],
-              ['Status', fact.status],
-              ...(fact.dontConclude
-                ? ([["Don't conclude", fact.dontConclude]] as [string, string][])
-                : []),
-              ...(related.links.length
-                ? ([['Related', <Related key="v" id={`context:${fact.id}`} />]] as [
-                    string,
-                    React.ReactNode,
-                  ][])
-                : []),
-              ...(fact.quote
-                ? ([
-                    [
-                      'Quote',
-                      <span key="v" className="block border-l-2 pl-3 text-muted-foreground italic">
-                        {fact.quote}
-                      </span>,
-                    ],
-                  ] as [string, React.ReactNode][])
-                : []),
-              ...(fact.origin
-                ? ([
-                    [
-                      'From',
-                      `${fact.origin.tool}: ${fact.origin.folder} / ${fact.origin.doc}, read ${fact.origin.read}`,
-                    ],
-                  ] as [string, string][])
-                : []),
-            ]}
-            links={[
-              <PeekLink key="history" icon={ClockIcon} href={href(page)}>
-                History: {history.length} {history.length === 1 ? 'version' : 'versions'}
-              </PeekLink>,
-              <PeekLink key="comments" icon={MessageSquareIcon} href={href(page)}>
-                {nComments ? `Comments: ${nComments}` : 'Comments'}
-              </PeekLink>,
-              <PeekLink
-                key="try"
-                icon={FlaskConicalIcon}
-                onClick={() => openDock('ask', undefined, { q: question })}
-              >
-                Try it with a question
-              </PeekLink>,
-            ]}
-          />
+          <PeekFold summary={detailsSummary(fact)}>
+            <DetailsBody fact={fact} />
+          </PeekFold>
+        </PeekBand>
+        <PeekBand flush>
+          <PeekToolbar label="More about this context item">
+            <PeekLink
+              icon={FlaskConicalIcon}
+              className="h-8"
+              onClick={() => openDock('ask', undefined, { q: question })}
+            >
+              Try it
+            </PeekLink>
+            <PeekLink icon={ClockIcon} className="h-8" href={href(page)}>
+              {history.length
+                ? `History: ${history.length} ${history.length === 1 ? 'version' : 'versions'}`
+                : 'History'}
+            </PeekLink>
+            <PeekLink icon={MessageSquareIcon} className="h-8" href={href(page)}>
+              {nComments ? `Comments: ${nComments}` : 'Comments'}
+            </PeekLink>
+          </PeekToolbar>
         </PeekBand>
       </PeekBands>
     </DockFrame>

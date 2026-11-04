@@ -229,7 +229,7 @@ const targetOfNode = (node: RelatedContext['nodes'][number]): string =>
  * The service's related context as Related draws it: the links in the text both ways and the
  * owners' relations, in the service's order (the one agents follow). What an item applies to is
  * its scope, shown on the item, so it is no link here. Anything but a neighbour in service is
- * retired: shown, never followed. A neighbour in another domain says whose it is.
+ * retired: shown, never followed.
  */
 export function linksOfRelated(related: RelatedContext, words: Words): Link[] {
   return related.nodes.flatMap((node) => {
@@ -246,8 +246,7 @@ export function linksOfRelated(related: RelatedContext, words: Words): Link[] {
       retired: node.status !== 'current',
       ...(domain ? { domain } : {}),
     }
-    const otherDomain = !!related.areaId && !!domain && domain !== related.areaId
-    return [{ rel, to, otherDomain }]
+    return [{ rel, to }]
   })
 }
 

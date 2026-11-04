@@ -70,7 +70,9 @@ test('an overlap with several live items asks about each, and archives only the 
   ] as const) {
     await go(page, `/context/${id}`)
     await expect(page.getByRole('heading', { name: title })).toBeVisible()
-    await expect(page.getByText('Archived', { exact: true })).toHaveCount(0)
+    await expect(
+      page.locator('[data-slot=item-document]').getByText('Archived', { exact: true }),
+    ).toHaveCount(0)
   }
 })
 

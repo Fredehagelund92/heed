@@ -90,7 +90,7 @@ test('Related marks an item that disagrees with this one', async ({ page }) => {
   await go(page, '/context?dock=context.itm_gift_store_credit')
   await page.getByRole('button', { name: 'Details', exact: true }).click()
   const links = page.getByRole('list', { name: 'Links to' })
-  await expect(links.locator('mark[data-mark=needs]')).toHaveText('disagrees with')
+  await expect(links.locator('mark[data-mark=needs]')).toHaveText('Disagrees with')
   await expect(links.locator('mark[data-mark=needs] svg')).toHaveCount(1)
 })
 

@@ -344,7 +344,6 @@ export function describeHeedApi(
         expect(to(campaign, 'metric:Orders')).toMatchObject({
           rel: 'mentions',
           to: { label: 'Orders', retired: false },
-          otherDomain: true,
         })
         // The owners' relations, first: the item it replaces is archived, so it is not followed.
         const lag = await related('Orders lags by one day in the source tool')
@@ -352,7 +351,6 @@ export function describeHeedApi(
         expect(lag.links[0]).toMatchObject({
           rel: 'replaces',
           to: { id: `context:${replaced.id}`, label: replaced.title, retired: true },
-          otherDomain: false,
         })
         const credit = await related('Norway orders count store credit')
         const cardOnly = titled('Norway orders are card and cash payments only')

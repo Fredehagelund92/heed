@@ -2,6 +2,7 @@ import { stateOfStatus, stateWords } from './answer-state.ts'
 import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
+import { concepts as peopleConcepts } from './words.ts'
 import { concepts } from './words-v1.ts'
 
 /*
@@ -65,6 +66,12 @@ export const contextVoice: Voice = {
   appliesField: 'applies',
   disagreesField: 'disagrees_with',
   stateFirst: true,
+}
+/** What a person reads in a review: the product's own word, with the answer line drawn apart. */
+export const peopleVoice: Voice = {
+  ...contextVoice,
+  item: [peopleConcepts.contextItem.name, `${peopleConcepts.contextItem.name}s`],
+  stateFirst: false,
 }
 
 /** The absence rule every result that finds nothing gives the AI agent (FR-318). */

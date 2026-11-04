@@ -7,7 +7,6 @@ import {
   ClockIcon,
   FlagIcon,
   GitPullRequestArrowIcon,
-  ShieldAlertIcon,
   TriangleAlertIcon,
 } from '@/components/icons'
 import { and, cn } from '@/lib/utils'
@@ -17,8 +16,7 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { FoldTrigger } from '@/components/heed/fold'
 import { FreshDot, StatusIcon, TimeGlyph } from '@/components/heed/columns'
 import { kindIcons } from '@/components/heed/kind-icons'
-import { PeekFact } from '@/components/heed/peek'
-import { ScopeChips } from '@/components/heed/scope-chips'
+import { DetailsBody } from '@/components/heed/details-body'
 import { DomainDot, TagChip } from '@/components/heed/tag-chip'
 import { DifferingWords } from '@/components/heed/differing-words'
 import { StateLine } from '@/components/heed/state-line'
@@ -301,9 +299,8 @@ export function Fold({
 
 /**
  * The context item a card is about, folded to the row the Context list draws: its kind, its title
- * and what it is in words, and from 560 px of pane its status, when and freshness. Opened, what it
- * applies to, its text, what not to conclude, and the way to its page, unless the card's own
- * decision already leads there.
+ * and what it is in words, and from 560 px of pane its status, when and freshness. Opened, its
+ * text, its Details, and the way to its page, unless the card's own decision already leads there.
  */
 export function ItemFold({ fact, link = true }: { fact: Fact; link?: boolean }) {
   const domains = useDomains()
@@ -355,17 +352,9 @@ export function ItemFold({ fact, link = true }: { fact: Fact; link?: boolean }) 
       </h3>
       <CollapsibleContent keepMounted>
         <div className="flex flex-col gap-3 pb-4 pl-7 text-sm leading-relaxed">
-          {fact.where.length > 0 && (
-            <p className="flex flex-wrap gap-1.5">
-              <ScopeChips fact={fact} />
-            </p>
-          )}
           <p className="text-reading">{plainText(fact.summary)}</p>
-          {fact.dontConclude && (
-            <PeekFact icon={ShieldAlertIcon}>
-              <b>Don&apos;t conclude:</b> {fact.dontConclude}
-            </PeekFact>
-          )}
+          {/* The row says the kind, and the item's page has the quote and Related. */}
+          <DetailsBody fact={fact} leaveOut={['kind', 'source', 'related']} />
           {link && (
             <a
               href={`/context/${fact.id}`}

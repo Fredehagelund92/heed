@@ -136,16 +136,17 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### Peeks, docks and pages of one thing
 
-| Part              | File                                                                                          | Job                                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Peek              | `components/heed/peek.tsx`                                                                    | The quick view frame: note, one closed Details                                                                   |
-| Context peek      | `components/heed/fact-peek.tsx`                                                               | The context item quick view                                                                                      |
-| Definition peek   | `components/heed/definition-peek.tsx`                                                         | The definition quick view                                                                                        |
-| Context page      | `pages/fact.tsx`, `components/heed/item-document.tsx`                                         | A context item as a document with Details, History, Related, comments; the document is also the review's Preview |
-| Version history   | `components/heed/version-history.tsx`                                                         | One line until opened, then rows by month, with a read-only diff and Restore for owners                          |
-| Related           | `components/heed/related.tsx`, `lib/links.ts`, `hooks/use-related.ts`                         | What `get_related` can follow, shown as chips                                                                    |
-| Definitions pages | `pages/definitions.tsx`, `definition-page.tsx`, `definition-editor.tsx`, `lib/definitions.ts` | The list, a page and the term and synonym editor                                                                 |
-| Domain page       | `pages/domain-page.tsx`, `lib/domains.ts`                                                     | A domain as its own document                                                                                     |
+| Part              | File                                                                                          | Job                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Peek              | `components/heed/peek.tsx`                                                                    | The quick view frame: note, one closed Details, the toolbar under it                                                            |
+| Context peek      | `components/heed/fact-peek.tsx`                                                               | The context item quick view                                                                                                     |
+| Definition peek   | `components/heed/definition-peek.tsx`                                                         | The definition quick view                                                                                                       |
+| Details body      | `components/heed/details-body.tsx`                                                            | A context item's Details in lines of words: peek, page, Preview, Inbox item fold; each leaves out what it shows or its page has |
+| Context page      | `pages/fact.tsx`, `components/heed/item-document.tsx`                                         | A context item as a document with Details, History, Related, comments; the document is also the review's Preview                |
+| Version history   | `components/heed/version-history.tsx`                                                         | One line until opened, then rows by month, with a read-only diff and Restore for owners                                         |
+| Related           | `components/heed/related.tsx`, `lib/links.ts`, `hooks/use-related.ts`                         | What `get_related` can follow: Links to and Linked from, one line per link                                                      |
+| Definitions pages | `pages/definitions.tsx`, `definition-page.tsx`, `definition-editor.tsx`, `lib/definitions.ts` | The list, a page and the term and synonym editor                                                                                |
+| Domain page       | `pages/domain-page.tsx`, `lib/domains.ts`                                                     | A domain as its own document                                                                                                    |
 
 ### Lists and bulk
 
