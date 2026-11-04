@@ -1,4 +1,10 @@
-# Where to run Heed
+---
+title: Where to run Heed
+line: Docker Compose, a cloud host or container platform, or Vercel for the demo, and what each one asks of you.
+group: Run the service
+order: 1
+reviewed: 2026-11-03
+---
 
 Heed has three parts: the service, the web app and a PostgreSQL 18 database. There are three ways to
 run them. Docker Compose is the default, and the [Quick start](../README.md#quick-start) uses it.

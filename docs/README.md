@@ -55,6 +55,7 @@ Older design pages that still apply:
 | [Templates](templates/)                                    | Item and test-question files, and prompts that turn notes into items   |
 | [Evaluations and the golden set](evaluations.md)           | How answers are tested                                                 |
 | [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                             |
+| [The public docs site](../apps/docs/README.md)             | How the pages in this folder become the site, one version at a time    |
 | [Release Heed](releasing.md)                               | One version number, the release pull request and the tag               |
 | [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                                     |
 | [The rename checklist](rename-checklist.md)                | Everything that follows the product name                               |

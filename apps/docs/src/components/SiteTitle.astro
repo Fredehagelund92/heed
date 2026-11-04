@@ -1,0 +1,13 @@
+---
+import lockup from '../../../../src/web/public/heed-lockup.svg?raw'
+import { readSettings } from '../../lib/settings.ts'
+
+/* As the app's docs header: the logo, a hairline, then "Docs". A renamed build shows its name. */
+const { product } = readSettings(process.env)
+---
+
+<a href={Astro.locals.starlightRoute.siteTitleHref} class="heed-title">
+  {product === 'Heed' ? <Fragment set:html={lockup} /> : <span>{product}</span>}
+  <span class="heed-title-rule" aria-hidden="true"></span>
+  <span class="heed-title-docs">Docs</span>
+</a>

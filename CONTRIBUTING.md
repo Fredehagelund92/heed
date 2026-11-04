@@ -50,6 +50,7 @@ Heed is one npm package, not a workspace. The layout is in the
 | `db`                | Migrations, grants and the demo data (`db/seed`)                                  |
 | `docs`              | Everything written about Heed; `docs/help` is also the app's own Docs             |
 | `apps/mockup`       | The clickable mockup: the living design reference the web app is changed to match |
+| `apps/docs`         | The public docs site, built from the Markdown in `docs`                           |
 
 ## Run it
 

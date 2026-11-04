@@ -1,0 +1,128 @@
+name: Docs site
+
+# The public docs site (apps/docs/README.md): one built folder per minor release, /vMAJOR.MINOR/,
+# built at its tag when release.yml calls this workflow, and /next/, built from main, which search
+# engines are told to leave alone. A team without internet access gets the release's copy from its
+# GitHub Release: heed-docs-<version>.tar.gz, built to be served at the root of a host.
+#
+# Building changes nothing outside this run. Publishing pushes to the gh-pages branch and only runs
+# when the repository variable DOCS_PUBLISH is on: a maintainer's decision, not a merge's
+# (docs/releasing.md, "The docs site").
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - apps/docs/**
+      - src/domain/docs.ts
+      - src/web/public/**
+      - src/web/styles/tokens.css
+      - .github/scripts/publish-docs.sh
+      - .github/workflows/docs-site.yml
+  workflow_call:
+    inputs:
+      version:
+        description: The release, MAJOR.MINOR.PATCH. The tag being built must name it.
+        required: true
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+# The host and the path under it. A custom domain changes these two lines and nothing else.
+env:
+  DOCS_SITE: https://fredehagelund92.github.io
+  DOCS_ROOT: /heed
+
+jobs:
+  build:
+    name: Build the docs site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      folder: ${{ steps.where.outputs.folder }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/docs/package-lock.json
+      - run: npm ci
+        working-directory: apps/docs
+      - name: The folder and the reference this build is for
+        id: where
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            echo "folder=v${VERSION%.*}" >> "$GITHUB_OUTPUT"
+            echo "ref=v$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "folder=next" >> "$GITHUB_OUTPUT"
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build the site for its folder
+        working-directory: apps/docs
+        env:
+          DOCS_VERSION: ${{ steps.where.outputs.folder }}
+          DOCS_REF: ${{ steps.where.outputs.ref }}
+        run: npm run build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-site
+          path: apps/docs/dist
+          if-no-files-found: error
+          retention-days: 1
+      - name: Build the release's copy, served at the root of any host
+        if: inputs.version != ''
+        working-directory: apps/docs
+        env:
+          DOCS_REF: ${{ steps.where.outputs.ref }}
+          DOCS_SITE: ''
+          DOCS_ROOT: ''
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm run build
+          tar -czf "$RUNNER_TEMP/heed-docs-$VERSION.tar.gz" --transform "s,^dist,heed-docs-$VERSION," dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.version != ''
+        with:
+          name: docs-tarball
+          path: ${{ runner.temp }}/heed-docs-${{ inputs.version }}.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish to the gh-pages branch
+    needs: build
+    # Off until a maintainer turns it on. /next/ only ever comes from main.
+    if: vars.DOCS_PUBLISH == 'on' && (inputs.version != '' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the gh-pages branch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: docs-site
+          path: ${{ runner.temp }}/docs-site
+      - name: Put the version in its folder (.github/scripts/publish-docs.sh)
+        env:
+          BUILT: ${{ runner.temp }}/docs-site
+          FOLDER: ${{ needs.build.outputs.folder }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          bash .github/scripts/publish-docs.sh "$BUILT" "$FOLDER"

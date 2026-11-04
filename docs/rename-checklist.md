@@ -80,7 +80,8 @@ Left as written, since it records what happened:
 
 ## When the name changes
 
-1. Set `HEED_PRODUCT_NAME` where the service runs and where the web app is built, and rebuild.
+1. Set `HEED_PRODUCT_NAME` where the service runs and where the web app and the docs site
+   (`apps/docs`) are built, and rebuild.
 2. Run `npm test`: the brand tests confirm the MCP text says the new name and never the old one. Screens and agent text that still write the name by hand
    (class (b) strings not yet moved to `productName`) need a search for the old name.
 3. Replace the brand assets (step 1 above), then work down the table as far as the rename goes.

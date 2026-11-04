@@ -114,6 +114,8 @@
     "docs:build": "node scripts/docs-build.ts",
     "docs:preview": "vite preview -c vite.docs.config.ts",
     "docs:sync": "DOCS_SYNC=1 vitest run --project web tests/web/docs.test.ts",
+    "site:dev": "npm --prefix apps/docs run dev",
+    "site:build": "npm --prefix apps/docs run build",
     "dev:server": "node --env-file-if-exists=.env.local --watch src/server/main.ts",
     "start:server": "node --env-file-if-exists=.env.local src/server/main.ts",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit",

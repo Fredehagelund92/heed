@@ -227,6 +227,7 @@ docs/help/            the documentation, Markdown, shown at /docs and as the sta
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
 apps/mockup/      the clickable mockup the app was built from, now a reference: its own package (apps/mockup/README.md)
+apps/docs/        the public docs site, built from docs/: its own package (apps/docs/README.md)
 ```
 
 ### Why this layout
@@ -257,6 +258,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run db:snapshot`                     | The demo as a file, for a database without a superuser such as Neon: `take`, `restore` and `reset` (see [Run the demo on Vercel and Neon](vercel.md))                                                                                 |
 | `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
 | `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/web` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
+| `npm run site:dev` / `npm run site:build` | The public docs site (`apps/docs`, after `npm --prefix apps/docs ci`) at http://localhost:4321 / built in `apps/docs/dist`, with every link checked                                                                                   |
 | `npm run build:vercel`                    | The web app is built and the service is bundled into one file (only the service goes into that file), for Vercel (see [Run the demo on Vercel and Neon](vercel.md))                                                                   |
 | `npm run size`                            | Builds the web app as it ships (http mode) and checks its first load against the budget, with the bytes, the budget and the margin; `node scripts/check-bundle-size.mjs` checks the build already in `dist/web`                       |
 | `npm run typecheck`                       | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
@@ -280,9 +282,10 @@ every job passed or was skipped on purpose, and fails on a failure, a cancel, or
 have run and did not. It is the one check the rule on `main` requires. A new push to a pull
 request cancels the run it replaces; runs on `main` and at night always finish.
 
-Two more workflows make releases ([Releasing Heed](releasing.md)): `release-please.yml` keeps the
-release pull request current after every push to `main`, and `release.yml`
-builds and publishes a release when a maintainer pushes a version tag.
+Three more workflows make releases ([Releasing Heed](releasing.md)): `release-please.yml` keeps the
+release pull request current after every push to `main`, `release.yml`
+builds and publishes a release when a maintainer pushes a version tag, and `docs-site.yml` builds
+the public docs site, for a release and for every push to `main` that changes it.
 
 ### Validation tiers
 
@@ -290,7 +293,7 @@ A pull request takes the highest tier any of its files falls in.
 
 | Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                                             |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the apps read: `docs/help`, `docs/templates` and `docs/api`                                                                         | Type check, lint, plain words, format, unit tests (the docs check among them) and build                               |
+| Docs      | `docs/**`, `apps/docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the apps read: `docs/help`, `docs/templates` and `docs/api`                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), build and the docs site with its links |
 | Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                                        |
 | Medium    | Anything else: the web app, the domain, the contract, the tests, scripts and configuration                                                                                                                                              | Every app job: the checks, the service tests, the golden job specs in both modes, the demo install, the Docker images |
 | Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                   |

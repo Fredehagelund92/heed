@@ -1,0 +1,56 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+import { siteGroups, sitePages } from '../../lib/pages.ts'
+
+const pages = sitePages()
+const path = (slug: string) => `${import.meta.env.BASE_URL}${slug}/`
+const changes = pages.filter((page) => !page.group)
+const line = 'How to write context, connect your agents and run the service.'
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Documentation',
+    line,
+    description: line,
+    reviewed: new Date(),
+    lastUpdated: false,
+    tableOfContents: false,
+    pagefind: false,
+  }}
+>
+  <p class="heed-lead">
+    How to write context, connect your agents and review suggestions, how agents read what you
+    wrote, and how to run the service.
+  </p>
+  {
+    siteGroups.map((group) => (
+      <section class="heed-group">
+        <h2>{group}</h2>
+        <ul>
+          {pages
+            .filter((page) => page.group === group)
+            .map((page) => (
+              <li>
+                <a href={path(page.slug)}>{page.title}</a>
+                <span>{page.line}</span>
+              </li>
+            ))}
+        </ul>
+      </section>
+    ))
+  }
+  <section class="heed-group">
+    <h2>Changes</h2>
+    <ul>
+      {
+        changes.map((page) => (
+          <li>
+            <a href={path(page.slug)}>{page.title}</a>
+            <span>{page.line}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</StarlightPage>

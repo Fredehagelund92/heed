@@ -164,24 +164,43 @@ export function docLinks(blocks: readonly DocBlock[]): DocTarget[] {
 export const docPath = (base: string, slug: string, hash = '') =>
   `${base}/${slug}${hash ? `#${hash}` : ''}`
 
+/** What the agents' text reads of the docs: this model, or a site's own list (apps/docs). */
+export type DocIndex = {
+  pages: readonly { slug: string; title: string; line: string; group?: string }[]
+  changelog: { title: string; line: string }
+}
+
+/** How llms.txt lists a site's pages: its one line, its groups, and where a page opens. */
+export type DocListing = {
+  summary: string
+  groups: readonly string[]
+  path: (base: string, slug: string) => string
+}
+
+const appListing: DocListing = {
+  summary: 'Guides for writing context, connecting agents and reviewing suggestions.',
+  groups: docGroups,
+  path: docPath,
+}
+
 /** The plain-text index an agent reads at llms.txt: every page with its one line. */
-export function llmsTxt(docs: Docs, base: string): string {
+export function llmsTxt(docs: DocIndex, base: string, listing = appListing): string {
   return [
     '# Documentation',
     '',
-    '> Guides for writing context, connecting agents and reviewing suggestions.',
+    `> ${listing.summary}`,
     '',
-    ...docGroups.flatMap((group) => [
+    ...listing.groups.flatMap((group) => [
       `## ${group}`,
       '',
       ...docs.pages
         .filter((p) => p.group === group)
-        .map((p) => `- [${p.title}](${docPath(base, p.slug)}): ${p.line}`),
+        .map((p) => `- [${p.title}](${listing.path(base, p.slug)}): ${p.line}`),
       '',
     ]),
     '## Optional',
     '',
-    `- [${docs.changelog.title}](${docPath(base, CHANGELOG)}): ${docs.changelog.line}`,
+    `- [${docs.changelog.title}](${listing.path(base, CHANGELOG)}): ${docs.changelog.line}`,
     `- [Every page in one file](${base}/llms-full.txt): the pages above as Markdown, in order.`,
     '',
   ].join('\n')
@@ -191,7 +210,7 @@ export function llmsTxt(docs: Docs, base: string): string {
  * Every page as Markdown in one file, for an agent that reads the docs whole (llms-full.txt): each
  * page's title, its line and its body, with its links where the docs site opens them.
  */
-export function llmsFullTxt(docs: Docs, files: readonly DocFile[], base: string): string {
+export function llmsFullTxt(docs: DocIndex, files: readonly DocFile[], base: string): string {
   const bodyOf = (slug: string) => {
     const source = files.find((f) => f.slug === slug)!.source.replace(/\r\n?/g, '\n')
     return source

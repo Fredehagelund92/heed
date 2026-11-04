@@ -1,0 +1,306 @@
+/*
+  Heed's design for Starlight: its tokens (lib/tokens.ts) under Starlight's names, and the parts of
+  the app's docs pages (src/web/pages/docs.tsx) Starlight draws its own way. Values come from the
+  tokens; this file holds only the mapping.
+*/
+
+:root,
+::backdrop {
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: var(--foreground);
+  --sl-color-gray-2: color-mix(in oklab, var(--foreground) 85%, var(--background));
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: var(--muted-foreground);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: var(--band);
+  --sl-color-black: var(--background);
+
+  --sl-color-accent-low: var(--muted);
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-high: var(--primary);
+
+  --sl-color-text: var(--sl-color-gray-2);
+  --sl-color-text-accent: var(--primary);
+  --sl-color-text-invert: var(--primary-foreground);
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: var(--background);
+  --sl-color-bg-sidebar: var(--background);
+  --sl-color-bg-inline-code: var(--muted);
+  --sl-color-bg-accent: var(--primary);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-shade: var(--border);
+
+  --sl-font: var(--font-sans);
+
+  --sl-text-body: var(--text-reading);
+  --sl-line-height: 1.75rem;
+  --sl-line-height-headings: 1.375;
+  --sl-text-h1: var(--text-hero);
+  --sl-text-h2: 1.25rem;
+  --sl-text-h3: 1rem;
+  --sl-text-h4: 1rem;
+  --sl-text-h5: 1rem;
+
+  --sl-nav-height: var(--spacing-bar);
+  --sl-sidebar-width: 16rem;
+  --sl-content-width: 44rem;
+}
+
+/* Starlight sets these again from 50em up, inside its own layer. */
+@media (min-width: 50em) {
+  :root {
+    --sl-nav-height: var(--spacing-bar);
+    --sl-text-h1: var(--text-hero);
+    --sl-text-h2: 1.25rem;
+    --sl-text-h3: 1rem;
+    --sl-text-h4: 1rem;
+  }
+}
+
+/* Every scroll bar is the same: thin, and at 3:1 against the page. */
+html {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--ring) 50%, transparent);
+  outline-offset: 0;
+}
+
+/* The header: the logo, a hairline, then "Docs". */
+.heed-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.heed-title svg {
+  width: auto;
+  height: 1.25rem;
+}
+
+.heed-title-rule {
+  width: 1px;
+  height: 1rem;
+  background: var(--border);
+}
+
+.heed-title-docs {
+  font-size: var(--sl-text-sm);
+  font-weight: 500;
+  color: color-mix(in oklab, var(--foreground) 75%, var(--background));
+}
+
+@media (min-width: 50em) {
+  site-search button[data-open-modal] {
+    height: 2rem;
+    border-color: var(--input);
+    border-radius: var(--radius-md);
+    color: var(--muted-foreground);
+    font-size: var(--sl-text-sm);
+  }
+}
+
+site-search dialog {
+  border-radius: var(--radius-frame);
+}
+
+site-search dialog:focus-visible {
+  outline: 0;
+}
+
+starlight-menu-button button {
+  background: none;
+  box-shadow: none;
+  color: var(--foreground);
+}
+
+header a[rel='me'] {
+  color: var(--muted-foreground);
+}
+
+header a[rel='me']:hover {
+  color: var(--foreground);
+}
+
+/* The sidebar: quiet rows, the current one on the muted surface. */
+.sidebar-content {
+  --sl-sidebar-item-padding-inline: 0.5rem;
+}
+
+.sidebar-content ul ul li {
+  border-inline-start: 0;
+}
+
+.sidebar-content .large {
+  color: var(--foreground);
+  font-size: var(--sl-text-sm);
+  font-weight: 500;
+}
+
+.sidebar-content a {
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: var(--sl-text-sm);
+}
+
+.sidebar-content a:hover,
+.sidebar-content a:focus-visible {
+  color: var(--foreground);
+}
+
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* A page: a bold title, a lead under it, hairline frames with square corners. */
+.content-panel + .content-panel {
+  border-top: 0;
+}
+
+.sl-container:has(h1#_top) {
+  margin-bottom: -2rem;
+}
+
+h1#_top {
+  font-weight: 700;
+  letter-spacing: var(--tracking-hero);
+  line-height: var(--leading-hero);
+  text-wrap: balance;
+}
+
+.sl-markdown-content > p:first-child,
+.heed-lead {
+  color: var(--muted-foreground);
+  font-size: var(--sl-text-lg);
+  text-wrap: pretty;
+}
+
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-weight: 600;
+}
+
+.sl-markdown-content h2 {
+  letter-spacing: -0.025em;
+}
+
+.sl-markdown-content a {
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 4px;
+}
+
+.sl-markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.sl-markdown-content strong {
+  font-weight: 500;
+}
+
+.sl-markdown-content code:not(pre code) {
+  margin: 0;
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875rem;
+}
+
+.sl-markdown-content table {
+  border: 1px solid var(--border);
+  border-collapse: collapse;
+  font-size: var(--sl-text-sm);
+  line-height: 1.5rem;
+}
+
+.sl-markdown-content th {
+  border-bottom: 1px solid var(--border);
+  background: var(--band);
+  color: var(--muted-foreground);
+  font-size: var(--sl-text-xs);
+  font-weight: 400;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td,
+.sl-markdown-content th:first-child,
+.sl-markdown-content td:first-child {
+  padding: 0.5rem 1rem;
+}
+
+.sl-markdown-content tr td {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  vertical-align: top;
+}
+
+/* A note: a quote whose first words are its title in bold (lib/remark-heed-docs.ts). */
+.heed-note {
+  border: 1px solid var(--border);
+  background: var(--band);
+  padding: 0.75rem 1rem;
+  font-size: var(--sl-text-sm);
+  line-height: 1.5rem;
+}
+
+.heed-note > * + * {
+  margin-top: 0.5rem;
+}
+
+/* The landing page: each group's pages with their one line. */
+.heed-group {
+  margin-top: 2rem;
+}
+
+.heed-group h2 {
+  font-size: var(--sl-text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.heed-group ul {
+  display: grid;
+  gap: 1px;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--border);
+  padding: 0;
+  list-style: none;
+}
+
+.heed-group li {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0;
+  background: var(--background);
+  padding: 0.75rem 1rem;
+}
+
+.heed-group span {
+  color: var(--muted-foreground);
+  font-size: var(--sl-text-sm);
+  line-height: 1.5rem;
+}
+
+@media (min-width: 40em) {
+  .heed-group ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .heed-group li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+heed-version[hidden] {
+  display: none;
+}

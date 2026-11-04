@@ -1,0 +1,52 @@
+---
+import Select from '@astrojs/starlight/components/Select.astro'
+import Default from '@astrojs/starlight/components/ThemeSelect.astro'
+import { readSettings } from '../../lib/settings.ts'
+
+const { root, version } = readSettings(process.env)
+---
+
+{
+  version && (
+    <heed-version data-root={root} data-current={version} hidden>
+      <Select
+        icon="open-book"
+        label="Version"
+        options={[{ label: version, value: version, selected: true }]}
+        width="9em"
+      />
+    </heed-version>
+  )
+}
+<Default />
+
+<script>
+  // The list is read when a page opens, so an old version's pages know of newer ones without being
+  // built again. With no versions.json (a copy served on its own) nothing shows.
+  class HeedVersion extends HTMLElement {
+    async connectedCallback() {
+      const { root = '', current = '' } = this.dataset
+      const response = await fetch(`${root}/versions.json`).catch(() => undefined)
+      if (!response?.ok) return
+      const { latest, versions } = (await response.json()) as {
+        latest: string
+        versions: string[]
+      }
+      const select = this.querySelector('select')!
+      select.replaceChildren(
+        ...versions.map((version) => {
+          const label = version === latest ? `${version} (latest)` : version
+          return new Option(label, version, version === current, version === current)
+        }),
+      )
+      this.hidden = false
+      select.addEventListener('change', async () => {
+        const home = `${root}/${select.value}/`
+        const same = location.pathname.replace(`${root}/${current}/`, home)
+        const found = await fetch(same, { method: 'HEAD' }).catch(() => undefined)
+        location.href = found?.ok ? same + location.hash : home
+      })
+    }
+  }
+  customElements.define('heed-version', HeedVersion)
+</script>

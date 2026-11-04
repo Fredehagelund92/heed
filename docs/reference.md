@@ -1,8 +1,14 @@
-# MCP and API reference
+---
+title: MCP and API reference
+line: 'How agents connect over MCP and what they get, and the HTTP API.'
+group: Reference
+order: 2
+reviewed: 2026-11-03
+---
 
 How agents connect over MCP and what they get, and the HTTP API for definition sources, proposals, review and release, and the inbox. The API is described once in `src/contract` and published as [OpenAPI](api/openapi.json).
 
-### Connect Claude Code to Heed
+## Connect Claude Code to Heed
 
 On `docker compose up`, Claude Code signs in through the web app's consent page, with no token:
 `claude mcp add --transport http heed http://localhost:3000/mcp`, then `/mcp` and Authenticate in
@@ -14,7 +20,7 @@ claude mcp add --transport http heed http://localhost:3000/mcp \
   --header "Authorization: Bearer $(npm run --silent token:dev)"
 ```
 
-#### The six tools (the agent contract)
+### The six tools (the agent contract)
 
 Since the agent contract (Heed v1, [the product page](product.md#10-what-agents-get)) the server
 offers six tools, described in one list (`AGENT_TOOLS` in `src/domain/mcp-text.ts`):
@@ -105,9 +111,9 @@ With `response_format: "full"` (FR-342) the reply keeps the same fields and adds
 carried: each item's version, body, validity, claim level, every source, owner, review stamp and
 links (FR-326, FR-331), `scope_used`, `dates_read` and `assumed_date`, the domains the question is
 about with what their owners wrote (FR-813), `options`, `check_report` and `instructions`. Every
-item carries `url`, its page in Heed, and the result's text has a line per item, `Open in Heed -
-<title>: <url>`, with who checked it, so the reader of an answer can check a cited item in one click
-(FR-347). The address is the first of `HEED_WEB_ORIGINS`; the eval runner and the previews run
+item carries `url`, its page in Heed, and the result's text has a line per item,
+`Open in Heed - <title>: <url>`, with who checked it, so the reader of an answer can check a cited
+item in one click (FR-347). The address is the first of `HEED_WEB_ORIGINS`; the eval runner and the previews run
 without one and give the path (`/context/itm_...`). A link holds only the item's id: the page
 applies the audience rules to whoever opens it. Metric and dimension names may be the member names
 the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed resolves them
@@ -235,7 +241,7 @@ seconds. Administrators change all of these through the API ([Administration, im
 change applies on the next request. Local rate counters live in memory for at most one minute.
 Several replicas of the service would need a shared limiter.
 
-### Sign in with your own agent
+## Sign in with your own agent
 
 The service also runs a login server, so a person's own agent can sign in as them without a
 dev token: the app reads `/.well-known/oauth-protected-resource/mcp`, the person signs in and

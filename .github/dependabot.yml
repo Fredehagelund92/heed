@@ -32,6 +32,24 @@ updates:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
 
+  # The docs site is its own npm package. A bad upgrade can only break the docs build.
+  - package-ecosystem: npm
+    directory: /apps/docs
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Majors are upgraded deliberately, not by Dependabot.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
   - package-ecosystem: docker
     directory: /
     schedule:

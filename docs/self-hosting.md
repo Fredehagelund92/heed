@@ -1,4 +1,10 @@
-# Self-host Heed on one computer
+---
+title: Self-host Heed on one computer
+line: 'Run it with docker compose on one computer, back it up, restore it, upgrade it and roll an upgrade back.'
+group: Run the service
+order: 2
+reviewed: 2026-11-03
+---
 
 How to run Heed with `docker compose` on one computer, back it up, restore it, upgrade it and roll
 an upgrade back. To run it anywhere else, see [Where to run Heed](where-to-run.md).
@@ -90,7 +96,7 @@ while Heed keeps running. `heed-keys.tar` holds the three key files. Copy both o
 docker compose exec heed node src/server/run-restore-drill.ts
 ```
 
-The [restore drill](security.md#security-scanning-and-the-restore-drill) takes a backup the same
+The [restore drill](security.md) takes a backup the same
 way (`pg_dump --format=custom`), restores it into a new scratch database in one transaction,
 proves the copy is the same database (every table's rows, every sequence, every edition's digest,
 every item's content digest and the history log's hash chain), drops the copy and ends with

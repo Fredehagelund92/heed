@@ -69,6 +69,8 @@ export default tseslint.config(
       'overlay/**',
       // The clickable mockup is its own package with its own lint, oxlint (apps/mockup/README.md).
       'apps/mockup/**',
+      // The docs site too, with its dependencies kept out of the app's (apps/docs/README.md).
+      'apps/docs/**',
     ],
   },
   js.configs.recommended,

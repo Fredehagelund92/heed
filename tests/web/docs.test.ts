@@ -10,6 +10,7 @@ import {
   docsFolder,
   inlineText,
   llmsFullTxt,
+  llmsTxt as llmsIndex,
   type DocBlock,
   type DocInline,
 } from '@domain/docs'
@@ -225,6 +226,25 @@ describe('the index for agents', () => {
     for (const p of DOC_PAGES) expect(index).toContain(`- [${p.title}](/docs/${p.slug}): ${p.line}`)
     expect(index).toContain(`- [What's new](/docs/changelog)`)
     expect(index.match(/^- \[/gm)).toHaveLength(DOC_PAGES.length + 2)
+  })
+
+  it("lists a site of its own by that site's groups and addresses", () => {
+    const index = llmsIndex(
+      {
+        pages: [{ slug: 'operations', title: 'Operate it', line: 'How.', group: 'Run it' }],
+        changelog: { title: 'Changes', line: 'What changed.' },
+      },
+      'https://docs.example.com/v0.1',
+      {
+        summary: 'Everything about it.',
+        groups: ['Run it'],
+        path: (base, slug) => `${base}/${slug}/`,
+      },
+    )
+    expect(index).toContain('> Everything about it.')
+    expect(index).toContain('## Run it')
+    expect(index).toContain('- [Operate it](https://docs.example.com/v0.1/operations/): How.')
+    expect(index).toContain('- [Changes](https://docs.example.com/v0.1/changelog/): What changed.')
   })
 
   it('gives every page whole, with links where the docs site opens them', () => {
