@@ -534,7 +534,9 @@ describe('Ask with a real model (FR-701)', () => {
 
   it('writes no words for an answer with nothing written down', async () => {
     const sent = await lookup('What is our refund policy for gift cards?')
-    expect(sent.at(-1)?.type).toBe('answer')
+    // The planner gave no plan for words the rules cannot read: it says so, and nothing is written.
+    expect(sent.at(-1)?.type).toBe('reply')
+    expect(sent.some((e) => e.type === 'sentence')).toBe(false)
   })
 
   it("counts the model's spend for the person, and keeps the question in no table and no log", async () => {
@@ -709,13 +711,20 @@ describe('Ask with its planner (FR-719)', () => {
     expect(reply?.type === 'reply' && reply.reply.text).toMatch(/outside that/)
   })
 
-  it('answers as with no model when the plan fails the check, and logs why, never the words', async () => {
+  it('says it could not read a question when the plan fails the check, and logs why, never the words', async () => {
     model = () =>
       fixedWordsModel('{"reads":[{"kind":"lookup","metrics":["metric:no_such_metric"]}]}')
     const at = lines.length
     const sent = await lookup({ question: 'any campaigns about Zanzibar puffins?' })
     expect(sent.some((e) => e.type === 'plan')).toBe(false)
-    expect(answerIn(sent)?.status).toBe('need_more_detail')
+    const reply = sent.find((e) => e.type === 'reply')
+    expect(reply).toMatchObject({
+      reply: {
+        kind: 'cannot',
+        reason: 'unread',
+        text: 'Ask could not read this question just now, so nothing was looked up.',
+      },
+    })
     const miss = lines.slice(at).find((l) => l.includes('ask plan not used'))!
     expect(JSON.parse(miss)).toMatchObject({ reason: 'not checked', why: 'unknown key' })
     expect(lines.slice(at).join('\n')).not.toMatch(/Zanzibar|no_such_metric/)
