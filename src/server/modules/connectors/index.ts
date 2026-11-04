@@ -1,4 +1,9 @@
-export { createCubeSource, cubeServerType, type CubeSourceOptions } from './server-source.ts'
+export {
+  createCubeSource,
+  createFolderSource,
+  cubeServerType,
+  type CubeSourceOptions,
+} from './server-source.ts'
 export {
   runWorker,
   workerLimits,
@@ -18,7 +23,13 @@ export {
   SecretStoreError,
   type SecretStore,
 } from './secrets.ts'
-export { ConnectorRegistry, configuredSource, connectorType, connectorTypes } from './registry.ts'
+export {
+  ConnectorRegistry,
+  configuredSource,
+  configuredSources,
+  connectorType,
+  connectorTypes,
+} from './registry.ts'
 export {
   createFigureSources,
   FIGURE_CACHE_MS,

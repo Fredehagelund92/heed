@@ -1,0 +1,82 @@
+semantic_models:
+  - name: orders
+    label: Orders
+    description: One row per order placed in the invented shop.
+    model: ref('orders')
+    config:
+      meta:
+        domain: sales
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: ordered_at
+        label: Order date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: status
+        label: Order status
+        description: Where the order is, completed or returned.
+        type: categorical
+      - name: channel
+        type: categorical
+        description: Web or shop.
+        expr: case when channel = 'web' then 'online' else 'in person' end
+        config:
+          meta:
+            synonyms: ['sales channel', 'Sales Channel', 'route to market']
+    measures:
+      - name: order_count
+        description: Every order, whatever its status.
+        agg: count
+        expr: order_id
+      - name: order_amount
+        agg: sum
+        expr: amount
+      - name: discount_amount
+        agg: sum
+        expr: discount
+      - name: ordering_customers
+        agg: count_distinct
+        expr: customer_id
+      - name: margin_amount
+        agg: sum
+        expr: amount - discount - 0.6 * amount
+  - name: customers
+    description: One row per customer.
+    model: ref('customers')
+    defaults:
+      agg_time_dimension: signed_up_at
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_id
+    dimensions:
+      - name: signed_up_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: region
+        label: Region
+        type: categorical
+      - name: status
+        label: Customer status
+        description: Whether the customer is active.
+        type: categorical
+        expr: case when tier = 'gold' then 'active' else 'dormant' end
+      - name: tier
+        type: categorical
+        config:
+          meta:
+            domain: Customer Care
+    measures:
+      - name: customer_count
+        agg: count
+        expr: customer_id

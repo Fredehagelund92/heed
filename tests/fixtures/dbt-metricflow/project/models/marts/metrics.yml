@@ -1,0 +1,97 @@
+metrics:
+  - name: orders
+    label: Orders
+    description: Orders placed, whatever their status.
+    type: simple
+    type_params:
+      measure: order_count
+    config:
+      meta:
+        domain: sales
+        synonyms: ['purchases', 'order count']
+  - name: revenue
+    label: Revenue
+    description: The amount ordered before discounts.
+    type: simple
+    type_params:
+      measure: order_amount
+  - name: completed_orders
+    label: Completed orders
+    description: Orders that were not returned.
+    type: simple
+    type_params:
+      measure: order_count
+    filter: |
+      {{ Dimension('order__status') }} = 'completed'
+  - name: discounts
+    label: Discounts
+    type: simple
+    type_params:
+      measure: discount_amount
+  - name: net_revenue
+    label: Net revenue
+    description: Revenue less discounts.
+    type: derived
+    type_params:
+      expr: revenue - discounts
+      metrics:
+        - name: revenue
+        - name: discounts
+  - name: average_order_value
+    label: Average order value
+    description: Revenue divided by orders.
+    type: ratio
+    type_params:
+      numerator: revenue
+      denominator: orders
+  - name: revenue_to_date
+    label: Revenue to date
+    description: Revenue from the first order up to each day.
+    type: cumulative
+    type_params:
+      measure: order_amount
+  - name: weekly_ordering_customers
+    label: Weekly ordering customers
+    description: Customers who ordered in the last 7 days.
+    type: cumulative
+    type_params:
+      measure: ordering_customers
+      cumulative_type_params:
+        window: 7 days
+  - name: customers
+    label: Customers
+    description: Customers who signed up.
+    type: simple
+    type_params:
+      measure: customer_count
+    config:
+      meta:
+        domain: Customer Care
+  - name: revenue_per_customer
+    label: Revenue per customer
+    description: Revenue divided by customers who signed up. It spans two semantic models.
+    type: derived
+    type_params:
+      expr: revenue / nullif(customers, 0)
+      metrics:
+        - name: revenue
+        - name: customers
+  - name: gross_margin
+    label: Gross margin
+    description: '{{ doc("gross_margin_doc") }}'
+    type: simple
+    type_params:
+      measure: margin_amount
+  - name: ordering_rate
+    label: Ordering rate
+    description: Share of customers who order within 30 days of signing up.
+    type: conversion
+    type_params:
+      conversion_type_params:
+        entity: customer
+        calculation: conversion_rate
+        base_measure:
+          name: customer_count
+        conversion_measure:
+          name: ordering_customers
+        window: 30 days

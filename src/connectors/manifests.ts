@@ -1,5 +1,6 @@
 import type { ConnectorManifest } from '../domain/connector-manifest.ts'
 import { manifest as cube } from './cube/manifest.ts'
+import { manifest as dbtMetricflow } from './dbt-metricflow/manifest.ts'
 import { manifest as gitMarkdown } from './git-markdown/manifest.ts'
 import { manifest as googleDrive } from './google-drive/manifest.ts'
 import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
@@ -11,6 +12,7 @@ import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
  */
 export const builtInManifests: readonly ConnectorManifest[] = [
   cube,
+  dbtMetricflow,
   staticDefinitions,
   gitMarkdown,
   googleDrive,

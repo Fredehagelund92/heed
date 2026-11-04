@@ -53,6 +53,8 @@ export type Connector = {
   access: string[]
   /** The lead of its page, where the app words it; otherwise its kind's. */
   lead?: string
+  /** Its definitions name no file: dbt's semantic manifest does not say where each was written. */
+  noFileLinks?: true
   /** The setting a definitions tool names a view's domain with, as people write it there. */
   domainField?: string
   /** An example of its data endpoint, shown in the empty field where figures are set up. */
@@ -65,7 +67,7 @@ export type Connector = {
  */
 export const logos: Record<string, string> = {
   cube,
-  dbt,
+  'dbt-metricflow': dbt,
   'google-drive': googledrive,
   'git-markdown': markdown,
   notion,

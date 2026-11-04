@@ -1,0 +1,7 @@
+name: invented_shop
+version: '1.0.0'
+profile: invented_shop
+model-paths: ['models']
+seed-paths: ['seeds']
+flags:
+  require_yaml_configuration_for_mf_time_spines: true

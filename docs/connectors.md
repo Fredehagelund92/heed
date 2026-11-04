@@ -40,15 +40,16 @@ worker for its compiler, and Google Drive, which reads the changes since its cur
 snapshot a definitions read is gathered into and the pipeline that stores it; the server's demo
 source is the last one written to it. The other connector documents:
 
-| Document                                                    | For                                                                                     |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [Security and egress](connectors/security.md)               | Where connector code runs, the hosts it may reach, the secret store and its output      |
-| [Writing a connector](connectors/authoring.md)              | Authors of a new connector: the template, the steps, the rules, the kit and a checklist |
-| [Connectors as packages](connectors/packaging.md)           | The design for loading connectors from packages later; not built                        |
-| [The Cube connector](connectors/cube.md)                    | The Cube model setup, its settings, the demo model, compilation and change marks        |
-| [Cube](../src/connectors/cube/README.md)                    | The Cube connector's page: its settings, what a read does, its schedule and its limits  |
-| [Markdown in Git](../src/connectors/git-markdown/README.md) | The first content connector: its settings, its folders and what a read suggests         |
-| [Google Drive](../src/connectors/google-drive/README.md)    | Google Docs through a service account: setting it up, full reads and change reads       |
+| Document                                                     | For                                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| [Security and egress](connectors/security.md)                | Where connector code runs, the hosts it may reach, the secret store and its output             |
+| [Writing a connector](connectors/authoring.md)               | Authors of a new connector: the template, the steps, the rules, the kit and a checklist        |
+| [Connectors as packages](connectors/packaging.md)            | The design for loading connectors from packages later; not built                               |
+| [The Cube connector](connectors/cube.md)                     | The Cube model setup, its settings, the demo model, compilation and change marks               |
+| [Cube](../src/connectors/cube/README.md)                     | The Cube connector's page: its settings, what a read does, its schedule and its limits         |
+| [dbt MetricFlow](../src/connectors/dbt-metricflow/README.md) | The dbt connector's page: the file it reads, the CI recipe, where `meta` goes and its warnings |
+| [Markdown in Git](../src/connectors/git-markdown/README.md)  | The first content connector: its settings, its folders and what a read suggests                |
+| [Google Drive](../src/connectors/google-drive/README.md)     | Google Docs through a service account: setting it up, full reads and change reads              |
 
 ## Invariants
 
@@ -367,6 +368,7 @@ export default defineManifest({
     domain: 'per-scope', // 'hint' (definitions) | 'per-scope' (content)
     marks: undefined, // definitions: 'meaning' | 'metadata' (do marks see calculations? CON-505)
     mergeDimensions: undefined, // definitions: 'by-name' | 'never' (CON-201), absent is by-name
+    serverFolder: undefined, // definitions: reads a folder on the server with no settings (CON-119)
     links: true,
     figures: undefined, // definitions: reads one figure for Ask (CON-612)
   },
@@ -555,8 +557,9 @@ capabilities a manifest declares:
 
 ### Versions
 
-- **Interface version**, a semver: 3.1 today (3.1 added `capabilities.mergeDimensions` and a
-  secret's `file`, so a connector that uses them says `^3.1`). A minor version only adds; a
+- **Interface version**, a semver: 3.2 today (3.1 added `capabilities.mergeDimensions` and a
+  secret's `file`, and 3.2 `capabilities.serverFolder`, so a connector that uses them says that
+  version). A minor version only adds; a
   major one may break. Heed runs the current and the previous major for at least 12 months or two
   releases, whichever is longer, and warns on a source's page when its connector uses a major that
   will stop being supported (CON-109). Experimental parts are open to built-in connectors only.
@@ -652,9 +655,14 @@ Where the build differs from the decided text above:
   for the server's own model folder (`CUBE_MODEL_DIR`), which its runtime reads as `ctx.folder`;
   the core applies the server's domain names (`HEED_DOMAIN_OVERRIDES`) and renames
   (`CUBE_RENAMES_FILE`) to that folder's reads (`server-source.ts`), and `npm run
-connectors:sync` is unchanged. Its settings, its refs and the sources administrators added on
-  interface 2 are as they were. Its warnings are the core's codes it always had
-  (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
+connectors:sync` reads each of the server's own sources. Its settings, its refs and the sources
+  administrators added on interface 2 are as they were. Its warnings are the core's codes it
+  always had (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
+- **A folder on the server**, for any other definitions connector that declares
+  `capabilities.serverFolder` (CON-119): `HEED_SERVER_FOLDERS` maps connector ids to folders, each
+  read as `ctx.folder` by a source of the server's own, with the server's domain names. The core
+  hands no folder to a connector that does not declare it, and a name it cannot honour stops the
+  server. With a folder named and no `CUBE_MODEL_DIR`, the demo is not read.
 - **What is stored**: a source's `connectors.type` is its connector's id and `interface_version`
   is the interface the connector was written to (3, or 2 for the demo; migration 0020 moved the
   Cube sources added on interface 2 to 3). The history log's `source.added`

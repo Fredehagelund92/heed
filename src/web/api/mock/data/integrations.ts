@@ -46,6 +46,26 @@ const cubeViews: DefinitionsView[] = [
   { view: 'segments', metrics: 0, dimensions: 5 },
 ]
 
+/** What a test of the invented shop's dbt project finds: its semantic models, and `_shared`. */
+export const demoSemanticModels: ConnectScope[] = [
+  {
+    id: 'orders',
+    title: 'orders',
+    detail: '9 metrics, 3 dimensions',
+    metrics: 9,
+    dimensions: 3,
+    domain: 'sales',
+  },
+  {
+    id: 'customers',
+    title: 'customers',
+    detail: '1 metric, 4 dimensions',
+    metrics: 1,
+    dimensions: 4,
+  },
+  { id: '_shared', title: '_shared', detail: '2 metrics', metrics: 2, dimensions: 0 },
+]
+
 /** The folders shared with Heed's service account, each mapped to exactly one domain. */
 const driveFolders: DriveFolder[] = [
   { folder: 'Data team', path: 'Definitions', domain: 'sales', documents: 6 },

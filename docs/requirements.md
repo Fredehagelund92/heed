@@ -685,6 +685,7 @@ Three rules never change, in any version of the connector interface. The core en
 | CON-116 | When a connector changes how it computes change marks, the system must store the new marks without flagging items, record that it did, and tell the owners once. | First build | Kept |
 | CON-117 | A definition id prefix belongs to a tool, not to a connector. Ownership of an id moves from one source to another only by an explicit hand-over by an administrator. (Amended 29 Oct 2026, Heed v1: disconnecting a source is that hand-over; see CON-118.) | First build | Kept |
 | CON-118 | An administrator must be able to disconnect a source they added, with a reason. It is read no more, its secrets leave the secret store, and it leaves the list of integrations; its open suggestions are withdrawn, and what owners published stays. What it read stays, unflagged, and the next source of the tool that reads one of its definitions takes it over. The history log records it, with its secrets only as removed. | First build | New |
+| CON-119 | A definition source connector may declare in its manifest that it can read a folder on the server with no settings. Whoever runs the server names the folder for it by connector id, and it is then one of the server's own sources. The system must hand a folder only to a connector that declares this, and a connector must never choose the path. Cube's folder stays `CUBE_MODEL_DIR`. | First build | New |
 
 ### 6.3 Definition source connectors
 
@@ -768,7 +769,7 @@ A definition source connector for the metrics and dimensions of a dbt project's 
 
 | ID | Requirement | Priority | Status |
 | --- | --- | --- | --- |
-| CON-701 | The connector must read dbt's `semantic_manifest.json` from a Git repository at a set branch, tag or commit, with a read-only credential, or from a folder on the server that whoever runs it names. It must never reach dbt Cloud or a warehouse. | First build | New |
+| CON-701 | The connector must read dbt's `semantic_manifest.json` from a Git repository at a set branch, tag or commit, with a read-only credential, or from a folder on the server that whoever runs it names (CON-119). It must never reach dbt Cloud or a warehouse. | First build | New |
 | CON-702 | Each definition's id must be `dbt:<semantic model>.<name>`. A metric whose inputs come from more than one semantic model must be under `_shared`, a name no semantic model can have. | First build | New |
 | CON-703 | The connector must list every metric that is not hidden, and every dimension. It must leave out measures, entities and saved queries. | First build | New |
 | CON-704 | A definition's domain must come from `config.meta.domain`: a metric's own, else the one domain its semantic models agree on, else none. It is mapped per source (CON-206). | First build | New |

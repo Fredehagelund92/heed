@@ -16,7 +16,7 @@ import { describeDatabase, type Config } from './config/env.ts'
 import { createDatabase, type Database } from './db/database.ts'
 import {
   ConnectorRegistry,
-  configuredSource,
+  configuredSources,
   connectorSyncJob,
   createWorkspaceSources,
   noSecretStore,
@@ -78,6 +78,7 @@ export function logConfiguration(config: Config, logger: Logger): void {
       fixedToday: config.fixedToday ?? null,
       models: config.models,
       cubeModelDir: config.cubeModelDir ?? null,
+      serverFolders: Object.keys(config.serverFolders),
       secretStore: config.secretsDir === undefined ? 'off' : 'local',
       metrics: config.metricsToken === undefined ? 'off' : 'on',
       webReadLoopback: config.webReadLoopback ? 'on' : 'off',
@@ -213,7 +214,7 @@ async function compose(
     }
   }
   const mcp = options.mcp === false ? undefined : await createMcpDependencies(config, logger, login)
-  const sources = new ConnectorRegistry([configuredSource(config)], {
+  const sources = new ConnectorRegistry(configuredSources(config), {
     secrets,
     worker: config.cubeCompile,
   })

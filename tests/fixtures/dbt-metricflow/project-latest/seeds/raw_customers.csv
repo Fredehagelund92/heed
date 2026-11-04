@@ -1,0 +1,4 @@
+customer_id,signed_up_at,region,tier
+1,2026-01-03,north,gold
+2,2026-01-15,south,silver
+3,2026-02-01,north,silver

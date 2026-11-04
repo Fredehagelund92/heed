@@ -1,0 +1,7 @@
+invented_shop:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: invented_shop.duckdb
+      threads: 1

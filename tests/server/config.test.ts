@@ -41,6 +41,7 @@ describe('loadConfig', () => {
       models: 'mock',
       modelEnv: {},
       cubeModelDir: undefined,
+      serverFolders: {},
       domainOverridesFile: undefined,
       cubeCompile: {},
       webReadLoopback: false,
@@ -90,12 +91,14 @@ describe('loadConfig', () => {
       VERCEL_AI_GATEWAY_API_KEY: 'gw-test',
       VERCEL_AI_GATEWAY_BASE_URL: 'https://gateway.example/v1',
       CUBE_MODEL_DIR: '/models/cube',
+      HEED_SERVER_FOLDERS: '{"dbt-metricflow":"/models/dbt"}',
       HEED_DOMAIN_OVERRIDES: '/models/domains.json',
       CUBE_COMPILE_TIMEOUT_SECONDS: '300',
       CUBE_COMPILE_MEMORY_MB: '2048',
       HEED_METRICS_TOKEN: 'm'.repeat(32),
     })
     expect(config.cubeCompile).toEqual({ timeoutMs: 300_000, memoryMb: 2048 })
+    expect(config.serverFolders).toEqual({ 'dbt-metricflow': '/models/dbt' })
     expect(config).toMatchObject({
       nodeEnv: 'test',
       host: '0.0.0.0',

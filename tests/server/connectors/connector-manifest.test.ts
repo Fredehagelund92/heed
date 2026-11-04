@@ -88,7 +88,7 @@ describe('checking a manifest', () => {
       'version: Use a semantic version, such as 1.0.0.',
     ])
     expect(problemsOf({ ...valid, heed: '^2.0' })).toEqual([
-      'heed: This build speaks interface 3.1.0, which ^2.0 does not include. Write a range such as ^3.0.',
+      'heed: This build speaks interface 3.2.0, which ^2.0 does not include. Write a range such as ^3.0.',
     ])
     expect(problemsOf({ ...valid, heed: '>=3' })).toHaveLength(1)
     expect(problemsOf({ ...valid, id: 'acme.lookml' })).toEqual([])
