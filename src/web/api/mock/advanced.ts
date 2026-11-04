@@ -1,10 +1,10 @@
 import type { Advanced, Exported } from '../client'
 import { SLUG } from '@/lib/brand'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { logLine, relativeDate } from '@/model/history'
 import type { LogEntry } from '@/model/items'
 import { type SettingChange, settingGroups } from '@/model/settings'
 import { WORKSPACE_NAME } from './data/world'
+import { DEMO_CONTEXT, DEMO_DEFINITIONS, demoTool } from './data/integrations'
 
 // Settings, Advanced in the demo: every tuning setting, what was deleted, the
 // history log, the jobs and the editions, as Larchwood Outdoor's week has them. The deletions and
@@ -66,7 +66,7 @@ function settingsOf(name: string, about: string, autoPublish: boolean) {
   )
 }
 
-const toolHref = '/settings/integrations/cube'
+const toolHref = `/settings/integrations/${DEMO_DEFINITIONS}`
 
 /** What Settings, Advanced shows in the demo, with what this visit changed on top. */
 export function advancedOf(log: readonly LogEntry[], about = '', autoPublish = false): Advanced {
@@ -120,7 +120,7 @@ export function advancedOf(log: readonly LogEntry[], about = '', autoPublish = f
         key: 'h1',
         when: '7 Oct, 06:00',
         who: 'Automatic',
-        what: `Read ${DEFINITIONS_TOOL}: 2 definitions changed`,
+        what: `Read ${demoTool(DEMO_DEFINITIONS)}: 2 definitions changed`,
         href: toolHref,
       },
       {
@@ -144,16 +144,16 @@ export function advancedOf(log: readonly LogEntry[], about = '', autoPublish = f
     ],
     jobs: [
       {
-        key: 'cube',
-        job: `Read ${DEFINITIONS_TOOL}`,
+        key: DEMO_DEFINITIONS,
+        job: `Read ${demoTool(DEMO_DEFINITIONS)}`,
         href: toolHref,
         last: 'Today, 06:00',
         result: 'Done',
       },
       {
         key: 'drive',
-        job: 'Read Google Drive',
-        href: '/settings/integrations/google-drive',
+        job: `Read ${demoTool(DEMO_CONTEXT)}`,
+        href: `/settings/integrations/${DEMO_CONTEXT}`,
         last: 'Today, 06:00',
         result: 'Done',
       },

@@ -21,7 +21,7 @@ const OVERVIEW = /^\/observability\/overview\/?$/
 
 /**
  * Old addresses keep working: a #/ link from the hash router, the Library that became Context and
- * Definitions, the Definitions tab that became the Cube integration, About our business that became
+ * Definitions, the Definitions tab that became Integrations, About our business that became
  * General, a peek's `fact` that became `context`, Observability's Summary and its monthly
  * digests, which went: they land on Overview, without the Summary's own `period`, Overview's own
  * old address (Overview is Observability's now), and the Conflicts list that became the Context
@@ -40,7 +40,7 @@ export function redirectFrom(
     .replace(/^\/library\/(definitions|metrics)(?=\/|$)/, '/definitions')
     .replace(/^\/library\/fact\/([^/]+)/, '/context/$1')
     .replace(/^\/library(?=\/|$)/, '/context')
-    .replace(/^\/settings\/definitions(?=\/|$)/, '/settings/integrations/cube')
+    .replace(/^\/settings\/definitions(?=\/|$)/, '/settings/integrations')
     .replace(/^\/settings\/about(?=\/|$)/, '/settings/general')
     .replace(SUMMARY, '/observability')
     .replace(OVERVIEW, '/observability')

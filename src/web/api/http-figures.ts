@@ -8,7 +8,6 @@
 import type { FigureRead, FigureTry as FigureTried } from '@contract/figures'
 import { comparisonWords, daysWords, type Days } from '@domain/figures'
 import type { Figure, FigureTry, FigureView } from '@/model/figures'
-import type { ConnectorId } from '@/model/integrations'
 
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -124,7 +123,7 @@ function whyNot(read: Extract<FigureRead, { state: 'none' }>, metric: string, sc
 export function figureViewOf(
   read: FigureRead,
   asked: Asked,
-  source: (type: string) => ConnectorId | undefined,
+  source: (type: string) => string | undefined,
   now: Date,
 ): FigureView | null {
   const scope = `${asked.metric}${asked.markets.length ? ` in ${asked.markets.join(' and ')}` : ''}`
@@ -141,6 +140,7 @@ export function figureViewOf(
       ? {
           kind: 'link',
           source: id,
+          tool: read.source.tool,
           scope: `${scope}${asked.dates ? `, ${asked.dates}` : ''}`,
           href: read.link,
         }
@@ -168,8 +168,8 @@ export function figureViewOf(
   }
   const asOf = asOfWords(read.asOf, now)
   return read.against
-    ? { kind: 'against', source: id, figure, asOf }
-    : { kind: 'line', source: id, figure, asOf }
+    ? { kind: 'against', source: id, tool: read.source.tool, figure, asOf }
+    : { kind: 'line', source: id, tool: read.source.tool, figure, asOf }
 }
 
 /**
@@ -179,7 +179,7 @@ export function figureViewOf(
  */
 export function figureTryOf(
   tried: FigureTried,
-  source: (type: string) => ConnectorId | undefined,
+  source: (type: string) => string | undefined,
   now: Date,
 ): FigureTry | null {
   const id = source(tried.source.type)

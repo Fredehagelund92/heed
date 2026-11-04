@@ -22,7 +22,7 @@ import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { pairOfKey } from '@/model/conflicts'
-import { connectorById } from '@/model/integrations'
+import { integrationHref, lookOf } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
 import { QuickHead, QuickReview } from '@/pages/review'
 import {
@@ -99,7 +99,6 @@ import { suggestionIcon } from '@/components/heed/change-icons'
 import type { Subject } from '@/model/comments'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { ListSkeleton, Loadable } from '@/components/heed/load-state'
 import { BulkBar, BulkButton } from '@/components/heed/bulk-bar'
 import { useOnline } from '@/lib/send'
@@ -173,7 +172,7 @@ function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.R
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
   if (card.look) return 'Raised by an alert: saved questions answer worse'
   if (card.alert) return `Raised by an alert: ${card.alert.name}`
-  return card.line.startsWith(DEFINITIONS_TOOL) ? 'A definition changed' : 'Its check date passed'
+  return card.due === 'source' ? 'A definition changed' : 'Its check date passed'
 }
 
 /**
@@ -310,7 +309,7 @@ function InboxList({
             )}
             {firstOfRead && (
               <li className="flex h-10 items-center gap-2 bg-band px-4 text-xs @md:px-6">
-                <ToolLogo c={connectorById('google-drive')!} size="sm" />
+                <ToolLogo c={lookOf(source.connector)} size="sm" />
                 <span className="truncate font-medium">
                   From {source.tool}, {midSentence(source.read)}
                 </span>
@@ -318,7 +317,7 @@ function InboxList({
                   {fromRead} new {fromRead === 1 ? 'suggestion' : 'suggestions'}
                 </span>
                 <a
-                  href="/settings/integrations/google-drive?state=suggestions"
+                  href={`${integrationHref(source.connector)}?state=suggestions`}
                   className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   About this read
@@ -365,7 +364,7 @@ function InboxList({
                     {care ? (
                       <TriangleAlertIcon aria-label={care} className="text-caution-icon" />
                     ) : source ? (
-                      <ToolLogo c={connectorById('google-drive')!} size="sm" />
+                      <ToolLogo c={lookOf(source.connector)} size="sm" />
                     ) : (
                       <Icon />
                     )}
@@ -944,7 +943,11 @@ function Setup() {
     : 'What should I know about our numbers?'
   const doneCount = setupSteps.filter((s) => setupDone[s.id]).length
   const go = (id: string) => {
-    if (id === 'definitions') navigate('/settings/integrations/cube/connect', { setup: '1' })
+    // The catalogue loads with the first page that needs it, never with the Inbox.
+    if (id === 'definitions')
+      void import('@/model/catalogue').then(({ definitionsConnectHref }) =>
+        navigate(definitionsConnectHref(), { setup: '1' }),
+      )
     if (id === 'about') navigate('/settings/general', { setup: '1' })
     if (id === 'fact') navigate('/context/new', { setup: '1' })
     // A question about the first item, typed in and ready to send.

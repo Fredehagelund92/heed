@@ -112,7 +112,7 @@ export const docControls: DocControl[] = [
   {
     phrase: 'Test connection',
     page: 'integrations',
-    at: '/settings/integrations/markdown-git/connect?step=2',
+    at: '/settings/integrations/git-markdown/connect?step=2',
     drawn: 'button',
   },
   {

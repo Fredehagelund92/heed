@@ -30,7 +30,7 @@ const TOKEN = 'heed-test-token-5f2c9a71'
  * read that outlives its test then lands its requests in the next one.
  */
 const GIT_TIMEOUT = 90_000
-const fixture = fileURLToPath(new URL('../../fixtures/cube/model.yml', import.meta.url))
+const fixture = fileURLToPath(new URL('../../fixtures/cube/model/model.yml', import.meta.url))
 let host: GitHost
 let model: string
 let first: string

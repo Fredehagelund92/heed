@@ -2,14 +2,18 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll } from 'vitest'
+import { manifest as templateManifest } from '../../../src/connectors/_template/manifest.ts'
+import { runtime as templateRuntime } from '../../../src/connectors/_template/runtime.ts'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
+import { defineConnector } from '../../../src/domain/connector-runtime.ts'
 import { builtInFolder, describeConnector, type FixtureSource } from './kit.ts'
 import { driveHost, type DriveHost } from './drive-server.ts'
 import { gitHost, type GitHost } from './git-server.ts'
 
 /*
   The conformance kit against every connector built into this repository (CON-108): a new
-  connector is added here with its fixture, and passes before it ships.
+  connector is added here with its fixture, and passes before it ships. So is the template
+  (src/connectors/_template/), so what an author copies always works.
 */
 
 const TOKEN = 'kit-token-91c2ef'
@@ -52,12 +56,49 @@ beforeAll(async () => {
     'docs/marketing/spend.md': '# Spend\n\nMarketing spend is booked monthly.\n',
     'docs/notes.txt': 'Not Markdown.',
   })
-  const model = await readFile(new URL('../../fixtures/cube/model.yml', import.meta.url), 'utf8')
+  const model = await readFile(
+    new URL('../../fixtures/cube/model/model.yml', import.meta.url),
+    'utf8',
+  )
   await host.repository('analytics', { 'cube/model/model.yml': model, 'README.md': '# Model' })
   await host.repository('analytics-partial', {
     'cube/model/model.yml': model,
     'cube/model/macros.js': 'module.exports = {}',
   })
+  // The same model with a comment, its keys in another order and other quotes: the same meaning.
+  await host.repository('analytics-reformatted', {
+    'cube/model/model.yml': `# The invented shop's model.\n${model
+      .replace(
+        '        type: sum\n        sql: amount\n',
+        '        sql: "amount"\n        type: sum\n',
+      )
+      .replace(
+        '      - name: country\n        type: string\n',
+        "      - type: 'string'\n        name: country\n",
+      )}`,
+  })
+  // Revenue worked out another way: it moves, and every view member that is revenue moves too.
+  await host.repository('analytics-changed', {
+    'cube/model/model.yml': model.replace('        sql: amount\n', '        sql: amount * 0.8\n'),
+  })
+  // The model written as JSON: a format the connector does not read.
+  await host.repository('analytics-json', {
+    'cube/model/model.json': JSON.stringify({ cubes: [{ name: 'orders' }] }),
+  })
+  const metrics = JSON.parse(
+    await readFile(new URL('../../fixtures/template/metrics.json', import.meta.url), 'utf8'),
+  ) as TemplateFile
+  await host.repository('example-metrics', { 'metrics/metrics.json': JSON.stringify(metrics) })
+  await host.repository('example-reformatted', {
+    'metrics/metrics.json': JSON.stringify(reordered(metrics), null, 4),
+  })
+  await host.repository('example-changed', {
+    'metrics/metrics.json': JSON.stringify(withRevenue(metrics, 'sum(amount - refunded)')),
+  })
+  await host.repository('example-partial', {
+    'metrics/metrics.json': JSON.stringify(withoutRevenue(metrics)),
+  })
+  await host.repository('example-wrong', { 'metrics/metrics.json': '{ "metrics": [] }' })
   // Small pages, so every list is read page by page.
   drive = await driveHost({ pageSize: 2 })
   driveKey = drive.key()
@@ -92,19 +133,46 @@ afterAll(async () => {
 
 const module = (id: string) => builtInConnectors.find((candidate) => candidate.manifest.id === id)!
 
+const list = await readFile(
+  new URL('../../fixtures/static-definitions/list.json', import.meta.url),
+  'utf8',
+)
+type Entry = Record<string, string>
+const staticList = (entries: Entry[] = JSON.parse(list) as Entry[], space = 2): FixtureSource => ({
+  config: { definitions: JSON.stringify(entries, null, space), domainNames: { Money: 'finance' } },
+  secrets: {},
+})
+
 describeConnector(module('static-definitions'), {
   folder: builtInFolder('static-definitions'),
-  good: () => ({
-    config: {
-      definitions:
-        '[{ "kind": "metric", "name": "payments.orders", "title": "Orders" }, { "kind": "dimension", "name": "payments.market" }]',
-    },
-    secrets: {},
-  }),
+  good: () => staticList(),
   invalid: [
     { config: { definitions: 'not json' }, field: 'definitions' },
     { config: { definitions: '[]' }, field: 'definitions' },
   ],
+  expected: new URL('../../fixtures/static-definitions/definitions.json', import.meta.url),
+  // The same entries in another order, their keys reversed, on one line.
+  reformat: () =>
+    staticList(
+      (JSON.parse(list) as Entry[])
+        .reverse()
+        .map((entry) => Object.fromEntries(Object.entries(entry).reverse())),
+      0,
+    ),
+  meaningChange: () => ({
+    source: staticList(
+      (JSON.parse(list) as Entry[]).map((entry) =>
+        entry.name === 'payments.orders'
+          ? { ...entry, description: 'Every order paid for and not refunded.' }
+          : entry,
+      ),
+    ),
+    moved: ['static:payments.orders'],
+  }),
+  wrongFormat: () => ({
+    config: { definitions: '{ "metrics": [{ "name": "payments.orders" }] }' },
+    secrets: {},
+  }),
 })
 
 const handbook = (token: string | null): FixtureSource => ({
@@ -156,6 +224,11 @@ const analytics = (token: string | null): FixtureSource => ({
   config: { repository: host.address('analytics'), ref: 'main', folder: 'cube/model' },
   secrets: token === null ? {} : { token },
 })
+/** The model of another repository of the test host, with the token. */
+const analyticsAt = (repository: string): FixtureSource => ({
+  ...analytics(TOKEN),
+  config: { ...analytics(TOKEN).config, repository: host.address(repository) },
+})
 
 describeConnector(module('cube'), {
   folder: builtInFolder('cube'),
@@ -193,11 +266,20 @@ describeConnector(module('cube'), {
       field: 'domainNames',
     },
   ],
-  partial: () => ({
-    ...analytics(TOKEN),
-    config: { ...analytics(TOKEN).config, repository: host.address('analytics-partial') },
+  partial: () => analyticsAt('analytics-partial'),
+  calculation: ['example_orders', 'SELECT amount, country FROM'],
+  expected: new URL('../../fixtures/cube/definitions.json', import.meta.url),
+  reformat: () => analyticsAt('analytics-reformatted'),
+  meaningChange: () => ({
+    source: analyticsAt('analytics-changed'),
+    moved: [
+      'cube:growth.revenue',
+      'cube:marketing.orders_income',
+      'cube:operations.revenue',
+      'cube:sales.revenue',
+    ],
   }),
-  calculation: 'example_orders',
+  wrongFormat: () => analyticsAt('analytics-json'),
   planted: TOKEN,
   figures: () => ({
     endpoint: `http://127.0.0.1:${(cubeApi.address() as AddressInfo).port}/cubejs-api/v1/load`,
@@ -249,4 +331,116 @@ describeConnector(module('google-drive'), {
     drive.trash(driveIds.spend!)
     return Promise.resolve({ edited: driveIds.norway!, removed: driveIds.spend! })
   },
+})
+
+/** The template's metrics file (tests/fixtures/template/metrics.json), as far as the kit edits it. */
+type TemplateFile = {
+  environment: Record<string, string>
+  groups: { name: string; metrics: { name: string; expr: string; inputs?: string[] }[] }[]
+}
+
+/** The file with every key in reverse order, its groups too, built for another warehouse. */
+function reordered(file: TemplateFile): unknown {
+  const reverse = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(reverse)
+      : typeof value === 'object' && value !== null
+        ? Object.fromEntries(
+            Object.entries(value)
+              .reverse()
+              .map(([k, v]) => [k, reverse(v)]),
+          )
+        : value
+  const moved = reverse(file) as TemplateFile
+  return {
+    ...moved,
+    groups: [...moved.groups].reverse(),
+    environment: { schema: 'analytics_test', database: 'another_invented_warehouse' },
+  }
+}
+
+/** The file with revenue worked out another way. */
+const withRevenue = (file: TemplateFile, expr: string): TemplateFile => ({
+  ...file,
+  groups: file.groups.map((group) => ({
+    ...group,
+    metrics: group.metrics.map((metric) =>
+      metric.name === 'revenue' ? { ...metric, expr } : metric,
+    ),
+  })),
+})
+
+/** The file without revenue, which average order value is built on. */
+const withoutRevenue = (file: TemplateFile): TemplateFile => ({
+  ...file,
+  groups: file.groups.map((group) => ({
+    ...group,
+    metrics: group.metrics.filter((metric) => metric.name !== 'revenue'),
+  })),
+})
+
+const example = (repository: string, token: string | null = TOKEN): FixtureSource => ({
+  config: {
+    repository: host.address(repository),
+    ref: 'main',
+    folder: 'metrics',
+    file: 'metrics.json',
+  },
+  secrets: token === null ? {} : { token },
+})
+
+describeConnector(defineConnector(templateManifest, templateRuntime), {
+  folder: new URL('../../../src/connectors/_template/', import.meta.url),
+  good: () => example('example-metrics'),
+  refused: () => example('example-metrics', 'not-the-token'),
+  unreachable: () => ({
+    ...example('example-metrics'),
+    config: { ...example('example-metrics').config, repository: 'http://127.0.0.1:9/nothing.git' },
+  }),
+  invalid: [
+    { config: { ref: 'main' }, field: 'repository' },
+    { config: { repository: 'ftp://git.example.test/a.git', ref: 'main' }, field: 'repository' },
+    {
+      config: { repository: 'https://user:pass@git.example.test/a.git', ref: 'main' },
+      field: 'repository',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: '--upload-pack' },
+      field: 'ref',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', folder: '../up' },
+      field: 'folder',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', file: 'a/../../b' },
+      field: 'file',
+    },
+    {
+      config: {
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        domainNames: { 'Customer Care': 'Not a domain' },
+      },
+      field: 'domainNames',
+    },
+  ],
+  partial: () => example('example-partial'),
+  calculation: [
+    'count(distinct order_id)',
+    "sum(amount) filter (where status = 'completed')",
+    'revenue / nullif(orders, 0)',
+    "case when channel = 'web'",
+    "case when tier = 'gold'",
+    'invented_warehouse',
+    'analytics_prod',
+  ],
+  expected: new URL('../../fixtures/template/definitions.json', import.meta.url),
+  reformat: () => example('example-reformatted'),
+  meaningChange: () => ({
+    source: example('example-changed'),
+    moved: ['example:orders.revenue', 'example:orders.average_order_value'],
+  }),
+  wrongFormat: () => example('example-wrong'),
+  planted: TOKEN,
 })

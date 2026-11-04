@@ -126,7 +126,7 @@ export function planTerms(
   defs: Definition[],
   me: Me,
   domains: Domains,
-  opts: { tool: string; domain?: DomainId },
+  opts: { domain?: DomainId } = {},
 ): Plan<Definition> {
   const act: Definition[] = []
   const skipped: Skip[] = []
@@ -135,8 +135,8 @@ export function planTerms(
       skipped.push({ id: d.name, title: d.name, why, reason })
     if (d.synced)
       skip(
-        `synced from ${opts.tool}`,
-        `Metrics and dimensions are read-only here: change them in ${opts.tool}.`,
+        `synced from ${d.tool ?? 'its tool'}`,
+        `Metrics and dimensions are read-only here: change them in ${d.tool ?? 'their tool'}.`,
       )
     else if (!canChangeTerm(d, me, domains))
       skip(

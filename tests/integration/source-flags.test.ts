@@ -52,7 +52,7 @@ const execute = createToolService(
   () => new Date('2026-10-08T12:00:00Z'),
 )
 
-const fixture = fileURLToPath(new URL('../fixtures/cube/model.yml', import.meta.url))
+const fixture = fileURLToPath(new URL('../fixtures/cube/model/model.yml', import.meta.url))
 let modelDir = ''
 let configDir = ''
 let renamesFile = ''

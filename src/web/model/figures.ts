@@ -1,5 +1,4 @@
 import type { FigureTryFailure } from '@contract/figures'
-import type { ConnectorId } from './integrations'
 
 // A figure in Ask as the app reads it (src/web/api): read from an integration at a time,
 // unchanged, and never context: nobody here checked it.
@@ -16,13 +15,15 @@ export type Figure = {
   against?: { contextId: string; figureSays: string }
 }
 
+// A view read from a source names it twice: `source`, its connector's id, and `tool`, the tool it
+// reads as people say it ("From Cube"), so a screen words it without the connectors' catalogue.
 export type FigureView =
   /** Figures are off for its source: a link into the tool instead, at its own address if known. */
-  | { kind: 'link'; source: ConnectorId; scope: string; href?: string }
+  | { kind: 'link'; source: string; tool: string; scope: string; href?: string }
   /** One figure line. */
-  | { kind: 'line'; source: ConnectorId; figure: Figure; asOf: string }
+  | { kind: 'line'; source: string; tool: string; figure: Figure; asOf: string }
   /** A figure that does not fit a context item: both shown, no verdict. */
-  | { kind: 'against'; source: ConnectorId; figure: Figure; asOf: string }
+  | { kind: 'against'; source: string; tool: string; figure: Figure; asOf: string }
   /** It can't be answered from data: why, and the metrics closest to it. */
   | { kind: 'none'; why: string; closest: string[] }
 
@@ -39,7 +40,7 @@ export type FigureAsk = {
 
 /** A figure that doesn't fit a context item, as a report names it, and who hears about it. */
 export type FigureReport = {
-  source: ConnectorId
+  source: string
   to: 'owners' | 'contact' | 'both'
   metric: string
   markets: string[]
@@ -54,7 +55,7 @@ export type FigureReport = {
 export type FigureTry =
   | {
       kind: 'figure'
-      source: ConnectorId
+      source: string
       /** What was read and for which days: "Orders, 17 to 23 Oct 2026". */
       label: string
       /** As the tool writes it: "€1,234"; null when it had nothing for those days. */
@@ -64,4 +65,4 @@ export type FigureTry =
       /** How long the read took, in milliseconds. */
       took: number
     }
-  | { kind: 'failed'; source: ConnectorId; failure: FigureTryFailure }
+  | { kind: 'failed'; source: string; failure: FigureTryFailure }

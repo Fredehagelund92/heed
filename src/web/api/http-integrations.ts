@@ -17,7 +17,6 @@ import type {
   ConnectChoice,
   ConnectField,
   ConnectForm,
-  ConnectorId,
   ConnectTest,
   DocState,
   DriveDocument,
@@ -27,21 +26,13 @@ import type {
   SourcePage,
   When,
 } from '@/model/integrations'
-import { connectors } from '@/model/integrations'
+import { connectorById, connectors } from '@/model/catalogue'
 
-/** The catalog's tool for each connector the service has, which the pages name it by. */
-const catalogOf: Record<string, ConnectorId> = {
-  cube: 'cube',
-  'google-drive': 'google-drive',
-  'git-markdown': 'markdown-git',
+/** A connector the catalogue has a cell for, and can connect: one with a manifest, not Soon. */
+const inCatalog = (type: string) => {
+  const connector = connectorById(type)
+  return connector && !connector.soon ? connector : undefined
 }
-
-/** The catalog's tool a connector of the service is; undefined for one the app has no cell for. */
-export const catalogIdOf = (type: string): ConnectorId | undefined => catalogOf[type]
-
-/** The service's connector for a tool of the catalog. */
-export const connectorOfCatalog = (id: ConnectorId) =>
-  Object.entries(catalogOf).find(([, catalog]) => catalog === id)?.[0]
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const twoDigits = (n: number) => String(n).padStart(2, '0')
@@ -73,7 +64,7 @@ export function whenOf(at: string, now: Date): When {
 }
 
 /** An ISO 8601 duration of days, hours and minutes, in minutes. */
-function minutesOf(duration: string): number {
+export function minutesOf(duration: string): number {
   const m = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/.exec(duration)
   if (!m) return 0
   return Number(m[1] ?? 0) * 1_440 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0)
@@ -144,7 +135,7 @@ const skipsOf = (read: SourceReadEntry) =>
 
 /** A source as the integrations' rows show it; null for a tool the app has no cell for. */
 export function sourceOf(row: SourceRow, now: Date): Source | null {
-  const connector = catalogOf[row.type]
+  const connector = inCatalog(row.type)?.id
   if (!connector) return null
   const last = row.lastRead
   const failed = last?.status === 'failed'
@@ -207,19 +198,19 @@ const dayOf = (at: string, now: Date) => whenOf(at, now).day
 /** Settings › Integrations: the tools the service reads, and which others it can connect. */
 export function integrationsOf(
   rows: readonly SourceRow[],
-  types: readonly { manifest: Pick<ConnectorManifest, 'id'> }[],
+  types: readonly { manifest: Pick<ConnectorManifest, 'id' | 'config'> }[],
   now: Date,
 ): IntegrationsView {
-  const offered = new Set(types.flatMap((t) => (catalogOf[t.manifest.id] ? [t.manifest.id] : [])))
+  const offered = new Set(
+    types.flatMap(({ manifest }) => (formTakes(manifest) ? [manifest.id] : [])),
+  )
   return {
     sources: rows.flatMap((row) => {
       const source = sourceOf(row, now)
       return source ? [source] : []
     }),
-    connectable: connectors.flatMap((c) => {
-      const type = connectorOfCatalog(c.id)
-      return type && offered.has(type) ? [c.id] : []
-    }),
+    // What the service offers and the form can take, in the catalogue's order.
+    connectable: connectors.flatMap((c) => (offered.has(c.id) && !c.soon ? [c.id] : [])),
   }
 }
 
@@ -337,6 +328,17 @@ export function folderOf(scope: SourceActivity['scopes'][number]): DriveFolder {
   return { folder, path: rest.join(' / '), domain: scope.domain, documents: scope.documents }
 }
 
+/** A setting written as JSON, in words: how many entries its list has, never the list itself. */
+function jsonWords(text: string): string {
+  try {
+    const value: unknown = JSON.parse(text)
+    if (Array.isArray(value)) return `A list of ${plural(value.length, 'entry', 'entries')}`
+  } catch {
+    // Not JSON the connector reads: the source says so when it reads.
+  }
+  return 'Written in its settings'
+}
+
 /** How a source is connected, setting by setting, in its connector's words; never a secret. */
 export function connectionOf(
   settings: SourceSettings | null,
@@ -350,7 +352,7 @@ export function connectionOf(
     return [
       {
         label: field.label,
-        value: String(value),
+        value: field.kind === 'json' ? jsonWords(String(value)) : String(value),
         ...(field.kind === 'address' || field.kind === 'ref' || field.kind === 'path'
           ? { code: true }
           : {}),
@@ -408,8 +410,16 @@ export function sourcePageOf(
 
 /* ---------- the connect flow and Change settings ---------- */
 
-/** The kinds of setting the connect form draws: words, an address, a branch, a folder. */
-const formKinds: readonly string[] = ['text', 'address', 'path', 'ref']
+/** The kinds of setting the connect form draws: words, an address, a branch, a folder, JSON. */
+const formKinds: readonly string[] = ['text', 'address', 'path', 'ref', 'json']
+
+/**
+ * Whether the connect form can take a connector's settings: every one it needs is of a kind the
+ * form draws. A setting of another kind (a map of domain names) is left out only when it may be
+ * left empty; a connector that needs one is not connectable here.
+ */
+export const formTakes = (manifest: Pick<ConnectorManifest, 'config'>) =>
+  manifest.config.fields.every((field) => !field.required || formKinds.includes(field.kind))
 
 /**
  * A tool's connect form from its connector's manifest: its settings, with what is set or their
@@ -423,8 +433,8 @@ export function connectFormOf(
   >,
   settings: SourceSettings | null,
 ): ConnectForm | null {
-  const connector = catalogOf[manifest.id]
-  if (!connector) return null
+  const connector = inCatalog(manifest.id)?.id
+  if (!connector || !formTakes(manifest)) return null
   const fields = manifest.config.fields.flatMap((field): ConnectField[] => {
     if (!formKinds.includes(field.kind)) return []
     const set = settings?.config[field.key]
@@ -442,6 +452,7 @@ export function connectFormOf(
         label: field.label,
         description: field.description,
         ...(field.placeholder ? { placeholder: field.placeholder } : {}),
+        ...(field.maxLength ? { maxLength: field.maxLength } : {}),
         required: field.required ?? false,
         advanced: field.advanced ?? false,
         value,

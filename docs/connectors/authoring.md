@@ -1,89 +1,246 @@
 # Writing a connector
 
-A guide for whoever writes a connector, inside this repository or, later, as a package. The
-steps below name what interface 3.0 asks for; [what is built](../connectors.md#what-is-built)
-says which parts this build has. The static list of definitions (`src/connectors/static-definitions/`)
-is the smallest example written to interface 3, Markdown in Git (`src/connectors/git-markdown/`)
-the first content connector, and Cube (`src/connectors/cube/`) the first definitions connector
-for a real tool, with a worker for its compiler.
+## Read this first
 
-Read first: the [contract](../connectors.md) (the two kinds, the invariants, the manifest and the
-runtime) and [Security and egress](security.md) (the rules the core enforces on your code).
+A connector is how Heed reads a tool it does not own: a **manifest** (data) and a **runtime**
+(code) in a folder of `src/connectors/`. A **definitions** connector says which metrics and
+dimensions exist in a semantic layer or a catalogue; a **content** connector reads documents that
+become suggestions for owners. This guide is complete for building a definitions connector in
+this repository: follow it from top to bottom. The [contract](../connectors.md) is the reference
+behind it, and [Security and egress](security.md) the rules the core enforces on your code.
+Content connectors follow the same steps; [Markdown in Git](../../src/connectors/git-markdown/README.md)
+is their example.
 
-## Before you start
+Copy, do not invent: `src/connectors/_template/` is a working definitions connector that passes
+the conformance kit. Every step below changes it into yours.
 
-- **Pick the kind.** A **definitions** connector says what exists in a semantic layer or a
-  catalogue: metrics, dimensions and groups, never a calculation. A **content** connector reads
-  documents that become drafts for owners to review. A connector is one or the other.
-- **Pick the tool's name and the id prefix.** `tool` is how people say the tool ("Cube"). A
-  definitions connector writes refs under the tool's prefix (`cube:`), which belongs to the tool,
-  not to your connector (CON-117): two connectors for the same tool share it.
-- **Say the least access** the connector needs, in words an administrator can check before
-  giving it (CON-106). Read only, always (CON-102).
-- **List the hosts** it connects to (CON-113).
+## The contract in one screen
+
+What your code may and may not do (the invariants, I-1 to I-8, in
+[the contract](../connectors.md#invariants)):
+
+- [ ] **I-1 Definitions stay canonical.** A definition is a ref, a kind, a name, a title, a
+      description copy of at most 500 characters, a value type, a domain hint and a change mark,
+      with other names and a base name if the tool has them. Never a calculation, a query or a
+      data row.
+- [ ] **I-2 Definition sources only flag.** A change you report flags the items that rely on it,
+      and a failed read changes nothing. You never change what Heed says.
+- [ ] **I-3 Content sources only create reviewed drafts**, at most one per document.
+- [ ] **I-4 Secrets never leave the store**, except into your runtime, toward the settings they
+      were given for. Never log or return one.
+- [ ] **I-5 Domain mapping is per source and explicit.** You pass the domain the tool names; the
+      administrator maps the rest. A hint never creates a domain.
+- [ ] **I-6 Read only, declared hosts, least access said first** (CON-102, CON-106, CON-113).
+- [ ] **I-7 Your output is untrusted.** The core checks every message and refuses unknown keys.
+- [ ] **I-8 No vendor in the core.** Your tool's name lives in your folder, nowhere else.
+
+A **definition** (`runtimeDefinitionSchema`, `src/domain/connector-runtime.ts`):
+
+| Field             | What you put there                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| `ref`             | `<refPrefix>:<group>.<name>`, stable for good. The prefix belongs to the tool (CON-117) |
+| `kind`            | `metric` or `dimension`                                                                 |
+| `name`            | `<group>.<name>`, the ref without its prefix                                            |
+| `title`           | The tool's label, or null. Heed words a null title from the name                        |
+| `descriptionCopy` | `descriptionCopy(text).copy`: the first 500 characters, or null                         |
+| `valueType`       | The tool's own word for the type (`sum`, `time`), or null when it says none             |
+| `visibleGroups`   | Always null                                                                             |
+| `areaHint`        | The domain id the tool names, from `domainHint`, or null                                |
+| `domainSource`    | `source` with a hint, `none` without one                                                |
+| `modelFile`       | The file that defines it, relative to the folder you read, or null                      |
+| `synonyms`        | `synonymsOf(value)`: the other names the tool lists                                     |
+| `baseName`        | The member's own name when the tool joins it under a prefix, or leave it out            |
+| `changeMark`      | `meaningMark(meaning)`: the SHA-256 of what it means                                    |
+
+A **read** yields messages: `warning` (a code and a target), `definition`, and one `end` with a
+`version`, whether it is `complete`, and a `cursor`. A **failure** throws a `SourceError` with a
+code, a target and a class: `config` (an administrator fixes it: a refused token, a missing
+file), `transient` (tried again later: a timeout) or `source` (the tool's content is broken). A
+code is one of the core's (`sourceWarningCodes`, `src/contract/operations.ts`) or your own,
+worded in the manifest and sent as `<id>.<code>`.
+
+## Decide before you write
+
+- **Kind.** Definitions or content; one connector is one of them.
+- **Id, tool word and ref prefix.** The id is your folder's name and stays for good: sources store
+  it. The tool word (`tool`) is how people say the tool. The ref prefix is the tool's, for good:
+  a second connector for the same tool writes the same prefix (CON-117).
+- **Where the input comes from.** A file or folder in a Git repository (`ctx.git`), the folder
+  whoever runs the server names (`ctx.folder`), or an https API (`ctx.fetch`). Prefer the tool's
+  own resolved output (a built artifact) to its source files: re-implementing a tool's parser is
+  guessing. Never run the tool.
+- **What a group is.** The part of a name before the last dot. Integrations lists groups in the
+  Choose and Map steps, and an administrator maps each to a domain. A name without a dot is in no
+  group, and Integrations cannot list it.
+- **What is left out.** Join keys, inputs people never query, hidden or private members, saved
+  queries. Leave them out of the read rather than flagging them.
+- **Whether same-named dimensions are one.** `mergeDimensions: 'by-name'` when the tool's views
+  share their dimensions (Cube), `'never'` when each group's dimension is its own (dbt's semantic
+  models): Heed then proposes each as a term of its own (CON-201).
+- **Least access and hosts.** The access lines an administrator reads before giving anything, and
+  every host you reach.
 
 ## Steps
 
-1. **Make its folder** `src/connectors/<id>/` and list it twice: its manifest in
-   `src/connectors/manifests.ts`, which the web app reads, and its manifest with its runtime in
-   `src/connectors/index.ts`, which only the server reads. A test fails when a folder is not
-   listed, or when the two lists differ. _To come:_ a template to copy, `src/connectors/_template/`.
-2. **Write the manifest** (`manifest.ts`, pure data, with `defineManifest`): id, version,
-   interface range, kind, tool, title and summary, the form as a list of fields, secret slots
-   with what they are bound to, access, egress, capabilities, schedule, limits, warnings with
-   their words, and the mark version (CON-112). The [manifest
-   reference](../connectors.md#the-manifest) lists every field, and [what is
-   built](../connectors.md#what-is-built) how the form is written today. `checkManifest` says
-   every problem with it, and the server does not start with one.
-3. **Write the runtime** (`runtime.ts`, server only, with `defineRuntime`): `check` and `read`,
-   and `parse` for rules on the settings the manifest cannot say, using only what the context
-   hands you: `ctx.config`, `ctx.scopes`, `ctx.cursor`, `ctx.secret`, `ctx.fetch`, `ctx.git`,
-   `ctx.folder`, `ctx.worker`, `ctx.signal` and `ctx.log`, and `discover` for a content
-   connector, which lists the scopes an administrator may choose, each with a suggested domain.
-   A connector may import `zod/mini`, the domain and its own files only, and has no `fetch` or
-   `process` of its own: lint refuses the rest. See
-   [the runtime](../connectors.md#the-runtime-and-its-messages).
-4. **Hand risky parsing to a worker**, if the tool's files need a parser or a compiler you would
-   not run in the server: a `worker.ts` in the folder, named with `defineConnector(manifest,
-runtime, { worker })` in `src/connectors/index.ts`. The runtime calls `ctx.worker(input)`, and
-   the core runs the worker in a child process of its own under Node's permission model (T1,
-   [where connector code runs](security.md#where-connector-code-runs)): it gets the input over
-   IPC, answers once, and may load the packages it parses with, never the service. Its answer is
-   untrusted: check it before you send a record. Built-in connectors only. Cube's compiler is the
-   example.
-5. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or a fake of
-   the tool's API on the machine, as Google Drive's (`tests/server/connectors/drive-server.ts`). No
-   live calls in tests, and no real names, addresses, data or credentials: a key the tests need is
-   invented when they start, never committed.
-6. **Run the conformance kit** (CON-108): add the connector and its fixture to
-   `tests/server/connectors/conformance.test.ts`: settings that work, a secret the tool refuses,
-   settings the form refuses, a host that cannot be reached, and the secret to look for; for a
-   definitions connector, settings whose read meets a file it cannot read and a calculation in
-   the tool's content; and how long a test may take when a worker compiles. The kit
-   (`tests/server/connectors/kit.ts`) checks the manifest and the README, the form and its
-   defaults, the check, the reads (each record once, the same marks for the same input, a partial
-   read when a file cannot be read, no calculation in a definition, documents in the chosen
-   scopes with https links), for a connector that reads from its cursor that an unchanged source
-   gives nothing new and that a change brings the changed document and a tombstone (give it a
-   `delta` that changes the tool), and that the secret appears in nothing the connector returns.
-   _To come:_ egress and limits, which the core's own tests check today.
-7. **Write the README** (`README.md`): what it reads and the minimal setup in the tool, its
-   fields, its warnings, its limits and what its change marks see. The tables come from the
-   manifest. [Cube's](../../src/connectors/cube/README.md) is today's example, with
-   [The Cube connector](cube.md) for the setup in the tool.
+1. **Copy the template.** `cp -R src/connectors/_template src/connectors/<id>`.
+2. **Fill in the manifest** (`manifest.ts`). Each field has a one-line comment saying what goes
+   there; change every value. Word every warning code you send. `checkManifest` names every
+   problem, and the server does not start with one.
+3. **Write the mapping** (`mapping.ts`): a pure function from the tool's format to definitions
+   and warnings, with no Git, no folder and no clock. Check the input at its edge with
+   `zod/mini`, and use the helpers of `src/domain/definition-helpers.ts` for synonyms,
+   descriptions, domains and marks. Follow the [mapping rules](#mapping-rules).
+4. **Write the runtime** (`runtime.ts`) around it: `check` reaches the input and says what it
+   found, step by step, in your tool's words; `read` gets the input (`ctx.git` or `ctx.folder`),
+   maps it, yields the warnings first, then the definitions, then `end`. Throw a `SourceError`
+   for a failure. Use only what the context hands you: lint refuses `fetch`, `process`, files
+   and the rest ([rules for connector code](security.md#rules-for-connector-code)). If the input
+   needs a parser or compiler you would not run in the server, hand it to a `worker.ts`
+   (`ctx.worker`, T1); Cube's compiler is the example.
+5. **Record the fixture** in `tests/fixtures/<id>/`: the tool's input, invented, with a
+   `REBUILD.md` that says how it was made, and the expected `definitions.json` (written by the kit
+   with `-u`, step 8). See [fixtures](#fixtures).
+6. **List the connector twice**: its manifest in `src/connectors/manifests.ts` (the web app's
+   list) and `defineConnector(manifest, runtime)` in `src/connectors/index.ts` (the server's). A
+   test fails when a folder is not listed, or when the two lists differ. Nothing else: the
+   Integrations cell, the connect form and every word on screen come from the manifest. A logo
+   is optional: add the tool's to `logos` in `src/web/model/integrations.ts`, or the cell shows
+   the manifest's `icon`.
+7. **Add a `describeConnector` block** to `tests/server/connectors/conformance.test.ts` with the
+   fixture hooks of [the kit](#the-kit). The template's block, at the end of that file, is the
+   one to copy.
+8. **Write the README** with its sections (Settings, What a read does, Schedule and limits,
+   Tests) and no TODO left: a test refuses a listed connector's README otherwise.
+9. **Run the checks**: `npx vitest run --project server tests/server/connectors` (add `-u` once to
+   write `definitions.json`, then read it), then `npm test`, `npm run typecheck`, `npm run lint`
+   and `npm run test:integration`.
 
-## Rules your code follows
+## Mapping rules
 
-The full list, and why, is in [Security and egress](security.md#rules-for-connector-code). In
-short: no raw network, no environment, no files written, no content or secrets logged, honour
-the abort signal, and return only records the contract allows.
+Every definitions connector follows these. The template does each of them.
+
+- **Refs and groups.** `<prefix>:<group>.<name>`. The same member gives the same ref on every
+  read, whatever the order of the input. Send each ref once. A ref never moves to another member.
+- **Titles and descriptions.** The tool's label and description as they are, or null. A
+  description longer than 500 characters is cut by `descriptionCopy`, and you warn with your own
+  `description_cut`, worded at `info`.
+- **Domains.** `domainHint(value, config.domainNames)` reads the tool's value through the
+  source's domain names. A member's own valid domain wins over its group's. A group whose tool
+  names no domain warns `missing_domain`; a value that is not a domain id warns
+  `invalid_domain` and gives no hint.
+- **Synonyms.** `synonymsOf` trims them, keeps each once whatever its case, and keeps at most 20.
+- **Value types.** The tool's own word, from a list you know. Anything else is null.
+
+**Unknown, not guessed.** Your connector only says what the tool says. When the tool does not
+name a domain, the definition has `areaHint: null` and `domainSource: 'none'`, and the read warns
+`missing_domain` on the group; an administrator maps it. When the tool names something that is
+not a Heed domain id, warn `invalid_domain` and give no hint. When you cannot tell a value type,
+send `null`, never a default such as `string`. When a record depends on something the input does
+not hold, leave it out, warn with your own code, and end the read with `complete: false`: a
+partial read keeps everything Heed already knew, so a broken input never flags an item or loses a
+ref. Never invent a group, a domain or a name to fill a gap.
+
+**Marks are meaning.** The change mark is the SHA-256 of what the definition means, built with
+`meaningMark`. Put in the calculation (with the meanings of the records it is built from, so a
+change underneath flags what sits on top), the type, the title and the description. Leave out the
+domain and the synonyms (a change to them informs owners and never flags an item), file paths,
+ordering, formatting, and anything that names the environment the tool was built for (a database
+or schema). If the tool has two shapes for the same meaning, normalise them before you hash: a
+migration in the tool must not flag every item. `meaningMark` leaves out empty values (null,
+false, empty text, lists and objects), so an absent key and an empty one hash the same. When you
+change how you compute marks, bump `markVersion`. (Cube and the static list pass
+`{ keepEmpty: true }`: their marks were first computed that way, and stay as they were.)
+
+**Nothing that is a calculation crosses.** A definition is a closed list of fields and the core
+refuses unknown keys, but text fields are yours to fill: never put SQL, a filter or an expression
+in `title`, `descriptionCopy`, `valueType` or a warning target. Give the kit every piece of SQL in
+your fixture as `calculation`.
+
+**Words on screen come from your manifest.** Every word that names the tool comes from `tool`.
+If you find yourself writing your tool's name anywhere outside your folder, stop: that is a core
+bug to fix, not a line to add.
+
+## Fixtures
+
+- **Invented only.** No real names, addresses, data, warehouses or credentials. A key the tests
+  need is invented when they start, never committed.
+- **Rebuildable.** When the input is a tool's output, `REBUILD.md` gives the exact commands and
+  versions to make it again, and how environment names were made neutral (a database or schema
+  becomes `example_db`, `example_schema`). A hand-written input says so.
+- **Planted.** Keep the tool's calculations in the fixture on purpose: they are what the kit
+  checks never crosses. A secret the tests use is planted the same way.
+- **Expected.** `definitions.json` is the read of the fixture, definitions and warnings, as the
+  kit writes it. It is the connector's golden file: a change to the mapping shows in it, in
+  review.
+- **No live calls.** The test Git host (`tests/server/connectors/git-server.ts`) serves a
+  repository built from the fixture; a fake of an API runs on the machine
+  (`drive-server.ts`).
+
+## The kit
+
+`describeConnector(module, fixture)` (`tests/server/connectors/kit.ts`) runs the conformance kit
+(CON-108) through the core, as Integrations and the pipelines do. Its tests switch on by what the
+manifest declares and by the hooks the fixture gives:
+
+| Hook            | What the kit proves                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `folder`        | The manifest is valid, its README is there and names its title                                   |
+| `good`          | The form takes it, the check passes, refs are prefixed and once, marks are stable                |
+| `refused`       | A secret the tool refuses is for an administrator to fix                                         |
+| `unreachable`   | A host that cannot be reached fails, and says so                                                 |
+| `invalid`       | Each setting the form must refuse is refused on its field                                        |
+| `partial`       | Input with a record it cannot read gives a partial read with a warning                           |
+| `calculation`   | None of these strings (every planted calculation) is in any definition or warning                |
+| `expected`      | The read of `good` gives exactly the definitions and warnings of `definitions.json`              |
+| `reformat`      | The same meaning in another form (order, layout, environment) gives the same refs and marks      |
+| `meaningChange` | One changed calculation moves exactly the refs you name: it and what is built on it              |
+| `wrongFormat`   | Input of another format is refused by the form, or fails with a worded `config` or `source` code |
+| `planted`       | The secret is in no check, record or warning                                                     |
+
+For every definitions connector, whatever the hooks, every name has a group, a definition without
+a hint says `none`, one with a hint says `source` or `override`, and every warning code is worded.
+
+Reading a failure: the test's name says the rule, and the assertion names the ref or code that
+broke it. A mark that moves under `reformat` means the mark hashes form, not meaning. Too many refs
+under `meaningChange` means an input's label or description is in the marks built on it; too few
+means an input's calculation is not.
+
+## Common mistakes
+
+- Naming a member without a dot. It is in no group, and Integrations will not list it.
+- Hashing the tool's raw payload. Every formatting change, environment change or tool migration
+  then flags items.
+- Taking a domain from a key the tool drops in its output.
+- Putting a guessed value type such as `string` on a dimension the tool calls only
+  `categorical`.
+- Treating a measure, an entity or a join key as a definition.
+- Reading a file over the Git cap (2 MB a file) and failing silently: it is `unreadable_file`.
+- Committing a fixture built against a real warehouse or with real names.
+- Writing a test that calls the tool's live API.
+- Adding the tool's name to web copy.
 
 ## Review checklist
 
-_To fill in with the first connector written to interface 3._ At least:
+- [ ] Copied from `_template/`; the folder is listed twice; `describeConnector` has `good`,
+      `refused`, `unreachable`, `invalid`, `partial`, `calculation` (every planted
+      calculation), `planted`, `expected`, `reformat`, `meaningChange` and `wrongFormat`.
+- [ ] `mapping.ts` is pure, and `definitions.json` reads right.
+- [ ] The fixture is invented, `REBUILD.md` rebuilds it, and environment names are neutral.
+- [ ] Every warning code is worded in the manifest, and no screen word outside the folder names
+      the tool.
+- [ ] The access lines say the least access, and egress names every host.
+- [ ] The README has its sections: what it reads, setup in the tool, settings, warnings, limits,
+      and what its marks see.
+- [ ] No vendor name added to `src/server`, `src/web` or `src/domain`.
 
-- [ ] The kit passes, including the secret canary and the planted SQL fixture (definitions).
-- [ ] Every warning code has words, and no screen word names a vendor outside the manifest.
-- [ ] The access lines say the least access, and the egress names every host.
-- [ ] The README has its required sections.
-- [ ] A content connector never writes anything but documents to the core.
+## Worked example
+
+The template (`src/connectors/_template/`, with `tests/fixtures/template/`) is the worked example
+today: an invented tool's metrics file read from Git, every mapping rule above, and every kit
+hook. The dbt MetricFlow connector, built by following this guide, will be the first worked
+example for a real tool.
+
+## Publishing as a package
+
+Not yet: connectors are built in only. Loading them from packages is designed and waits on the
+licence ([Connectors as packages](packaging.md)).

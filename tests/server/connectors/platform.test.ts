@@ -193,7 +193,7 @@ describe('a runtime read, checked message by message', () => {
     expect(
       snapshot.definitions.map((entry) => [entry.ref, entry.areaHint, entry.domainSource]),
     ).toEqual([
-      ['static:payments.orders', 'commercial', 'cube'],
+      ['static:payments.orders', 'commercial', 'source'],
       ['static:payments.market', null, 'none'],
       ['static:payments.fees', null, 'none'],
     ])
@@ -380,7 +380,7 @@ describe('the groups an admin chose for a definitions source (CON-118)', () => {
     valueType: null,
     visibleGroups: null,
     areaHint,
-    domainSource: areaHint === null ? ('none' as const) : ('cube' as const),
+    domainSource: areaHint === null ? ('none' as const) : ('source' as const),
     changeMark: 'a'.repeat(64),
     modelFile: null,
   })

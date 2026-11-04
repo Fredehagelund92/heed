@@ -31,7 +31,6 @@ import { mentionId, plainText } from '@/lib/mentions'
 import { MentionText } from '@/components/heed/mention-chip'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { PeekFact, PeekFacts } from '@/components/heed/peek'
 import { useFigures } from '@/lib/figures'
 import { MoreProperties, Property } from '@/components/heed/doc'
@@ -251,11 +250,11 @@ export function SynonymTags({
         <TagChip
           key={n}
           icon={<LockIcon aria-hidden />}
-          title={`${DEFINITIONS_TOOL}'s own name, read-only`}
+          title={`${point.tool ?? 'Its tool'}'s own name, read-only`}
           className={cn(flash && same(flash, n) && 'ring-2 ring-ring')}
         >
           {n}
-          <span className="sr-only"> (from {DEFINITIONS_TOOL}, read-only)</span>
+          <span className="sr-only"> (from {point.tool ?? 'its tool'}, read-only)</span>
         </TagChip>
       ))}
       {synonyms.map((s) => {
@@ -355,7 +354,7 @@ export function SynonymTags({
       {canEdit && (
         <p id={`${id}-help`} className="text-xs text-muted-foreground">
           A comma or Enter adds a word; each one means {point.name} to agents.
-          {point.sourceNames.length ? ` Locked words come from ${DEFINITIONS_TOOL}.` : ''}
+          {point.sourceNames.length ? ` Locked words come from ${point.tool ?? 'its tool'}.` : ''}
         </p>
       )}
       <p role="status" aria-live="polite" className="sr-only">
@@ -415,6 +414,8 @@ export function DefinitionDetails({ d }: { d: Definition }) {
   const subject = target ? glossary.meaningOf(d) : d
   const related = useRelated(mentionId(d.type, d.name))
   const figures = useFigures()
+  // The figure-capable integration a synced definition comes from: its data contact answers for its figures.
+  const source = figures.sourceOf(d.tool)
   const domain = d.domain ? (domains[d.domain]?.name ?? 'All domains') : 'All domains'
   const history = useQuery(definitionHistoryQuery(d.name)).data ?? []
   const mentioned = related.links.length > 0
@@ -441,7 +442,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
         <PeekFacts>
           {d.synced ? (
             <PeekFact icon={LockIcon}>
-              <b>{domain}</b> - read-only, synced from {DEFINITIONS_TOOL} {SYNCED_AT} -{' '}
+              <b>{domain}</b> - read-only, synced from {d.tool ?? 'its tool'} {SYNCED_AT} -{' '}
               <a
                 href={sourceUrl(d)}
                 target="_blank"
@@ -458,9 +459,9 @@ export function DefinitionDetails({ d }: { d: Definition }) {
             </PeekFact>
           )}
           {/* A metric's figures have a person to ask, named in its integration's settings. */}
-          {d.synced && d.type === 'metric' && (
+          {d.synced && d.type === 'metric' && source && (
             <PeekFact icon={UserIcon}>
-              Data contact <b>{figures.contact('cube')}</b>, who hears about a figure that looks
+              Data contact <b>{figures.contact(source)}</b>, who hears about a figure that looks
               wrong
             </PeekFact>
           )}
@@ -478,7 +479,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
           >
             {d.values && <Property label="Values">{d.values}</Property>}
             {d.synced && d.sourceNames.length > 0 && (
-              <Property label={`Other names in ${DEFINITIONS_TOOL}`}>
+              <Property label={`Other names in ${d.tool ?? 'its tool'}`}>
                 {d.sourceNames.map((n) => (
                   <span
                     key={n}
@@ -496,7 +497,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
                   <span className="font-mono text-xs">{cubeRef(d)}</span>
                   {d.changed && (
                     <span className="block text-xs text-muted-foreground">
-                      Definition changed in {DEFINITIONS_TOOL} on {d.changed}
+                      Definition changed in {d.tool ?? 'its tool'} on {d.changed}
                     </span>
                   )}
                 </span>

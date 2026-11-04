@@ -31,7 +31,7 @@ import { apiDatabase, testDatabase } from './support.ts'
 const TOKEN = 'sources-it-token-4b8e21c9'
 const NEW_TOKEN = 'sources-it-token-rotated-77d0'
 const encoded = (token: string) => Buffer.from(`x-access-token:${token}`).toString('base64')
-const fixture = fileURLToPath(new URL('../fixtures/cube/model.yml', import.meta.url))
+const fixture = fileURLToPath(new URL('../fixtures/cube/model/model.yml', import.meta.url))
 const ORIGIN = 'http://localhost'
 
 const { client, url } = testDatabase({ seeded: true })
@@ -50,7 +50,11 @@ const secretsDir = await mkdtemp(join(tmpdir(), 'heed-sources-secrets-'))
 const store = await openLocalSecretStore(join(secretsDir, 'store'))
 // The server's own source reads the fixture model, so a Git source of the same model collides.
 const registry = new ConnectorRegistry(
-  [createCubeSource({ modelDir: fileURLToPath(new URL('../fixtures/cube/', import.meta.url)) })],
+  [
+    createCubeSource({
+      modelDir: fileURLToPath(new URL('../fixtures/cube/model/', import.meta.url)),
+    }),
+  ],
   { secrets: store },
 )
 const workspaceSources = createWorkspaceSources({ secrets: store, registry })

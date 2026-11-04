@@ -8,6 +8,7 @@ import type {
 } from '@contract/sources'
 import { manifest as cubeManifest } from '../../../src/connectors/cube/manifest'
 import { manifest as gitManifest } from '../../../src/connectors/git-markdown/manifest'
+import { manifest as staticManifest } from '../../../src/connectors/static-definitions/manifest'
 import {
   activityOf,
   changedConfigOf,
@@ -183,14 +184,29 @@ describe('a source on its row', () => {
     const view = integrationsOf(
       [row(), row({ id: 'demo', type: 'demo', tool: 'Demo' }), drive()],
       [
-        { manifest: { id: 'cube' } },
-        { manifest: { id: 'git-markdown' } },
-        { manifest: { id: 'static-definitions' } },
+        { manifest: gitManifest },
+        { manifest: cubeManifest },
+        { manifest: staticManifest },
+        { manifest: { ...gitManifest, id: 'acme.wiki' } },
       ],
       now,
     )
     expect(view.sources.map((s) => s.id)).toEqual(['cube', 'google-drive'])
-    expect(view.connectable).toEqual(['cube', 'markdown-git'])
+    // In the catalogue's order: definitions first, each kind by name.
+    expect(view.connectable).toEqual(['cube', 'static-definitions', 'git-markdown'])
+  })
+
+  it('offers no tool that needs a setting the form cannot take', () => {
+    const needsMap = {
+      ...staticManifest,
+      config: {
+        fields: staticManifest.config.fields.map((field) =>
+          field.kind === 'domain_map' ? { ...field, required: true } : field,
+        ),
+      },
+    }
+    expect(integrationsOf([], [{ manifest: needsMap }], now).connectable).toEqual([])
+    expect(connectFormOf(needsMap, null)).toBeNull()
   })
 })
 
@@ -363,6 +379,22 @@ describe('how a source is connected', () => {
     })
   })
 
+  it('says a list written as JSON by how many entries it has, never the list', () => {
+    const list = (definitions: string): SourceSettings => ({
+      ...settings(false),
+      type: 'static-definitions',
+      config: { definitions },
+      secrets: [],
+    })
+    expect(connectionOf(list('[{"kind":"metric"},{"kind":"dimension"}]'), staticManifest)).toEqual([
+      { label: 'Definitions', value: 'A list of 2 entries' },
+    ])
+    expect(connectionOf(list('[{"kind":"metric"}]'), staticManifest)[0]?.value).toBe(
+      'A list of 1 entry',
+    )
+    expect(connectionOf(list('not json'), staticManifest)[0]?.value).toBe('Written in its settings')
+  })
+
   it("says a server's own source is set where the server runs", () => {
     expect(connectionOf(null, undefined)).toEqual([
       { label: 'Settings', value: 'Set where the server runs, by whoever runs it' },
@@ -428,7 +460,7 @@ describe('the connect flow, on the manifests', () => {
   it("draws a new connection's form from its manifest, with the manifest's defaults", () => {
     const form = connectFormOf(gitManifest, null)!
     expect(form).toMatchObject({
-      connector: 'markdown-git',
+      connector: 'git-markdown',
       source: null,
       every: 'every day',
       staleAfter: '2 days',
@@ -461,6 +493,21 @@ describe('the connect flow, on the manifests', () => {
     expect(form.fields.map((f) => f.key)).not.toContain('domainNames')
     expect(form.perDay).toBeNull()
     expect(connectFormOf({ ...gitManifest, id: 'acme.wiki' }, null)).toBeNull()
+  })
+
+  it('draws a list written as JSON as one setting, with its most characters, and leaves out an optional map', () => {
+    const form = connectFormOf(staticManifest, null)!
+    expect(form.fields).toEqual([
+      expect.objectContaining({
+        key: 'definitions',
+        kind: 'json',
+        required: true,
+        advanced: false,
+        maxLength: 20_000,
+      }),
+    ])
+    expect(form.fields[0]?.placeholder).toContain('"kind": "metric"')
+    expect(form.secrets).toEqual([])
   })
 
   it('says what a test found: its steps, and what may be read with what it holds', () => {

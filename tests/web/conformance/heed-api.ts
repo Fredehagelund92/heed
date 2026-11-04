@@ -19,7 +19,7 @@ import { plainOf } from '@/components/templates/comment-box/utils'
 import { readiness } from '@/model/review'
 import { findDefinition, meaningOf, type Definition } from '@/lib/definitions'
 import { emailOf } from '@/model/people'
-import { connectorById } from '@/model/integrations'
+import { connectorById } from '@/model/catalogue'
 
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
@@ -1321,7 +1321,7 @@ export function describeHeedApi(
         expect(sources.length).toBeGreaterThan(0)
         expect(new Set(sources.map((s) => s.id)).size).toBe(sources.length)
         expect(connectable).toEqual(
-          expect.arrayContaining(['cube', 'google-drive', 'markdown-git']),
+          expect.arrayContaining(['cube', 'google-drive', 'git-markdown']),
         )
         // Settings' menu counts the same tools.
         expect((await live.getSettings()).connected).toEqual(
@@ -1406,8 +1406,8 @@ export function describeHeedApi(
       "draws a tool's connect form from its connector's manifest, and a connected one's settings without a secret",
       async () => {
         const live = await signedIn()
-        const fresh = (await live.connectForm({ id: 'markdown-git' }))!
-        expect(fresh).toMatchObject({ connector: 'markdown-git', source: null, chosen: [] })
+        const fresh = (await live.connectForm({ id: 'git-markdown' }))!
+        expect(fresh).toMatchObject({ connector: 'git-markdown', source: null, chosen: [] })
         const field = (key: string) => fresh.fields.find((f) => f.key === key)
         expect(field('repository')).toMatchObject({ kind: 'address', required: true })
         expect(field('ref')?.value).toBe('main')
@@ -1436,7 +1436,7 @@ export function describeHeedApi(
         const live = await signedIn()
         const config = { repository: repository.address, ref: 'main', folder: 'docs' }
         const secrets = { token: repository.token ?? '' }
-        const test = await live.testIntegration({ connector: 'markdown-git', config, secrets })
+        const test = await live.testIntegration({ connector: 'git-markdown', config, secrets })
         expect(test.ok, JSON.stringify(test)).toBe(true)
         expect(test.steps.length).toBeGreaterThan(0)
         for (const step of test.steps) expect(step.status, step.title).not.toBe('failed')
@@ -1444,10 +1444,10 @@ export function describeHeedApi(
         expect(new Set(test.scopes.map((s) => s.id)).size).toBe(test.scopes.length)
         // Nothing was connected by the test.
         expect(
-          (await live.integrationsPage()).sources.some((s) => s.connector === 'markdown-git'),
+          (await live.integrationsPage()).sources.some((s) => s.connector === 'git-markdown'),
         ).toBe(false)
         const empty = await live.testIntegration({
-          connector: 'markdown-git',
+          connector: 'git-markdown',
           config: { ...config, repository: '' },
           secrets,
         })
@@ -1475,13 +1475,13 @@ export function describeHeedApi(
         const before = await published()
         const config = { repository: repository.address, ref: 'main', folder: 'docs' }
         const secrets = { token: repository.token ?? '' }
-        const test = await live.testIntegration({ connector: 'markdown-git', config, secrets })
+        const test = await live.testIntegration({ connector: 'git-markdown', config, secrets })
         const { domains } = await live.getWorkspace()
         const scope = test.scopes[0]!
         const chosen = [{ id: scope.id, title: scope.title, domain: domains[0]!.id }]
         await expect(
           live.connectIntegration({
-            connector: 'markdown-git',
+            connector: 'git-markdown',
             config,
             secrets,
             chosen,
@@ -1489,14 +1489,14 @@ export function describeHeedApi(
           }),
         ).rejects.toMatchObject({ kind: 'invalid' })
         const added = await live.connectIntegration({
-          connector: 'markdown-git',
+          connector: 'git-markdown',
           config,
           secrets,
           chosen,
           reason: 'Our handbook lives in Git',
         })
         const row = (await live.integrationsPage()).sources.find((s) => s.id === added.id)
-        expect(row?.connector).toBe('markdown-git')
+        expect(row?.connector).toBe('git-markdown')
         const form = (await live.connectForm({ id: added.id }))!
         expect(form.source?.id).toBe(added.id)
         expect(form.chosen).toEqual(chosen)

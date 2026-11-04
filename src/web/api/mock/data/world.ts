@@ -1,5 +1,6 @@
 import { withWhen, type DomainId, type Fact, type Metric, type StoredFact } from '@/model/items'
 import type { Person } from '@/model/people'
+import { DEMO_CONTEXT, demoTool } from './integrations'
 
 // Larchwood Outdoor, Heed's demo world (docs/design/demo-world.md in the Heed repository).
 // Real countries; invented people, events and .example addresses. Fact text has no causal words
@@ -340,7 +341,8 @@ const stored: StoredFact[] = [
   {
     id: 'itm_eprlkrz2',
     origin: {
-      tool: 'Google Drive',
+      tool: demoTool(DEMO_CONTEXT),
+      connector: DEMO_CONTEXT,
       folder: 'Marketing / Campaigns',
       doc: 'Norway launch campaign notes',
       read: '20 Oct',

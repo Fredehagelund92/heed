@@ -32,6 +32,12 @@ export type CandidateMember = {
    * Null when the name after the view is its own.
    */
   baseName: string | null
+  /**
+   * Whether its source's dimensions of one name in different views are one dimension (its
+   * connector's `mergeDimensions`, CON-201): `by-name`, the default, merges them; `never` keeps
+   * each view's its own term.
+   */
+  mergeDimensions?: 'by-name' | 'never'
 }
 
 /** A live term or an open term proposal (`open`), with what it links. */
@@ -139,7 +145,9 @@ const domainOf = (members: readonly CandidateMember[]) =>
 /**
  * One candidate per metric, and one per dimension name however many views have it, for the
  * members no live term or open proposal links yet. Dimensions merge strictly by name: every
- * view's member with the same name after the view is one dimension. A live dimension that links
+ * view's member with the same name after the view is one dimension, unless its source says its
+ * views' dimensions are each their own (`mergeDimensions: 'never'`), which are proposed one by
+ * one, as metrics are. A live dimension that links
  * some of them, or that has the name's key, is offered again with the rest linked too, unless a
  * proposal for it waits for a decision. Members of one name that several terms link were split by
  * hand and stay so. A metric key another view already uses takes the view's name in front, and
@@ -161,7 +169,7 @@ export function termCandidates(
 
   const dimensions = new Map<string, CandidateMember[]>()
   for (const member of sorted)
-    if (member.kind === 'dimension') {
+    if (member.kind === 'dimension' && member.mergeDimensions !== 'never') {
       const part = keyPart(ownName(member))
       if (part) dimensions.set(part, [...(dimensions.get(part) ?? []), member])
     }
@@ -221,29 +229,34 @@ export function termCandidates(
     })
   }
 
-  // A metric name another view's metric, or a known metric, already has takes its view's name
-  // after it.
-  const metricNames = new Set(
-    known.flatMap((term) =>
-      term.kind === 'metric' ? [term.name, ...term.aliases].map(normalizeName) : [],
-    ),
-  )
+  // A metric, or a dimension its source keeps apart, is a term of its own: a key or a name
+  // another of its kind already has takes its view's name.
+  const namesOf = (kind: 'metric' | 'dimension') =>
+    new Set(
+      [...known, ...candidates].flatMap((term) =>
+        term.kind === kind ? [term.name, ...term.aliases].map(normalizeName) : [],
+      ),
+    )
+  const taken = { metric: namesOf('metric'), dimension: namesOf('dimension') }
   for (const member of sorted) {
-    if (member.kind !== 'metric' || linkedBy.has(member.ref)) continue
+    if (member.kind === 'group' || linkedBy.has(member.ref)) continue
+    if (member.kind === 'dimension' && member.mergeDimensions !== 'never') continue
+    const kind = member.kind
+    const prefix = kind === 'metric' ? 'metric' : 'dim'
     const part = keyPart(ownName(member))
     const view = viewOf(member.name)
-    const key = [`metric:${part}`, `metric:${keyPart(`${view ?? ''}_${part}`)}`].find(
+    const key = [`${prefix}:${part}`, `${prefix}:${keyPart(`${view ?? ''}_${part}`)}`].find(
       (candidate) => !keys.has(candidate),
     )
     if (!part || !key) continue
     keys.add(key)
     const plain = memberName(member)
-    const name = metricNames.has(normalizeName(plain)) && view ? `${plain} (${words(view)})` : plain
-    metricNames.add(normalizeName(name))
+    const name = taken[kind].has(normalizeName(plain)) && view ? `${plain} (${words(view)})` : plain
+    taken[kind].add(normalizeName(name))
     candidates.push({
       source: member.source,
       key,
-      kind: 'metric',
+      kind,
       name,
       aliases: [],
       definitionRefs: [member.ref],
@@ -252,7 +265,7 @@ export function termCandidates(
       views: view ? [view] : [],
       description: member.description,
       valueType: member.valueType,
-      suggested: !isId(ownName(member)),
+      suggested: (kind === 'metric' || !isTime(member.valueType)) && !isId(ownName(member)),
     })
   }
   withSynonyms(candidates, members, known)

@@ -1,4 +1,4 @@
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { DEMO_DEFINITIONS, demoTool } from './data/integrations'
 import { dimensions, metrics } from './data/world'
 import { term, TERMS } from './data/terms'
 import type { DomainId } from '@/model/items'
@@ -10,8 +10,8 @@ import {
   type SynonymCheck,
 } from '@/lib/definitions'
 
-// The mock's definitions, the data glossary: metrics and dimensions synced from the connector (Cube
-// today), never changed here, and the terms and synonyms written here. Kept until the page reloads.
+// The mock's definitions, the data glossary: metrics and dimensions synced from the demo world's
+// definitions tool, never changed here, and the terms and synonyms written here. Kept until the page reloads.
 
 const seed: Definition[] = [
   ...metrics.map<Definition>((m) => ({
@@ -19,7 +19,7 @@ const seed: Definition[] = [
     type: 'metric',
     definition: m.definition,
     synced: true,
-    tool: DEFINITIONS_TOOL,
+    tool: demoTool(DEMO_DEFINITIONS),
     sourceNames: m.otherNames ?? [],
     domain: m.domain,
     group: m.group,
@@ -31,7 +31,7 @@ const seed: Definition[] = [
     type: 'dimension',
     definition: d.definition,
     synced: true,
-    tool: DEFINITIONS_TOOL,
+    tool: demoTool(DEMO_DEFINITIONS),
     sourceNames: [],
     group: 'Segments',
     values: d.values,

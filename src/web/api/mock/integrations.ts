@@ -1,30 +1,26 @@
 import type { SourceSettings } from '@contract/sources'
 import type { ConnectorManifest } from '@domain/connector-manifest'
+import { domainHint } from '@domain/definition-helpers'
 import { builtInManifests } from '../../../connectors/manifests'
-import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import {
-  connectorById,
-  connectors,
-  DEFINITIONS_TOOL,
+  parseStaticEntries,
+  staticCheckReport,
+} from '../../../connectors/static-definitions/entries'
+import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
+import { connectorById, connectors } from '@/model/catalogue'
+import {
   type ConnectChoice,
   type ConnectForm,
-  type ConnectorId,
   type ConnectScope,
   type ConnectTest,
   type ConnectValues,
   type IntegrationsView,
+  type Source,
   type SourcePage,
 } from '@/model/integrations'
 import { ApiError } from '../errors'
-import { connectFormOf, connectorOfCatalog } from '../http-integrations'
-import {
-  cubeViews,
-  driveFolders,
-  handbookFolders,
-  integrationState,
-  sourcePageOf,
-  sources,
-} from './data/integrations'
+import { connectFormOf, connectionOf, formTakes, minutesOf } from '../http-integrations'
+import { demoPageOf, demoTools, integrationState } from './data/integrations'
 import type { Address } from './scenario'
 
 /** How long a read the mock runs takes: Read again shows Reading for this long. */
@@ -35,96 +31,87 @@ export const MOCK_TEST_MS = 1_500
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-/** The manifest a tool's connect form is drawn from: its connector's. */
-const manifestOf = (id: ConnectorId): ConnectorManifest | undefined =>
-  builtInManifests.find((m) => m.id === connectorOfCatalog(id))
+/** The manifest a tool's connect form is drawn from: its connector's, when it has one. */
+const manifestOf = (id: string): ConnectorManifest | undefined =>
+  builtInManifests.find((m) => m.id === id)
 
-/** What the demo world's tools are connected with: addresses only, never a secret. */
-const demoConfig: Partial<Record<ConnectorId, Record<string, string>>> = {
-  cube: {
-    repository: 'https://git.example/larchwood/cube-definitions',
-    ref: 'main',
-    folder: 'cube/',
-  },
-  'markdown-git': {
-    repository: 'https://git.example/larchwood/handbook',
-    ref: 'main',
-    folder: 'docs/',
-  },
+/** What the flow set for a tool this visit: its settings, its choices, its revision. */
+export type Kept = { config: Record<string, string>; chosen: ConnectChoice[]; revision: number }
+
+/** The domain names a source's settings map, as the form keeps them: none, on the mock. */
+const NO_NAMES: Readonly<Record<string, string>> = {}
+
+/**
+ * What a test finds in a static list: its groups (a name up to its last dot), each with what it
+ * holds and the domain most of it names, as the service's check finds a definitions tool's views.
+ */
+function staticScopes(text: string): ConnectScope[] {
+  const parsed = parseStaticEntries(text)
+  if ('problem' in parsed) return []
+  const groups = new Map<string, { metrics: number; dimensions: number; domains: string[] }>()
+  for (const entry of parsed.entries) {
+    const id = entry.name.includes('.')
+      ? entry.name.slice(0, entry.name.lastIndexOf('.'))
+      : entry.name
+    const group = groups.get(id) ?? { metrics: 0, dimensions: 0, domains: [] }
+    if (entry.kind === 'metric') group.metrics += 1
+    else group.dimensions += 1
+    const hint = domainHint(entry.domain, NO_NAMES).areaHint
+    if (hint) group.domains.push(hint)
+    groups.set(id, group)
+  }
+  return [...groups].map(([id, g]) => {
+    const most = [...new Set(g.domains)].sort(
+      (a, b) => g.domains.filter((d) => d === b).length - g.domains.filter((d) => d === a).length,
+    )[0]
+    return {
+      id,
+      title: id,
+      detail: [
+        g.metrics && plural(g.metrics, 'metric'),
+        g.dimensions && plural(g.dimensions, 'dimension'),
+      ]
+        .filter(Boolean)
+        .join(', '),
+      metrics: g.metrics,
+      dimensions: g.dimensions,
+      ...(most ? { domain: most } : {}),
+    }
+  })
 }
 
-/** What each tool's test finds on the mock: the views and folders it may read. */
-const demoScopes = (id: ConnectorId): ConnectScope[] =>
-  id === 'cube'
-    ? cubeViews.map((v) => ({
-        id: v.view,
-        title: v.view,
-        detail: [
-          v.metrics && plural(v.metrics, 'metric'),
-          v.dimensions && plural(v.dimensions, 'dimension'),
-        ]
-          .filter(Boolean)
-          .join(', '),
-        metrics: v.metrics,
-        dimensions: v.dimensions,
-        ...(v.domain ? { domain: v.domain } : {}),
-      }))
-    : id === 'google-drive'
-      ? driveFolders.map((f) => ({
-          id: `${f.folder} / ${f.path}`,
-          title: `${f.folder} / ${f.path}`,
-          detail: plural(f.documents, 'document'),
-          documents: f.documents,
-          domain: f.domain,
-        }))
-      : [
-          {
-            id: 'docs/sales',
-            title: 'docs/sales',
-            detail: '5 files',
-            documents: 5,
-            domain: 'sales',
-          },
-          { id: 'docs/marketing', title: 'docs/marketing', detail: '3 files', documents: 3 },
-          {
-            id: 'docs/people',
-            title: 'docs/people',
-            detail: '1 file',
-            documents: 1,
-            leftOut: 'its file names people, and those are skipped',
-          },
-        ]
+/** A static list, checked with the connector's own rules, as its runtime checks it. */
+function checkStaticList(manifest: ConnectorManifest, values: ConnectValues): ConnectTest {
+  const list = manifest.config.fields.find((field) => field.kind === 'json')
+  const text = list ? (values.config[list.key] ?? '') : ''
+  const parsed = parseStaticEntries(text)
+  // As on the service: settings its rules refuse fail the test, in their words.
+  if ('problem' in parsed) return { ok: false, steps: [], scopes: [], failure: parsed.problem }
+  return {
+    ok: true,
+    steps: staticCheckReport(parsed.entries, NO_NAMES).steps.map(({ id: _, ...step }) => step),
+    scopes: staticScopes(text),
+  }
+}
 
-/** The checks each tool's test runs on the mock, in the mockup's words. */
-const demoSteps = (id: ConnectorId) =>
-  (id === 'cube'
-    ? ['Reached the repository', 'Signed in with the token', `Found 7 ${DEFINITIONS_TOOL} views`]
-    : id === 'google-drive'
-      ? [
-          'Google accepted the service account',
-          'Found 3 shared folders',
-          'Read 14 Google Docs: titles only',
-        ]
-      : [
-          'Reached the repository',
-          'Signed in with the token',
-          'Found 9 Markdown files in 3 folders',
-        ]
-  ).map((title) => ({ title, status: 'ok' as const }))
+/**
+ * The checks the mock runs with a connector's own pure rules, by its connector's id: a tool the
+ * demo world has no test of, whose check needs nothing outside the app.
+ */
+const pureChecks: Record<
+  string,
+  (manifest: ConnectorManifest, values: ConnectValues) => ConnectTest
+> = {
+  'static-definitions': checkStaticList,
+}
 
-/** What a connected tool of the demo world reads, with each one's domain. */
-const demoChosen = (id: ConnectorId): ConnectChoice[] =>
-  id === 'cube'
-    ? cubeViews.map((v) => ({ id: v.view, title: v.view, domain: v.domain ?? null }))
-    : id === 'google-drive'
-      ? driveFolders.map((f) => {
-          const name = `${f.folder} / ${f.path}`
-          return { id: name, title: name, domain: f.domain }
-        })
-      : handbookFolders.map((f) => ({ id: f.folder, title: f.folder, domain: f.domain }))
-
-/** What the connect flow set for a tool this visit: its settings, its choices, its revision. */
-export type Kept = { config: Record<string, string>; chosen: ConnectChoice[]; revision: number }
+/** A tool's check on the mock, for a tool the demo world has no test of. */
+const checkOf = (manifest: ConnectorManifest, values: ConnectValues): ConnectTest =>
+  pureChecks[manifest.id]?.(manifest, values) ?? {
+    ok: true,
+    steps: [{ title: 'Checked the settings', status: 'ok' }],
+    scopes: [],
+  }
 
 /**
  * A tool's connect form on the mock: drawn from its connector's manifest, as on the service, with
@@ -132,14 +119,15 @@ export type Kept = { config: Record<string, string>; chosen: ConnectChoice[]; re
  */
 export function connectFormFor(
   id: string,
-  connected: readonly ConnectorId[],
+  connected: readonly string[],
   kept?: Kept,
 ): ConnectForm | null {
   const tool = connectorById(id)
   const manifest = tool && !tool.soon ? manifestOf(tool.id) : undefined
   if (!tool || !manifest) return null
+  const demo = demoTools[tool.id]
   const live = connected.includes(tool.id)
-  const config = (live && kept?.config) || (demoConfig[tool.id] ?? {})
+  const config = (live && kept?.config) || (demo?.config ?? {})
   // A connected tool's settings as the service keeps them; a new one starts from the demo's.
   const settings: SourceSettings = {
     id: tool.id,
@@ -148,28 +136,28 @@ export function connectFormFor(
     revision: kept?.revision ?? 1,
     config,
     secrets: manifest.secrets.map((secret) => ({ key: secret.key, set: live })),
-    scopes: live ? (kept?.chosen ?? demoChosen(tool.id)) : [],
+    scopes: live ? (kept?.chosen ?? demo?.chosen ?? []) : [],
     schedule: null,
     nextReadAt: null,
     changedAt: null,
     changedBy: null,
   }
-  const form = connectFormOf(manifest, settings)!
+  const form = connectFormOf(manifest, settings)
+  if (!form) return null
   return {
     ...form,
-    connector: tool.id,
     source: live ? form.source : null,
     // The demo's key file is already uploaded, as the mockup draws it.
     secrets: form.secrets.map((secret) =>
-      secret.key === tool.keyFile
+      secret.key === tool.keyFile && demo
         ? { ...secret, set: true, file: { name: `${SLUG}-reader.json`, account: SERVICE_ACCOUNT } }
         : secret,
     ),
   }
 }
 
-/** Test connection on the mock: the mockup's checks, then what the tool may read. */
-export function testFor(connector: ConnectorId, values: ConnectValues): ConnectTest {
+/** Test connection on the mock: the demo world's checks, then what the tool may read. */
+export function testFor(connector: string, values: ConnectValues): ConnectTest {
   const tool = connectorById(connector)
   const manifest = manifestOf(connector)
   if (!tool || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
@@ -181,7 +169,7 @@ export function testFor(connector: ConnectorId, values: ConnectValues): ConnectT
       ok: false,
       steps: [
         {
-          title: 'Reach the repository',
+          title: tool.git ? 'Reach the repository' : 'Check the settings',
           status: 'failed',
           detail: `${missing.label} is empty.`,
           fix: `Give the ${missing.label.toLowerCase()}.`,
@@ -189,12 +177,18 @@ export function testFor(connector: ConnectorId, values: ConnectValues): ConnectT
       ],
       scopes: [],
     }
-  return { ok: true, steps: demoSteps(connector), scopes: demoScopes(connector) }
+  const demo = demoTools[connector]
+  if (!demo) return checkOf(manifest, values)
+  return {
+    ok: true,
+    steps: demo.steps.map((title) => ({ title, status: 'ok' as const })),
+    scopes: demo.scopes,
+  }
 }
 
 /** What connecting, or changing, takes on the mock: a reason, and a domain for every folder. */
 export function checkConnect(
-  connector: ConnectorId,
+  connector: string,
   input: { chosen: readonly ConnectChoice[]; reason: string },
 ) {
   if (!input.reason.trim()) throw new ApiError('invalid', 'Say why you are adding it.')
@@ -204,28 +198,170 @@ export function checkConnect(
     throw new ApiError('invalid', 'Choose a domain for each folder.')
 }
 
+/** A read a schedule's length after a time of today ("09:41"): the next one it plans. */
+const readAfter = (time: string, schedule: string) => {
+  const [hours = 0, minutes = 0] = time.split(':').map(Number)
+  const at = hours * 60 + minutes + minutesOf(schedule)
+  const clock = `${String(Math.floor(at / 60) % 24).padStart(2, '0')}:${String(at % 60).padStart(2, '0')}`
+  return { day: at < 1_440 ? 'Today' : at < 2_880 ? 'Tomorrow' : 'Later', time: clock }
+}
+
+/**
+ * A tool connected this visit that the demo world has no page for, its settings as its manifest
+ * words them. A definitions tool was read when it was connected, as on the service, and holds what
+ * its test found, each view with the domain it was mapped to; a content tool reads first at 07:00.
+ */
+function keptPage(id: string, kept: Kept | undefined, connectedAt: string): SourcePage | null {
+  const tool = connectorById(id)
+  const manifest = manifestOf(id)
+  if (!tool || !manifest) return null
+  const definitions = tool.kind === 'definitions'
+  const chosen = kept?.chosen ?? []
+  // Nothing chosen reads every view, each with the domain the tool names for it.
+  const views = (
+    definitions ? checkOf(manifest, { config: kept?.config ?? {}, secrets: {} }).scopes : []
+  ).flatMap((scope) => {
+    const choice = chosen.find((c) => c.id === scope.id)
+    if (chosen.length && !choice) return []
+    const domain = chosen.length ? choice?.domain : scope.domain
+    return [
+      {
+        view: scope.title,
+        metrics: scope.metrics ?? 0,
+        dimensions: scope.dimensions ?? 0,
+        ...(domain ? { domain } : {}),
+      },
+    ]
+  })
+  const metrics = views.reduce((n, v) => n + v.metrics, 0)
+  const dimensions = views.reduce((n, v) => n + v.dimensions, 0)
+  const form = connectFormOf(manifest, null)
+  const source: Source = {
+    id,
+    connector: id,
+    health: 'healthy',
+    every: form?.every ?? 'every day',
+    staleAfter: form?.staleAfter ?? '1 day',
+    last: definitions
+      ? {
+          at: { day: 'Today', time: connectedAt },
+          complete: true,
+          seconds: 1,
+          seen: metrics + dimensions,
+        }
+      : null,
+    next: definitions
+      ? readAfter(connectedAt, manifest.schedule.default)
+      : { day: 'Today', time: '07:00' },
+    failures: 0,
+    failure: null,
+    lastGood: null,
+    created: null,
+    definitions: definitions
+      ? {
+          metrics,
+          dimensions,
+          views: views.length,
+          noDomain: views.filter((v) => !v.domain).length,
+          flagged: 0,
+        }
+      : null,
+    documents: definitions
+      ? null
+      : {
+          held: 0,
+          waiting: 0,
+          domains: 0,
+          madeToday: 0,
+          perDay: manifest.limits.draftsPerDay ?? 0,
+        },
+    inbox: null,
+    added: { by: 'Jon Abara', when: 'Today' },
+  }
+  const settings: SourceSettings = {
+    id,
+    type: id,
+    name: tool.name,
+    revision: kept?.revision ?? 1,
+    config: kept?.config ?? {},
+    secrets: manifest.secrets.map((secret) => ({ key: secret.key, set: true })),
+    scopes: [],
+    schedule: null,
+    nextReadAt: null,
+    changedAt: null,
+    changedBy: null,
+  }
+  return {
+    source,
+    views,
+    changedOn: null,
+    folders: chosen.flatMap((c) =>
+      !definitions && c.domain
+        ? [{ folder: c.title, path: '', domain: c.domain, documents: 0 }]
+        : [],
+    ),
+    documents: [],
+    activity: [
+      definitions
+        ? {
+            when: `Today, ${connectedAt}`,
+            tone: 'ok',
+            what: 'First read',
+            detail: `${plural(metrics + dimensions, 'definition')} added`,
+          }
+        : {
+            when: 'Today',
+            tone: 'ok',
+            what: 'Connected',
+            detail: 'First read at 07:00. Nothing is published by a read.',
+          },
+    ],
+    connection: connectionOf(settings, manifest),
+  }
+}
+
 // The mock's integrations: the tools connected (Settings' own list, which the connect flow adds
 // to), each as the demo world has it, in the state the address names (?state=) on the
 // integrations' pages. Read again reads for a moment and finds nothing new; Pause reading holds
 // until the page reloads, as every other switch of the mock.
 
-export function createIntegrations(connected: () => ConnectorId[]) {
+export function createIntegrations(
+  connected: () => string[],
+  kept: (id: string) => Kept | undefined,
+) {
   const paused = new Set<string>()
   /** The tools read again this visit, and until when they read. */
   const reading = new Map<string, number>()
   /** The reads Read again ran this visit, newest first, by tool. */
   const reads = new Map<string, SourcePage['activity']>()
+  /** When each tool the flow connected this visit was connected: "09:41". */
+  const connectedAt = new Map<string, string>()
+  const timeOf = (now: Date) =>
+    `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const keptAt = (id: string) => {
+    if (!connectedAt.has(id)) connectedAt.set(id, timeOf(new Date()))
+    return keptPage(id, kept(id), connectedAt.get(id)!)
+  }
 
   const stateAt = (address: Address) =>
     address.path.startsWith('/settings/integrations')
       ? integrationState(address.query.state ?? null)
       : 'normal'
 
+  /** A tool connected, as the demo world has it, or as the flow connected it this visit. */
+  const shownPage = (id: string, address: Address): SourcePage | null => {
+    if (!connected().includes(id)) {
+      connectedAt.delete(id)
+      return null
+    }
+    const demo = demoTools[id]
+    return demo ? demoPageOf(stateAt(address), demo) : keptAt(id)
+  }
+
   /** A tool as it is now: paused, reading, or as the address's state has it. */
-  const pageOf = (id: ConnectorId, address: Address): SourcePage | null => {
-    const source = sources[id]
-    if (!source || !connected().includes(id)) return null
-    const page = sourcePageOf(stateAt(address), source)
+  const pageOf = (id: string, address: Address): SourcePage | null => {
+    const page = shownPage(id, address)
+    if (!page) return null
     const until = reading.get(id)
     if (until !== undefined && until <= Date.now()) reading.delete(id)
     const health = paused.has(id) ? 'paused' : reading.has(id) ? 'reading' : page.source.health
@@ -246,24 +382,27 @@ export function createIntegrations(connected: () => ConnectorId[]) {
               const page = pageOf(c.id, address)
               return page ? [page.source] : []
             }),
-        connectable: connectors.filter((c) => !c.soon).map((c) => c.id),
+        connectable: connectors.flatMap((c) => {
+          const manifest = c.soon ? undefined : manifestOf(c.id)
+          return manifest && formTakes(manifest) ? [c.id] : []
+        }),
       }
     },
 
     sourcePage(id: string, address: Address): SourcePage | null {
-      const known = connectors.find((c) => c.id === id)
-      return known ? pageOf(known.id, address) : null
+      return connectorById(id) ? pageOf(id, address) : null
     },
 
     /** Read again: reading for a moment, then a read that found nothing new. */
     readAgain(id: string, now: Date) {
-      const source = sources[id as ConnectorId]
-      if (!source || !connected().includes(source.connector))
-        throw new ApiError('not-found', "We couldn't find this source.")
+      const source = connected().includes(id)
+        ? (demoTools[id]?.source ?? keptAt(id)?.source)
+        : undefined
+      if (!source) throw new ApiError('not-found', "We couldn't find this source.")
       if (paused.has(id))
         throw new ApiError('conflict', 'This source is switched off. Switch it on to read it.')
       reading.set(id, Date.now() + MOCK_READ_MS)
-      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      const time = timeOf(now)
       const detail = source.definitions
         ? `${source.definitions.metrics + source.definitions.dimensions} definitions, no changes`
         : `${source.documents?.held ?? 0} documents, no changes. No new suggestions`

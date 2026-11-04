@@ -1,0 +1,113 @@
+{
+  "definitions": [
+    {
+      "ref": "cube:growth.revenue",
+      "kind": "metric",
+      "name": "growth.revenue",
+      "title": "Growth Revenue",
+      "descriptionCopy": "Total order revenue.",
+      "valueType": "number",
+      "visibleGroups": null,
+      "areaHint": "marketing",
+      "domainSource": "source",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": null,
+      "changeMark": "f31113d69b92a2854c4e946f1b5f0522db7d123ec50bb834af9b214d34e5f8b0"
+    },
+    {
+      "ref": "cube:marketing.orders_country",
+      "kind": "dimension",
+      "name": "marketing.orders_country",
+      "title": "Marketing Orders Country",
+      "descriptionCopy": null,
+      "valueType": "string",
+      "visibleGroups": null,
+      "areaHint": null,
+      "domainSource": "none",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": "country",
+      "changeMark": "fe701dc34b7f6f639e970c251bb4ebad607151862173c8154163682e9609f071"
+    },
+    {
+      "ref": "cube:marketing.orders_income",
+      "kind": "metric",
+      "name": "marketing.orders_income",
+      "title": "Marketing Orders Income",
+      "descriptionCopy": "Total order revenue.",
+      "valueType": "number",
+      "visibleGroups": null,
+      "areaHint": null,
+      "domainSource": "none",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": "income",
+      "changeMark": "f31113d69b92a2854c4e946f1b5f0522db7d123ec50bb834af9b214d34e5f8b0"
+    },
+    {
+      "ref": "cube:operations.revenue",
+      "kind": "metric",
+      "name": "operations.revenue",
+      "title": "Operations Revenue",
+      "descriptionCopy": "Total order revenue.",
+      "valueType": "number",
+      "visibleGroups": null,
+      "areaHint": null,
+      "domainSource": "none",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": null,
+      "changeMark": "f31113d69b92a2854c4e946f1b5f0522db7d123ec50bb834af9b214d34e5f8b0"
+    },
+    {
+      "ref": "cube:sales.count",
+      "kind": "metric",
+      "name": "sales.count",
+      "title": "Sales Count",
+      "descriptionCopy": null,
+      "valueType": "number",
+      "visibleGroups": null,
+      "areaHint": "commerce",
+      "domainSource": "source",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": null,
+      "changeMark": "2a5cf9d6443e8d85a8049943aa177016d4ba3a40846a1919c8380b698feaf7ab"
+    },
+    {
+      "ref": "cube:sales.country",
+      "kind": "dimension",
+      "name": "sales.country",
+      "title": "Sales Country",
+      "descriptionCopy": null,
+      "valueType": "string",
+      "visibleGroups": null,
+      "areaHint": "finance",
+      "domainSource": "source",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": null,
+      "changeMark": "fe701dc34b7f6f639e970c251bb4ebad607151862173c8154163682e9609f071"
+    },
+    {
+      "ref": "cube:sales.revenue",
+      "kind": "metric",
+      "name": "sales.revenue",
+      "title": "Sales Revenue",
+      "descriptionCopy": "Total order revenue.",
+      "valueType": "number",
+      "visibleGroups": null,
+      "areaHint": "finance",
+      "domainSource": "source",
+      "modelFile": "model.yml",
+      "synonyms": [],
+      "baseName": null,
+      "changeMark": "f31113d69b92a2854c4e946f1b5f0522db7d123ec50bb834af9b214d34e5f8b0"
+    }
+  ],
+  "warnings": [
+    { "code": "missing_domain", "target": "marketing" },
+    { "code": "missing_domain", "target": "operations" }
+  ]
+}

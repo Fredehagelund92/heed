@@ -16,8 +16,15 @@ team without a semantic layer yet. Experimental.
 ## What a read does
 
 Each entry becomes a definition under the `static:` prefix, marked by its meaning (kind, name,
-title, description, type and domain), so moving it in the list changes nothing. A description
-longer than 500 characters is cut, with a warning.
+title, description and type), so moving it in the list changes nothing. Its domain is not part of
+the mark: a changed domain informs the owners and flags no item. A domain that is not a domain id,
+and that Domain names does not map, is left out with a warning. A description longer than 500
+characters is cut, with a warning.
+
+## Schedule and limits
+
+Read every hour, and out of date after 6 hours. A list holds at most 500 entries and 20,000
+characters, and a read takes at most 10 seconds.
 
 ## Tests
 

@@ -7,7 +7,6 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { connectorById } from '@/model/integrations'
 import type { Figure, FigureView } from '@/model/figures'
 import { useDomains, useFacts } from '@/lib/workspace'
 import { openDock } from '@/lib/dock'
@@ -16,26 +15,22 @@ import { useWrite } from '@/api/queries'
 import type { Answer } from '@/model/ask'
 
 // A figure in an answer, kept apart from the context: its own line and icon, its own words ("From
-// Cube, data as of today at 06:00"), never the word for context that an owner accepted. It sits
+// <tool>, data as of today at 06:00"), never the word for context that an owner accepted. It sits
 // after the answer's text and before its sources, and never changes the answer's state.
-
-const SOURCE_URL: Record<string, string> = {
-  cube: 'https://cube.larchwood.example/',
-}
 
 /** Where the figure came from and how fresh it is, then the definition, then the query in words. */
 function Provenance({
-  source,
+  name,
   asOf,
   figure,
   metric,
 }: {
-  source: string
+  /** The tool it was read from, as people say it. */
+  name: string
   asOf: string
   figure: Figure
   metric: string
 }) {
-  const name = connectorById(source)!.name
   return (
     <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
       <p className="flex flex-wrap items-center gap-x-1.5">
@@ -90,7 +85,7 @@ export function FigureLine({
           <span className="font-semibold tabular-nums">{f.value}</span>
           {f.change ? `, ${f.change}` : ''}.
         </p>
-        <Provenance source={view.source} asOf={view.asOf} figure={f} metric={metric} />
+        <Provenance name={view.tool} asOf={view.asOf} figure={f} metric={metric} />
       </div>
     </div>
   )
@@ -168,7 +163,7 @@ export function FigureAgainst({
             {f.change && `${f.change[0]!.toUpperCase()}${f.change.slice(1)}.`}
           </p>
           <div className="pt-1">
-            <Provenance source={view.source} asOf={view.asOf} figure={f} metric={metric} />
+            <Provenance name={view.tool} asOf={view.asOf} figure={f} metric={metric} />
           </div>
         </div>
       </div>
@@ -228,10 +223,10 @@ export function NoFigure({ view }: { view: Extract<FigureView, { kind: 'none' }>
 
 /** Figures off: a way into the tool that has the number. */
 export function FigureLink({ view }: { view: Extract<FigureView, { kind: 'link' }> }) {
-  const name = connectorById(view.source)!.name
+  const name = view.tool
   return (
     <a
-      href={view.href ?? SOURCE_URL[view.source]}
+      href={view.href}
       target="_blank"
       rel="noreferrer"
       className="inline-flex w-fit max-w-full items-start gap-1.5 rounded-md text-sm text-foreground underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50"

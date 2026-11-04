@@ -1,3 +1,4 @@
+import type { ConnectorManifest } from '@domain/connector-manifest'
 import cube from '@/assets/logos/cube.svg'
 import dbt from '@/assets/logos/dbt.svg'
 import googledrive from '@/assets/logos/googledrive.svg'
@@ -8,23 +9,34 @@ import type { DomainId } from './items'
 
 // The tools Heed reads, from the settings and integrations design (round 3, all picks adopted).
 // Definitions (what exists: metrics and dimensions) and context (what people know: documents).
-// Figures for Ask are not a kind of their own: a definitions tool that can read them (Cube) has a
-// second connection for them, off until an admin switches it on, because the tool a metric's
-// definition comes from is the one that answers it. Heed stores no numbers: it reads one when an
-// answer asks for it. A sync never publishes: definitions are a read-only copy that flags the
-// context relying on them, documents become suggestions in the owners' Inbox, one per document.
+// Figures for Ask are not a kind of their own: a definitions tool that can read them has a second
+// connection for them, off until an admin switches it on, because the tool a metric's definition
+// comes from is the one that answers it. Heed stores no numbers: it reads one when an answer asks
+// for it. A sync never publishes: definitions are a read-only copy that flags the context relying
+// on them, documents become suggestions in the owners' Inbox, one per document.
+//
+// The catalogue itself is drawn from the connectors' manifests in catalogue.ts, which only the
+// pages that list connectors load: the first load carries no manifest. Everything else names a
+// tool by the words the data brings (a definition's or a source's `tool`) and draws its logo by
+// its connector's id. A connector's id is its manifest's id, the type the service stores its
+// sources under.
 
 export type ConnectorKind = 'definitions' | 'context'
-export type ConnectorId = 'cube' | 'google-drive' | 'markdown-git' | 'dbt' | 'notion'
+/** The picture a connector without a logo of its own shows, as its manifest names it. */
+export type ConnectorIcon = NonNullable<ConnectorManifest['icon']>
 
 export type Connector = {
-  id: ConnectorId
+  /** Its manifest's id: `cube`, `git-markdown`. */
+  id: string
+  /** The tool it reads, as people say it. */
   name: string
   kind: ConnectorKind
-  logo: string
+  /** Its logo, where the app has one; otherwise it shows its picture. */
+  logo?: string
+  icon?: ConnectorIcon
   /** One line on the catalog cell. */
   blurb: string
-  /** Built in v1, or shown as Soon. */
+  /** Shown as Soon: designed, not connectable yet. */
   soon?: boolean
   /**
    * It can also read a figure for Ask, through a second connection of its own: a data endpoint and
@@ -33,58 +45,46 @@ export type Connector = {
   figures?: true
   /** The secret the connect flow takes as a key file someone uploads, not as words typed in. */
   keyFile?: string
+  /** It reads from a Git repository. */
+  git?: true
+  /** It finds what may be chosen to read (folders, spaces), rather than reading it all. */
+  discovers?: true
+  /** What it may reach, said before anything is given: its manifest's own words. */
+  access: string[]
+  /** The lead of its page, where the app words it; otherwise its kind's. */
+  lead?: string
+  /** The setting a definitions tool names a view's domain with, as people write it there. */
+  domainField?: string
+  /** An example of its data endpoint, shown in the empty field where figures are set up. */
+  endpointExample?: string
 }
 
-export const connectors: Connector[] = [
-  {
-    id: 'cube',
-    name: 'Cube',
-    kind: 'definitions',
-    logo: cube,
-    blurb: 'Metrics and dimensions, read from your Cube definition files in Git.',
-    figures: true,
-  },
-  {
-    id: 'dbt',
-    name: 'dbt',
-    kind: 'definitions',
-    logo: dbt,
-    blurb: 'Metrics from dbt MetricFlow, read from your project in Git.',
-    soon: true,
-  },
-  {
-    id: 'google-drive',
-    name: 'Google Drive',
-    kind: 'context',
-    logo: googledrive,
-    blurb: 'Google Docs in folders you share become suggestions for owners.',
-    keyFile: 'serviceAccountKey',
-  },
-  {
-    id: 'markdown-git',
-    name: 'Markdown in Git',
-    kind: 'context',
-    logo: markdown,
-    blurb: 'Markdown files in a repository become suggestions for owners.',
-  },
-  {
-    id: 'notion',
-    name: 'Notion',
-    kind: 'context',
-    logo: notion,
-    blurb: 'Pages in spaces you choose become suggestions for owners.',
-    soon: true,
-  },
-]
+/**
+ * The logos the app has, by connector id. Optional: a connector without one shows the picture its
+ * manifest names.
+ */
+export const logos: Record<string, string> = {
+  cube,
+  dbt,
+  'google-drive': googledrive,
+  'git-markdown': markdown,
+  notion,
+}
+
+/** How a tool is drawn, by its connector's id: its logo, or a document's picture. */
+export const lookOf = (connector: string | undefined): Pick<Connector, 'logo' | 'icon'> => {
+  const logo = connector ? logos[connector] : undefined
+  return logo ? { logo } : { icon: 'file' }
+}
+
+/** A connected tool's page in Integrations, by its connector's id; Integrations without one. */
+export const integrationHref = (connector: string | undefined) =>
+  connector ? `/settings/integrations/${connector}` : '/settings/integrations'
 
 export const kindName: Record<ConnectorKind, string> = {
   definitions: 'Definitions',
   context: 'Context',
 }
-export const connectorById = (id: string | undefined) => connectors.find((c) => c.id === id)
-
-/** The connected definitions tool, by name: generic copy says it through this, never by hand. */
-export const DEFINITIONS_TOOL = connectorById('cube')!.name
 
 export type Activity = {
   when: string
@@ -115,8 +115,13 @@ export type When = {
   ago?: string
 }
 
-/** What Cube reads: each view, what it holds and the domain it maps to. */
-export type CubeView = { view: string; metrics: number; dimensions: number; domain?: DomainId }
+/** What a definitions tool reads: each view, what it holds and the domain it maps to. */
+export type DefinitionsView = {
+  view: string
+  metrics: number
+  dimensions: number
+  domain?: DomainId
+}
 /** A folder a content tool reads, and the domain its documents go to. */
 export type DriveFolder = { folder: string; path: string; domain: DomainId; documents: number }
 /**
@@ -142,8 +147,8 @@ export type DriveDocument = {
 export type Source = {
   /** Its page's address: /settings/integrations/<id>. */
   id: string
-  /** The tool it reads, as the catalog has it (its name, logo and kind). */
-  connector: ConnectorId
+  /** The tool it reads, as the catalog has it (its name, logo and kind): its connector's id. */
+  connector: string
   health: Health
   /** How often it is read: "every hour", "every day". */
   every: string
@@ -188,13 +193,13 @@ export type Source = {
 }
 
 /** Settings › Integrations: the tools connected, and which of the others can be connected here. */
-export type IntegrationsView = { sources: Source[]; connectable: ConnectorId[] }
+export type IntegrationsView = { sources: Source[]; connectable: string[] }
 
 /** One connected tool's page. */
 export type SourcePage = {
   source: Source
   /** A definitions tool: each view, with its domain. */
-  views: CubeView[]
+  views: DefinitionsView[]
   /** The last day a definitions read changed definitions ("7 Oct"); null when none did. */
   changedOn: string | null
   /** A context tool: each folder chosen, with its domain. */
@@ -224,14 +229,16 @@ export type FigureConnection = {
 
 /**
  * A setting of the connect form, as its connector's manifest declares it: an address, a branch,
- * a folder, a name. Its value is what is set, or the manifest's default.
+ * a folder, a name, or a list written as JSON. Its value is what is set, or the manifest's default.
  */
 export type ConnectField = {
   key: string
-  kind: 'text' | 'address' | 'path' | 'ref'
+  kind: 'text' | 'address' | 'path' | 'ref' | 'json'
   label: string
   description: string
   placeholder?: string
+  /** The most characters it may hold, where its manifest says. */
+  maxLength?: number
   required: boolean
   /** Folded under More settings: what most people leave as it is. */
   advanced: boolean
@@ -254,7 +261,8 @@ export type ConnectSecret = {
 
 /** A tool's connect form: to connect it, or, for one connected, its settings to change. */
 export type ConnectForm = {
-  connector: ConnectorId
+  /** The connector's id. */
+  connector: string
   /** Change settings: the source and the revision read; null to connect the tool anew. */
   source: { id: string; revision: number } | null
   fields: ConnectField[]

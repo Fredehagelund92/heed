@@ -1,21 +1,23 @@
 import type { FigureTryFailure } from '@contract/figures'
 import { useSettings, useWrite } from '@/api/queries'
-import type { ConnectorId } from '@/model/integrations'
 
 // Whether Ask shows figures, per integration: off by default (Ask then links into the source),
 // switched on by an admin on the integration's page, with who to ask about its data.
 
 export type FigureSettings = {
-  enabled: (id: ConnectorId) => boolean
-  contact: (id: ConnectorId) => string
+  enabled: (id: string) => boolean
+  contact: (id: string) => string
+  /** The figure-capable integration that reads a tool, by the tool's name; none for another. */
+  sourceOf: (tool: string | undefined) => string | undefined
 }
 
 /** The figure settings as they stand (the mock applies its ?figures= review flag). */
 export function useFigures(): FigureSettings {
-  const { figures, contacts } = useSettings()
+  const { figures, contacts, figureTools } = useSettings()
   return {
     enabled: (id) => figures[id] ?? false,
     contact: (id) => contacts[id] ?? 'the data team',
+    sourceOf: (tool) => Object.keys(figureTools).find((id) => figureTools[id] === tool),
   }
 }
 
@@ -26,10 +28,9 @@ export function useFigures(): FigureSettings {
 export function useFigureActions() {
   const write = useWrite()
   return {
-    setFigures: (source: ConnectorId, on: boolean) => write('setFigures', { source, on }),
-    setDataContact: (source: ConnectorId, name: string) =>
-      write('setDataContact', { source, name }),
-    setConnection: (source: ConnectorId, endpoint: string, token: string) =>
+    setFigures: (source: string, on: boolean) => write('setFigures', { source, on }),
+    setDataContact: (source: string, name: string) => write('setDataContact', { source, name }),
+    setConnection: (source: string, endpoint: string, token: string) =>
       write('setFigureConnection', { source, endpoint, token }),
   }
 }

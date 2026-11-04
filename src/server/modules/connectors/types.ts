@@ -30,7 +30,7 @@ export const definitionSchema = z.object({
     .string()
     .regex(/^[a-z][a-z0-9_]{1,39}$/)
     .nullable(),
-  domainSource: z.enum(['cube', 'override', 'none']),
+  domainSource: z.enum(['source', 'override', 'none']),
   /**
    * The model file that defines the member's public view or cube, relative to the model folder
    * (`payments.yml`); null when the source has no files. Not part of the change mark: moving a
@@ -88,6 +88,11 @@ export interface ConnectorType {
    * selects, shown on its page in Sources.
    */
   readonly settingKeys: readonly SettingKey[]
+  /**
+   * Whether its dimensions of one name in different views are one dimension (the manifest's
+   * `capabilities.mergeDimensions`, CON-201): `by-name` merges them into one proposed term.
+   */
+  readonly mergeDimensions: 'by-name' | 'never'
 }
 
 export type { FieldProblem } from '../../../domain/connector-config.ts'
@@ -122,7 +127,7 @@ export interface DefinitionSource {
 }
 
 export function domainCoverage(definitions: readonly Definition[]) {
-  const coverage = { cube: 0, override: 0, none: 0 }
+  const coverage = { source: 0, override: 0, none: 0 }
   for (const definition of definitions) {
     if (definition.kind === 'metric') coverage[definition.domainSource]++
   }

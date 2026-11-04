@@ -107,6 +107,36 @@ describe('the Inbox', () => {
     expect(cards[0]?.suggestion?.agent).toBeUndefined()
   })
 
+  it('names the tool a read came from, and its connector, which draws its logo', () => {
+    const { cards } = inboxOf(
+      feed([
+        suggestion({
+          synced: {
+            source: {
+              id: 'src_handbook',
+              name: 'Handbook',
+              type: 'git-markdown',
+              tool: 'Markdown in Git',
+            },
+            scope: 'docs/sales',
+            document: { title: 'Returns window', link: 'https://git.example/handbook/returns.md' },
+            read: { id: 'r1', at: at(23) },
+            quote: 'Returns are counted within 30 days.',
+          },
+        }),
+      ]),
+      'Jon Abara',
+      domains,
+      now,
+    )
+    expect(cards[0]?.source).toMatchObject({
+      tool: 'Markdown in Git',
+      connector: 'git-markdown',
+      folder: 'docs/sales',
+      doc: 'Returns window',
+    })
+  })
+
   it('says which agent wrote it, and when it is new or archives something', () => {
     const lines = inboxOf(
       feed([
@@ -312,14 +342,15 @@ describe('the Inbox', () => {
     ).cards
     expect(due).toMatchObject({
       when: 'Since 2 Oct',
+      due: 'date',
       line: 'Its check date passed on 2 Oct 2026. Agents are told it may be out of date.',
       detail: 'Last checked by you, 2 Jul 2026.',
       primary: 'Still true',
       secondary: ['Edit', 'Archive'],
       factId: 'itm_a',
     })
-    expect(changed).toMatchObject({ when: 'Today', detail: 'Not checked yet.' })
-    expect(changed?.line).toMatch(/changed a definition it relies on/)
+    expect(changed).toMatchObject({ when: 'Today', detail: 'Not checked yet.', due: 'source' })
+    expect(changed?.line).toMatch(/A definition it relies on changed/)
   })
 
   it('reads the saved-question alert as one card for the domain, with its questions', () => {

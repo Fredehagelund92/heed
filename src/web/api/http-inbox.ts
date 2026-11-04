@@ -21,7 +21,6 @@ import { commentWhen } from './http-map'
 import type { Subject } from '@/model/comments'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { describe, type Domain, type Domains, type Person } from '@/model/people'
 import type { Block, ChangeKind, FieldSide, Relation, Review } from '@/model/review'
 import { dateLabel, whenLabel } from '@/model/validity'
@@ -152,6 +151,7 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
           ? {
               source: {
                 tool: synced.source.tool,
+                connector: synced.source.type,
                 folder: synced.scope,
                 doc: synced.document.title,
                 read: whenWords(synced.read.at, now),
@@ -269,10 +269,12 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
           ? 'Today'
           : `Since ${since.replace(/^Yesterday, .*/, 'yesterday')}`,
         type: 'check',
+        due: card.reason,
         title: card.title,
+        // The card does not say which tool the definition is from, so the line names none.
         line:
           card.reason === 'source'
-            ? `${DEFINITIONS_TOOL} changed a definition it relies on, after this context item was checked.`
+            ? 'A definition it relies on changed in its tool, after this context item was checked.'
             : `Its check date passed on ${dayWords(card.at)}. Agents are told it may be out of date.`,
         detail:
           by && on
@@ -740,6 +742,7 @@ export function reviewOf(
       ? {
           synced: {
             tool: sheet.synced.source.tool,
+            connector: sheet.synced.source.type,
             folder: sheet.synced.scope,
             doc: sheet.synced.document.title,
             read: whenWords(sheet.synced.read.at, new Date()),
