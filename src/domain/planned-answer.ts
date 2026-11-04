@@ -419,7 +419,15 @@ function engineRead(
     case 'definition':
       return answer(bundle, { question: '', metrics: read.metrics }, { today: c.today, now })
     case 'about_previous':
-      return previousSources(bundle, read.ids, c.previous?.scope ?? null, c.today, now)
+      return previousSources(
+        bundle,
+        read.ids,
+        c.previous && read.ids.every((id) => c.previous!.sources.includes(id))
+          ? c.previous.scope
+          : null,
+        c.today,
+        now,
+      )
   }
 }
 

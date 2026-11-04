@@ -87,9 +87,13 @@ const askAgainInput = (turns: readonly Turn[], i: number): AskInput => {
   const { answer } = turns[i]!
   const { question, parts, scope } = askedWords(answer)
   const chat = chatFrom(turns.slice(0, i))
-  return answer.state === 'failed'
-    ? { question, reread: { dates: answer.dates } }
-    : { question, parts, scope, ...(chat.length ? { turns: chat } : {}) }
+  return {
+    question,
+    parts,
+    scope,
+    ...(chat.length ? { turns: chat } : {}),
+    ...(answer.state === 'failed' ? { reread: { dates: answer.dates } } : {}),
+  }
 }
 
 /** The turn a message that asks again repeats: the last that asked something. */

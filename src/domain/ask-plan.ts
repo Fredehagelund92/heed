@@ -263,8 +263,12 @@ export const turnIsDated = (turn: ChatTurn, today: string) =>
   turn.dated === true || readDates(normalizeName(turn.question), today).status === 'read'
 
 /** The last question's days, when it was read for dates and not for today. */
-const datedWindow = ({ previous, today }: PlanContext) =>
-  previous && turnIsDated(previous, today) ? (previous.scope?.window ?? null) : null
+const datedWindow = ({ previous, today }: PlanContext) => {
+  if (!previous || !turnIsDated(previous, today)) return null
+  if (previous.scope) return previous.scope.window
+  const read = readDates(normalizeName(previous.question), today)
+  return read.status === 'read' ? read.window : null
+}
 
 /**
  * The days a read is for: the question's words read as get_context reads them, the last
@@ -370,7 +374,7 @@ type LeftOpen = {
   why: boolean
 }
 
-const OVER_EVERYTHING = /\b(?:all|every|overall|everywhere|total)\b/
+const OVER_EVERYTHING = /\b(?:all|every|overall|everywhere)\b/
 
 /**
  * What the question keeps of the last one: nothing unless it leans on it ("what about last
@@ -379,12 +383,13 @@ const OVER_EVERYTHING = /\b(?:all|every|overall|everywhere|total)\b/
  */
 function leftOpen(ctx: PlanContext): LeftOpen | null {
   const last = ctx.previous
-  if (!last || !leansOnLast(ctx.question)) return null
+  if (!last) return null
   const own = readQuestion(ctx.question, ctx.terms, ctx.today)
   const namedMetric = own.terms.some((t) => t.kind === 'metric' || t.kind === 'metric_group')
   const namedDimensions = new Set(
     own.terms.flatMap((t) => (t.kind === 'dimension_value' ? [t.parentKey!] : [])),
   )
+  if (!leansOnLast(ctx.question, namedMetric || namedDimensions.size > 0)) return null
   const before = last.scope
     ? last.scope
     : { metrics: lastMetricsInWords(last, ctx), filters: {}, window: null }
@@ -555,9 +560,13 @@ function checkedStandalone(raw: string | null | undefined, ctx: PlanContext) {
       .flatMap((name) => normalizeName(name).split(/[^\p{L}\p{N}]+/u))
       .filter(Boolean),
   )
-  const numbers = text.match(/\p{N}+/gu) ?? []
-  if (numbers.some((n) => !held.has(n))) return undefined
-  const named = (text.match(/[\p{L}][\p{L}'-]*/gu) ?? []).slice(1).filter((w) => /^\p{Lu}/u.test(w))
+  const digitWords = (text.match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => /\p{N}/u.test(w))
+  const quarter = /^q[1-4]$/
+  if (digitWords.some((w) => !held.has(normalizeName(w)) && !quarter.test(normalizeName(w))))
+    return undefined
+  const named = (text.match(/[\p{L}][\p{L}\p{N}'-]*/gu) ?? [])
+    .slice(1)
+    .filter((w) => /^\p{Lu}/u.test(w))
   const months =
     /^(?:january|february|march|april|may|june|july|august|september|october|november|december|q[1-4])$/
   const unknown = (w: string) => !held.has(normalizeName(w)) && !months.test(normalizeName(w))
@@ -579,10 +588,13 @@ const followUpWords = (question: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-/** Whether a short question starts from the last one or points back at it. */
-function leansOnLast(question: string): boolean {
+/**
+ * Whether a short question starts from the last one, or points back at it and names no metric or
+ * value of its own ("what are the rules that apply to net revenue?" points at nothing).
+ */
+function leansOnLast(question: string, namesOwn: boolean): boolean {
   const t = followUpWords(question)
-  return t.split(' ').length <= 12 && (FOLLOW_ON.test(t) || POINTS_BACK.test(t))
+  return t.split(' ').length <= 12 && (FOLLOW_ON.test(t) || (POINTS_BACK.test(t) && !namesOwn))
 }
 
 /**

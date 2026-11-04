@@ -23,6 +23,7 @@ import {
 } from './planned-answer.ts'
 import type { RecordsRecognition } from './records.ts'
 import { offTopicSaid, scopeWords } from './say.ts'
+import { readQuestion } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
 
 /*
@@ -193,7 +194,9 @@ export async function routeQuestion(c: {
   const { bundle, ask, turns, today } = c
   const previous = turns.at(-1) ?? null
   const scoped = !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window)
-  if (!scoped && asksNothing(ask.question, turns)) return nothingAsked(ask.question, turns)
+  const names = readQuestion(ask.question, bundle.terms, today).terms.length > 0
+  if (!scoped && !names && asksNothing(ask.question, turns))
+    return nothingAsked(ask.question, turns)
   const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
   const reason = plannerReason({
     question: ask.question,

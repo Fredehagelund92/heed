@@ -247,7 +247,8 @@ export function createMockApi() {
       }
     }
     // A message that asks nothing is told so, with no model, as on the service.
-    if (asksNothing(question, turns ?? []))
+    const named = readQuestion(question)
+    if (!named.metric && !named.markets.length && asksNothing(question, turns ?? []))
       return replyAnswer(question, {
         kind: 'nothing_asked',
         text: nothingAskedSaid(question, turns ?? []),

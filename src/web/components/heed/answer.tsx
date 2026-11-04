@@ -860,7 +860,7 @@ function SomethingWrong({
         }
         setSending(true)
         write('reportAnswer', {
-          question: answer.question,
+          question: askedOf(answer),
           part,
           sources: answer.sources,
           what: text('what'),
@@ -1279,7 +1279,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   const [sentNow, setSentNow] = React.useState(answer.report)
   // A report the person sent about this answer, here or before: what the owners did comes back.
   const mine = useQuery({ ...myReportsQuery(), enabled: !draft }).data?.find(
-    (r) => r.question.toLowerCase() === answer.question.toLowerCase(),
+    (r) => r.question.toLowerCase() === askedOf(answer).toLowerCase(),
   )
   const report = mine ? { on: mine.on, outcome: mine.outcome } : sentNow
 
@@ -1349,7 +1349,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   const lead =
     !draft &&
     !!answer.definitions?.some((d) => d.words) &&
-    asksWhatItIs(answer.question, { values: answer.markets.length > 0, dates: !!answer.dates })
+    asksWhatItIs(askedOf(answer), { values: answer.markets.length > 0, dates: !!answer.dates })
       ? answer.definitions
       : null
   const definitionOnly = !!lead && answer.state === 'missing'
@@ -1679,7 +1679,7 @@ function AnswerActions({
       )}
       {opened === 'save' && (
         <SaveQuestion
-          question={answer.question}
+          question={askedOf(answer)}
           domain={saveDomain}
           answer={answer}
           from={more}

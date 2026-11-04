@@ -1,4 +1,4 @@
-import { stateLabel, stateSentence, type Answer } from '@/model/ask'
+import { askedOf, stateLabel, stateSentence, type Answer } from '@/model/ask'
 import { TODAY } from '@/model/history'
 import type { Fact } from '@/model/items'
 
@@ -35,9 +35,12 @@ export const sourceLine = (f: Fact, i: number) =>
   `${i + 1} ${f.title} - ${f.checkedBy}, checked ${f.checkedOn}`
 
 /** The Slack message: the question in bold, the state line second, the answer, then the sources. */
-export function slackText(answer: Pick<Answer, 'question' | 'state' | 'text'>, facts: Fact[]) {
+export function slackText(
+  answer: Pick<Answer, 'question' | 'again' | 'state' | 'text'>,
+  facts: Fact[],
+) {
   return [
-    `*${answer.question}*`,
+    `*${askedOf(answer)}*`,
     stateLineOf(answer, facts.length),
     '',
     plainAnswer(answer.text),

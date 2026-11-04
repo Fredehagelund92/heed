@@ -244,11 +244,49 @@ describe('what a turn sends on to the next question', () => {
       }),
     ).toMatchObject({
       understood: 'Due for a check, in Paid media',
-      headline: 'Nothing in Paid media is due for a check.',
+      headline: 'Nothing found.',
       domain: 'paid',
       period: null,
       state: null,
     })
+  })
+
+  it('names no one in a records headline, and sends none for a refusal', () => {
+    const found = recordsAnswer('who owns Sales?', {
+      refused: false,
+      intent: 'due',
+      understood: 'Owners',
+      period: null,
+      domain: null,
+      read: 'Read 3 items',
+      sentence: 'Anna Berg owns Sales.',
+      detail: null,
+      detailItem: null,
+      columns: [],
+      rows: [],
+      total: 3,
+      shown: null,
+      more: null,
+      note: null,
+    } as never)
+    expect(chatTurnOf(found)!.headline).toBe('3 found.')
+    const refused = recordsAnswer('what has Anna done?', {
+      refused: true,
+      reason: 'person',
+      sentence: 'Anna Berg',
+      detail: '',
+      offers: [],
+    })
+    expect(chatTurnOf(refused)!.headline).toBeNull()
+  })
+
+  it('reads dates from the reading alone when it has one', () => {
+    const turn = chatTurnOf({
+      ...engine,
+      dates: '1 to 31 Aug 2026',
+      reading: { words: 'x', carried: [], period: 'today' },
+    } as never)!
+    expect(turn.dated).toBeUndefined()
   })
 
   it('sends nothing for a message that asked nothing', () => {

@@ -211,11 +211,16 @@ function understoodOf(a: Answer) {
 const items = (n: number) => (n === 1 ? '1 context item' : `${n} context items`)
 
 /**
- * What a turn answered, in one sentence the planner may read: the records' counted sentence, or
- * how much was found, from a template. Never an item's words or a data value.
+ * What a turn answered, in one sentence the planner may read: how much was found, from a
+ * template. Never an item's words, a name or a data value.
  */
 function headlineOf(a: Answer) {
-  if (a.records) return clipped(a.records.sentence)
+  if (a.records)
+    return a.records.refused
+      ? null
+      : a.records.total === 0
+        ? 'Nothing found.'
+        : `${a.records.total} found.`
   if (a.state === null || a.state === 'failed') return null
   const about = scopeText(a)
   return clipped(`${items(a.sources.length)}${about ? ` about ${about}` : ''}.`)
@@ -223,7 +228,7 @@ function headlineOf(a: Answer) {
 
 /** Whether a turn was read for dates it named or carried, not for today or for any date. */
 const datedOf = (a: Answer) =>
-  a.reading?.period ? a.reading.period === 'asked' || a.reading.period === 'carried' : !!a.dates
+  a.reading ? a.reading.period === 'asked' || a.reading.period === 'carried' : !!a.dates
 
 /** What a turn sends on to the next question: none for one that asked nothing. */
 export const chatTurnOf = (a: Answer): ChatTurn | undefined =>

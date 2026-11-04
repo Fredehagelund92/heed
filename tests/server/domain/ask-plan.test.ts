@@ -586,6 +586,61 @@ describe('a follow-up keeps what it does not change', () => {
   })
 })
 
+describe('what a follow-up leans on', () => {
+  const lookup = [
+    { kind: 'lookup', values: [], metrics: ['metric:net_revenue'], dates: null, why: false },
+  ]
+  const scopeOf = (got: ReturnType<typeof checkPlan>) =>
+    got.ok && got.plan.kind === 'reads' && got.plan.reads[0]?.kind === 'lookup'
+      ? got.plan.reads[0].scope
+      : null
+
+  it('keeps nothing for a relative "that" with a metric of its own', () => {
+    const got = checkPlan(
+      { reads: lookup },
+      ctx({ question: 'What are the rules that apply to net revenue?' }),
+    )
+    expect(scopeOf(got)?.filters).toEqual({})
+  })
+
+  it('keeps the market for "and total net revenue?"', () => {
+    const got = checkPlan({ reads: lookup }, ctx({ question: 'and total net revenue?' }))
+    expect(scopeOf(got)?.filters).toEqual({ 'dim:market': ['val:market/norway'] })
+  })
+
+  it('carries the days a question back left unread but its words named', () => {
+    const asked: ChatTurn = {
+      question: 'How is Sweden doing in August 2026?',
+      scope: null,
+      sources: [],
+      asked: 'Which metric?',
+    }
+    const got = checkPlan(
+      {
+        reads: [
+          { kind: 'lookup', values: [], metrics: ['metric:orders'], dates: 'same', why: false },
+        ],
+      },
+      ctx({ question: 'Orders', previous: asked }),
+    )
+    expect(scopeOf(got)?.window).toEqual({ start: '2026-08-01', end: '2026-09-01' })
+  })
+
+  it('holds a quarter in a restated question', () => {
+    const got = checkPlan(
+      {
+        standalone: 'Why did Orders drop in Sweden in Q3?',
+        reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: null, why: false }],
+      },
+      ctx(),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { standalone: 'Why did Orders drop in Sweden in Q3?' },
+    })
+  })
+})
+
 describe('the question as it reads alone', () => {
   const reads = [{ kind: 'lookup', metrics: ['metric:orders'], dates: null, why: false }]
   const standalone = (text: string) => {
