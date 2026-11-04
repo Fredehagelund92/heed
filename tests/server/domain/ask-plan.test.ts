@@ -542,6 +542,17 @@ describe('a follow-up keeps what it does not change', () => {
     expect(got).toMatchObject({ ok: true, plan: { reads: [{ scope: { filters: {} } }] } })
   })
 
+  it('reads a key written as the kind of a records question as naming no kind', () => {
+    const got = checkPlan(
+      { records: { intent: 'owner', of: 'metric:orders', metric: 'metric:orders' } },
+      ctx({ question: 'and the owner?' }),
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'owner', kind: null, metric: 'metric:orders' } },
+    })
+  })
+
   it('keeps the domain of a records question', () => {
     const got = checkPlan(
       { records: { intent: 'owner' } },

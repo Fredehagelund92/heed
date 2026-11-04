@@ -63,9 +63,13 @@ const readSchema = z.union([
 const recordsSchema = z.object({
   intent: z.enum(recordsIntents),
   domain: z.optional(z.nullable(z.string())),
+  // Models put a key here ("metric:orders") beside the right field: read as naming no kind.
   of: z.optional(
-    z.nullable(
-      z.enum(['event', 'warning', 'rule', 'guide', 'definition', 'metric', 'dimension', 'value']),
+    z.catch(
+      z.nullable(
+        z.enum(['event', 'warning', 'rule', 'guide', 'definition', 'metric', 'dimension', 'value']),
+      ),
+      null,
     ),
   ),
   metric: z.optional(z.nullable(z.string())),
