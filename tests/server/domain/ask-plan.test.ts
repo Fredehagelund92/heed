@@ -416,7 +416,17 @@ describe('the reads a plan runs', () => {
         },
       }).answer.state,
     ).toBe('conflict')
-    expect(search({ kinds: ['guide'], words: 'jump' }).answer.state).toBe('stale')
+    expect(
+      search({
+        kinds: ['event'],
+        words: 'promotions',
+        scope: {
+          metrics: [],
+          filters: { 'dim:market': ['val:market/italy'] },
+          window: { start: '2026-04-01', end: '2026-06-01' },
+        },
+      }).answer.state,
+    ).toBe('stale')
     expect(
       search({
         kinds: ['event'],

@@ -1348,6 +1348,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   // stands for Not found, and one quiet line says nothing else is written.
   const lead =
     !draft &&
+    answer.reply !== 'cannot' &&
     !!answer.definitions?.some((d) => d.words) &&
     asksWhatItIs(askedOf(answer), { values: answer.markets.length > 0, dates: !!answer.dates })
       ? answer.definitions
@@ -1413,8 +1414,14 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
             {note && <p className="text-sm text-muted-foreground">{note}</p>}
           </div>
         )}
+      {/* What the question reaches for is not written: said first, then what is. */}
+      {answered && answer.limit && (
+        <p data-answer-limit className="max-w-reading text-base leading-chat font-medium">
+          {answer.limit.sentence}
+        </p>
+      )}
       {/* What the metric means, from its source, beside an answer about its data. */}
-      {answered && !lead && answer.definitions && (
+      {answered && !lead && answer.definitions && answer.reply !== 'cannot' && (
         <div className="animate-in duration-(--dur-3) fade-in-0">
           <AnswerDefinitions definitions={answer.definitions} />
         </div>
@@ -1489,6 +1496,27 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
             </Button>
+          )}
+          {answer.reply === 'cannot' && answer.definitions && (
+            <AnswerDefinitions definitions={answer.definitions} />
+          )}
+          {answer.write && (
+            <p className="text-sm">
+              <a
+                href={href('/context/new', {
+                  metric: answer.write.metric ?? undefined,
+                  market: answer.write.market ?? undefined,
+                })}
+                className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                Write context
+              </a>
+            </p>
+          )}
+          {answer.reading?.left && (
+            <p className="text-sm text-muted-foreground">
+              Not answered here: {answer.reading.left}
+            </p>
           )}
           {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
           {view?.kind === 'against' && (

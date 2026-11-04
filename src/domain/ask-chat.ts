@@ -47,7 +47,7 @@ export type ChatTurn = {
   /** The analysis it was read as, when it was one, for a follow-up to carry. */
   audit?: AuditRead | null | undefined
   /** The terms an analysis listed, by key, in order: never their text. */
-  rows?: readonly string[] | undefined
+  rows?: string[] | undefined
 }
 
 const charsOf = (t: ChatTurn) =>

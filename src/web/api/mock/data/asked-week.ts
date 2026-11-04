@@ -45,6 +45,8 @@ export function askedThisWeek(pool?: Fact[]) {
         question,
         times: g.visible ?? g.shown,
         count: groupCount(g),
+        // What their calls delivered, shown under the same minimum as the count (FR-614).
+        nothing: g.counts.missing === 0 || g.counts.missing >= HIDE_UNDER ? g.counts.missing : null,
         state: countedState(a),
         sources: a.sources.length,
         next: nextOf(t, countedState(a)),

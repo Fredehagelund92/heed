@@ -598,18 +598,22 @@ describe('a records answer', () => {
       rows: [
         {
           title: 'Orders in Spain',
-          count: 9,
-          atLeast: 9,
+          count: 12,
+          atLeast: 12,
+          nothing: 9,
           state: 'missing',
           gap: { card: 'gap:1', draft: null },
         },
-        { title: 'Returns in France', count: null, atLeast: 13, state: 'missing', gap: null },
-        { title: 'Orders in Norway', count: 31, atLeast: 31, state: 'grounded', gap: null },
+        { title: 'Returns in France', count: null, atLeast: 13, nothing: 6, state: 'grounded', gap: null },
+        // What the topic reads as now is no matter: agents' calls found something this week.
+        { title: 'Net revenue in Norway', count: 17, atLeast: 17, nothing: 0, state: 'missing', gap: null },
+        { title: 'Orders in Germany', count: 6, atLeast: 6, nothing: 6, state: 'grounded', gap: null },
       ],
     }
     const a = answer(ask({ intent: 'asked_nothing' }), world([], { asked }))
-    expect(a.sentence).toBe('Agents found nothing written for 2 topics this week.')
-    expect(a.rows.map((r) => r.cells[0])).toEqual(['9', '13+'])
+    expect(a.sentence).toBe('Agents found nothing for 3 of 4 topics this week.')
+    // 12 beside 9 would give away a count of 3 by subtraction, so the total is left out (FR-614).
+    expect(a.rows.map((r) => r.cells[0])).toEqual(['9', '6 of 6', '6'])
     const none = answer(
       ask({ intent: 'asked_nothing' }),
       world([], { asked: { minimum: 5, rows: [] } }),

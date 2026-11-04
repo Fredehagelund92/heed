@@ -1,13 +1,17 @@
+import type { AuditMembers, AuditWorld, QueueLine } from '@domain/audit'
 import {
   answerRecords,
   recogniseRecords,
   refusedAnswer,
   type RecordsAnswer,
+  type RecordsAsk,
   type RecordsItem,
   type RecordsRecognition,
   type RecordsWorld,
 } from '@domain/records'
+import { cardGroups } from '@domain/inbox'
 import type { Term } from '@domain/vocabulary'
+import { toServerValidity } from '@/model/validity'
 import { HIDE_UNDER } from '@/api/mock/obs-engine'
 import type { Definition } from '@/lib/definitions'
 import type { AskedRow } from '@/model/ask'
@@ -148,13 +152,76 @@ function askedOf(
         title: r.title,
         count: r.count.endsWith('+') ? null : Number(r.count),
         atLeast: r.times,
+        nothing: r.nothing,
         state: r.state,
+        area: r.topic.domain ?? null,
+        metrics: r.topic.metric ? [`metric:${slug(r.topic.metric)}`] : [],
+        values: markets.includes(r.topic.where) ? [`val:market/${slug(r.topic.where)}`] : [],
         gap:
           r.next && manages(r.topic.domain)
             ? { card: card ? decodeURIComponent(card) : (draft ?? ''), draft: draft ?? null }
             : null,
       }
     }),
+  }
+}
+
+/** What the demo's source lists that no term names: its two date members, left out on purpose. */
+const members: AuditMembers = {
+  total: 31,
+  unlinked: [
+    { name: 'Order day', valueType: 'Date', suggested: false },
+    { name: 'Marketing day', valueType: 'Date', suggested: false },
+  ],
+}
+
+/** What an analysis reads in the demo world, as the service reads the catalogue (FR-720). */
+function auditOf(world: Pick<RecordsSource, 'pool' | 'definitions'>): AuditWorld {
+  const live = world.pool.filter((f) => f.status === 'Live' || f.status === 'Needs checking')
+  const names = new Map(world.definitions.map((d) => [d.name, d]))
+  const key = (name: string) =>
+    names.get(name)?.type === 'metric' ? `metric:${slug(name)}` : null
+  return {
+    terms: world.definitions
+      .filter((d) => (d.type === 'metric' || d.type === 'dimension') && !d.sameAs)
+      .map((d) => {
+        const about = live.filter((f) =>
+          d.type === 'metric'
+            ? f.where.includes(d.name)
+            : d.name === 'Market' && f.where.some((w) => markets.includes(w)),
+        )
+        const count = (kind: RecordsItem['kind']) => about.filter((f) => f.kind === kind).length
+        return {
+          key: d.type === 'metric' ? `metric:${slug(d.name)}` : `dim:${slug(d.name)}`,
+          kind: d.type as 'metric' | 'dimension',
+          name: d.name,
+          areaId: d.domain ?? null,
+          state: d.changed ? ('changed' as const) : ('current' as const),
+          words: d.definition || null,
+          shelf: {
+            event: count('event'),
+            issue: count('issue'),
+            note: count('note'),
+            guide: count('guide'),
+          },
+        }
+      }),
+    items: live.map((f) => ({
+      id: f.id,
+      kind: f.kind as RecordsItem['kind'],
+      title: f.title,
+      areaId: f.domain,
+      metrics: f.where.flatMap((w) => key(w) ?? []),
+      values: f.where.filter((w) => markets.includes(w)).map((w) => `val:market/${slug(w)}`),
+      start: toServerValidity(f.valid).start ?? '2000-01-01',
+      end: toServerValidity(f.valid).end ?? null,
+      conflicts: [
+        ...(f.disagreesWith ? [f.disagreesWith] : []),
+        ...world.pool.filter((x) => x.disagreesWith === f.id).map((x) => x.id),
+      ],
+    })),
+    members,
+    readAt: `${RECORDS_NOW.slice(0, 10)}T06:00:00.000Z`,
   }
 }
 
@@ -175,7 +242,7 @@ const conflictsOf = (rows: readonly ConflictRow[]): NonNullable<RecordsWorld['co
 /** How a question reads as a records question, as the service's reader reads it, or null. */
 export function recognisedFor(
   question: string,
-  world: Pick<Parameters<typeof recordsFor>[1], 'definitions' | 'domains'>,
+  world: Pick<RecordsSource, 'definitions' | 'domains'>,
 ): RecordsRecognition | null {
   const terms = termsOf(world.definitions)
   return recogniseRecords(question, {
@@ -183,39 +250,71 @@ export function recognisedFor(
     terms,
     domains: world.domains,
     now: RECORDS_NOW,
+    glossary: world.definitions.filter((d) => d.type === 'term' && !d.sameAs),
   })
 }
 
-export function recordsFor(
-  question: string,
-  world: {
-    pool: readonly Fact[]
-    domains: readonly { id: DomainId; name: string; owners: readonly string[] }[]
-    definitions: readonly Definition[]
-    asked: () => readonly AskedRow[]
-    /** The conflicts as Context's Conflicts filter lists them to the person. */
-    conflicts: () => readonly ConflictRow[]
-    /** Whether the person manages a domain's topics: an administrator, or one of its owners. */
-    manages: (domain: DomainId | undefined) => boolean
-  },
-): RecordsAnswer | null {
-  const terms = termsOf(world.definitions)
-  const found = recognisedFor(question, world)
-  if (!found) return null
+/** The demo world a records answer is counted from. */
+type RecordsSource = {
+  pool: readonly Fact[]
+  domains: readonly { id: DomainId; name: string; owners: readonly string[] }[]
+  definitions: readonly Definition[]
+  asked: () => readonly AskedRow[]
+  /** The conflicts as Context's Conflicts filter lists them to the person. */
+  conflicts: () => readonly ConflictRow[]
+  /** Whether the person manages a domain's topics: an administrator, or one of its owners. */
+  manages: (domain: DomainId | undefined) => boolean
+  /** The person's own Inbox, by group. */
+  queue: () => readonly QueueLine[]
+}
+
+/** The person's cards as the Inbox groups them: how many of each, most needing first. */
+export const queueOf = (cards: readonly { type: string }[]): QueueLine[] =>
+  cardGroups.flatMap((group) => {
+    const count = cards.filter((c) => c.type === group).length
+    return count ? [{ group, count }] : []
+  })
+
+/** A records question answered, as the rules read it or as a plan chose it. */
+export function recordsOf(ask: RecordsAsk, world: RecordsSource): RecordsAnswer {
   // The demo world names owners by name, so a name is its own id here.
   const areas = world.domains.map((d) => ({ id: d.id, name: d.name, ownerIds: [...d.owners] }))
-  if (found.type === 'refused') return refusedAnswer({ areas })
   const names = new Set(areas.flatMap((a) => a.ownerIds))
+  const facets = ask.audit?.facets ?? []
+  const analysis = ask.intent === 'audit' || ask.intent === 'queue' || !!ask.over
+  const reviews = facets.includes('review')
+  const asks = (...wanted: string[]) => reviews || facets.some((f) => wanted.includes(f))
   return answerRecords(
-    found.ask,
+    ask,
     {
       items: itemsOf(world.pool),
       areas,
       people: Object.fromEntries([...names].map((n) => [n, n])),
-      terms,
-      asked: found.ask.intent === 'asked_nothing' ? askedOf(world.asked(), world.manages) : null,
-      conflicts: found.ask.intent === 'conflicts' ? conflictsOf(world.conflicts()) : null,
+      terms: termsOf(world.definitions),
+      asked:
+        ask.intent === 'asked_nothing' || asks('asked_nothing', 'asked_most')
+          ? askedOf(world.asked(), world.manages)
+          : null,
+      conflicts:
+        ask.intent === 'conflicts' || asks('conflicts', 'overlaps')
+          ? conflictsOf(world.conflicts())
+          : null,
+      audit: analysis ? auditOf(world) : null,
+      queue: ask.intent === 'queue' ? world.queue() : null,
+      glossary: world.definitions.flatMap((d) =>
+        d.type === 'term' && d.definition ? [{ name: d.name, meaning: d.definition }] : [],
+      ),
     },
     RECORDS_NOW,
   )
+}
+
+export function recordsFor(question: string, world: RecordsSource): RecordsAnswer | null {
+  const found = recognisedFor(question, world)
+  if (!found) return null
+  if (found.type === 'refused')
+    return refusedAnswer({
+      areas: world.domains.map((d) => ({ id: d.id, name: d.name, ownerIds: [...d.owners] })),
+    })
+  return recordsOf(found.ask, world)
 }

@@ -169,159 +169,151 @@ const showing = (n: number) =>
   n > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(n)}, by name` : null
 
 /** The analysis a question was read as, on the records the person may see. */
-class Reading {
-  readonly read: AuditRead
-  readonly world: RecordsWorld
-  readonly audit: AuditWorld
-  readonly domain: { id: string; name: string } | null
-  readonly where: string
-
-  constructor(read: AuditRead, world: RecordsWorld, domain: { id: string; name: string } | null) {
-    this.read = read
-    this.world = world
-    this.audit = world.audit ?? {
-      terms: [],
-      items: [],
-      members: { total: 0, unlinked: [] },
-      readAt: null,
-    }
-    this.domain = domain
-    this.where = domain ? ` in ${domain.name}` : ''
+function readingOf(
+  read: AuditRead,
+  world: RecordsWorld,
+  domain: { id: string; name: string } | null,
+) {
+  const audit: AuditWorld = world.audit ?? {
+    terms: [],
+    items: [],
+    members: { total: 0, unlinked: [] },
+    readAt: null,
   }
+  const where = domain ? ` in ${domain.name}` : ''
 
   /** The terms it counts: metrics unless it asked for dimensions, in the domain when one is named. */
-  get terms() {
-    const of = this.read.of ?? 'metric'
-    return this.audit.terms
-      .filter((t) => (of === 'definition' || t.kind === of) && this.inDomain(t.areaId))
+  const terms = () => {
+    const of = read.of ?? 'metric'
+    return audit.terms
+      .filter((t) => (of === 'definition' || t.kind === of) && inDomain(t.areaId))
       .sort(byName)
   }
 
-  inDomain = (areaId: string | null) => !this.domain || areaId === this.domain.id
+  const inDomain = (areaId: string | null) => !domain || areaId === domain.id
 
-  get termsWord() {
-    const of = this.read.of ?? 'metric'
-    return (n: number) =>
-      of === 'dimension'
-        ? noun(n, 'dimension', 'dimensions')
-        : of === 'definition'
-          ? noun(n, 'definition', 'definitions')
-          : noun(n, 'metric', 'metrics')
+  const termsWord = (n: number) => {
+    const of = read.of ?? 'metric'
+    return of === 'dimension'
+      ? noun(n, 'dimension', 'dimensions')
+      : of === 'definition'
+        ? noun(n, 'definition', 'definitions')
+        : noun(n, 'metric', 'metrics')
   }
 
-  areaName(id: string | null) {
-    return (id && this.world.areas.find((a) => a.id === id)?.name) || 'No domain'
+  const areaName = (id: string | null) => {
+    return (id && world.areas.find((a) => a.id === id)?.name) || 'No domain'
   }
 
-  termRow(t: AuditTerm, cells: string[]): RecordsRow {
+  const termRow = (t: AuditTerm, cells: string[]): RecordsRow => {
     return { type: 'term', key: t.key, kind: t.kind, name: t.name, page: t.name, cells }
   }
 
   /** A term's row in a section: its domain, unless the answer is about one. */
-  domainCells(t: AuditTerm) {
-    return this.domain ? [] : [this.areaName(t.areaId)]
+  const domainCells = (t: AuditTerm) => {
+    return domain ? [] : [areaName(t.areaId)]
   }
 
-  get nameColumns() {
-    const of = this.read.of ?? 'metric'
+  const nameColumns = () => {
+    const of = read.of ?? 'metric'
     const name = of === 'dimension' ? 'Dimension' : of === 'definition' ? 'Definition' : 'Metric'
-    return this.domain ? [name] : [name, 'Domain']
+    return domain ? [name] : [name, 'Domain']
   }
 
-  get definitionsMore() {
+  const definitionsMore = () => {
     return definitionsLink(
-      this.domain ? `Open ${this.domain.name} in Definitions` : 'Open Definitions',
-      this.domain?.id ?? null,
+      domain ? `Open ${domain.name} in Definitions` : 'Open Definitions',
+      domain?.id ?? null,
     )
   }
 
   /** What has nothing written, or none of one kind. */
-  noContext(): Part {
-    const terms = this.terms
-    const kind = this.read.kind
-    const none = terms.filter((t) =>
+  const noContext = (): Part => {
+    const listed = terms()
+    const kind = read.kind
+    const none = listed.filter((t) =>
       kind ? t.shelf[kind] === 0 : Object.values(t.shelf).every((n) => n === 0),
     )
     const n = none.length
-    const total = terms.length
-    const word = this.termsWord(total)
+    const total = listed.length
+    const word = termsWord(total)
     const what = kind ? `no ${kindWord[kind]}` : 'no context written'
-    const have = terms.filter((t) => !none.includes(t))
+    const have = listed.filter((t) => !none.includes(t))
     const named = kind && have.length > 0 && have.length <= SECTION_ROWS
     const rest = `${count(total - n)} of ${count(total)} ${kind ? (total - n === 1 ? 'has one' : 'have one') : 'have some'}`
     return {
-      sentence: `${count(n)} of ${count(total)} ${word}${this.where} ${n === 1 ? 'has' : 'have'} ${what}, so ${rest}${named ? `: ${list(have.map((t) => t.name))}` : ''}.`,
+      sentence: `${count(n)} of ${count(total)} ${word}${where} ${n === 1 ? 'has' : 'have'} ${what}, so ${rest}${named ? `: ${list(have.map((t) => t.name))}` : ''}.`,
       section: n
         ? {
             title: kind ? `No ${kindWord[kind]}` : 'No context written',
             count: `${count(n)} of ${count(total)} ${word}`,
-            columns: this.nameColumns,
-            rows: none.slice(0, SECTION_ROWS).map((t) => this.termRow(t, this.domainCells(t))),
+            columns: nameColumns(),
+            rows: none.slice(0, SECTION_ROWS).map((t) => termRow(t, domainCells(t))),
             shown: showing(n),
-            more: this.definitionsMore,
+            more: definitionsMore(),
           }
         : null,
-      clear: `All ${count(total)} ${word}${this.where} have ${kind ? `a ${kindWord[kind]}` : 'context written'}.`,
-      note: `A ${(this.read.of ?? 'metric') === 'dimension' ? 'dimension' : 'metric'} is covered when at least one live context item names it.`,
+      clear: `All ${count(total)} ${word}${where} have ${kind ? `a ${kindWord[kind]}` : 'context written'}.`,
+      note: `A ${(read.of ?? 'metric') === 'dimension' ? 'dimension' : 'metric'} is covered when at least one live context item names it.`,
       found: n,
     }
   }
 
   /** What the source gives no words for. */
-  noWords(): Part {
-    const terms = this.terms
-    const none = terms.filter((t) => !t.words)
+  const noWords = (): Part => {
+    const listed = terms()
+    const none = listed.filter((t) => !t.words)
     const n = none.length
-    const word = this.termsWord(terms.length)
+    const word = termsWord(listed.length)
     return {
-      sentence: `${count(n)} of ${count(terms.length)} ${word}${this.where} ${n === 1 ? 'has' : 'have'} no words from the source.`,
+      sentence: `${count(n)} of ${count(listed.length)} ${word}${where} ${n === 1 ? 'has' : 'have'} no words from the source.`,
       detail: n ? `The source gives no words for ${n === 1 ? 'it' : 'them'}.` : null,
       section: n
         ? {
             title: 'No words from the source',
-            count: `${count(n)} of ${count(terms.length)} ${word}`,
-            columns: this.nameColumns,
-            rows: none.slice(0, SECTION_ROWS).map((t) => this.termRow(t, this.domainCells(t))),
+            count: `${count(n)} of ${count(listed.length)} ${word}`,
+            columns: nameColumns(),
+            rows: none.slice(0, SECTION_ROWS).map((t) => termRow(t, domainCells(t))),
             shown: showing(n),
             more: null,
           }
         : null,
-      clear: `The source gives words for all ${count(terms.length)} ${word}.`,
+      clear: `The source gives words for all ${count(listed.length)} ${word}.`,
       found: n,
     }
   }
 
   /** What is in no domain, so nobody owns or checks it. */
-  noDomain(): Part {
-    const terms = this.audit.terms
-      .filter((t) => t.kind === (this.read.of === 'dimension' ? 'dimension' : 'metric'))
+  const noDomain = (): Part => {
+    const listed = audit.terms
+      .filter((t) => t.kind === (read.of === 'dimension' ? 'dimension' : 'metric'))
       .sort(byName)
-    const none = terms.filter((t) => !t.areaId)
+    const none = listed.filter((t) => !t.areaId)
     const n = none.length
-    const word = this.termsWord(terms.length)
+    const word = termsWord(listed.length)
     return {
       sentence: n
-        ? `${count(n)} of ${count(terms.length)} ${word} ${n === 1 ? 'has' : 'have'} no domain, so no owner.`
-        : `All ${count(terms.length)} ${word} have a domain, so each has an owner.`,
+        ? `${count(n)} of ${count(listed.length)} ${word} ${n === 1 ? 'has' : 'have'} no domain, so no owner.`
+        : `All ${count(listed.length)} ${word} have a domain, so each has an owner.`,
       detail: n ? 'An administrator can put a metric in a domain.' : null,
       section: n
         ? {
             title: 'No domain, so no owner',
-            count: `${count(n)} of ${count(terms.length)} ${word}`,
-            columns: [this.nameColumns[0]!],
-            rows: none.slice(0, SECTION_ROWS).map((t) => this.termRow(t, [])),
+            count: `${count(n)} of ${count(listed.length)} ${word}`,
+            columns: [nameColumns()[0]!],
+            rows: none.slice(0, SECTION_ROWS).map((t) => termRow(t, [])),
             shown: showing(n),
             more: null,
           }
         : null,
-      clear: `All ${count(terms.length)} ${word} have a domain.`,
+      clear: `All ${count(listed.length)} ${word} have a domain.`,
       found: n,
     }
   }
 
   /** What the source lists that no term names. */
-  unlinked(several: boolean): Part {
-    const { total, unlinked } = this.audit.members
+  const unlinked = (several: boolean): Part => {
+    const { total, unlinked } = audit.members
     const suggested = unlinked.filter((m) => m.suggested)
     const shown = several ? suggested : unlinked
     const n = shown.length
@@ -357,55 +349,57 @@ class Reading {
   }
 
   /** What changed or went at the source. */
-  sourceChanged(): Part {
-    const terms = this.terms
-    const moved = terms.filter((t) => t.state !== 'current')
+  const sourceChanged = (): Part => {
+    const listed = terms()
+    const moved = listed.filter((t) => t.state !== 'current')
     const n = moved.length
-    const read = this.audit.readAt ? ` The source was last read on ${dayWords(this.audit.readAt)}.` : ''
+    const lastRead = audit.readAt
+      ? ` The source was last read on ${dayWords(audit.readAt)}.`
+      : ''
     return {
       sentence: n
-        ? `${count(n)} of ${count(terms.length)} ${this.termsWord(terms.length)} changed or went at the source.${read}`
-        : `No definition changed at the source.${read}`,
+        ? `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)} changed or went at the source.${lastRead}`
+        : `No definition changed at the source.${lastRead}`,
       section: n
         ? {
             title: 'Changed at the source',
-            count: `${count(n)} of ${count(terms.length)} ${this.termsWord(terms.length)}`,
-            columns: [this.nameColumns[0]!, 'What'],
+            count: `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)}`,
+            columns: [nameColumns()[0]!, 'What'],
             rows: moved
               .slice(0, SECTION_ROWS)
-              .map((t) => this.termRow(t, [t.state === 'gone' ? 'Gone' : 'Changed'])),
+              .map((t) => termRow(t, [t.state === 'gone' ? 'Gone' : 'Changed'])),
             shown: showing(n),
-            more: this.definitionsMore,
+            more: definitionsMore(),
           }
         : null,
-      clear: `No definition changed at the source.${read}`,
+      clear: `No definition changed at the source.${lastRead}`,
       found: n,
     }
   }
 
   /** What agents asked, as Asked this week may show it, in the domain and for the value named. */
-  get asked() {
-    const asked = this.world.asked ?? { rows: [], minimum: 5 }
-    const value = this.read.value
+  const askedTopics = () => {
+    const asked = world.asked ?? { rows: [], minimum: 5 }
+    const value = read.value
     return {
       minimum: asked.minimum,
       rows: asked.rows.filter(
-        (r) => this.inDomain(r.area ?? null) && (!value || (r.values ?? []).includes(value)),
+        (r) => inDomain(r.area ?? null) && (!value || (r.values ?? []).includes(value)),
       ),
     }
   }
 
-  askedNothing(): Part {
-    const { rows, minimum } = this.asked
+  const askedNothing = (): Part => {
+    const { rows, minimum } = askedTopics()
     const { nothing, section } = foundNothing({ rows, minimum })
     const n = nothing.length
     const top = nothing[0]
     return {
       sentence: n
-        ? `Agents found nothing for ${count(n)} of ${count(rows.length)} topics${this.where} this week.`
-        : `Agents found something for every topic${this.where} asked about ${minimum} times or more this week.`,
+        ? `Agents found nothing for ${count(n)} of ${count(rows.length)} topics${where} this week.`
+        : `Agents found something for every topic${where} asked about ${minimum} times or more this week.`,
       section,
-      clear: `Agents found something for every topic${this.where} asked about ${minimum} times or more this week.`,
+      clear: `Agents found something for every topic${where} asked about ${minimum} times or more this week.`,
       detail: n ? "This counts agents' calls that delivered nothing, this week." : null,
       ranked: top ? `Look first at ${top.title}: agents found nothing there most often.` : null,
       note: `A topic asked about fewer than ${minimum} times is not shown, so no small count is given away.`,
@@ -413,17 +407,17 @@ class Reading {
     }
   }
 
-  askedMost(): Part {
-    const { rows, minimum } = this.asked
+  const askedMost = (): Part => {
+    const { rows, minimum } = askedTopics()
     const n = rows.length
-    const named = this.read.value
-      ? (this.world.terms.find((t) => t.key === this.read.value)?.name ?? '')
+    const named = read.value
+      ? (world.terms.find((t) => t.key === read.value)?.name ?? '')
       : ''
     const about = named ? ` about ${named}` : ''
     return {
       sentence: n
-        ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${about}${this.where} ${minimum} times or more this week.`
-        : `No topic${about}${this.where} was asked about ${minimum} times or more this week.`,
+        ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${about}${where} ${minimum} times or more this week.`
+        : `No topic${about}${where} was asked about ${minimum} times or more this week.`,
       section: n
         ? {
             title: 'Asked most this week',
@@ -446,10 +440,10 @@ class Reading {
   }
 
   /** The metrics asked about most among those with nothing written: the two reads joined. */
-  askedAndUncovered(): Part {
-    const terms = this.terms
-    const none = terms.filter((t) => Object.values(t.shelf).every((n) => n === 0))
-    const { rows } = this.asked
+  const askedAndUncovered = (): Part => {
+    const listed = terms()
+    const none = listed.filter((t) => Object.values(t.shelf).every((n) => n === 0))
+    const { rows } = askedTopics()
     const times = (t: AuditTerm) =>
       rows
         .filter((r) => (r.metrics ?? []).includes(t.key))
@@ -458,17 +452,17 @@ class Reading {
       .map((t) => ({ t, n: times(t) }))
       .filter((x) => x.n > 0)
       .sort((a, b) => b.n - a.n || byName(a.t, b.t))
-    const word = this.termsWord(none.length)
+    const word = termsWord(none.length)
     return {
-      sentence: `${count(none.length)} of ${count(terms.length)} ${this.termsWord(terms.length)} have no context written. Of those, agents asked about ${count(asked.length)} this week.`,
+      sentence: `${count(none.length)} of ${count(listed.length)} ${termsWord(listed.length)} have no context written. Of those, agents asked about ${count(asked.length)} this week.`,
       section: asked.length
         ? {
             title: 'Asked most, nothing written',
             count: `${count(asked.length)} of ${count(none.length)} ${word}`,
-            columns: [this.nameColumns[0]!, 'Asked'],
-            rows: asked.slice(0, SECTION_ROWS).map(({ t, n }) => this.termRow(t, [count(n)])),
+            columns: [nameColumns()[0]!, 'Asked'],
+            rows: asked.slice(0, SECTION_ROWS).map(({ t, n }) => termRow(t, [count(n)])),
             shown: asked.length > SECTION_ROWS ? `Showing the ${SECTION_ROWS} asked most` : null,
-            more: this.definitionsMore,
+            more: definitionsMore(),
           }
         : null,
       clear: `Agents did not ask about any of the ${count(none.length)} ${word} with no context this week.`,
@@ -477,12 +471,12 @@ class Reading {
     }
   }
 
-  get items(): readonly RecordsItem[] {
-    return this.world.items.filter((i) => i.status !== 'archived' && this.inDomain(i.areaId))
+  const liveItems = (): readonly RecordsItem[] => {
+    return world.items.filter((i) => i.status !== 'archived' && inDomain(i.areaId))
   }
 
-  due(): Part {
-    const items = this.items
+  const duePart = (): Part => {
+    const items = liveItems()
     const due = items
       .filter((i) => i.status === 'due')
       .sort(
@@ -493,7 +487,7 @@ class Reading {
     const n = due.length
     const total = `${count(n)} of ${count(items.length)} ${noun(items.length, 'context item', 'context items')}`
     return {
-      sentence: `${total}${this.where} ${n === 1 ? 'is' : 'are'} due for a check.`,
+      sentence: `${total}${where} ${n === 1 ? 'is' : 'are'} due for a check.`,
       section: n
         ? {
             title: 'Due for a check',
@@ -508,25 +502,25 @@ class Reading {
               cells: [i.reviewDate ? dayWords(i.reviewDate) : 'Not recorded'],
             })),
             shown: n > SECTION_ROWS ? `Showing the ${SECTION_ROWS} oldest` : null,
-            more: contextLink(`Show all ${count(n)} in Context`, this.domain?.id ?? null, 'due'),
+            more: contextLink(`Show all ${count(n)} in Context`, domain?.id ?? null, 'due'),
           }
         : null,
-      clear: `Nothing${this.where} is due for a check.`,
+      clear: `Nothing${where} is due for a check.`,
       ranked: n ? 'Oldest check date first.' : null,
       found: n,
     }
   }
 
-  conflicts(): Part {
-    const pairs = (this.world.conflicts ?? []).filter(
-      (c) => !this.domain || c.holder.areaId === this.domain.id || c.other.areaId === this.domain.id,
+  const conflictsPart = (): Part => {
+    const pairs = (world.conflicts ?? []).filter(
+      (c) => !domain || c.holder.areaId === domain.id || c.other.areaId === domain.id,
     )
     const n = pairs.length
     const word = noun(n, 'conflict', 'conflicts')
     return {
       sentence: n
-        ? `There ${n === 1 ? 'is' : 'are'} ${count(n)} ${word}${this.where}: these are only the pairs an owner marked.`
-        : `An owner marked no conflict${this.where}.`,
+        ? `There ${n === 1 ? 'is' : 'are'} ${count(n)} ${word}${where}: these are only the pairs an owner marked.`
+        : `An owner marked no conflict${where}.`,
       section: n
         ? {
             title: 'Conflicts',
@@ -540,27 +534,27 @@ class Reading {
               cells: [c.topic],
             })),
             shown: n > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(n)}` : null,
-            more: contextLink(`Show all ${count(n)} in Context`, this.domain?.id ?? null, 'conflicts'),
+            more: contextLink(`Show all ${count(n)} in Context`, domain?.id ?? null, 'conflicts'),
           }
         : null,
-      clear: `An owner marked no conflict${this.where}.`,
+      clear: `An owner marked no conflict${where}.`,
       found: n,
     }
   }
 
   /** Live items that say the same thing by the only test code can run: their words on the label. */
-  duplicates(): Part {
-    if (this.read.of === 'definition') return this.sameWords()
-    const pairs = writtenTwice(this.audit.items).filter(
-      ([a, b]) => this.inDomain(a.areaId) || this.inDomain(b.areaId),
+  const duplicates = (): Part => {
+    if (read.of === 'definition') return sameWords()
+    const pairs = writtenTwice(audit.items).filter(
+      ([a, b]) => inDomain(a.areaId) || inDomain(b.areaId),
     )
     const n = pairs.length
-    const total = this.items.length
+    const total = liveItems().length
     const word = noun(n, 'pair', 'pairs')
     return {
       sentence: n
-        ? `${count(n)} ${word} of ${count(total)} context items ${n === 1 ? 'is' : 'are'} written twice${this.where}: same title, same scope and same start date, both live.`
-        : `No two of ${count(total)} context items${this.where} have the same title, scope and start date.`,
+        ? `${count(n)} ${word} of ${count(total)} context items ${n === 1 ? 'is' : 'are'} written twice${where}: same title, same scope and same start date, both live.`
+        : `No two of ${count(total)} context items${where} have the same title, scope and start date.`,
       section: n
         ? {
             title: 'Written twice',
@@ -571,16 +565,16 @@ class Reading {
             more: null,
           }
         : null,
-      clear: `No two context items${this.where} have the same title, scope and start date.`,
+      clear: `No two context items${where} have the same title, scope and start date.`,
       found: n,
     }
   }
 
   /** Definitions compared by their words, the same words only, never by meaning. */
-  sameWords(): Part {
+  const sameWords = (): Part => {
     const seen = new Map<string, AuditTerm>()
     const pairs: [AuditTerm, AuditTerm][] = []
-    for (const t of this.audit.terms) {
+    for (const t of audit.terms) {
       const words = t.words?.trim().toLowerCase()
       if (!words) continue
       const first = seen.get(words)
@@ -588,7 +582,7 @@ class Reading {
       else seen.set(words, t)
     }
     const n = pairs.length
-    const total = this.audit.terms.length
+    const total = audit.terms.length
     return {
       sentence: n
         ? `${count(n)} ${noun(n, 'pair', 'pairs')} of ${count(total)} definitions share the same words from the source.`
@@ -598,9 +592,9 @@ class Reading {
             title: 'The same words',
             count: `${count(n)} ${noun(n, 'pair', 'pairs')}`,
             columns: ['Definition', 'Same words as'],
-            rows: pairs.slice(0, SECTION_ROWS).map(([a, b]) => this.termRow(a, [b.name])),
+            rows: pairs.slice(0, SECTION_ROWS).map(([a, b]) => termRow(a, [b.name])),
             shown: null,
-            more: this.definitionsMore,
+            more: definitionsMore(),
           }
         : null,
       clear: 'No two definitions share the same words.',
@@ -609,18 +603,18 @@ class Reading {
     }
   }
 
-  overlaps(): Part {
-    const names = new Map(this.world.terms.map((t) => [t.key, t.name]))
-    const pairs = overlapping(this.audit.items).filter(
-      ([a, b]) => this.inDomain(a.areaId) || this.inDomain(b.areaId),
+  const overlapsPart = (): Part => {
+    const names = new Map(world.terms.map((t) => [t.key, t.name]))
+    const pairs = overlapping(audit.items).filter(
+      ([a, b]) => inDomain(a.areaId) || inDomain(b.areaId),
     )
     const n = pairs.length
     const about = (a: AuditItem) =>
       [...a.metrics, ...a.values].map((key) => names.get(key) ?? key).join(', ')
     return {
       sentence: n
-        ? `${count(n)} ${noun(n, 'pair', 'pairs')} of context items${this.where} ${n === 1 ? 'applies' : 'apply'} to the same thing on the same days. An overlap is not a conflict.`
-        : `No two context items${this.where} of one kind apply to the same thing on the same days.`,
+        ? `${count(n)} ${noun(n, 'pair', 'pairs')} of context items${where} ${n === 1 ? 'applies' : 'apply'} to the same thing on the same days. An overlap is not a conflict.`
+        : `No two context items${where} of one kind apply to the same thing on the same days.`,
       section: n
         ? {
             title: 'Overlaps',
@@ -631,22 +625,22 @@ class Reading {
             more: null,
           }
         : null,
-      clear: `No two context items${this.where} of one kind overlap.`,
+      clear: `No two context items${where} of one kind overlap.`,
       note: 'Two items of one kind overlap when they name the same metric and value and their dates meet. Events are left out: an event happens once.',
       found: n,
     }
   }
 
   /** The other facets in one fixed order: for a domain a line each, for all of them a line a domain. */
-  review(): Part {
-    return this.domain ? this.domainReview(this.domain) : this.libraryReview()
+  const review = (): Part => {
+    return domain ? domainReview(domain) : libraryReview()
   }
 
-  private domainReview(domain: { id: string; name: string }): Part {
-    const scoped = new Reading({ ...this.read, of: 'metric', kind: null }, this.world, domain)
+  const domainReview = (area: { id: string; name: string }): Part => {
+    const scoped = readingOf({ ...read, of: 'metric', kind: null }, world, area)
     const context = scoped.noContext()
-    const due = scoped.due()
-    const conflicts = scoped.conflicts()
+    const due = scoped.duePart()
+    const conflicts = scoped.conflictsPart()
     const twice = scoped.duplicates()
     const nothing = scoped.askedNothing()
     const line = (label: string, cell: string, more: RecordsSection['more']): RecordsRow => ({
@@ -656,17 +650,17 @@ class Reading {
       more,
     })
     const rows = [
-      line('No context written', context.section?.count ?? 'None', scoped.definitionsMore),
+      line('No context written', context.section?.count ?? 'None', scoped.definitionsMore()),
       line('Due for a check', due.section?.count ?? 'None', due.section?.more ?? null),
       line('Conflicts', conflicts.section?.count ?? 'None', conflicts.section?.more ?? null),
       line('Written twice', twice.section?.count ?? 'None', null),
       line('Agents found nothing', nothing.section?.count ?? 'None', null),
     ]
     return {
-      sentence: `This is what the records show for ${domain.name}.`,
+      sentence: `This is what the records show for ${area.name}.`,
       section: {
-        title: domain.name,
-        count: `${count(scoped.terms.length)} metrics`,
+        title: area.name,
+        count: `${count(scoped.terms().length)} metrics`,
         columns: ['What', 'How many'],
         rows,
         shown: null,
@@ -678,19 +672,18 @@ class Reading {
     }
   }
 
-  private libraryReview(): Part {
-    const rows = this.world.areas.map((a): RecordsRow => {
-      const domain = { id: a.id, name: a.name }
-      const scoped = new Reading({ ...this.read, of: 'metric', kind: null }, this.world, domain)
+  const libraryReview = (): Part => {
+    const rows = world.areas.map((a): RecordsRow => {
+      const scoped = readingOf({ ...read, of: 'metric', kind: null }, world, a)
       const none = scoped.noContext()
-      const due = scoped.due().found
-      const conflicts = scoped.conflicts().found
+      const due = scoped.duePart().found
+      const conflicts = scoped.conflictsPart().found
       return {
         type: 'area',
         id: a.id,
         name: a.name,
         cells: [
-          `${count(none.found)} of ${count(scoped.terms.length)}`,
+          `${count(none.found)} of ${count(scoped.terms().length)}`,
           count(due),
           count(conflicts),
         ],
@@ -711,34 +704,36 @@ class Reading {
     }
   }
 
-  part(facet: AuditFacet, several: boolean): Part {
+  const part = (facet: AuditFacet, several: boolean): Part => {
     switch (facet) {
       case 'no_context':
-        return this.noContext()
+        return noContext()
       case 'no_words':
-        return this.noWords()
+        return noWords()
       case 'no_domain':
-        return this.noDomain()
+        return noDomain()
       case 'unlinked':
-        return this.unlinked(several)
+        return unlinked(several)
       case 'source_changed':
-        return this.sourceChanged()
+        return sourceChanged()
       case 'asked_nothing':
-        return this.askedNothing()
+        return askedNothing()
       case 'asked_most':
-        return this.askedMost()
+        return askedMost()
       case 'due':
-        return this.due()
+        return duePart()
       case 'conflicts':
-        return this.conflicts()
+        return conflictsPart()
       case 'duplicates':
-        return this.duplicates()
+        return duplicates()
       case 'overlaps':
-        return this.overlaps()
+        return overlapsPart()
       case 'review':
-        return this.review()
+        return review()
     }
   }
+
+  return { terms, part, unlinked, askedAndUncovered, noContext, duePart, conflictsPart, duplicates, askedNothing, definitionsMore }
 }
 
 const pairRow = (a: AuditItem, b: AuditItem, cells: string[]): RecordsRow => ({
@@ -880,7 +875,7 @@ export function auditAnswer(
   domain: { id: string; name: string } | null,
   queue: readonly QueueLine[] | null,
 ): RecordsFound {
-  const reading = new Reading(read, world, domain)
+  const reading = readingOf(read, world, domain)
   const facets = read.facets
   const joined = facets.includes('asked_most') && facets.includes('no_context')
   const several = facets.length + (queue ? 1 : 0) > 1
@@ -948,15 +943,15 @@ export function auditedTerms(
   world: RecordsWorld,
   area: { id: string; name: string } | null,
 ): AuditTerm[] {
-  const reading = new Reading(read, world, area)
+  const listed = readingOf(read, world, area).terms()
   const empty = (t: AuditTerm) => Object.values(t.shelf).every((n) => n === 0)
   return read.facets.flatMap((facet) =>
     facet === 'no_context'
-      ? reading.terms.filter(empty)
+      ? listed.filter(empty)
       : facet === 'no_words'
-        ? reading.terms.filter((t) => !t.words)
+        ? listed.filter((t) => !t.words)
         : facet === 'no_domain'
-          ? reading.terms.filter((t) => !t.areaId)
+          ? listed.filter((t) => !t.areaId)
           : [],
   )
 }

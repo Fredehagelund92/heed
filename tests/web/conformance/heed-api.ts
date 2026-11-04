@@ -2337,7 +2337,7 @@ export function describeHeedApi(
       'shows what agents asked that found nothing only as counts of 5 or more',
       async () => {
         const found = await records('what did agents ask that found nothing?')
-        for (const row of found.rows) expect(row.cells[0]).toMatch(/^([5-9]|\d{2,})\+?$/)
+        for (const row of found.rows) expect(row.cells[0]).toMatch(/^([5-9]|\d{2,})( of \d+)?$/)
       },
     )
 

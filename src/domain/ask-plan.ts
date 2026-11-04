@@ -736,6 +736,8 @@ export function readsAsFollowUp(
   if (previous.asked) return true
   const t = followUpWords(question)
   if (t.split(' ').length > 12 || read.refused) return false
+  // An analysis keeps what it read, even when a domain's name is also a metric's other name.
+  if (previous.audit && FOLLOW_ON.test(t)) return true
   if (POINTS_BACK.test(t)) return true
   if (FOLLOW_ON.test(t) && read.metrics === 0) return true
   if (read.answered) return false
@@ -924,6 +926,10 @@ const NUMBERS = /\bhow much (?:did|do|does|have|has|will) (?:we|it|they)\b|\bhow
 const VERDICT =
   /\bwell defined\b|\bdefined (?:well|clearly|properly)\b|^(?:please )?(?:draft|write|rewrite)\b/
 
+/** Whether the words reach beyond what a rule reads, so the planner reads the question first. */
+export const readsBeyond = (question: string) =>
+  limitOf(question) !== null || VERDICT.test(followUpWords(question))
+
 /**
  * What a question asks beyond what is written, by its words, so the limit is said even when no
  * model read it (FR-720). A question that only asks what is written ("what should I rule out
@@ -964,13 +970,11 @@ export function plannerReason(c: {
     ? c.records.type === 'refused' || !c.records.loose
     : metrics > 0 && c.rules.status !== 'need_more_detail' && c.rules.status !== 'no_match'
   if (readsAsFollowUp(c.question, c.previous, { metrics, answered, refused })) return 'follow-up'
-  // A short follow-up of an analysis keeps it, even when a domain's name is also a metric's.
-  if (c.previous?.audit && FOLLOW_ON.test(followUpWords(c.question))) return 'follow-up'
   if (c.records) {
     if (c.records.type !== 'records' || !c.records.loose) return null
     return c.records.judgement ? 'judgement' : 'business change'
   }
-  if (limitOf(c.question) || VERDICT.test(followUpWords(c.question))) return 'beyond'
+  if (readsBeyond(c.question)) return 'beyond'
   if (c.rules.status === 'need_more_detail') return 'unread'
   if (c.rules.status === 'no_match' && c.rules.scope && !c.rules.scope.metrics.length)
     return 'market alone'

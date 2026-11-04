@@ -1,17 +1,18 @@
 import type { AnswerResult } from '@contract/answer'
 import { nothingAskedSaid } from '@domain/ask-again'
-import { checkPlan, readsAsFollowUp } from '@domain/ask-plan'
+import { checkPlan, limitOf, readsAsFollowUp, type AskPlan } from '@domain/ask-plan'
 import { fixturePlan } from '@domain/ask-plan-fixture'
 import type { ChatTurn } from '@domain/ask-chat'
 import { chatOf, planContextOf, type RouteBundle } from '@domain/ask-route'
 import type { AnswerSource } from '@domain/answer'
 import { plannedAnswer, workingWords } from '@domain/planned-answer'
-import { offTopicSaid } from '@domain/say'
+import { limitSaid, type RecordsAnswer, type RecordsAsk } from '@domain/records'
+import { cannotSaid, offTopicSaid } from '@domain/say'
 import type { Term } from '@domain/vocabulary'
 import { answerOf, type Names } from '@/api/http-ask'
 import type { Definition } from '@/lib/definitions'
 import { plainText } from '@/lib/mentions'
-import { replyAnswer, type Answer } from '@/model/ask'
+import { recordsAnswer, replyAnswer, type Answer } from '@/model/ask'
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 import { toServerValidity } from '@/model/validity'
 import { RECORDS_NOW, termsOf } from './records'
@@ -116,6 +117,8 @@ export function plannedFor(
   question: string,
   given: readonly ChatTurn[] | undefined,
   world: PlannerWorld,
+  /** A records question the plan chose, answered from what the person may see. */
+  records: (ask: RecordsAsk) => RecordsAnswer,
 ): Answer | null {
   const raw = fixturePlan(question, given?.at(-1)?.question ?? null)
   if (!raw) return null
@@ -126,6 +129,7 @@ export function plannedFor(
   )
   if (!checked.ok) return null
   const plan = checked.plan
+  if (plan.kind === 'cannot') return cannotAnswer(question, plan, world)
   if (plan.kind === 'clarify')
     return replyAnswer(question, { kind: 'clarify', text: plan.question })
   if (plan.kind === 'off_topic')
@@ -135,14 +139,18 @@ export function plannedFor(
       kind: 'nothing_asked',
       text: nothingAskedSaid(question, turns),
     })
-  // A records plan is the records reader's: the demo's records questions are read by their words.
-  if (plan.kind === 'records') return null
+  if (plan.kind === 'records')
+    return recordsAnswer(question, records(plan.ask), {
+      carried: plan.carried,
+      ...(plan.standalone ? { standalone: plan.standalone } : {}),
+    })
   const planned = plannedAnswer(bundle, plan.reads, {
     question,
     today: TODAY,
     previous: last,
     turns,
     ...(plan.standalone ? { standalone: plan.standalone } : {}),
+    ...(plan.left ? { left: plan.left } : {}),
   })
   const { overlay: _overlay, ...answered } = planned.answer
   const result: AnswerResult = {
@@ -151,7 +159,45 @@ export function plannedFor(
     reading: planned.reading,
   }
   const answer = answerOf(result, question, namesOf(bundle.terms))
+  const reason = plan.limit ?? limitOf(question)
+  const limit = reason ? { limit: { reason, sentence: limitSaid[reason] } } : {}
   return answer.reading
-    ? { ...answer, reading: { ...answer.reading, working: workingWords(bundle, plan.reads) } }
-    : answer
+    ? {
+        ...answer,
+        ...limit,
+        reading: { ...answer.reading, working: workingWords(bundle, plan.reads) },
+      }
+    : { ...answer, ...limit }
+}
+
+/** What Ask cannot do, as the service says it: a fixed sentence, and nothing looked up (FR-720). */
+export function cannotAnswer(
+  question: string,
+  plan: Pick<Extract<AskPlan, { kind: 'cannot' }>, 'reason' | 'metrics' | 'filters'>,
+  world: Pick<PlannerWorld, 'definitions'>,
+): Answer {
+  const nameOf = (key: string | undefined) =>
+    key
+      ? (termsOf(world.definitions).find((t) => t.key === key)?.name ?? null)
+      : null
+  const definitions =
+    plan.reason === 'source'
+      ? plan.metrics.flatMap((key) => {
+          const d = world.definitions.find((x) => x.name === nameOf(key))
+          return d ? [{ name: d.name, words: d.definition || null, tool: d.tool ?? '' }] : []
+        })
+      : []
+  return replyAnswer(question, {
+    kind: 'cannot',
+    text: cannotSaid[plan.reason],
+    definitions,
+    ...(plan.reason === 'write'
+      ? {
+          write: {
+            metric: nameOf(plan.metrics[0]),
+            market: nameOf(plan.filters['dim:market']?.[0]),
+          },
+        }
+      : {}),
+  })
 }
