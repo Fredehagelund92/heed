@@ -1,6 +1,9 @@
-# Run Heed on Vercel and Neon
+# Run the demo on Vercel and Neon
 
-Heed can run as a Vercel project with its database on Neon: the web app as static files, the
+> **For the demo only.** This page is how Heed's demo runs. It is not a way to run Heed for your
+> own team: for that, see [Where to run Heed](where-to-run.md).
+
+The demo runs as a Vercel project with its database on Neon: the web app as static files, the
 service as one function, and PostgreSQL 18 on Neon. This page says what runs where, how to build
 it, how to get the demo into a database that has no superuser, and which settings the project
 needs.
@@ -9,8 +12,7 @@ This is for a hosted trial of the demo. It is not yet a public demo: anyone who 
 deployment can pick any person, an administrator included, and change settings. Until a demo mode
 locks that down, keep the deployment behind
 [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication),
-so only your team gets in. To run Heed for real people, see
-[Run the image in production mode](operations.md#run-the-image-in-production-mode).
+so only your team gets in.
 
 ## What runs where
 
