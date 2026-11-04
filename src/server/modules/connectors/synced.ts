@@ -44,6 +44,7 @@ export async function syncedOf(
         source: {
           id: row.sourceId,
           name: row.sourceName,
+          type: row.type,
           tool: connectorType(row.type, row.sourceName).tool,
         },
         scope: row.scopes.find((scope) => scope.id === row.scope)?.title ?? row.scope,

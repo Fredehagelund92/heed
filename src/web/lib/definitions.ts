@@ -2,8 +2,9 @@ import * as React from 'react'
 import { useDefinitions as useDefinitionList } from '@/api/queries'
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 
-// Definitions: the data glossary. Metrics and dimensions are synced from the connector (Cube
-// today) and are never changed here: their name, meaning, other names and domain are Cube's.
+// Definitions: the data glossary. Metrics and dimensions are synced from a definitions tool (its
+// connector says which) and are never changed here: their name, meaning, other names and domain
+// are the tool's.
 // Two plain concepts are written here. A term is a word with its own meaning ("Peak season"). A
 // synonym is another name for an existing definition ("GMV" for Gross sales): stored as a term
 // that points at it, so adding one from the definition's tag box or from the term editor's
@@ -19,18 +20,18 @@ export type Definition = {
   definition: string
   /** A synonym: the definition it is another name for. */
   sameAs?: string
-  /** Synced from Cube: read-only here. */
+  /** Synced from its tool: read-only here. */
   synced: boolean
   /** The tool a synced definition comes from, as people say it: "Cube". */
   tool?: string
-  /** Other names that came with the synced item from Cube; read-only. */
+  /** Other names that came with the synced item from its tool; read-only. */
   sourceNames: string[]
   domain?: DomainId
-  /** Cube's group, for metrics and dimensions. */
+  /** Its tool's group, for metrics and dimensions. */
   group?: string
-  /** A dimension's values, as Cube lists them. */
+  /** A dimension's values, as its tool lists them. */
   values?: string
-  /** Cube changed it at the last sync. */
+  /** Its tool changed it at the last sync. */
   changed?: string
   /** Who wrote a term. */
   by?: string
@@ -50,6 +51,15 @@ export const sourceUrl = (d: Definition) =>
   `https://git.example/data/cube-model/blob/main/model/${(d.group ?? 'segments').toLowerCase()}.yml`
 export const cubeRef = (d: Definition) =>
   `cube:${(d.group ?? 'segments').toLowerCase()}.${d.name.toLowerCase().replace(/[^a-z]+/g, '_')}`
+
+/**
+ * The tool synced definitions come from, as people say it, when they all come from one; undefined
+ * when none is synced or they come from several, so a screen says it in neutral words instead.
+ */
+export function toolOf(defs: readonly Pick<Definition, 'synced' | 'tool'>[]): string | undefined {
+  const tools = new Set(defs.flatMap((d) => (d.synced && d.tool ? [d.tool] : [])))
+  return tools.size === 1 ? [...tools][0] : undefined
+}
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 export const findDefinition = (all: Definition[], name: string | undefined) =>
@@ -72,7 +82,7 @@ export function meaningOf(all: Definition[], d: Definition): Definition {
   return at
 }
 
-/** Every word that means this definition: its name, Cube's other names, and Heed's synonyms. */
+/** Every word that means this definition: its name, its tool's other names, and Heed's synonyms. */
 export const namesOf = (all: Definition[], d: Definition) => [
   d.name,
   ...d.sourceNames,

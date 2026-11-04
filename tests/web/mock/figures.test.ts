@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { figureFor, figureTryFor } from '@/api/mock/data/figures'
 import { figureConnections } from '@/api/mock/data/integrations'
-import type { ConnectorId } from '@/model/integrations'
 
 // A figure is read from the integration its metric's definition comes from, only when that
 // integration has figures switched on; it never borrows the word for checked context.
@@ -13,8 +12,8 @@ const norway = {
   state: 'grounded',
 }
 const only =
-  (...ids: ConnectorId[]) =>
-  (id: ConnectorId) =>
+  (...ids: string[]) =>
+  (id: string) =>
     ids.includes(id)
 
 describe('figures in an answer', () => {
@@ -22,7 +21,9 @@ describe('figures in an answer', () => {
     expect(figureFor(norway, only())).toEqual({
       kind: 'link',
       source: 'cube',
+      tool: 'Cube',
       scope: 'Orders in Norway, 1 to 31 Aug 2026',
+      href: 'https://cube.larchwood.example/',
     })
   })
 

@@ -5,6 +5,12 @@ import { parseDocument } from 'yaml'
 import * as z from 'zod/mini'
 import { canonicalJson } from '../../domain/canonical.ts'
 import type { RuntimeDefinition } from '../../domain/connector-runtime.ts'
+import {
+  descriptionCopy,
+  domainHint,
+  meaningMark,
+  synonymsOf,
+} from '../../domain/definition-helpers.ts'
 import { libcAnswers } from './libc.ts'
 
 /*
@@ -15,9 +21,6 @@ import { libcAnswers } from './libc.ts'
   warnings, or a fixed code that says why it could not. Compiler messages may hold SQL or file
   contents, so none of them crosses: only checked metadata does.
 */
-
-/** The most other names Heed keeps for one member: as many as a term may have (FR-107). */
-const SYNONYMS_MAX = 20
 
 const requestSchema = z.object({
   host: z.object({ platform: z.string(), libc: z.optional(z.enum(['gnu', 'musl'])) }),
@@ -42,8 +45,6 @@ class ReadProblem extends Error {
   }
 }
 
-const areaPattern = /^[a-z][a-z0-9_]{1,39}$/
-
 function hash(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value)).digest('hex')
 }
@@ -52,24 +53,6 @@ function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
-}
-
-/**
- * The other names in a member's `meta.synonyms`, trimmed, each once whatever its case, at most as
- * many as a term may have. Anything else there (a number, an empty or overlong name) is left out.
- */
-function synonymsOf(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  const seen = new Set<string>()
-  const names: string[] = []
-  for (const entry of value) {
-    if (typeof entry !== 'string') continue
-    const name = entry.trim().replace(/\s+/g, ' ')
-    if (!name || Array.from(name).length > 200 || seen.has(name.toLowerCase())) continue
-    seen.add(name.toLowerCase())
-    names.push(name)
-  }
-  return names.slice(0, SYNONYMS_MAX)
 }
 
 // Functions here are compiler-generated expressions. Hash their text; never call a SQL expression.
@@ -111,9 +94,6 @@ async function compile(
   const rawMembers = new Map<string, unknown>()
   /** The file that defines each cube or view, by name, relative to the model folder. */
   const containerFiles = new Map<string, string>()
-  /** A `meta.domain` value, with the name the source's settings give it in Heed. */
-  const domainOf = (value: unknown): unknown =>
-    typeof value === 'string' && Object.hasOwn(aliases, value) ? aliases[value] : value
 
   for (const { fileName, content } of given) {
     // Templates are code: only plain YAML is passed to the compiler.
@@ -201,22 +181,20 @@ async function compile(
   const definitions: RuntimeDefinition[] = []
   for (const { config } of metaTransformer.cubes) {
     if (!config.isVisible) continue
-    const viewDomain = domainOf(record(config.meta).domain)
-    const viewValid = typeof viewDomain === 'string' && areaPattern.test(viewDomain)
-    if (viewDomain === undefined) warnings.push({ code: 'missing_domain', target: config.name })
-    else if (!viewValid) warnings.push({ code: 'invalid_domain', target: config.name })
+    const viewDomain = domainHint(record(config.meta).domain, aliases)
+    if (viewDomain.invalid) warnings.push({ code: 'invalid_domain', target: config.name })
+    else if (viewDomain.areaHint === null)
+      warnings.push({ code: 'missing_domain', target: config.name })
     for (const [kind, members] of [
       ['metric', config.measures],
       ['dimension', config.dimensions],
     ] as const) {
       for (const member of members) {
         if (!member.isVisible) continue
-        const memberDomain = domainOf(record(member.meta).domain)
-        const memberValid = typeof memberDomain === 'string' && areaPattern.test(memberDomain)
-        if (memberDomain !== undefined && !memberValid)
-          warnings.push({ code: 'invalid_domain', target: member.name })
+        const memberDomain = domainHint(record(member.meta).domain, aliases)
+        if (memberDomain.invalid) warnings.push({ code: 'invalid_domain', target: member.name })
         // A member's own valid domain wins over its view's.
-        const areaHint = memberValid ? memberDomain : viewValid ? viewDomain : null
+        const domain = memberDomain.areaHint === null ? viewDomain : memberDomain
         definitions.push({
           ref: `cube:${member.name}`,
           kind,
@@ -224,22 +202,24 @@ async function compile(
           baseName: baseNameOf(member.name),
           name: member.name,
           title: member.title ?? null,
-          descriptionCopy: member.description
-            ? Array.from(member.description).slice(0, 500).join('')
-            : null,
+          descriptionCopy: descriptionCopy(member.description).copy,
           valueType: member.type ?? null,
           visibleGroups: null,
-          areaHint,
-          domainSource: areaHint === null ? 'none' : 'source',
+          areaHint: domain.areaHint,
+          domainSource: domain.domainSource,
           modelFile: containerFiles.get(config.name) ?? null,
           // Type, calculation, description and visibility (CON-505). The domain stays out: a
-          // changed domain informs the owner and never flags an item (plan 4.3, step 7).
-          changeMark: hash({
-            member: memberMeaning(member.name),
-            type: member.type,
-            description: member.description ?? null,
-            public: member.isVisible,
-          }),
+          // changed domain informs the owner and never flags an item (plan 4.3, step 7). Empty
+          // parts are kept, as mark version 1 hashed them.
+          changeMark: await meaningMark(
+            {
+              member: memberMeaning(member.name),
+              type: member.type,
+              description: member.description ?? null,
+              public: member.isVisible,
+            },
+            { keepEmpty: true },
+          ),
         })
       }
     }

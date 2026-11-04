@@ -39,7 +39,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { connectorById } from '@/model/integrations'
+import { lookOf } from '@/model/integrations'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -148,7 +148,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
             <section key={from} className="pb-3">
               <h2 className="flex items-center gap-2 px-2 pb-1.5 text-xs font-medium text-muted-foreground">
                 {head.synced ? (
-                  <ToolLogo c={connectorById('google-drive')!} size="sm" />
+                  <ToolLogo c={lookOf(head.synced.connector)} size="sm" />
                 ) : head.drafted ? (
                   <span
                     aria-hidden
@@ -689,7 +689,7 @@ function SyncedFrom({ r }: { r: Review }) {
   return (
     <section className="mb-6 flex flex-col gap-3 border-b pb-6">
       <header className="flex items-center gap-2">
-        <ToolLogo c={connectorById('google-drive')!} size="sm" />
+        <ToolLogo c={lookOf(s.connector)} size="sm" />
         <span className="text-sm font-medium">From the document</span>
         <span className="text-xs text-muted-foreground">
           {s.folder} / {s.doc}, read {s.read.toLowerCase()}

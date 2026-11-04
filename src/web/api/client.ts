@@ -31,7 +31,6 @@ import type {
   ConnectChoice,
   ConnectedSource,
   ConnectForm,
-  ConnectorId,
   ConnectTest,
   ConnectValues,
   FigureConnection,
@@ -184,17 +183,19 @@ export type Settings = {
    */
   pause: { all: boolean; domain: DomainId | null }
   /** Whether Ask shows figures, per figure-capable integration: off until an admin turns it on. */
-  figures: Partial<Record<ConnectorId, boolean>>
+  figures: Record<string, boolean>
   /** Who answers for each integration's data, by name. */
-  contacts: Partial<Record<ConnectorId, string>>
+  contacts: Record<string, string>
+  /** The tool each figure-capable integration reads, as people say it ("Cube"), by its id. */
+  figureTools: Record<string, string>
   /** The integrations connected. */
-  connected: ConnectorId[]
+  connected: string[]
 }
 
 /** What the figures read: how each figure-capable integration is reached, its second connection. */
 export type Integrations = {
   /** How each figure-capable integration is reached. */
-  figureConnections: Partial<Record<ConnectorId, FigureConnection>>
+  figureConnections: Record<string, FigureConnection>
 }
 
 export type { Relation } from '@/model/review'
@@ -550,17 +551,13 @@ export interface HeedApi {
   exportHistory: () => Promise<Exported>
   /** What agents get now, every context item and term, as one file for a backup or a move. */
   exportContext: () => Promise<Exported>
-  setFigures: (input: { source: ConnectorId; on: boolean }) => Promise<void>
-  setDataContact: (input: { source: ConnectorId; name: string }) => Promise<void>
+  setFigures: (input: { source: string; on: boolean }) => Promise<void>
+  setDataContact: (input: { source: string; name: string }) => Promise<void>
   /**
    * Where an integration's figures are read: its data endpoint and a token for it, which is kept
    * in the secret store, sent only to the endpoint's origin and never shown again.
    */
-  setFigureConnection: (input: {
-    source: ConnectorId
-    endpoint: string
-    token: string
-  }) => Promise<void>
+  setFigureConnection: (input: { source: string; endpoint: string; token: string }) => Promise<void>
   /**
    * The connect flow's form, by the address's id: a connected tool's settings to change (its
    * page's id), or a tool of the catalog to connect anew; null for neither, or for a tool whoever
@@ -572,7 +569,7 @@ export interface HeedApi {
    * nothing and changes nothing; to change a tool connected, a secret left empty is the stored one.
    */
   testIntegration: (
-    input: { connector: ConnectorId; source?: string } & ConnectValues,
+    input: { connector: string; source?: string } & ConnectValues,
   ) => Promise<ConnectTest>
   /**
    * Connects a tool with the form's settings, what was chosen to read with each one's domain, and
@@ -581,7 +578,7 @@ export interface HeedApi {
    */
   connectIntegration: (
     input: {
-      connector: ConnectorId
+      connector: string
       chosen: ConnectChoice[]
       reason: string
       setup?: boolean
@@ -616,7 +613,7 @@ export interface HeedApi {
    * Try a figure: one figure read now with the integration's figures settings as they are saved,
    * on or off, so an admin sees the endpoint and its token work. Kept nowhere.
    */
-  tryFigure: (input: { source: ConnectorId }) => Promise<FigureTry>
+  tryFigure: (input: { source: string }) => Promise<FigureTry>
   /**
    * The agents, by name, the last used first (FR-420): an admin sees every agent, anyone else the
    * apps they signed in with.

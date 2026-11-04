@@ -67,7 +67,7 @@ const member = (ref: string, kind: 'metric' | 'dimension', areaHint: string | nu
   valueType: null,
   visibleGroups: null,
   areaHint,
-  domainSource: areaHint ? ('cube' as const) : ('none' as const),
+  domainSource: areaHint ? ('source' as const) : ('none' as const),
   modelFile: null,
   changeMark: mark(ref),
 })

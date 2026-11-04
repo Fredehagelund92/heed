@@ -49,7 +49,7 @@ const overview: OperationsOverview = {
       lastError: null,
       lastRead: null,
       definitions: { current: 0, missing: 0 },
-      domainCoverage: { cube: 0, override: 0, none: 0 },
+      domainCoverage: { source: 0, override: 0, none: 0 },
       flaggedItems: 0,
       staleLinks: 0,
       views: [],

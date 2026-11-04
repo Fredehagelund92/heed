@@ -63,9 +63,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { connectorById, connectors } from '@/model/catalogue'
 import {
-  connectorById,
-  connectors,
   kindName,
   type Activity,
   type ConnectField,
@@ -344,7 +343,7 @@ function FigureConnectionDialog({
                 type="url"
                 required
                 defaultValue={endpoint ?? ''}
-                placeholder="https://cube.example.com/cubejs-api/v1/load"
+                placeholder={c.endpointExample ?? 'https://data.example.com/api/load'}
               />
             </Field>
             <Field>
@@ -958,6 +957,10 @@ function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onReque
   const cells = connectors.filter((c) => matches(c) && !connected.has(c.id))
   const refused = sources.find((s) => s.health === 'reauth')
   const refusedTool = refused && connectorById(refused.connector)
+  // Nothing connected starts with definitions: the first definitions tool that can be connected.
+  const firstTool = connectors.find(
+    (c) => c.kind === 'definitions' && view.connectable.includes(c.id),
+  )
 
   return (
     <>
@@ -1008,9 +1011,11 @@ function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onReque
               owners when one changes. Agents get your context either way.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Button onClick={() => navigate('/settings/integrations/cube/connect')}>
-                Connect Cube
-              </Button>
+              {firstTool && (
+                <Button onClick={() => navigate(`/settings/integrations/${firstTool.id}/connect`)}>
+                  Connect {firstTool.name}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() =>
@@ -1342,8 +1347,10 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const { figureConnections } = useIntegrations()
   const { source, views, folders, documents, activity, connection } = page
   const h = source.health
-  const isCube = c.kind === 'definitions'
-  const isDrive = c.id === 'google-drive'
+  const isDefinitions = c.kind === 'definitions'
+  // A tool read with a key file someone uploads shares folders with an account of its own: its
+  // page says who connected it, and changes its folders and its key apart.
+  const keyed = c.keyFile !== undefined
   const isContent = c.kind === 'context'
   const d = source.definitions
   const docs = source.documents
@@ -1371,8 +1378,8 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
         ]
       : []),
   ]
-  // Google Drive names who connected it; the definitions tools are connected by whoever runs Git.
-  const shownRows = isDrive ? connectionRows : connectionRows.filter(([k]) => k !== 'Connected by')
+  // A keyed tool names who connected it; the others are connected by whoever runs where they read.
+  const shownRows = keyed ? connectionRows : connectionRows.filter(([k]) => k !== 'Connected by')
   // Whoever runs the server set its own tools up: their settings are theirs to change.
   const own = source.added === null
   const disconnect = own ? null : (
@@ -1400,11 +1407,10 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               <HealthBadge health={h} />
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              {isCube
-                ? "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. It has two connections: definitions from Git, and figures, when switched on, from Cube's data API at the time of the answer."
-                : isDrive
-                  ? 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.'
-                  : "Reads the Markdown files in a repository. Each new or changed file becomes one suggestion for the owners of its folder's domain."}
+              {c.lead ??
+                (isDefinitions
+                  ? 'Reads its definitions as a read-only copy, and keeps no calculation.'
+                  : 'Each new or changed document becomes one suggestion for the owners of its domain.')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1417,7 +1423,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           <div className="border-t px-4 py-4 md:px-5" role="status">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">
-                {isCube && d ? `Reading ${plural(d.views, 'view')}` : `Reading ${c.name}`}
+                {isDefinitions && d ? `Reading ${plural(d.views, 'view')}` : `Reading ${c.name}`}
               </span>
               {source.progress && (
                 <span className="text-muted-foreground tabular-nums">
@@ -1452,8 +1458,8 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                 {source.lastGood
                   ? `The last good read from ${source.lastGood.day}, ${source.lastGood.time} stays`
                   : 'Nothing was read yet'}
-                , and nothing is {isCube ? 'flagged' : 'created'} while {c.name} can't be reached.
-                Admins are told at {source.staleAfter}.
+                , and nothing is {isDefinitions ? 'flagged' : 'created'} while {c.name} can't be
+                reached. Admins are told at {source.staleAfter}.
               </span>
             </p>
             <div className="mt-3 flex gap-2 pl-6">
@@ -1591,14 +1597,20 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           }
         />
 
-        {isCube && (
+        {isDefinitions && (
           <>
             <PanelSection
               title="What it reads"
               description={
                 <>
-                  Each Cube view, and the domain it belongs to. It reads{' '}
-                  <code className="font-mono text-xs">meta.domain</code> on the view.
+                  {/* One run of text: a name in a run of its own is set a hair differently. */}
+                  {`Each ${c.name} view, and the domain it belongs to.${c.domainField ? ' It reads' : ''}`}
+                  {c.domainField && (
+                    <>
+                      {' '}
+                      <code className="font-mono text-xs">{c.domainField}</code> on the view.
+                    </>
+                  )}
                 </>
               }
             >
@@ -1652,7 +1664,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               title={c.figures ? 'Definitions connection' : 'Connection'}
               description={
                 c.figures
-                  ? `The first of ${c.name}'s two connections: its definition files, read from Git ${source.every}, never ${c.name}'s data. Figures have their own connection below.`
+                  ? `The first of ${c.name}'s two connections: its definition${c.git ? ' files, read from Git' : 's, read'} ${source.every}, never ${c.name}'s data. Figures have their own connection below.`
                   : undefined
               }
             >
@@ -1685,17 +1697,17 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             <PanelSection
               title="What it reads"
               description={
-                isDrive
+                keyed
                   ? "Each shared folder goes to exactly one domain. Its suggestions go only to that domain's owners."
                   : 'Each folder goes to exactly one domain.'
               }
             >
               <DataTable
-                head={['Folder', 'Domain', 'Owners', isDrive ? 'Documents' : 'Files']}
+                head={['Folder', 'Domain', 'Owners', keyed ? 'Documents' : 'Files']}
                 align={['left', 'left', 'left', 'right']}
                 rows={folders.map((f) => [
                   <span key="f" className="whitespace-nowrap">
-                    <span className={cn(isDrive && 'font-medium')}>{f.folder}</span>
+                    <span className={cn(keyed && 'font-medium')}>{f.folder}</span>
                     {f.path && <span className="text-muted-foreground"> / {f.path}</span>}
                   </span>,
                   domains[f.domain]?.name,
@@ -1781,7 +1793,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               <Connection
                 rows={shownRows}
                 actions={
-                  isDrive ? (
+                  keyed ? (
                     <>
                       <Button
                         variant="outline"
@@ -2012,7 +2024,7 @@ export function ConnectFlow({ id }: { id: string }) {
 function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   const { query } = useRoute()
   const at = Math.min(5, Math.max(1, Number(query.get('step')) || 1))
-  const isDrive = c.keyFile !== undefined
+  const keyed = c.keyFile !== undefined
   const [copied, copy] = useCopied()
   const [values, setValues] = React.useState<ConnectValues>(() => ({
     config: Object.fromEntries(form.fields.map((f) => [f.key, f.value])),
@@ -2080,15 +2092,30 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   const input = (f: ConnectField) => (
     <Field key={f.key}>
       <FieldLabel htmlFor={`field-${f.key}`}>{f.label}</FieldLabel>
-      <Input
-        id={`field-${f.key}`}
-        value={values.config[f.key] ?? ''}
-        onChange={(e) => setField(f.key, e.target.value)}
-        placeholder={f.placeholder}
-        required={f.required}
-        className={cn(f.kind !== 'text' && 'font-mono text-dense')}
-      />
-      {f.advanced && <FieldDescription>{f.description}</FieldDescription>}
+      {/* A list written as JSON takes lines of its own, in the letters code is read in. */}
+      {f.kind === 'json' ? (
+        <Textarea
+          id={`field-${f.key}`}
+          value={values.config[f.key] ?? ''}
+          onChange={(e) => setField(f.key, e.target.value)}
+          placeholder={f.placeholder}
+          required={f.required}
+          maxLength={f.maxLength}
+          spellCheck={false}
+          className="max-h-96 min-h-40 font-mono text-dense"
+        />
+      ) : (
+        <Input
+          id={`field-${f.key}`}
+          value={values.config[f.key] ?? ''}
+          onChange={(e) => setField(f.key, e.target.value)}
+          placeholder={f.placeholder}
+          required={f.required}
+          maxLength={f.maxLength}
+          className={cn(f.kind !== 'text' && 'font-mono text-dense')}
+        />
+      )}
+      {(f.advanced || f.kind === 'json') && <FieldDescription>{f.description}</FieldDescription>}
     </Field>
   )
   // A branch and a folder sit side by side, as the repository's own two parts.
@@ -2107,14 +2134,18 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
           <>
             <div>
               <h2 className="text-xl font-semibold tracking-tight">
-                {isDrive
+                {keyed
                   ? 'Share folders with the service account'
-                  : `Connect to your ${c.kind === 'definitions' ? 'Cube files' : 'repository'}`}
+                  : c.git
+                    ? `Connect to your ${c.kind === 'definitions' ? `${c.name} files` : 'repository'}`
+                    : `Set up ${c.name}`}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {isDrive
+                {keyed
                   ? 'Google Docs are read by a service account that can only view.'
-                  : `It reads them from Git, ${onceWords(form.every)}.`}
+                  : c.git
+                    ? `It reads them from Git, ${onceWords(form.every)}.`
+                    : `It reads what you write here, ${onceWords(form.every)}.`}
               </p>
             </div>
             <FieldGroup>
@@ -2307,8 +2338,8 @@ function FlowFooter({
 
 /** Pick: what the tool will hold and never hold, and what connecting it needs. */
 function PickStep({ c }: { c: Connector }) {
-  const isCube = c.kind === 'definitions'
-  const isDrive = c.keyFile !== undefined
+  const isDefinitions = c.kind === 'definitions'
+  const keyed = c.keyFile !== undefined
   return (
     <>
       <div className="flex items-center gap-3">
@@ -2316,7 +2347,7 @@ function PickStep({ c }: { c: Connector }) {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">{c.name}</h2>
           <p className="text-sm text-muted-foreground">
-            {isCube
+            {isDefinitions
               ? 'Definitions: which metrics and dimensions exist.'
               : 'Context: what people wrote down, as suggestions for owners.'}
           </p>
@@ -2326,11 +2357,11 @@ function PickStep({ c }: { c: Connector }) {
         <div className="p-4">
           <h3 className="text-sm font-medium">What it will hold</h3>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-            {(isCube
+            {(isDefinitions
               ? [
                   'The name, title and a short description of each definition',
                   'Its type, its domain and a change mark',
-                  'A link back to the Cube file',
+                  ...(c.git ? [`A link back to the ${c.name} file`] : []),
                 ]
               : [
                   'The link and title of each document',
@@ -2348,7 +2379,7 @@ function PickStep({ c }: { c: Connector }) {
         <div className="border-t p-4">
           <h3 className="text-sm font-medium">What it will never hold</h3>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-            {(isCube
+            {(isDefinitions
               ? ['A calculation, a query or a row of data']
               : ['The document itself, or who can read it', 'Anything published without an owner']
             ).map((t) => (
@@ -2362,11 +2393,11 @@ function PickStep({ c }: { c: Connector }) {
       </div>
       <p className="flex gap-2 rounded-frame bg-primary/5 p-4 text-sm">
         <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
-        {isCube
-          ? 'You need a read-only token for the Git repository that holds your Cube files. Only admins can connect a source.'
-          : isDrive
-            ? 'You need a Google Cloud project to create a service account key, and the folders to share with it. Only admins can connect a source.'
-            : 'You need a read-only token for the repository. Only admins can connect a source.'}
+        {keyed
+          ? 'You need a Google Cloud project to create a service account key, and the folders to share with it. Only admins can connect a source.'
+          : c.git
+            ? `You need a read-only token for the ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'repository'}. Only admins can connect a source.`
+            : `${c.access.join(' ')} Only admins can connect a source.`}
       </p>
     </>
   )
@@ -2396,8 +2427,8 @@ function ChoiceSteps({
   const { query } = useRoute()
   const setup = !!query.get('setup')
   const { connect, change } = useConnectActions()
-  const isCube = c.kind === 'definitions'
-  const isDrive = c.keyFile !== undefined
+  const isDefinitions = c.kind === 'definitions'
+  const keyed = c.keyFile !== undefined
   const ids = scopes.map((s) => s.id)
   // A tool connected starts from what it reads (a definitions tool with nothing chosen reads all);
   // a new one from everything found, but what is left out at first.
@@ -2420,8 +2451,9 @@ function ChoiceSteps({
       }),
     ),
   )
+  // A tool that keeps the definitions elsewhere is why they are added, most often.
   const [why, setWhy] = React.useState(
-    isCube && !form.source ? 'Our metric definitions live in Cube' : '',
+    isDefinitions && c.git && !form.source ? `Our metric definitions live in ${c.name}` : '',
   )
   const [saving, setSaving] = React.useState(false)
   const mapped = chosen.filter((s) => map[s.id]).length
@@ -2429,10 +2461,10 @@ function ChoiceSteps({
   const leftOut = scopes.filter((s) => s.leftOut)
   const sum = (key: 'metrics' | 'dimensions' | 'documents') =>
     chosen.reduce((n, s) => n + (s[key] ?? 0), 0)
-  const preview = isCube
+  const preview = isDefinitions
     ? `It would hold ${plural(sum('metrics'), 'metric')} and ${plural(sum('dimensions'), 'dimension')}.`
     : chosen.some((s) => s.documents !== undefined)
-      ? `It would look at ${plural(sum('documents'), isDrive ? 'document' : 'file')} in ${plural(chosen.length, 'folder')}.`
+      ? `It would look at ${plural(sum('documents'), keyed ? 'document' : 'file')} in ${plural(chosen.length, 'folder')}.`
       : `It would look at ${plural(chosen.length, 'folder')}.`
 
   const finish = async () => {
@@ -2440,7 +2472,7 @@ function ChoiceSteps({
     // A definitions tool that reads every view as the tool maps it keeps nothing chosen: a view
     // added later is read too.
     const asFound =
-      isCube &&
+      isDefinitions &&
       chosen.length === scopes.length &&
       choices.every((ch) => ch.domain === (scopes.find((s) => s.id === ch.id)?.domain ?? null))
     const input = { ...values, chosen: asFound ? [] : choices, reason: why.trim() }
@@ -2456,7 +2488,7 @@ function ChoiceSteps({
       }
       const done = await connect({ connector: c.id, ...input, ...(setup ? { setup } : {}) })
       toast(`${c.name} connected`, {
-        description: isCube
+        description: isDefinitions
           ? 'First read now. Definitions show in Definitions as a read-only copy.'
           : `First read ${done.firstRead ? `at ${done.firstRead}` : 'now'}. Documents become suggestions; nothing is published by a read.`,
       })
@@ -2489,7 +2521,10 @@ function ChoiceSteps({
                   >
                     <Checkbox {...pickScopes.checkbox(s.id)} />
                     <span
-                      className={cn('min-w-0 flex-1 truncate', isCube && 'font-mono text-dense')}
+                      className={cn(
+                        'min-w-0 flex-1 truncate',
+                        isDefinitions && 'font-mono text-dense',
+                      )}
                     >
                       {s.title}
                     </span>
@@ -2498,7 +2533,7 @@ function ChoiceSteps({
                 </li>
               ))}
             </ul>
-            {isCube && unmapped > 0 && (
+            {isDefinitions && unmapped > 0 && (
               <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
                 <TriangleAlertIcon
                   aria-hidden
@@ -2506,8 +2541,12 @@ function ChoiceSteps({
                 />
                 <span>
                   {unmapped === 1 ? '1 view has' : `${unmapped} views have`} no{' '}
-                  <code className="font-mono text-xs">meta.domain</code>. You can map{' '}
-                  {unmapped === 1 ? 'it' : 'them'} in the next step.
+                  {c.domainField ? (
+                    <code className="font-mono text-xs">{c.domainField}</code>
+                  ) : (
+                    'domain'
+                  )}
+                  {'. You can map'} {unmapped === 1 ? 'it' : 'them'} in the next step.
                 </span>
               </p>
             )}
@@ -2525,7 +2564,7 @@ function ChoiceSteps({
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Map to domains and owners</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {isCube
+                {isDefinitions
                   ? 'Owners of a domain are told when a definition they rely on changes.'
                   : "Each folder goes to exactly one domain. Its suggestions go only to that domain's owners."}
               </p>
@@ -2534,7 +2573,9 @@ function ChoiceSteps({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-band text-left text-xs text-muted-foreground">
-                    <th className="h-9 px-4 font-medium">{isCube ? 'Cube view' : 'Folder'}</th>
+                    <th className="h-9 px-4 font-medium">
+                      {isDefinitions ? `${c.name} view` : 'Folder'}
+                    </th>
                     <th className="h-9 px-4 font-medium">Domain</th>
                     <th className="h-9 px-4 font-medium">Owners</th>
                   </tr>
@@ -2542,7 +2583,7 @@ function ChoiceSteps({
                 <tbody>
                   {chosen.map((s) => (
                     <tr key={s.id} className="border-t">
-                      <td className={cn('h-12 px-4', isCube && 'font-mono text-dense')}>
+                      <td className={cn('h-12 px-4', isDefinitions && 'font-mono text-dense')}>
                         {s.title}
                       </td>
                       <td className="px-4">
@@ -2560,7 +2601,7 @@ function ChoiceSteps({
               </table>
             </div>
             <p className="text-xs text-muted-foreground">
-              {isCube
+              {isDefinitions
                 ? `A hint never creates a domain. Leave a view unmapped and its definitions stay shared. ${mapped} of ${chosen.length} mapped.`
                 : `Every folder needs a domain before it is read. ${mapped} of ${chosen.length} mapped.`}
             </p>
@@ -2580,22 +2621,24 @@ function ChoiceSteps({
               </div>
               <div className="rounded-frame border p-3">
                 <dt className="text-xs text-muted-foreground">
-                  {isCube ? 'Out of date after' : 'Suggestions per day'}
+                  {isDefinitions ? 'Out of date after' : 'Suggestions per day'}
                 </dt>
                 <dd className="mt-1 font-medium">
-                  {isCube || form.perDay === null ? form.staleAfter : `At most ${form.perDay}`}
+                  {isDefinitions || form.perDay === null
+                    ? form.staleAfter
+                    : `At most ${form.perDay}`}
                 </dd>
               </div>
             </dl>
             <ul className="flex flex-col gap-2 rounded-frame border p-4 text-sm">
-              {(isCube
+              {(isDefinitions
                 ? [
                     <>
                       A changed or missing definition marks the context that relies on it{' '}
                       <span className="font-medium">Needs checking</span> and tells its owner.
                     </>,
                     <>Nothing is published or changed by a read.</>,
-                    <>If Cube can't be reached, the last good read stays and nothing is flagged.</>,
+                    <>{`If ${c.name} can't be reached, the last good read stays and nothing is flagged.`}</>,
                   ]
                 : [
                     <>
@@ -2634,7 +2677,7 @@ function ChoiceSteps({
           <Button
             onClick={() => go(at + 1)}
             disabled={
-              (at === 3 && !chosen.length) || (at === 4 && !isCube && mapped < chosen.length)
+              (at === 3 && !chosen.length) || (at === 4 && !isDefinitions && mapped < chosen.length)
             }
           >
             Continue
@@ -2642,7 +2685,7 @@ function ChoiceSteps({
           </Button>
         ) : (
           <Button onClick={() => void finish()} disabled={!why.trim() || saving}>
-            {form.source ? 'Save changes' : isCube ? `Add ${c.name}` : `Connect ${c.name}`}
+            {form.source ? 'Save changes' : isDefinitions ? `Add ${c.name}` : `Connect ${c.name}`}
           </Button>
         )}
       </FlowFooter>

@@ -13,7 +13,7 @@ import { connectorIdPattern } from './connector-id.ts'
 */
 
 /** The connector interface this build speaks (CON-109). A minor version only adds. */
-export const CONNECTOR_INTERFACE_VERSION = '3.0.0'
+export const CONNECTOR_INTERFACE_VERSION = '3.1.0'
 
 const CONNECTOR_ID_MAX = 64
 
@@ -108,6 +108,11 @@ export const manifestSecretSchema = z.strictObject({
   description: words(500),
   required: z.optional(z.boolean()),
   /**
+   * Given as a file someone uploads, such as a JSON key, not as words typed in. The form reads
+   * the file and sends its text; the store keeps it as any other secret.
+   */
+  file: z.optional(z.boolean()),
+  /**
    * The settings it is bound to: where it is sent. A change to one forgets the stored secret
    * unless a new one comes with the change.
    */
@@ -174,6 +179,13 @@ export const connectorManifestSchema = z.strictObject({
     domain: z.enum(['hint', 'per-scope']),
     /** Definitions: whether marks see calculations (CON-505). */
     marks: z.optional(z.enum(['meaning', 'metadata'])),
+    /**
+     * Definitions: whether dimensions of the same name in different groups are one dimension
+     * (CON-201). `by-name`, the tool's views share their dimensions, so they are proposed as one
+     * term (Cube); `never`, each group's dimension is its own and is proposed apart, even when
+     * another group has one of the same name (dbt's semantic models). Absent means `by-name`.
+     */
+    mergeDimensions: z.optional(z.enum(['by-name', 'never'])),
     links: z.optional(z.boolean()),
     /**
      * Definitions: it can read one figure for Ask from the tool's data endpoint (CON-612), when
@@ -417,6 +429,8 @@ export function checkManifest(
       problem('capabilities.marks', 'Only a definitions connector has change marks of its own.')
     if (manifest.capabilities.figures !== undefined)
       problem('capabilities.figures', 'Only a definitions connector reads figures.')
+    if (manifest.capabilities.mergeDimensions !== undefined)
+      problem('capabilities.mergeDimensions', 'Only a definitions connector has dimensions.')
     if (manifest.limits.draftsPerDay === undefined)
       problem('limits.draftsPerDay', 'Say how many drafts a source may make in a day.')
   }

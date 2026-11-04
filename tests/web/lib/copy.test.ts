@@ -79,14 +79,10 @@ describe('the words people read', () => {
   })
 
   it('name the definitions connector only through its integration', () => {
-    // "Cube" is the connected tool today, not a word of the product: generic copy takes the name
-    // from the integration (connectorById), so a different connector is one change.
-    const own = [
-      'model/integrations.ts',
-      'api/mock/data/integrations.ts',
-      'pages/integrations.tsx',
-      'api/mock/data/world.ts',
-    ]
+    // "Cube" is a connector, not a word of the product: every screen takes a tool's name from its
+    // connector's manifest. Only the app's own words for a tool it knows well (the catalogue's
+    // page leads) and the demo world's data may name it.
+    const own = ['model/catalogue.ts', 'api/mock/data/integrations.ts', 'api/mock/data/world.ts']
     expect(where(prose.filter((t) => /\bCube\b/.test(t.text) && !own.includes(t.file)))).toEqual([])
   })
 

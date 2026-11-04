@@ -15,7 +15,7 @@ import {
 } from '../../../src/server/modules/connectors/index.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
 
-const fixture = fileURLToPath(new URL('../../fixtures/cube/model.yml', import.meta.url))
+const fixture = fileURLToPath(new URL('../../fixtures/cube/model/model.yml', import.meta.url))
 const temporary: string[] = []
 afterEach(async () => {
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })))
@@ -45,7 +45,7 @@ describe('offline Cube source', () => {
       snapshot.definitions.find((entry) => entry.ref === 'cube:marketing.orders_income'),
     ).toBeDefined()
     expect(snapshot.definitions.some((entry) => entry.ref.startsWith('cube:orders.'))).toBe(false)
-    expect(domainCoverage(snapshot.definitions)).toEqual({ cube: 3, override: 0, none: 2 })
+    expect(domainCoverage(snapshot.definitions)).toEqual({ source: 3, override: 0, none: 2 })
     expect(JSON.stringify(snapshot)).not.toContain('SELECT')
     expect(JSON.stringify(snapshot)).not.toContain('example_orders')
   }, 15_000)
@@ -160,7 +160,7 @@ describe('offline Cube source', () => {
     const noDomains = await read(
       await model((text) => text.replace(/\s+meta:\n\s+domain: \w+/g, '')),
     )
-    expect(domainCoverage(noDomains.definitions)).toEqual({ cube: 0, override: 0, none: 5 })
+    expect(domainCoverage(noDomains.definitions)).toEqual({ source: 0, override: 0, none: 5 })
     expect(noDomains.definitions.every((entry) => entry.areaHint === null)).toBe(true)
   }, 20_000)
 
@@ -187,7 +187,7 @@ describe('offline Cube source', () => {
     )
     expect(snapshot.definitions.find((entry) => entry.ref === 'cube:sales.count')).toMatchObject({
       areaHint: 'finance',
-      domainSource: 'cube',
+      domainSource: 'source',
     })
     expect(snapshot.warnings).toContainEqual({ code: 'invalid_domain', target: 'sales.count' })
     expect(snapshot.warnings).not.toContainEqual({ code: 'invalid_domain', target: 'sales' })
@@ -197,7 +197,7 @@ describe('offline Cube source', () => {
     const snapshot = await read(await model())
     expect(snapshot.definitions.find((entry) => entry.ref === 'cube:sales.count')).toMatchObject({
       areaHint: 'commerce',
-      domainSource: 'cube',
+      domainSource: 'source',
     })
     expect(snapshot.warnings.some((entry) => entry.code === 'invalid_domain')).toBe(false)
   }, 15_000)
@@ -389,7 +389,7 @@ it('reads a whole model folder in place and names each view that has no domain y
     named.definitions.map(({ ref, kind }) => `${kind}:${ref}`),
   )
   expect(domainCoverage(snapshot.definitions)).toEqual({
-    cube: 0,
+    source: 0,
     override: 0,
     none: metrics.length,
   })

@@ -1,21 +1,42 @@
 import { SERVICE_ACCOUNT } from '@/lib/brand'
-import type {
-  Activity,
-  ConnectorId,
-  CubeView,
-  DriveDocument,
-  DriveFolder,
-  FigureConnection,
-  IntegrationState,
-  Source,
-  SourcePage,
+import { builtInManifests } from '../../../../connectors/manifests'
+import {
+  type Activity,
+  type ConnectChoice,
+  type ConnectScope,
+  type DefinitionsView,
+  type DriveDocument,
+  type DriveFolder,
+  type FigureConnection,
+  type IntegrationState,
+  type Source,
+  type SourcePage,
 } from '@/model/integrations'
 
-// The demo world's integrations: what Cube reads, the Drive folders and documents, each tool's
-// activity, and how the figure-capable ones are reached.
+// The demo world's integrations: the tools it connects, by their connector's id, and for each what
+// it reads, its activity, how it is connected and what its test finds; and how the figure-capable
+// ones are reached. The demo world names its tools here, and only here: every word on a screen
+// that names one comes from its connector's manifest.
 
-/** What Cube reads: each view, what it holds and the domain it maps to. */
-export const cubeViews: CubeView[] = [
+/** The demo world's definitions tool and its context tool, by their connector's id. */
+export const DEMO_DEFINITIONS = 'cube'
+export const DEMO_CONTEXT = 'google-drive'
+/** The tool the demo's handbook is in, connected only once someone goes through the flow. */
+const DEMO_HANDBOOK = 'git-markdown'
+
+/** The tools the demo world starts with connected. */
+export const demoConnected = [DEMO_DEFINITIONS, DEMO_CONTEXT]
+
+/** A tool of the demo world, as people say it: its manifest's name for it. */
+export const demoTool = (id: string) => builtInManifests.find((m) => m.id === id)?.tool ?? id
+
+/** Where the demo's definitions tool is, for a figure read there while figures are off. */
+export const demoToolHome: Record<string, string> = {
+  [DEMO_DEFINITIONS]: 'https://cube.larchwood.example/',
+}
+
+/** What the definitions tool reads: each view, what it holds and the domain it maps to. */
+const cubeViews: DefinitionsView[] = [
   { view: 'orders', metrics: 2, dimensions: 1, domain: 'sales' },
   { view: 'revenue', metrics: 3, dimensions: 0, domain: 'sales' },
   { view: 'basket', metrics: 4, dimensions: 0, domain: 'sales' },
@@ -26,13 +47,13 @@ export const cubeViews: CubeView[] = [
 ]
 
 /** The folders shared with Heed's service account, each mapped to exactly one domain. */
-export const driveFolders: DriveFolder[] = [
+const driveFolders: DriveFolder[] = [
   { folder: 'Data team', path: 'Definitions', domain: 'sales', documents: 6 },
   { folder: 'Marketing', path: 'Campaigns', domain: 'marketing', documents: 5 },
   { folder: 'Customers', path: 'Retention', domain: 'customer_value', documents: 3 },
 ]
 
-export const driveDocuments: DriveDocument[] = [
+const driveDocuments: DriveDocument[] = [
   {
     title: 'Marketplace orders: what we count',
     folder: 'Data team / Definitions',
@@ -81,7 +102,7 @@ export const driveDocuments: DriveDocument[] = [
   },
 ]
 
-export const cubeActivity: Activity[] = [
+const cubeActivity: Activity[] = [
   { when: 'Today, 06:00', tone: 'ok', what: 'Read complete', detail: '27 definitions, no changes' },
   {
     when: '7 Oct, 06:00',
@@ -97,7 +118,7 @@ export const cubeActivity: Activity[] = [
   },
 ]
 
-export const driveActivity: Activity[] = [
+const driveActivity: Activity[] = [
   {
     when: 'Today, 06:00',
     tone: 'changed',
@@ -129,7 +150,7 @@ export const integrationState = (flag: string | null): IntegrationState =>
 
 /** How each figure-capable integration is reached. The secret is never shown in full. */
 export const figureConnections: Record<string, FigureConnection> = {
-  cube: {
+  [DEMO_DEFINITIONS]: {
     endpoint: 'https://cube.larchwood.example/cubejs-api/v1/load',
     host: 'cube.larchwood.example',
     secretSet: true,
@@ -139,157 +160,246 @@ export const figureConnections: Record<string, FigureConnection> = {
 }
 
 /** The folders of the handbook in Git, once it is connected: its first read is still to come. */
-export const handbookFolders: DriveFolder[] = [
+const handbookFolders: DriveFolder[] = [
   { folder: 'docs/sales', path: '', domain: 'sales', documents: 5 },
   { folder: 'docs/marketing', path: '', domain: 'marketing', documents: 3 },
 ]
 
 const quiet = { failures: 0, failure: null, lastGood: null, created: null }
-
-/** Each tool the demo world connects, as its row and the head of its page show it. */
-export const sources: Record<ConnectorId, Source | undefined> = {
-  cube: {
-    id: 'cube',
-    connector: 'cube',
-    health: 'healthy',
-    every: 'every hour',
-    staleAfter: '6 hours',
-    last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 3, seen: 27 },
-    next: { day: 'Today', time: '07:00' },
-    ...quiet,
-    definitions: { metrics: 22, dimensions: 5, views: 7, noDomain: 2, flagged: 2 },
-    documents: null,
-    inbox: null,
-    added: { by: 'Ravi Kapoor', when: '1 Oct' },
-  },
-  'google-drive': {
-    id: 'google-drive',
-    connector: 'google-drive',
-    health: 'healthy',
-    every: 'every day',
-    staleAfter: '2 days',
-    last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 4, seen: 14 },
-    next: { day: 'Tomorrow', time: '06:00' },
-    ...quiet,
-    definitions: null,
-    documents: { held: 14, waiting: 3, domains: 2, madeToday: 3, perDay: 5 },
-    inbox: '/inbox?demo=week&card=drive-marketplace',
-    added: { by: 'Ravi Kapoor', when: '1 Oct' },
-  },
-  'markdown-git': {
-    id: 'markdown-git',
-    connector: 'markdown-git',
-    health: 'healthy',
-    every: 'every day',
-    staleAfter: '2 days',
-    last: null,
-    next: { day: 'Today', time: '07:00' },
-    ...quiet,
-    definitions: null,
-    documents: { held: 0, waiting: 0, domains: 0, madeToday: 0, perDay: 5 },
-    inbox: null,
-    added: { by: 'Jon Abara', when: 'Today' },
-  },
-  dbt: undefined,
-  notion: undefined,
-}
-
-/** How each tool the demo world connects is connected: never a secret, only whether one is set. */
-export const connections: Partial<Record<ConnectorId, SourcePage['connection']>> = {
-  cube: [
-    { label: 'Repository', value: 'https://git.example/larchwood/cube-definitions', code: true },
-    { label: 'Branch or tag', value: 'main', code: true },
-    { label: 'Folder', value: 'cube/', code: true },
-    { label: 'Read-only token', value: 'Set, only used for reading' },
-  ],
-  'google-drive': [
-    { label: 'Reads as', value: SERVICE_ACCOUNT, code: true },
-    { label: 'Access', value: 'Viewer on the folders above. Nothing else in Drive' },
-    { label: 'Service account key', value: 'Set, only used for reading' },
-  ],
-  'markdown-git': [
-    { label: 'Repository', value: 'https://git.example/larchwood/handbook', code: true },
-    { label: 'Branch or tag', value: 'main', code: true },
-    { label: 'Read-only token', value: 'Set, only used for reading' },
-  ],
-}
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /**
- * A tool as one of the states a reviewer opens by address shows it (?state=): Cube reading or
- * failing, Google Drive refusing its key, or its read having created suggestions.
+ * A tool of the demo world: its row and page, and its connect flow (the settings a new connection
+ * starts from, what its test checks and finds, and what it reads once connected). `states` is how
+ * it shows a state a reviewer opens by address (?state=); a state it has none for leaves it as is.
  */
-export function sourceIn(state: IntegrationState, source: Source): Source {
-  if (source.connector === 'cube' && state === 'syncing')
-    return { ...source, health: 'reading', progress: { done: 19, total: 27 } }
-  if (source.connector === 'cube' && state === 'failed')
-    return {
-      ...source,
-      health: 'failed',
-      failures: 3,
-      failure: 'the repository refused the token (401)',
-      lastGood: { day: '21 Oct', time: '06:00', ago: '24 hours ago' },
+export type DemoTool = {
+  source: Source
+  page: Omit<SourcePage, 'source'>
+  config: Record<string, string>
+  steps: string[]
+  scopes: ConnectScope[]
+  chosen: ConnectChoice[]
+  states?: Partial<Record<IntegrationState, (page: SourcePage) => SourcePage>>
+}
+
+/** Each tool of the demo world, by its connector's id. */
+export const demoTools: Record<string, DemoTool> = {
+  [DEMO_DEFINITIONS]: {
+    source: {
+      id: DEMO_DEFINITIONS,
+      connector: DEMO_DEFINITIONS,
+      health: 'healthy',
+      every: 'every hour',
+      staleAfter: '6 hours',
+      last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 3, seen: 27 },
       next: { day: 'Today', time: '07:00' },
-      definitions: { ...source.definitions!, flagged: 0 },
-    }
-  if (source.connector === 'google-drive' && state === 'reauth')
-    return {
-      ...source,
-      health: 'reauth',
-      failures: 1,
-      failure: 'Google refused the service account key',
-      last: { at: { day: '21 Oct', time: '06:00' }, complete: false, seconds: null, seen: 0 },
-      lastGood: { day: '20 Oct', time: '06:00' },
-    }
-  if (source.connector === 'google-drive' && state === 'suggestions')
-    return { ...source, created: { suggested: 3, replaced: 1, skipped: ['it names people'] } }
-  return source
+      ...quiet,
+      definitions: { metrics: 22, dimensions: 5, views: 7, noDomain: 2, flagged: 2 },
+      documents: null,
+      inbox: null,
+      added: { by: 'Ravi Kapoor', when: '1 Oct' },
+    },
+    page: {
+      views: cubeViews,
+      changedOn: '7 Oct',
+      folders: [],
+      documents: [],
+      activity: cubeActivity,
+      connection: [
+        {
+          label: 'Repository',
+          value: 'https://git.example/larchwood/cube-definitions',
+          code: true,
+        },
+        { label: 'Branch or tag', value: 'main', code: true },
+        { label: 'Folder', value: 'cube/', code: true },
+        { label: 'Read-only token', value: 'Set, only used for reading' },
+      ],
+    },
+    config: {
+      repository: 'https://git.example/larchwood/cube-definitions',
+      ref: 'main',
+      folder: 'cube/',
+    },
+    steps: [
+      'Reached the repository',
+      'Signed in with the token',
+      `Found 7 ${demoTool(DEMO_DEFINITIONS)} views`,
+    ],
+    scopes: cubeViews.map((v) => ({
+      id: v.view,
+      title: v.view,
+      detail: [
+        v.metrics && plural(v.metrics, 'metric'),
+        v.dimensions && plural(v.dimensions, 'dimension'),
+      ]
+        .filter(Boolean)
+        .join(', '),
+      metrics: v.metrics,
+      dimensions: v.dimensions,
+      ...(v.domain ? { domain: v.domain } : {}),
+    })),
+    chosen: cubeViews.map((v) => ({ id: v.view, title: v.view, domain: v.domain ?? null })),
+    states: {
+      syncing: (page) => ({
+        ...page,
+        source: { ...page.source, health: 'reading', progress: { done: 19, total: 27 } },
+      }),
+      failed: (page) => ({
+        ...page,
+        source: {
+          ...page.source,
+          health: 'failed',
+          failures: 3,
+          failure: 'the repository refused the token (401)',
+          lastGood: { day: '21 Oct', time: '06:00', ago: '24 hours ago' },
+          next: { day: 'Today', time: '07:00' },
+          definitions: { ...page.source.definitions!, flagged: 0 },
+        },
+      }),
+    },
+  },
+  [DEMO_CONTEXT]: {
+    source: {
+      id: DEMO_CONTEXT,
+      connector: DEMO_CONTEXT,
+      health: 'healthy',
+      every: 'every day',
+      staleAfter: '2 days',
+      last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 4, seen: 14 },
+      next: { day: 'Tomorrow', time: '06:00' },
+      ...quiet,
+      definitions: null,
+      documents: { held: 14, waiting: 3, domains: 2, madeToday: 3, perDay: 5 },
+      inbox: '/inbox?demo=week&card=drive-marketplace',
+      added: { by: 'Ravi Kapoor', when: '1 Oct' },
+    },
+    page: {
+      views: [],
+      changedOn: null,
+      folders: driveFolders,
+      documents: driveDocuments,
+      activity: driveActivity,
+      connection: [
+        { label: 'Reads as', value: SERVICE_ACCOUNT, code: true },
+        { label: 'Access', value: 'Viewer on the folders above. Nothing else in Drive' },
+        { label: 'Service account key', value: 'Set, only used for reading' },
+      ],
+    },
+    config: {},
+    steps: [
+      'Google accepted the service account',
+      'Found 3 shared folders',
+      'Read 14 Google Docs: titles only',
+    ],
+    scopes: driveFolders.map((f) => ({
+      id: `${f.folder} / ${f.path}`,
+      title: `${f.folder} / ${f.path}`,
+      detail: plural(f.documents, 'document'),
+      documents: f.documents,
+      domain: f.domain,
+    })),
+    chosen: driveFolders.map((f) => {
+      const name = `${f.folder} / ${f.path}`
+      return { id: name, title: name, domain: f.domain }
+    }),
+    states: {
+      reauth: (page) => ({
+        ...page,
+        source: {
+          ...page.source,
+          health: 'reauth',
+          failures: 1,
+          failure: 'Google refused the service account key',
+          last: { at: { day: '21 Oct', time: '06:00' }, complete: false, seconds: null, seen: 0 },
+          lastGood: { day: '20 Oct', time: '06:00' },
+        },
+        activity: [
+          {
+            when: '21 Oct, 06:00',
+            tone: 'failed',
+            what: 'Read refused',
+            detail: 'Google refused the service account key. Reading paused.',
+          },
+          ...driveActivity.slice(1),
+        ],
+        connection: page.connection.map((row) =>
+          row.label === 'Service account key'
+            ? { ...row, value: 'Refused by Google on 21 Oct' }
+            : row,
+        ),
+      }),
+      suggestions: (page) => ({
+        ...page,
+        source: {
+          ...page.source,
+          created: { suggested: 3, replaced: 1, skipped: ['it names people'] },
+        },
+      }),
+    },
+  },
+  [DEMO_HANDBOOK]: {
+    source: {
+      id: DEMO_HANDBOOK,
+      connector: DEMO_HANDBOOK,
+      health: 'healthy',
+      every: 'every day',
+      staleAfter: '2 days',
+      last: null,
+      next: { day: 'Today', time: '07:00' },
+      ...quiet,
+      definitions: null,
+      documents: { held: 0, waiting: 0, domains: 0, madeToday: 0, perDay: 5 },
+      inbox: null,
+      added: { by: 'Jon Abara', when: 'Today' },
+    },
+    page: {
+      views: [],
+      changedOn: null,
+      folders: handbookFolders,
+      documents: [],
+      activity: [
+        {
+          when: 'Today',
+          tone: 'ok',
+          what: 'Connected',
+          detail: 'First read at 07:00. Nothing is published by a read.',
+        },
+      ],
+      connection: [
+        { label: 'Repository', value: 'https://git.example/larchwood/handbook', code: true },
+        { label: 'Branch or tag', value: 'main', code: true },
+        { label: 'Read-only token', value: 'Set, only used for reading' },
+      ],
+    },
+    config: {
+      repository: 'https://git.example/larchwood/handbook',
+      ref: 'main',
+      folder: 'docs/',
+    },
+    steps: [
+      'Reached the repository',
+      'Signed in with the token',
+      'Found 9 Markdown files in 3 folders',
+    ],
+    scopes: [
+      { id: 'docs/sales', title: 'docs/sales', detail: '5 files', documents: 5, domain: 'sales' },
+      { id: 'docs/marketing', title: 'docs/marketing', detail: '3 files', documents: 3 },
+      {
+        id: 'docs/people',
+        title: 'docs/people',
+        detail: '1 file',
+        documents: 1,
+        leftOut: 'its file names people, and those are skipped',
+      },
+    ],
+    chosen: handbookFolders.map((f) => ({ id: f.folder, title: f.folder, domain: f.domain })),
+  },
 }
 
 /** A tool's page in the demo world, in one of the states a reviewer opens by address. */
-export function sourcePageOf(state: IntegrationState, source: Source): SourcePage {
-  const shown = sourceIn(state, source)
-  const activity: Record<ConnectorId, Activity[]> = {
-    cube: cubeActivity,
-    'google-drive':
-      state === 'reauth'
-        ? [
-            {
-              when: '21 Oct, 06:00',
-              tone: 'failed',
-              what: 'Read refused',
-              detail: 'Google refused the service account key. Reading paused.',
-            },
-            ...driveActivity.slice(1),
-          ]
-        : driveActivity,
-    'markdown-git': [
-      {
-        when: 'Today',
-        tone: 'ok',
-        what: 'Connected',
-        detail: 'First read at 07:00. Nothing is published by a read.',
-      },
-    ],
-    dbt: [],
-    notion: [],
-  }
-  const connection = (connections[source.connector] ?? []).map((row) =>
-    row.label === 'Service account key' && state === 'reauth'
-      ? { ...row, value: 'Refused by Google on 21 Oct' }
-      : row,
-  )
-  return {
-    source: shown,
-    views: source.connector === 'cube' ? cubeViews : [],
-    changedOn: source.connector === 'cube' ? '7 Oct' : null,
-    folders:
-      source.connector === 'google-drive'
-        ? driveFolders
-        : source.connector === 'markdown-git'
-          ? handbookFolders
-          : [],
-    documents: source.connector === 'google-drive' ? driveDocuments : [],
-    activity: activity[source.connector],
-    connection,
-  }
+export function demoPageOf(state: IntegrationState, tool: DemoTool): SourcePage {
+  const page = { ...tool.page, source: tool.source }
+  return tool.states?.[state]?.(page) ?? page
 }

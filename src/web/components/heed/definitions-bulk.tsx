@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TODAY } from '@/model/history'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
@@ -28,7 +27,7 @@ import { APP_URL } from '@/lib/brand'
 import { count, download, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
 import { useWrite } from '@/api/queries'
 import { leaveAllThen } from '@/lib/presence'
-import { kindName, useGlossary, type Definition } from '@/lib/definitions'
+import { kindName, toolOf, useGlossary, type Definition } from '@/lib/definitions'
 import { useOnline } from '@/lib/send'
 import { useDomains, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
@@ -59,7 +58,8 @@ export function DefinitionsBulk({
   const [note, setNote] = React.useState<BulkNote>()
   const picked = defs.filter((d) => sel.isSelected(d.name))
   const who: Me = { name: me.name, admin: me.admin }
-  const tool = DEFINITIONS_TOOL
+  // The tool the synced ones picked come from, or neutral words when none or several.
+  const tool = toolOf(picked) ?? 'each tool'
 
   const key = sel.ids.join('|')
   const noted = React.useRef(key)
@@ -76,7 +76,7 @@ export function DefinitionsBulk({
     return done
   }
 
-  const deletePlan = planTerms('delete', picked, who, domains, { tool })
+  const deletePlan = planTerms('delete', picked, who, domains)
   const others = glossary.goesWith(deletePlan.act.map((d) => d.name))
 
   async function remove() {
@@ -107,7 +107,7 @@ export function DefinitionsBulk({
   }
 
   async function move(d: DomainId) {
-    const plan = planTerms('domain', picked, who, domains, { tool, domain: d })
+    const plan = planTerms('domain', picked, who, domains, { domain: d })
     if (!plan.act.length) return setNote({ text: skippedLine(plan.skipped), skipped: plan.skipped })
     const { undo } = await write('moveTerms', { names: plan.act.map((x) => x.name), domain: d })
     settle(plan.act, plan.skipped)

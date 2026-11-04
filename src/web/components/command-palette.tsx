@@ -40,7 +40,7 @@ import { useDomains, useMe } from '@/lib/workspace'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { TypeGlyph } from '@/components/heed/definition'
 import { useTheme } from '@/lib/theme-context'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { logos } from '@/model/integrations'
 
 /** A context item's kind as a glyph, labelled for screen readers by the words beside it. */
 function KindGlyph({ kind }: { kind: Kind }) {
@@ -55,6 +55,8 @@ function KindGlyph({ kind }: { kind: Kind }) {
 
 /** Marks a row search everywhere found, so the palette's own filter keeps it. */
 const FOUND = 'found by search everywhere'
+/** The tools the app has a logo for, by their connector's id in words, so a search for one finds Integrations. */
+const toolWords = Object.keys(logos).join(' ').replaceAll('-', ' ')
 
 /**
  * The palette's own filter for its places and actions; a row the service found stays, in the
@@ -138,7 +140,7 @@ export function CommandPalette() {
                   Settings
                 </CommandItem>
                 <CommandItem
-                  value={`Settings Integrations ${DEFINITIONS_TOOL} Google Drive`}
+                  value={`Settings Integrations ${toolWords}`}
                   onSelect={run(() => navigate('/settings/integrations'))}
                 >
                   <PlugIcon />

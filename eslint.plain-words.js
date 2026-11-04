@@ -57,6 +57,7 @@ export const webSurfaces = [
     files: [
       'src/web/pages/integrations.tsx',
       'src/web/model/integrations.ts',
+      'src/web/model/catalogue.ts',
       'src/web/api/mock/data/integrations.ts',
       'src/web/api/mock/data/world.ts',
     ],

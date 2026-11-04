@@ -47,7 +47,7 @@ beforeAll(async () => {
   )
   try {
     const cube = createCubeSource({
-      modelDir: fileURLToPath(new URL('../fixtures/cube/', import.meta.url)),
+      modelDir: fileURLToPath(new URL('../fixtures/cube/model/', import.meta.url)),
     })
     const synced = await new ConnectorService(
       databaseFromPool(cubePool),

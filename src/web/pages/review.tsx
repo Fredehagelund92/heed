@@ -5,7 +5,7 @@ import { DockFrame, DockMissing } from '@/components/dock'
 import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/model/integrations'
+import { lookOf } from '@/model/integrations'
 import { careLine, type Review } from '@/model/review'
 import { Mark } from '@/components/heed/mark'
 import { navigate } from '@/lib/router'
@@ -64,7 +64,7 @@ export function Sender({ r, when, short }: { r: Review; when?: string; short?: b
   if (r.synced)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ToolLogo c={connectorById('google-drive')!} size="sm" />
+        <ToolLogo c={lookOf(r.synced.connector)} size="sm" />
         <span>
           From <span className="font-medium text-foreground">{r.synced.tool}</span>,{' '}
           {r.synced.folder}, read {midSentence(when ?? r.synced.read)}

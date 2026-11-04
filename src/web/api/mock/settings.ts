@@ -3,10 +3,11 @@ import { AGENT_TOOLS } from '@/lib/agents'
 import { MCP_URL } from '@/lib/brand'
 import { toolsFor, type AgentToolName } from '@domain/agents'
 import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
-import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
+import { connectorById, connectors } from '@/model/catalogue'
+import type { FigureConnection } from '@/model/integrations'
 import type { ConnectRequest } from '@contract/connections'
 import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents, toolRows } from './data/agents'
-import { figureConnections } from './data/integrations'
+import { demoConnected, demoTool, figureConnections } from './data/integrations'
 import type { Address } from './scenario'
 
 // The mock's switches and connections, kept until the page reloads: the links switch and the other
@@ -15,19 +16,20 @@ import type { Address } from './scenario'
 // ?figures=on|off|<integration> set the switches from the address, and ?connect= shows the live
 // line in any state.
 
-export const FIGURE_SOURCES: ConnectorId[] = ['cube']
+/** The tools that can read figures for Ask, as their manifests say. */
+export const FIGURE_SOURCES = connectors.flatMap((c) => (c.figures ? [c.id] : []))
 
 export function createSettings() {
   let links = true
   /** The tools an admin switched off; every other is on. */
   let off: string[] = []
   let pause: Settings['pause'] = { all: false, domain: null }
-  let figures: Partial<Record<ConnectorId, boolean>> = { cube: false }
-  let contacts: Partial<Record<ConnectorId, string>> = Object.fromEntries(
+  let figures: Record<string, boolean> = Object.fromEntries(FIGURE_SOURCES.map((id) => [id, false]))
+  let contacts: Record<string, string> = Object.fromEntries(
     Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
   )
-  let connected: ConnectorId[] = ['cube', 'google-drive']
-  let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
+  let connected: string[] = [...demoConnected]
+  let connections: Record<string, FigureConnection> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
   let made = 0
   /** Whether the demo's waiting agent sign-in was answered on the consent page. */
@@ -90,6 +92,7 @@ export function createSettings() {
         pause,
         figures: shown,
         contacts,
+        figureTools: Object.fromEntries(FIGURE_SOURCES.map((id) => [id, demoTool(id)])),
         connected,
       }
     },
@@ -102,22 +105,22 @@ export function createSettings() {
     setPause(change: { all: boolean } | { domain: string | null }) {
       pause = { ...pause, ...change }
     },
-    setFigures(id: ConnectorId, on: boolean) {
+    setFigures(id: string, on: boolean) {
       figures = { ...figures, [id]: on }
     },
-    setContact(id: ConnectorId, name: string) {
+    setContact(id: string, name: string) {
       contacts = { ...contacts, [id]: name }
     },
     /** How each figure-capable integration is reached, with its data contact as it stands. */
-    connections: (): Partial<Record<ConnectorId, FigureConnection>> =>
+    connections: (): Record<string, FigureConnection> =>
       Object.fromEntries(
         Object.entries(connections).map(([id, c]) => [
           id,
-          { ...c, contact: contacts[id as ConnectorId] ?? c.contact },
+          { ...c, contact: contacts[id] ?? c.contact },
         ]),
       ),
     /** A new data endpoint and token: the token is set, and shown nowhere. */
-    setConnection(id: ConnectorId, endpoint: string) {
+    setConnection(id: string, endpoint: string) {
       const was = connections[id]
       connections = {
         ...connections,
@@ -130,10 +133,10 @@ export function createSettings() {
         },
       }
     },
-    connect(id: ConnectorId) {
+    connect(id: string) {
       if (!connected.includes(id)) connected = [...connected, id]
     },
-    disconnect(id: ConnectorId) {
+    disconnect(id: string) {
       connected = connected.filter((c) => c !== id)
     },
     /** Every agent for an admin; anyone else sees the apps they signed in with. */

@@ -13,8 +13,7 @@ export const manifest = defineManifest({
   kind: 'definitions',
   tool: 'Static list',
   title: 'Static list of definitions',
-  summary:
-    'Metrics and dimensions you write in this form, as JSON. For a trial, or for a team without a semantic layer yet.',
+  summary: 'Metrics and dimensions you write yourself, as a JSON list.',
   icon: 'list',
   docs: './README.md',
   maintainer: { name: 'Core team' },
@@ -53,6 +52,7 @@ export const manifest = defineManifest({
     deletions: 'full-listing',
     domain: 'hint',
     marks: 'meaning',
+    mergeDimensions: 'by-name',
   },
   schedule: { default: 'PT1H', minimum: 'PT1H' },
   staleAfter: 'PT6H',

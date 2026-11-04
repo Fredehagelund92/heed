@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -42,6 +42,15 @@ describe('the built-in connectors', () => {
     expect(builtInManifests).toEqual(builtInConnectors.map((connector) => connector.manifest))
   })
 
+  it('has a README for each, with the sections a connector page has and nothing left to do', () => {
+    for (const { manifest } of builtInConnectors) {
+      const readme = readFileSync(resolve('src/connectors', manifest.id, manifest.docs!), 'utf8')
+      for (const section of ['Settings', 'What a read does', 'Schedule and limits', 'Tests'])
+        expect(readme, `${manifest.id}: ## ${section}`).toContain(`\n## ${section}\n`)
+      expect(readme, manifest.id).not.toMatch(/\bTODO\b/)
+    }
+  })
+
   it('has manifests that pass the checks, as a set too', () => {
     for (const manifest of builtInManifests) expect(problemsOf(manifest), manifest.id).toEqual([])
     expect(checkManifests(builtInManifests)).toEqual([])
@@ -79,7 +88,7 @@ describe('checking a manifest', () => {
       'version: Use a semantic version, such as 1.0.0.',
     ])
     expect(problemsOf({ ...valid, heed: '^2.0' })).toEqual([
-      'heed: This build speaks interface 3.0.0, which ^2.0 does not include. Write a range such as ^3.0.',
+      'heed: This build speaks interface 3.1.0, which ^2.0 does not include. Write a range such as ^3.0.',
     ])
     expect(problemsOf({ ...valid, heed: '>=3' })).toHaveLength(1)
     expect(problemsOf({ ...valid, id: 'acme.lookml' })).toEqual([])
@@ -156,6 +165,7 @@ describe('checking a manifest', () => {
     ).toEqual([
       'refPrefix: Only a definitions connector has a ref prefix.',
       'capabilities.marks: Only a definitions connector has change marks of its own.',
+      'capabilities.mergeDimensions: Only a definitions connector has dimensions.',
       'limits.draftsPerDay: Say how many drafts a source may make in a day.',
     ])
     const { refPrefix: _prefix, ...unprefixed } = valid

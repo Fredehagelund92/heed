@@ -692,7 +692,7 @@ The interface has four operations: list definitions, say what changed, confirm t
 
 | ID | Requirement | Priority | Status |
 | --- | --- | --- | --- |
-| CON-201 | A definition source connector must give every definition a stable id, a kind (metric, dimension or group) and a name. It must also give a title, a short description, a type and a visibility. It should give the other names the tool lists for a definition (Cube's `meta.synonyms`): a term proposed for it takes them as other names (FR-107), each for one term only, so a name two members share goes to neither. A dimension that several views of a source have under the same name is one vocabulary term that holds the definition of each view: members merge strictly by their own name, the name after the view and after the prefix a view gives a member it joins (`segments.campaign_campaign_name` is `campaign_name`), never by a similar name or meaning. A proposed term reads as that own name ("Brand name"). An owner renames a term or adds other names by hand. | First build | Kept |
+| CON-201 | A definition source connector must give every definition a stable id, a kind (metric, dimension or group) and a name. It must also give a title, a short description, a type and a visibility. It should give the other names the tool lists for a definition (Cube's `meta.synonyms`): a term proposed for it takes them as other names (FR-107), each for one term only, so a name two members share goes to neither. A dimension that several views of a source have under the same name is one vocabulary term that holds the definition of each view: members merge strictly by their own name, the name after the view and after the prefix a view gives a member it joins (`segments.campaign_campaign_name` is `campaign_name`), never by a similar name or meaning. A connector whose tool keeps each view's dimensions its own says so in its manifest (`mergeDimensions: 'never'`, as dbt does: `orders.status` and `customers.status` are two dimensions there); each such member is then a proposed term of its own, and a name another term already has takes its view's name ("Status (customers)"). A proposed term reads as that own name ("Brand name"). An owner renames a term or adds other names by hand. (Amended 3 Nov 2026: a connector says whether its dimensions of one name merge.) | First build | Changed |
 | CON-202 | A connector must give every definition a change mark. The mark must change when the type, the calculation (if known) or the visibility changes. It should also change when the description changes. | First build | Kept |
 | CON-203 | A connector must be able to say which definitions changed or disappeared since a given time or version. | First build | Kept |
 | CON-204 | A connector must be able to confirm that one stable id still exists. | First build | Kept |
@@ -754,7 +754,6 @@ These are not part of the first build. Each one needs only the interface above, 
 
 | Connector | Kind | Extra points it needs |
 | --- | --- | --- |
-| dbt project (semantic models and metrics) | Definition source | An id format such as `dbt:model.name`; a way to read project files or the dbt manifest; a map from dbt groups to domains. |
 | LookML (Looker) | Definition source | An id format such as `lookml:view.field`; a reader for LookML files; a way to detect changes in files. |
 | Data catalogue (for example DataHub, Atlan or OpenMetadata) | Definition source | Change events or polling; import of owners and glossary terms as hints; read-only API access. |
 | Open interchange file (Apache Ossie) | Definition source | A reader for the interchange format; a way to say that no group information exists (section 7.5). |
@@ -762,6 +761,21 @@ These are not part of the first build. Each one needs only the interface above, 
 | Ticket tool (for example Linear or Jira) | Context source | The same as a document tool. |
 | Other chat tool (for example Microsoft Teams) | Chat notice and context source | A message action; a way to post notices. |
 | Other identity providers | Identity | Group names from claims; discovery by OpenID Connect. |
+
+### 6.8 The dbt MetricFlow connector
+
+A definition source connector for the metrics and dimensions of a dbt project's semantic layer (MetricFlow). It reads the file dbt writes for them, never the project's YAML, and runs no dbt. It replaces the dbt row of section 6.7.
+
+| ID | Requirement | Priority | Status |
+| --- | --- | --- | --- |
+| CON-701 | The connector must read dbt's `semantic_manifest.json` from a Git repository at a set branch, tag or commit, with a read-only credential, or from a folder on the server that whoever runs it names. It must never reach dbt Cloud or a warehouse. | First build | New |
+| CON-702 | Each definition's id must be `dbt:<semantic model>.<name>`. A metric whose inputs come from more than one semantic model must be under `_shared`, a name no semantic model can have. | First build | New |
+| CON-703 | The connector must list every metric that is not hidden, and every dimension. It must leave out measures, entities and saved queries. | First build | New |
+| CON-704 | A definition's domain must come from `config.meta.domain`: a metric's own, else the one domain its semantic models agree on, else none. It is mapped per source (CON-206). | First build | New |
+| CON-705 | A definition's other names must come from `config.meta.synonyms` (CON-201). | First build | New |
+| CON-706 | The change mark must come from the calculation, with the calculations of the metrics it is built from, the type, the label and the description. It must be the same for the same meaning under both of dbt's YAML specs, and must never see the domain, the other names or the environment the project was built for. | First build | New |
+| CON-707 | A metric whose input the file does not hold must be left out with a warning, and the read must be partial (CON-213). The connector must never guess its group, its domain or its name. | First build | New |
+| CON-708 | The connector must never read or keep a value: it has no figures (CON-612). | First build | New |
 
 ## 7. Getting definitions from Cube
 

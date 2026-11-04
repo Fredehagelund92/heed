@@ -1,6 +1,9 @@
 import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { format, resolveConfig } from 'prettier'
 import { describe, expect, it } from 'vitest'
+import { sourceWarningCodes } from '../../../src/contract/operations.ts'
 import type { SourceConfig } from '../../../src/contract/sources.ts'
 import { checkManifest } from '../../../src/domain/connector-manifest.ts'
 import {
@@ -16,6 +19,7 @@ import {
   type RegisteredConnector,
   type StoredSource,
 } from '../../../src/server/modules/connectors/index.ts'
+import type { DefinitionSource } from '../../../src/server/modules/connectors/types.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
 
 /*
@@ -54,8 +58,33 @@ export interface ConnectorFixture {
   planted?: string | (() => string | undefined)
   /** Definitions: settings whose read meets a file it cannot read, which makes it partial. */
   partial?: () => FixtureSource
-  /** Definitions: a calculation in the tool's content that must cross into no definition. */
-  calculation?: string
+  /**
+   * Definitions: every calculation in the tool's content (SQL, a filter, an expression), none of
+   * which may cross into a definition or a warning.
+   */
+  calculation?: string | string[]
+  /**
+   * Definitions: the file the read of the settings that work must give, as JSON (its definitions
+   * and warnings): the connector's expected mapping, kept with its fixture. Written by
+   * `vitest -u` when the mapping changes on purpose, and read in review.
+   */
+  expected?: URL
+  /**
+   * Definitions: settings whose input means the same as the good one's in another form (reordered,
+   * reformatted, built for another environment): the read gives the same refs and marks.
+   */
+  reformat?: () => FixtureSource
+  /**
+   * Definitions: settings whose input differs from the good one's in one calculation, and the
+   * refs whose marks that moves (the definition and those built on it): exactly those move.
+   */
+  meaningChange?: () => { source: FixtureSource; moved: string[] }
+  /**
+   * Definitions: settings that point at input of another format (another file of the tool, a
+   * file of another tool). The form refuses them, or the read fails with a code worded for an
+   * administrator, of class `config` or `source`: never `invalid_output`.
+   */
+  wrongFormat?: () => FixtureSource
   /**
    * Content read from a cursor (`deletions` of `tombstones` or `both`): changes the tool, editing
    * one document of the chosen scopes and removing another, and gives their ids.
@@ -107,11 +136,34 @@ async function failure(work: () => Promise<unknown>) {
   }
 }
 
+/**
+ * The definitions and warnings of a read, as a connector's expected file holds them: JSON as the
+ * repository's formatter writes it, so formatting the file never changes what is expected.
+ */
+async function expectedFile(read: { definitions: unknown[]; warnings: unknown[] }, file: string) {
+  return format(JSON.stringify({ definitions: read.definitions, warnings: read.warnings }), {
+    ...(await resolveConfig(file)),
+    parser: 'json',
+  })
+}
+
 export function describeConnector(module: ConnectorModule, fixture: ConnectorFixture) {
   const { manifest } = module
+  /** A warning code the core or the connector's manifest words. */
+  const worded = (code: string) =>
+    (sourceWarningCodes as readonly string[]).includes(code) ||
+    (code.startsWith(`${manifest.id}.`) && code.slice(manifest.id.length + 1) in manifest.warnings)
+  const calculations = [fixture.calculation ?? []].flat()
   describe(`${manifest.id}: the conformance kit of interface 3`, () => {
     let registered: RegisteredConnector
     const connector = () => (registered ??= registerConnectors([module], [])[0]!)
+    let goodRead: ReturnType<DefinitionSource['read']> | undefined
+    /**
+     * One read of the settings that work, shared by the checks that only look at it, so a
+     * connector whose read compiles in a worker compiles it once for them.
+     */
+    const readGood = () =>
+      (goodRead ??= connector().source(stored(fixture.good())).read({ cursor: null }))
 
     describe('its manifest', () => {
       it('is valid and in a range this build speaks, and the registry takes it', () => {
@@ -216,13 +268,101 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
         )
       })
 
-    if (manifest.kind === 'definitions' && fixture.calculation)
+    if (manifest.kind === 'definitions')
+      it(
+        'says only what the tool says: a group for every name, a domain or none, worded warnings',
+        async () => {
+          const reads = [await readGood()]
+          if (fixture.partial)
+            reads.push(await connector().source(stored(fixture.partial())).read({ cursor: null }))
+          for (const read of reads) {
+            for (const definition of read.definitions) {
+              // A name without a dot is in no group: Integrations would neither list nor map it.
+              expect(definition.name, definition.ref).toMatch(/^[^.]+\..+$/)
+              // No hint is no domain, said as none; a hint came from the tool or a mapping.
+              if (definition.areaHint === null) expect(definition.domainSource).toBe('none')
+              else expect(['source', 'override']).toContain(definition.domainSource)
+            }
+            for (const warning of read.warnings)
+              expect(worded(warning.code), warning.code).toBe(true)
+          }
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && calculations.length)
       it(
         'keeps every calculation out of what it reads (CON-207)',
         async () => {
-          const read = await connector().source(stored(fixture.good())).read({ cursor: null })
+          const read = await readGood()
           expect(read.definitions.length).toBeGreaterThan(0)
-          expect(JSON.stringify(read)).not.toContain(fixture.calculation)
+          for (const calculation of calculations)
+            expect(JSON.stringify(read)).not.toContain(calculation)
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.expected)
+      it(
+        'gives the definitions and warnings its expected file holds',
+        async () => {
+          const read = await readGood()
+          const file = fileURLToPath(fixture.expected!)
+          await expect(await expectedFile(read, file)).toMatchFileSnapshot(file)
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.reformat)
+      it(
+        'gives the same refs and marks for the same meaning in another form',
+        async () => {
+          // In ref order: the order of the tool's input is part of its form, not of its meaning.
+          const marks = (read: Awaited<ReturnType<typeof readGood>>) =>
+            read.definitions
+              .map((d) => [d.ref, d.changeMark])
+              .sort(([a], [b]) => (a! < b! ? -1 : a! > b! ? 1 : 0))
+          const good = marks(await readGood())
+          expect(good.length).toBeGreaterThan(0)
+          const reformatted = connector().source(stored(fixture.reformat!()))
+          expect(marks(await reformatted.read({ cursor: null }))).toEqual(good)
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.meaningChange)
+      it(
+        'moves the marks of exactly what a changed calculation means',
+        async () => {
+          const marks = (read: Awaited<ReturnType<typeof readGood>>) =>
+            new Map(read.definitions.map((d) => [d.ref, d.changeMark]))
+          const before = marks(await readGood())
+          const { source, moved } = fixture.meaningChange!()
+          const after = marks(await connector().source(stored(source)).read({ cursor: null }))
+          expect([...after.keys()]).toEqual([...before.keys()])
+          const changed = [...after].filter(([ref, mark]) => before.get(ref) !== mark)
+          expect(changed.map(([ref]) => ref).sort()).toEqual([...moved].sort())
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.wrongFormat)
+      it(
+        'refuses input of another format with a worded code, for an administrator to fix',
+        async () => {
+          const wrong = fixture.wrongFormat!()
+          const parsed = connector().parse(wrong.config)
+          if ('problems' in parsed) {
+            expect(parsed.problems.length).toBeGreaterThan(0)
+            return
+          }
+          const { outcome, warnings, errorClass } = await failure(() =>
+            connector().source(stored(wrong)).read({ cursor: null }),
+          )
+          expect(outcome, 'the read fails').toBeNull()
+          expect(['config', 'source']).toContain(errorClass)
+          expect(warnings[0]!.code).not.toBe('invalid_output')
+          expect(worded(warnings[0]!.code), warnings[0]!.code).toBe(true)
         },
         fixture.timeout,
       )

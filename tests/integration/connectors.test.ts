@@ -28,21 +28,21 @@ afterAll(async () => {
 
 it('compiles and stores real metadata through the API role, without editing vocabulary or editions', async () => {
   const source = createCubeSource({
-    modelDir: fileURLToPath(new URL('../fixtures/cube/', import.meta.url)),
+    modelDir: fileURLToPath(new URL('../fixtures/cube/model/', import.meta.url)),
   })
   const service = new ConnectorService(database, new ConnectorRegistry([source]))
   const result = await service.sync('cube')
   expect(result).toMatchObject({
     status: 'ok',
     definitionsSeen: 7,
-    coverage: { cube: 3, override: 0, none: 2 },
+    coverage: { source: 3, override: 0, none: 2 },
   })
   expect(await service.exists('cube:sales.revenue')).toBe(true)
   expect(
     (await service.list('cube')).find((entry) => entry.ref === 'cube:sales.revenue'),
   ).toMatchObject({
     areaHint: 'finance',
-    domainSource: 'cube',
+    domainSource: 'source',
     visibleGroups: null,
     missingSinceSnapshot: null,
   })
@@ -210,7 +210,7 @@ it('runs the local refresh command with configured Cube and override paths', asy
           HEED_AUTH: 'dev',
           MODELS: 'mock',
           DATABASE_URL: cliUrl.href,
-          CUBE_MODEL_DIR: fileURLToPath(new URL('../fixtures/cube/', import.meta.url)),
+          CUBE_MODEL_DIR: fileURLToPath(new URL('../fixtures/cube/model/', import.meta.url)),
           HEED_DOMAIN_OVERRIDES: overrides,
         },
         timeout: 15_000,
@@ -220,7 +220,7 @@ it('runs the local refresh command with configured Cube and override paths', asy
     expect(output).toMatchObject({
       status: 'ok',
       definitionsSeen: 7,
-      coverage: { cube: 3, override: 1, none: 1 },
+      coverage: { source: 3, override: 1, none: 1 },
     })
   } finally {
     await rm(directory, { recursive: true, force: true })

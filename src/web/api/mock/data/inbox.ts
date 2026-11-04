@@ -3,7 +3,7 @@ import type { InboxCard, Waiting } from '@/model/inbox'
 import { factById, facts } from './world'
 import { spainDraft } from './drafts'
 import { reviews } from './review'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { DEMO_DEFINITIONS, demoTool } from './integrations'
 import { alertCardWords } from '@domain/alerts'
 
 /**
@@ -227,7 +227,8 @@ export const cards: InboxCard[] = [
     for: 'Jon Abara',
     when: 'Since 7 Oct',
     title: 'What to rule out before explaining a jump in Gross margin',
-    line: `${DEFINITIONS_TOOL} changed the definition of Gross margin on 7 Oct, after this context item was checked.`,
+    due: 'source',
+    line: `${demoTool(DEMO_DEFINITIONS)} changed the definition of Gross margin on 7 Oct, after this context item was checked.`,
     detail: 'Last checked by Sofia Brandt, 30 Sep 2026.',
     primary: 'Still true',
     secondary: ['Edit', 'Archive'],
@@ -316,7 +317,13 @@ for (const r of reviews.filter((r) => when[r.id])) {
     when: when[r.id]!,
     title: r.title,
     source: r.synced
-      ? { tool: r.synced.tool, folder: r.synced.folder, doc: r.synced.doc, read: r.synced.read }
+      ? {
+          tool: r.synced.tool,
+          connector: r.synced.connector,
+          folder: r.synced.folder,
+          doc: r.synced.doc,
+          read: r.synced.read,
+        }
       : undefined,
     line: r.synced
       ? `New context from ${r.synced.tool}: ${r.synced.doc}.`

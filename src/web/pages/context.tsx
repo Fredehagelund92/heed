@@ -12,7 +12,7 @@ import {
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/model/integrations'
+import { lookOf } from '@/model/integrations'
 import {
   AddRow,
   BarSpacer,
@@ -312,7 +312,7 @@ export function ContextPage() {
                 className="inline-flex shrink-0"
               >
                 <ToolLogo
-                  c={connectorById('google-drive')!}
+                  c={lookOf(f.origin.connector)}
                   size="sm"
                   className="size-4 rounded p-0.5"
                 />

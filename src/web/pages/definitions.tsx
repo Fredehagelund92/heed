@@ -14,7 +14,8 @@ import {
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/model/integrations'
+import { connectorByTool, definitionsConnectHref } from '@/model/catalogue'
+import { integrationHref } from '@/model/integrations'
 import { PersonAvatar } from '@/components/heed/bits'
 import { AnotherNameFor, TypeGlyph, TypeTile } from '@/components/heed/definition'
 import { TagChip } from '@/components/heed/tag-chip'
@@ -58,6 +59,7 @@ import type { DomainId } from '@/model/items'
 import {
   sourceUrl,
   typeLabel,
+  toolOf,
   type Definition,
   type DefinitionType,
   useGlossary,
@@ -71,7 +73,6 @@ import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { TextSwitch } from '@/components/heed/switches'
 import { plainText } from '@/lib/mentions'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { Loadable, TableSkeleton } from '@/components/heed/load-state'
 import { useFigures } from '@/lib/figures'
 import { useLeavingRows } from '@/lib/presence'
@@ -80,17 +81,18 @@ import { useLeavingRows } from '@/lib/presence'
 // Metrics, Dimensions, Terms), a line saying where the definitions come from, the same quiet bar
 // and compact rows as Context, grouped by domain by default, and v1's two cues in the Status
 // column: Definition changed, and No context yet with Write one. Metrics and dimensions come from
-// Cube; terms are the business's own words, written here.
+// their tool; terms are the business's own words, written here.
 
 type View = 'all' | DefinitionType
 type Cue = 'conflict' | 'changed' | 'none'
 type Group = 'domain' | 'type' | 'group' | 'none'
-const GROUPS: Record<Group, string> = {
+/** The ways to group, in words: a view's group is its tool's, named when there is one tool. */
+const groupsOf = (tool: string | undefined): Record<Group, string> => ({
   domain: 'Domain',
   type: 'Type',
-  group: `Group in ${DEFINITIONS_TOOL}`,
+  group: `Group in ${tool ?? 'its tool'}`,
   none: 'No grouping',
-}
+})
 const SORTS = {
   coverage: { label: 'Coverage', first: 'desc', ways: { desc: 'No context first' } },
   name: { label: 'Name', first: 'asc', ways: { asc: 'A to Z', desc: 'Z to A' } },
@@ -126,10 +128,10 @@ export function DefinitionsPage() {
   const facts = useFacts()
   const dock = useDock()
   const { query } = useRoute()
-  // Connecting definitions is the Cube integration's connect flow now, in Settings.
+  // Connecting definitions is a definitions tool's connect flow now, in Settings.
   const setup = !!query.get('setup')
   React.useEffect(() => {
-    if (setup) navigate('/settings/integrations/cube/connect', { setup: '1' })
+    if (setup) navigate(definitionsConnectHref(), { setup: '1' })
   }, [setup])
   const figures = useFigures()
   const [view, setView] = React.useState<View>('all')
@@ -149,7 +151,10 @@ export function DefinitionsPage() {
   const sorting = chosenSort ?? startOf(SORTS, text.trim() ? 'best' : 'coverage')
   const sort = sorting.key
   const way = flipped(SORTS, sorting) ? -1 : 1
-  const tool = connectorById('cube')!.name
+  // The tool the metrics and dimensions come from, when one; neutral words when none or several.
+  const tool = toolOf(all)
+  const source = connectorByTool(tool)
+  const GROUPS = groupsOf(tool)
   const about = (d: Definition) => glossary.contextAbout(d, facts).length
   // A row's conflict includes the words folded into it, so folding never hides one.
   const cueOf = (d: Definition): Cue | undefined =>
@@ -255,7 +260,7 @@ export function DefinitionsPage() {
     setView('all')
   }
 
-  /** A flag only when something needs a look: a conflict, a definition Cube changed, or no description in Cube. */
+  /** A flag only when something needs a look: a conflict, a definition its tool changed, or no description in it. */
   const foldedConflict = (d: Definition) =>
     synonymRows ? undefined : glossary.alsoCalled(d).find((x) => glossary.conflictOf(x))
   const flagOf = (d: Definition) =>
@@ -269,12 +274,12 @@ export function DefinitionsPage() {
         : d.changed
           ? {
               icon: RefreshCwIcon,
-              tip: `Definition changed in ${tool} on ${d.changed}. Context about it comes back to its owners to check.`,
+              tip: `Definition changed in ${d.tool ?? 'its tool'} on ${d.changed}. Context about it comes back to its owners to check.`,
             }
           : d.synced && /^No description/.test(d.definition)
             ? {
                 icon: TriangleAlertIcon,
-                tip: `No description in ${tool}. Agents get the name only.`,
+                tip: `No description in ${d.tool ?? 'its tool'}. Agents get the name only.`,
               }
             : undefined
 
@@ -634,17 +639,21 @@ export function DefinitionsPage() {
           </FilterRow>
           {/* Where the definitions come from, as the catalogue says it under its toolbar. */}
           <p className="flex shrink-0 items-start gap-2 border-b px-4 py-2 text-xs leading-5 text-muted-foreground md:px-6">
-            <ToolLogo c={connectorById('cube')!} size="sm" className="mt-0.5" />
+            <ToolLogo c={source} size="sm" className="mt-0.5" />
             <span>
-              Metrics and dimensions are synced from {tool}, read today at 06:00, and read-only
-              here. Terms are written here, by the owner of their domain.{' '}
+              Metrics and dimensions are synced from {tool ?? 'the definitions tools connected'},
+              read today at 06:00, and read-only here. Terms are written here, by the owner of their
+              domain.{' '}
               <a
-                href="/settings/integrations/cube"
+                href={integrationHref(source?.id)}
                 className="font-medium text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
-                {tool} in Integrations
+                {tool ?? 'Integrations'}
+                {tool && ' in Integrations'}
               </a>
-              . A figure that looks wrong goes to {figures.contact('cube')}, the data contact.
+              .
+              {source?.figures &&
+                ` A figure that looks wrong goes to ${figures.contact(source.id)}, the data contact.`}
             </span>
           </p>
           {/* Coverage first: how much of what agents can be asked has nothing written down. */}

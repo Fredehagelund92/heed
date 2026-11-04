@@ -70,6 +70,6 @@ beforeAll(async () => {
 it('reads where 2,000 members take their domain from without one lookup each', async () => {
   const { result, ms } = await timed(() => readConnectors(database))
   const demo = result.find((connector) => connector.id === 'demo')!
-  expect(demo.domainCoverage).toMatchObject({ override: VIEWS * METRICS, cube: 0 })
+  expect(demo.domainCoverage).toMatchObject({ override: VIEWS * METRICS, source: 0 })
   expect(ms).toBeLessThan(BUDGET_MS)
 }, 60_000)
