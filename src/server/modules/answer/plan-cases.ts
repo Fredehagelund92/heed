@@ -409,6 +409,28 @@ export const planCases: PlanCase[] = [
     after: 'B1',
     expect: { route: 'planner', plan: ['about_previous'], state: 'conflict', cites: norwayPair },
   },
+  // Questions the rules read in full keep their answer after a metric turn: no planner call.
+  {
+    id: 'after-records-conflicts',
+    what: 'List conflicts after a metric answer: the records, not a follow-up.',
+    question: 'list conflicts',
+    after: 'B1',
+    expect: { route: 'records', intent: 'conflicts' },
+  },
+  {
+    id: 'after-records-owner',
+    what: 'Who owns a metric after a metric answer: the records, not a follow-up.',
+    question: 'who owns Orders?',
+    after: 'B1',
+    expect: { route: 'records', intent: 'owner' },
+  },
+  {
+    id: 'after-complete-why',
+    what: 'A complete why question after a metric answer: the rules, not a follow-up.',
+    question: B1,
+    after: 'B1',
+    expect: { route: 'rules', state: 'conflict', cites: norwayPair },
+  },
   // Off topic and numbers.
   {
     id: 'X1',

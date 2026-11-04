@@ -414,15 +414,18 @@ const POINTS_BACK =
  * Whether a question reads as a follow-up to the last turn, so the planner reads it even when
  * the rules can: a short question that starts from the last one or points back at it ("why?",
  * "what about Sweden?", "is that a conflict?"), one that names no metric after a turn that had
- * one, and any answer to a question Ask asked back.
+ * one, and any answer to a question Ask asked back. A question the rules answered in full (a
+ * records question, or a metric found) keeps their answer, unless it answers a question Ask
+ * asked back.
  */
 export function readsAsFollowUp(
   question: string,
   previous: PreviousTurn | null | undefined,
-  read: { metrics: number },
+  read: { metrics: number; answered: boolean },
 ): boolean {
   if (!previous) return false
   if (previous.asked) return true
+  if (read.answered) return false
   const t = normalizeName(question)
     .replace(/[^\p{L}\p{N}' ]+/gu, ' ')
     .replace(/\s+/g, ' ')
@@ -581,8 +584,15 @@ export function plannerReason(c: {
   }
 }): PlannerReason | null {
   if (c.scoped) return null
-  if (readsAsFollowUp(c.question, c.previous, { metrics: c.rules.scope?.metrics.length ?? 0 }))
-    return 'follow-up'
+  const metrics = c.rules.scope?.metrics.length ?? 0
+  const answered =
+    c.records?.type === 'records'
+      ? !c.records.loose
+      : !c.records &&
+        metrics > 0 &&
+        c.rules.status !== 'need_more_detail' &&
+        c.rules.status !== 'no_match'
+  if (readsAsFollowUp(c.question, c.previous, { metrics, answered })) return 'follow-up'
   if (c.records) return c.records.type === 'records' && c.records.loose ? 'business change' : null
   if (c.rules.status === 'need_more_detail') return 'unread'
   if (c.rules.status === 'no_match' && c.rules.scope && !c.rules.scope.metrics.length)

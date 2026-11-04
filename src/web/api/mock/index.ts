@@ -248,13 +248,18 @@ export function createMockApi() {
       return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
     }
     const read = readQuestion(question)
-    if (followsOn(question, previous, world, read.metric ? 1 : 0)) {
+    const recognised = recognisedFor(question, world)
+    const ruled = askQuestion(question, pool)
+    const answered =
+      recognised?.type === 'records'
+        ? !recognised.loose
+        : !recognised && !!read.metric && ruled.state !== null
+    if (followsOn(question, previous, world, { metrics: read.metric ? 1 : 0, answered })) {
       const a = planned()
       if (a) return a
     }
     // A question about the context's own records is answered from them, as on the service; one
     // about what changed that names nothing Heed keeps is the business's first.
-    const recognised = recognisedFor(question, world)
     if (recognised?.type === 'records' && recognised.loose) {
       const a = planned()
       if (a) return a
@@ -269,7 +274,6 @@ export function createMockApi() {
       },
     })
     if (records) return recordsAnswer(question, records)
-    const ruled = askQuestion(question, pool)
     // Read nothing, or a market alone: the planner reads it. The mock's reader finds every
     // metric's items for a market alone, where the service's finds none, so it asks first.
     const unread = ruled.state === null || (!ruled.metric && ruled.markets.length > 0)

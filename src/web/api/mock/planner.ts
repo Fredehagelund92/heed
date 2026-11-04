@@ -98,10 +98,10 @@ export function followsOn(
   question: string,
   previous: AskPrevious | undefined,
   world: PlannerWorld,
-  metrics: number,
+  read: { metrics: number; answered: boolean },
 ): boolean {
   if (!previous) return false
-  return readsAsFollowUp(question, turnOf(world, previous).last, { metrics })
+  return readsAsFollowUp(question, turnOf(world, previous).last, read)
 }
 
 /**

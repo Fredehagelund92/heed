@@ -245,6 +245,30 @@ describe('when the planner reads a question', () => {
     )
   })
 
+  it('leaves the rules a question they answered in full after a metric turn', () => {
+    expect(
+      reason('list conflicts', {
+        previous,
+        records: { type: 'records' },
+        rules: rules('no_match'),
+      }),
+    ).toBeNull()
+    expect(
+      reason('who owns Sales?', {
+        previous,
+        records: { type: 'records' },
+        rules: rules('no_match'),
+      }),
+    ).toBeNull()
+    expect(reason('why did orders drop in Norway?', { previous })).toBeNull()
+    // Unread, a market alone, or the answer to a question Ask asked back is still read.
+    expect(reason('why?', { previous, rules: rules('need_more_detail') })).toBe('follow-up')
+    expect(reason('what about Sweden?', { previous, rules: rules('no_match') })).toBe('follow-up')
+    expect(reason('Orders', { previous: { ...previous, asked: 'Do you mean Orders?' } })).toBe(
+      'follow-up',
+    )
+  })
+
   it('reads a follow-up, whatever the rules read', () => {
     for (const question of [
       'what about Sweden?',
@@ -254,7 +278,9 @@ describe('when the planner reads a question', () => {
       'is that a conflict?',
       'Sweden',
     ])
-      expect(readsAsFollowUp(question, previous, { metrics: 0 }), question).toBe(true)
+      expect(readsAsFollowUp(question, previous, { metrics: 0, answered: false }), question).toBe(
+        true,
+      )
     // Words about a period, a question with its own metric, a long question, no last turn.
     for (const question of [
       'what were orders this month?',
@@ -262,11 +288,17 @@ describe('when the planner reads a question', () => {
       'returns in Spain',
       'why did orders in Spain drop in October and what did the owners write about the payment provider there?',
     ])
-      expect(readsAsFollowUp(question, previous, { metrics: 1 }), question).toBe(false)
-    expect(readsAsFollowUp('why?', null, { metrics: 0 })).toBe(false)
+      expect(readsAsFollowUp(question, previous, { metrics: 1, answered: false }), question).toBe(
+        false,
+      )
+    expect(readsAsFollowUp('why?', null, { metrics: 0, answered: false })).toBe(false)
     // The answer to a question Ask asked back is always one.
     expect(
-      readsAsFollowUp('Orders', { ...previous, asked: 'Do you mean Orders?' }, { metrics: 1 }),
+      readsAsFollowUp(
+        'Orders',
+        { ...previous, asked: 'Do you mean Orders?' },
+        { metrics: 1, answered: true },
+      ),
     ).toBe(true)
   })
 })
