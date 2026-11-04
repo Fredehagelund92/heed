@@ -19,7 +19,6 @@ describe('links', () => {
       ['mentions', 'context:itm_kh4llvi9'],
     ])
     expect(links.find((l) => l.to.id === 'context:itm_kh4llvi9')!.to.retired).toBe(true)
-    expect(links.find((l) => l.to.id === 'context:itm_za26xpzv')!.otherDomain).toBe(true)
     // Linked from: the Norway stop links here.
     expect(linksOf('context:itm_za26xpzv', w).map((l) => [l.rel, l.to.id])).toEqual([
       ['mentioned_by', 'context:itm_norway_stop'],
@@ -37,9 +36,8 @@ describe('links', () => {
     })
   })
 
-  it('marks a definition from another domain', () => {
+  it('names the domain a definition belongs to', () => {
     const orders = linksOf('context:itm_eprlkrz2', w).find((l) => l.to.id === 'metric:Orders')!
-    expect(orders.otherDomain).toBe(true)
     expect(orders.to.domain).toBe('sales')
   })
 

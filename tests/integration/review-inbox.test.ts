@@ -231,6 +231,8 @@ describe('the review sheet (FR-224)', () => {
     expect(s.tryIt.question).toMatch(/Orders/)
     expect(s.tryIt.before.items.map((i) => i.id)).toEqual([itemId])
     expect(s.tryIt.after.items.map((i) => i.id)).toEqual([itemId])
+    expect(s.tryIt.after.say).toContain('context item')
+    expect(s.tryIt.after.say).not.toMatch(/\bfact\b/)
     expect(s.from).toEqual({ personId: people.author, name: 'author' })
     expect(s.read).toEqual({ opened: false, read: false })
     expect(s.canPublish).toBe(true)

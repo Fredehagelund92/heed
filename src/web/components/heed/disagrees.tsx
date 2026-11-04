@@ -50,7 +50,9 @@ export function DisagreesSection({ self, other }: { self: Fact; other: Fact }) {
         <p className="text-xs text-muted-foreground">
           {domains[other.domain]?.name ?? other.domain}
           {other.checkedOn && `, checked ${other.checkedOn}`}.
-          {pair && ` Agents say Conflict for ${pair.asked} questions this week.`}
+          {pair &&
+            pair.asked > 0 &&
+            ` Agents say Conflict for ${pair.asked} ${pair.asked === 1 ? 'question' : 'questions'} this week.`}
         </p>
         <div>
           <CompareButton

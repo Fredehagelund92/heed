@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { ContextText } from '@/components/heed/mention-chip'
+import { hostOf } from '@/lib/host'
 import { useSideChoice } from '@/lib/side-panel'
 import { useSend } from '@/lib/send'
 import '@/components/editor/style.css'
@@ -246,15 +247,6 @@ function initialForm(
       ),
     }
   return blank
-}
-
-/** "customs.example": a link's host, the way a link chip names it. */
-const hostOf = (url: string) => {
-  try {
-    return new URL(url).host.replace(/^www\./, '')
-  } catch {
-    return url.replace(/^https?:\/\//, '')
-  }
 }
 
 const countWords = (text: string) =>

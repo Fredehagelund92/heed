@@ -185,7 +185,6 @@ describe('Related, from the service', () => {
           retired: true,
           domain: 'area_marketing',
         },
-        otherDomain: false,
       },
       {
         rel: 'disagrees',
@@ -196,7 +195,6 @@ describe('Related, from the service', () => {
           retired: false,
           domain: 'area_marketing',
         },
-        otherDomain: false,
       },
       {
         rel: 'mentions',
@@ -207,12 +205,10 @@ describe('Related, from the service', () => {
           retired: false,
           domain: 'area_sales',
         },
-        otherDomain: true,
       },
       {
         rel: 'mentions',
         to: { id: 'value:market/norway', kind: 'value', label: 'Norway', retired: false },
-        otherDomain: false,
       },
       {
         rel: 'mentions',
@@ -223,7 +219,6 @@ describe('Related, from the service', () => {
           retired: false,
           domain: 'area_sales',
         },
-        otherDomain: true,
       },
       {
         rel: 'mentioned_by',
@@ -234,7 +229,6 @@ describe('Related, from the service', () => {
           retired: false,
           domain: 'area_marketing',
         },
-        otherDomain: false,
       },
     ])
   })

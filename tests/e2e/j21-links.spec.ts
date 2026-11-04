@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, go, mode, test, unfold } from './go.ts'
+import { card, expect, go, mode, test, unfold } from './go.ts'
 
 // J21, following links (get_related): Related shows what an agent can follow in two groups, one
 // clean line per link: the owners' relations labelled and an archived item marked; Ask says what it
@@ -59,14 +59,34 @@ test('the toolbar stays under Details, open or shut', async ({ page }) => {
     page.getByRole('heading', { name: 'Orders lags by one day in the source tool', exact: true }),
   ).toBeVisible()
   const toolbar = page.getByRole('group', { name: 'More about this context item' })
-  await expect(toolbar.getByRole('button', { name: 'Try it', exact: true })).toBeVisible()
+  const actions = async () => {
+    await expect(toolbar.getByRole('button', { name: 'Try it', exact: true })).toBeVisible()
+    await expect(toolbar.getByText(/^History/)).toBeVisible()
+    await expect(toolbar.getByText(/^Comments/)).toBeVisible()
+  }
+  await actions()
   await page.getByRole('button', { name: 'Details', exact: true }).click()
-  await expect(toolbar.getByText(/^History/)).toBeVisible()
-  await expect(toolbar.getByText(/^Comments/)).toBeVisible()
+  await actions()
   await expect(page.getByRole('region', { name: 'Context' }).getByText(/^Status$/)).toHaveCount(0)
 })
 
-test('on the service, nothing counts zero, and a draft has no empty History', async ({ page }) => {
+test('the quiet line says needs checking when a report or an overlap takes the attention line', async ({
+  page,
+}) => {
+  test.skip(mode !== 'mock', 'Opens a mock item with the mock report beside it')
+  const region = page.getByRole('region', { name: 'Context' })
+  await go(page, `/context?dock=context.itm_pfet8zj3&flag=${card('flag-germany')}`)
+  await expect(region.getByText(/Reported unclear/)).toBeVisible()
+  await expect(region.getByText(/, needs checking$/)).toBeVisible()
+  await go(page, `/context?dock=context.itm_0tmqp7o1&flag=${card('flag-germany')}`)
+  await expect(region.getByText(/Reported unclear/)).toBeVisible()
+  await expect(region.getByText(/owned by .* - checked /)).toBeVisible()
+  await expect(region.getByText(/needs checking/i)).toHaveCount(0)
+})
+
+test('on the service, a draft has no empty History and the Inbox counts no zero', async ({
+  page,
+}) => {
   test.skip(mode !== 'http', "The mock's drafts have versions, and its suggestions have questions")
   await go(page, '/context')
   await page.getByText('Store returns in Spain count on the day they are booked').first().click()
@@ -78,6 +98,7 @@ test('on the service, nothing counts zero, and a draft has no empty History', as
     page.getByRole('heading', { name: 'Store returns in Spain count on the day they are booked' }),
   ).toBeVisible()
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toHaveCount(0)
+  await expect(page.getByText('About this item', { exact: true })).toHaveCount(0)
   await go(page, '/inbox')
   await expect(page.getByText('Ines Duarte - 1 link', { exact: true })).toBeVisible()
   await expect(page.getByText(/\b0 questions/)).toHaveCount(0)

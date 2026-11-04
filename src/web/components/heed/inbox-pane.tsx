@@ -353,7 +353,7 @@ export function ItemFold({ fact, link = true }: { fact: Fact; link?: boolean }) 
       <CollapsibleContent keepMounted>
         <div className="flex flex-col gap-3 pb-4 pl-7 text-sm leading-relaxed">
           <p className="text-reading">{plainText(fact.summary)}</p>
-          {/* The row says the kind, and the item's page has the rest. */}
+          {/* The row says the kind, and the item's page has the quote and Related. */}
           <DetailsBody fact={fact} leaveOut={['kind', 'source', 'related']} />
           {link && (
             <a

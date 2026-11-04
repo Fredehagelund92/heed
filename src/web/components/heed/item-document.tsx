@@ -96,7 +96,7 @@ export function ItemDocument({
         <div className="mt-1">
           <DocFold label="Details" summary={detailsSummary(fact)}>
             <div className="pt-1">
-              {/* The quote is in the text above, and the page's side panel has Related. */}
+              {/* The quote is in the text above, and the item page's side panel has Related. */}
               <DetailsBody fact={fact} leaveOut={['source', 'related']} />
             </div>
           </DocFold>

@@ -225,6 +225,7 @@ export function FactPeek({ id }: { id: string }) {
               <PeekFact icon={CircleCheckIcon}>
                 <b>{domains[fact.domain]?.name}</b> - owned by <b>{and(owners)}</b> - checked{' '}
                 {fact.checkedOn}
+                {fact.status === 'Needs checking' && (flag || overlap) && ', needs checking'}
               </PeekFact>
             )}
             {fact.source && (

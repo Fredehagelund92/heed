@@ -21,7 +21,7 @@ export type LinkEnd = {
   retired: boolean
   domain?: DomainId
 }
-export type Link = { rel: Rel; to: LinkEnd; otherDomain: boolean }
+export type Link = { rel: Rel; to: LinkEnd }
 
 export const DEPTH = 1
 export const MAX_NODES = 50
@@ -66,7 +66,6 @@ function end(id: string, label: string, w: World): LinkEnd {
   return { id, kind, label, retired: false }
 }
 
-const subjectDomain = (id: string, w: World): DomainId | undefined => end(id, '', w).domain
 const textOf = (id: string, w: World) => {
   const { kind, key } = parseMentionId(id)
   if (kind === 'context') {
@@ -79,7 +78,6 @@ const textOf = (id: string, w: World) => {
 
 /** Every link of a context item, a definition or a domain, in the fixed order. */
 export function linksOf(id: string, w: World): Link[] {
-  const home = subjectDomain(id, w)
   const out: { rel: Rel; to: LinkEnd }[] = []
   const { kind, key } = parseMentionId(id)
   // The owners' relations, kept on the items: replaces (and, seen from the old one, replaced by), and disagrees with.
@@ -114,7 +112,6 @@ export function linksOf(id: string, w: World): Link[] {
   return out
     .sort((a, b) => ORDER.indexOf(a.rel) - ORDER.indexOf(b.rel))
     .filter((l) => (seen.has(l.to.id) ? false : (seen.add(l.to.id), true)))
-    .map((l) => ({ ...l, otherDomain: !!home && !!l.to.domain && l.to.domain !== home }))
 }
 
 export type Followed = { from: Fact; link: Link }

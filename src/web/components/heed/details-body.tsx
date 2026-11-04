@@ -3,13 +3,14 @@ import { CalendarIcon, MapPinIcon, ShieldAlertIcon, type LucideIcon } from '@/co
 import { kindIcons } from '@/components/heed/kind-icons'
 import { Related } from '@/components/heed/related'
 import { ScopeChips } from '@/components/heed/scope-chips'
+import { hostOf } from '@/lib/host'
 import { mentionId } from '@/lib/mentions'
 import { kindLabel, type Fact } from '@/model/items'
 
 // What a context item's Details hold, one body wherever it opens: the quick view, the item's page,
 // a review's Preview and the Inbox's item fold. Each detail is a line in words with its icon, in
 // the voice of the checked line above it, then the quote with where it was copied from, then
-// Related. A place leaves out what it already shows. Status is not here: the lines above Details
+// Related. A place leaves out what it shows already or what its own page has. Status is not here: the lines above Details
 // say it.
 
 /** The closed Details row's muted words: what is set, the values and not their names. */
@@ -47,7 +48,7 @@ function SourceQuote({ quote, source }: { quote: string; source?: string }) {
             rel="noreferrer"
             className="font-medium break-all text-primary underline-offset-4 hover:underline"
           >
-            {URL.parse(source)?.hostname ?? source}
+            {hostOf(source)}
             <span className="sr-only"> (opens in a new tab)</span>
           </a>
         </figcaption>
@@ -61,7 +62,7 @@ export function DetailsBody({
   leaveOut = [],
 }: {
   fact: Fact
-  /** What the place already shows: the kind, the quote with its source, or Related. */
+  /** What the place shows already or what its own page has: the kind, the quote with its source, or Related. */
   leaveOut?: readonly ('kind' | 'source' | 'related')[]
 }) {
   const Kind = kindIcons[fact.kind]
