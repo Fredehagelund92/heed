@@ -10,8 +10,8 @@ import { kindLabel, type Fact } from '@/model/items'
 // What a context item's Details hold, one body wherever it opens: the quick view, the item's page,
 // a review's Preview and the Inbox's item fold. Each detail is a line in words with its icon, in
 // the voice of the checked line above it, then the quote with where it was copied from, then
-// Related. A place leaves out what it shows already or what its own page has. Status is not here: the lines above Details
-// say it.
+// Related. A place leaves out what it shows already or what its own page has. Status is not here:
+// the lines above Details say it.
 
 /** The closed Details row's muted words: what is set, the values and not their names. */
 export const detailsSummary = (fact: Fact) =>
@@ -62,7 +62,10 @@ export function DetailsBody({
   leaveOut = [],
 }: {
   fact: Fact
-  /** What the place shows already or what its own page has: the kind, the quote with its source, or Related. */
+  /**
+   * What the place shows already or what its own page has: the kind, the quote with its source,
+   * or Related.
+   */
   leaveOut?: readonly ('kind' | 'source' | 'related')[]
 }) {
   const Kind = kindIcons[fact.kind]
