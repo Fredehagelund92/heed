@@ -100,7 +100,16 @@ export type RecordsReading = {
 }
 
 export type RecordsRecognition =
-  | { type: 'records'; ask: RecordsAsk }
+  | {
+      type: 'records'
+      ask: RecordsAsk
+      /**
+       * A question about what changed that names nothing Heed keeps ("what changed last month?"):
+       * a person means the business, so Ask's planner reads it first (FR-719); with no planner it
+       * is the context's changes, as before.
+       */
+      loose?: true
+    }
   /** A question about one person's work: refused, with a reason, never looked up. */
   | { type: 'refused' }
 
@@ -259,7 +268,7 @@ export function readRecordsPeriod(text: string, nowIso: string): RecordsPeriod |
 }
 
 /** The period an answer about changes takes when the words name none: the last 7 days. */
-const assumedPeriod = (nowIso: string): RecordsPeriod => {
+export const assumedPeriod = (nowIso: string): RecordsPeriod => {
   const now = Date.parse(nowIso)
   return period(now - 7 * DAY, now, 'in the last 7 days', now, true)
 }
@@ -469,7 +478,8 @@ export function recogniseRecords(
   if (created || changed) {
     const read = readRecordsPeriod(words, reading.now)
     const chosen = read ?? assumedPeriod(reading.now)
-    return ask(changed ? 'changed' : 'created', { kind: kindOrNull(t), period: chosen })
+    const found = ask(changed ? 'changed' : 'created', { kind: kindOrNull(t), period: chosen })
+    return changed && !noun && found.type === 'records' ? { ...found, loose: true } : found
   }
   return null
 }

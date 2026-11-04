@@ -90014,6 +90014,90 @@
                       "to"
                     ],
                     "additionalProperties": false
+                  },
+                  "previous": {
+                    "type": "object",
+                    "properties": {
+                      "question": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "scope": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "metrics": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "filters": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "window": {
+                                "type": "object",
+                                "properties": {
+                                  "start": {
+                                    "type": "string"
+                                  },
+                                  "end": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "start",
+                                  "end"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "metrics",
+                              "filters",
+                              "window"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sources": {
+                        "type": "array",
+                        "maxItems": 10,
+                        "items": {
+                          "type": "string",
+                          "maxLength": 64
+                        }
+                      },
+                      "asked": {
+                        "type": "string",
+                        "maxLength": 300
+                      }
+                    },
+                    "required": [
+                      "question",
+                      "sources"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -90039,6 +90123,70 @@
                         },
                         "data": {
                           "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "plan"
+                                },
+                                "plan": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "reads",
+                                        "records",
+                                        "clarify",
+                                        "off_topic"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "working": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "working"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "plan"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "reply"
+                                },
+                                "reply": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "clarify",
+                                        "off_topic"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "text": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "text"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "reply"
+                              ]
+                            },
                             {
                               "type": "object",
                               "properties": {
@@ -91670,6 +91818,42 @@
                                       "items": {
                                         "type": "string"
                                       }
+                                    },
+                                    "reading": {
+                                      "type": "object",
+                                      "properties": {
+                                        "words": {
+                                          "type": "string"
+                                        },
+                                        "carried": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "period": {
+                                          "anyOf": [
+                                            {
+                                              "enum": [
+                                                "asked",
+                                                "carried",
+                                                "today",
+                                                "recent",
+                                                "any"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "words",
+                                        "carried",
+                                        "period"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -99961,6 +100145,42 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "reading": {
+                          "type": "object",
+                          "properties": {
+                            "words": {
+                              "type": "string"
+                            },
+                            "carried": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "period": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "asked",
+                                    "carried",
+                                    "today",
+                                    "recent",
+                                    "any"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "words",
+                            "carried",
+                            "period"
+                          ]
                         }
                       },
                       "required": [

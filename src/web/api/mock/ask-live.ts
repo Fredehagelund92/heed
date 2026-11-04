@@ -35,6 +35,8 @@ export async function playAnswer(answer: Answer, live: AskLive): Promise<Answer>
       })
     })
   const tell = live.onEvent ?? (() => undefined)
+  // Read by the planner: what it chose to look up comes first, as the service sends it.
+  if (answer.reading?.working) tell({ type: 'plan', working: answer.reading.working })
   await wait(MOCK_LOOK_MS)
   // A records answer is counted, not looked up: it comes whole.
   if (answer.records) return answer

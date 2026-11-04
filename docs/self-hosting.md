@@ -1,7 +1,7 @@
 # Self-host Heed on one computer
 
 How to run Heed with `docker compose` on one computer, back it up, restore it, upgrade it and roll
-an upgrade back.
+an upgrade back. To run it anywhere else, see [Where to run Heed](where-to-run.md).
 
 > **For local evaluation, not for production use.** This setup signs people in with the demo's
 > people picker, so anyone who reaches it can be an administrator. The database trusts every

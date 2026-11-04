@@ -35,7 +35,13 @@ import { thresholdOfWords } from '@domain/alerts'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
-import { recordsAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
+import {
+  recordsAnswer,
+  replyAnswer,
+  reportedOn,
+  reportOutcomeWords,
+  type AskPrevious,
+} from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
 import { parseMentionId } from '@/lib/mentions'
 import type { Definition } from '@/lib/definitions'
@@ -833,7 +839,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
    * `signal` stops the look-up, the model's call with it.
    */
   async function lookUp(
-    input: { question: string } & Partial<ReturnType<typeof lookupFields>>,
+    input: { question: string; previous?: AskPrevious } & Partial<ReturnType<typeof lookupFields>>,
     seen: (event: LookupEvent) => void,
     signal?: AbortSignal,
   ) {
@@ -845,11 +851,14 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     const written: string[] = []
     // A question about the context's own records: its one event, and nothing looked up.
     let records: Extract<LookupEvent, { type: 'records' }>['records'] | undefined
+    // A short question back, or a question off topic: its one event, and nothing looked up.
+    let reply: Extract<LookupEvent, { type: 'reply' }>['reply'] | undefined
     try {
       for await (const event of events) {
         if (event.type === 'answer') answer = event.answer
         else if (event.type === 'sentence') written.push(event.text)
         else if (event.type === 'records') records = event.records
+        else if (event.type === 'reply') reply = event.reply
         seen(event)
       }
     } catch (error) {
@@ -857,6 +866,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       if (!answer || signal?.aborted) throw error
     }
     if (records) return { records }
+    if (reply) return { reply }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
     return { answer, written: written.join(' ') || undefined }
   }
@@ -882,7 +892,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example }, live) => {
+  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example, previous }, live) => {
     let words = question
     let offered = offeredScopes.get(question.toLowerCase())
     if (example) {
@@ -901,15 +911,19 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     const seen = (event: LookupEvent) => {
       const tell = live?.onEvent
       if (!tell) return
-      if (event.type === 'step' && event.step.step === 'looked_up')
+      if (event.type === 'plan') tell({ type: 'plan', working: event.plan.working })
+      else if (event.type === 'step' && event.step.step === 'looked_up')
         tell({ type: 'found', items: event.step.items.length })
       else if (event.type === 'answer')
         tell({ type: 'answer', answer: answerOf(event.answer, words, names, extra) })
       else if (event.type === 'sentence') tell({ type: 'sentence', text: event.text })
     }
     try {
-      const looked = await lookUp({ question: words, ...fields }, seen, live?.signal)
+      // A follow-up carries the chat's last turn; a question scoped with @ is read as scoped.
+      const carry = previous && !example && !scope?.length ? { previous } : {}
+      const looked = await lookUp({ question: words, ...fields, ...carry }, seen, live?.signal)
       if (looked.records) return { ...recordsAnswer(words, looked.records), ...extra }
+      if (looked.reply) return { ...replyAnswer(words, looked.reply), ...extra }
       const answer = answerOf(looked.answer, words, names, extra, looked.written)
       said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
       return answer

@@ -141,6 +141,7 @@
     "connectors:sync": "node --env-file-if-exists=.env.local src/server/sync-definitions.ts",
     "eval": "node --env-file-if-exists=.env.local src/server/run-evals.ts",
     "eval:ask-words": "node --env-file-if-exists=.env.local src/server/run-ask-words-cases.ts",
+    "eval:ask-plan": "node --env-file-if-exists=.env.local src/server/run-ask-plan-cases.ts",
     "eval:drafts": "node scripts/draft-eval.ts",
     "held-out": "node scripts/held-out.ts",
     "heed": "node --env-file-if-exists=.env.local src/cli/main.ts",

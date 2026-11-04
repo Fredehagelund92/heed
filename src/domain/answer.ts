@@ -229,6 +229,38 @@ const unverifiedReason = (item: AnswerSource, today: string): AnswerItem['unveri
   item.checkFlag ??
   (item.reviewDate !== null && item.reviewDate < today ? 'past_review_date' : null)
 
+/**
+ * An item as an answer gives it, from how the resolver matched it, with the items given beside it
+ * that it disagrees with (`given`), the line its owner copied and what not to conclude. An item
+ * read without the resolver (found by words, or named by id) is an exact match, out of date when
+ * its source changed or its check date passed.
+ */
+export function answerItemOf(
+  item: AnswerSource,
+  match: Pick<Match, 'match' | 'unverified' | 'restrictions'> | null,
+  given: ReadonlySet<string>,
+  today: string,
+): AnswerItem {
+  const reason = unverifiedReason(item, today)
+  const unverified = match ? match.unverified : reason !== null
+  return {
+    id: item.id,
+    version: item.version,
+    areaId: item.areaId,
+    kind: item.kind,
+    title: item.title,
+    summary: item.summary,
+    validity: item.validity,
+    match: match?.match ?? 'exact',
+    unverified,
+    unverifiedReason: unverified ? reason : null,
+    restrictions: match?.restrictions ?? [],
+    conflictsWith: item.conflicts.filter((id) => given.has(id)).sort(compareIds),
+    quote: item.evidence?.find((e) => e.quote.trim())?.quote ?? null,
+    notToConclude: ownCaveat(item.notToConclude),
+  }
+}
+
 /** The metric keys an item is about, with a group opened into its metrics. */
 const itemMetrics = (bundle: AnswerBundle, item: AnswerSource) =>
   new Set(item.scope.metrics.flatMap((key) => metricsOf(bundle, key)))
@@ -368,25 +400,7 @@ export function* lookUp(
   const given = matched.slice(0, Math.max(0, maxItems))
   const cut = [...matched.slice(given.length).map((g) => g.item.id), ...resolution.cut]
   const givenIds = new Set(given.map((g) => g.item.id))
-  const items: AnswerItem[] = given.map(({ match, item }) => {
-    const reason = unverifiedReason(item, today)
-    return {
-      id: item.id,
-      version: item.version,
-      areaId: item.areaId,
-      kind: item.kind,
-      title: item.title,
-      summary: item.summary,
-      validity: item.validity,
-      match: match.match,
-      unverified: match.unverified,
-      unverifiedReason: match.unverified ? reason : null,
-      restrictions: match.restrictions,
-      conflictsWith: item.conflicts.filter((id) => givenIds.has(id)).sort(compareIds),
-      quote: item.evidence?.find((e) => e.quote.trim())?.quote ?? null,
-      notToConclude: ownCaveat(item.notToConclude),
-    }
-  })
+  const items = given.map(({ match, item }) => answerItemOf(item, match, givenIds, today))
   yield step({ step: 'looked_up', ms: lap(), status: resolution.status, items })
   mark = now()
 

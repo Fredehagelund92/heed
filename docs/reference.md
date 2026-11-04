@@ -754,12 +754,16 @@ and `next` as before.
   context about those values is written for, most items first, at most three. Neither changes the
   state or the items, and agents never get them. With real models
   (`MODELS=live`), the words of `models.assistant` follow an answer that gives items, written from
-  those items only, each sentence that uses one ending with its number. They stream: each
+  those items only, each sentence ending with the numbers of the items it uses. They stream: each
   sentence is a `sentence` event, sent once it is complete and passes the check (citing only the
   items given, with no list, heading, link or number it was not given), and `words-end` closes
-  them. The first sentence that fails ends the words there, and nothing after it is sent;
-  sentences that cite no item wait until one that does has passed, and the words run to at most
-  1,200 characters. When no sentence passes, the spending limits leave no room, or the provider
+  them. A sentence that cites items may say only what those items, the definitions given and the
+  question say; one that cites none may only restate the question or what agents are told, or say
+  what a definition says, and before any that cites an item one short lead may say what the items
+  say, held until a sentence that cites an item has passed. A sentence that says more is left out
+  and the words go on (the log says `sentences left out`, with the check's reason and how many).
+  `[1, 2]` is read as `[1][2]`. A sentence that fails the first check ends the words there, and
+  nothing after it is sent, and the words run to at most 1,200 characters. When no sentence passes, the spending limits leave no room, or the provider
   fails, no `sentence` event comes and Ask writes its own words from the items. Words cut off by
   the output limit or by 12 seconds keep the sentences already sent and leave out the unfinished
   one. The model decides nothing: the state, the items and what agents are told are the engine's.
@@ -770,6 +774,21 @@ and `next` as before.
   (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
   with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
   `models.assistant`, which sends the cases' made-up questions and items to its provider.
+- Ask's planner (FR-719, `src/domain/ask-plan.ts`, `src/domain/ask-route.ts`): the input may carry
+  `previous`, the chat's last turn as the browser keeps it (its `question`, its `scope` as keys,
+  up to 10 `sources` by item id, and `asked`, the question Ask asked back), which is never stored.
+  For a question the rules cannot read (`need_more_detail`), a value alone that finds nothing, a
+  question about what changed that names nothing Heed keeps, or a follow-up of `previous`, the
+  model of `models.assistant` (with `MODELS=live`; the scripted planner with `MODELS=mock`)
+  chooses Ask's reads in one call of at most 3 seconds, under the spending limits and metered as
+  the assistant's. A checked plan sends a `plan` event first, with what the working line says,
+  then the reads' steps and `answer`, whose `reading` says how the model read the question and
+  what it carried; or one `reply` event, `clarify` (one short question back) or `off_topic`, with
+  nothing looked up. A plan that fails the check, a limit, an error or a slow call leaves the
+  rules' answer, and the log says why (`ask plan not used`, a reason only). The planner cases
+  (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
+  `npm run eval:ask-plan` (mock), or `-- --real --max-cost-usd <dollars>`, which also asks for the
+  words of each planned answer and reports the planner's time and the cost of a planned question.
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
   no `metrics`, `dimension_filters` or `window`, is not looked up: `POST /ask/lookup` answers with
   one `records` event. It has the intent (`created`, `changed`, `due`, `archived`, `owner`,

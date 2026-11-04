@@ -441,11 +441,13 @@ describe('Ask with a real model (FR-701)', () => {
 
   it('ends the words at a sentence that fails the check, and keeps what the engine decided', async () => {
     wordsModel = () =>
-      fixedWordsModel('Orders stopped [1]. They fell 47 percent [1]. Nothing else changed [1].')
+      fixedWordsModel(
+        'The Norway launch campaign started [1]. They fell 47 percent [1]. Nothing else changed [1].',
+      )
     const question = 'What were orders in Norway in August 2026?'
     const lines = modelLogs.length
     const sent = await lookup(question)
-    expect(sentencesOf(sent)).toEqual(['Orders stopped [1].'])
+    expect(sentencesOf(sent)).toEqual(['The Norway launch campaign started [1].'])
     expect(kinds(sent).at(-1)).toBe('words-end')
     expect(untimed(answerOf(sent))).toEqual(
       untimed(engine({ kind: 'live' }, live, { question }, { today })),
@@ -479,7 +481,7 @@ describe('Ask with a real model (FR-701)', () => {
     let written = 0
     // Priced, as a provider's model is: a stopped call costs what it sent and what came back.
     const choice = fixedWordsModel(
-      `Orders stopped [1]. ${'Online sales to Norway stopped [1]. '.repeat(40)}`,
+      `The Norway launch campaign started [1]. ${'The Norway launch campaign started in September [1]. '.repeat(40)}`,
       { pace: 20 },
     )
     choice.prices = { input: 3, output: 15, cacheRead: 0.3 }
@@ -560,6 +562,151 @@ describe('Ask with a real model (FR-701)', () => {
     ).toEqual(['public.llm_spend_daily', 'public.llm_spend_monthly'])
     expect(after.join('\n')).not.toContain(marker)
     expect(modelLogs.slice(lines).join('\n')).not.toContain(marker)
+  })
+})
+
+describe('Ask with its planner (FR-719)', () => {
+  /** The assistant's model: the scripted one, which plans and writes, unless a test plans its own. */
+  let model = () => scriptedWordsModel()
+  const livePort: ModelPort = {
+    mode: 'live',
+    choose: () => model(),
+    otherLine: () => model(),
+    check: () => undefined,
+    creditsUsed: () => Promise.resolve(null),
+  }
+  const lines: string[] = []
+  const planned = buildApp({
+    database: apiDatabase(url),
+    logger: createLogger({
+      level: 'trace',
+      destination: {
+        write(line: string) {
+          lines.push(line)
+        },
+      },
+    }),
+    jobs: idleJobs(),
+    clock: systemClock(today),
+    models: livePort,
+    devPeople: [{ name: 'maria', email: 'per_maria@example.test', roles: [] }],
+  })
+  let signedIn: Record<string, string> = {}
+  const lookup = async (payload: object) => {
+    const response = await planned.inject({
+      method: 'POST',
+      url: '/api/v1/ask/lookup',
+      headers: { ...signedIn, 'idempotency-key': randomUUID() },
+      payload,
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    return events(response.body)
+  }
+  const answerIn = (sent: LookupEvent[]) =>
+    sent.find((e): e is Extract<LookupEvent, { type: 'answer' }> => e.type === 'answer')?.answer
+  const assistantCalls = async () =>
+    Number(
+      (
+        await client.query<{ n: string }>(
+          "select coalesce(sum(calls),0)::text as n from llm_spend_monthly where feature='assistant'",
+        )
+      ).rows[0]!.n,
+    )
+
+  beforeAll(async () => {
+    const response = await planned.inject({
+      method: 'POST',
+      url: '/api/v1/auth/sign-in',
+      headers: { origin: 'http://localhost', 'x-heed-csrf': 'dev-sign-in' },
+      payload: { email: 'per_maria@example.test' },
+    })
+    signedIn = {
+      origin: 'http://localhost',
+      cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+      'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
+    }
+  })
+  afterAll(() => planned.close())
+  afterEach(() => {
+    model = () => scriptedWordsModel()
+  })
+
+  it('reads a question the rules cannot read with one metered call, then runs its reads as Ask’s own', async () => {
+    const spent = await assistantCalls()
+    const sent = await lookup({ question: 'list events' })
+    expect(sent[0]).toEqual({
+      type: 'plan',
+      plan: { kind: 'reads', working: 'Looking for events…' },
+    })
+    const answer = answerIn(sent)!
+    expect(answer.reading?.words).toMatch(/^Events, in the last 3 months/)
+    expect(answer.reading?.period).toBe('recent')
+    expect(answer.items.length).toBeGreaterThan(0)
+    expect(answer.items.every((item) => item.kind === 'event')).toBe(true)
+    expect(answer.state).not.toBe('missing')
+    // One call to plan and one for the words, both the person's, both in the ledger.
+    expect(sent.at(-1)?.type).toBe('words-end')
+    expect(await assistantCalls()).toBe(spent + 2)
+  })
+
+  it('asks the planner nothing for a question the rules read', async () => {
+    const spent = await assistantCalls()
+    const sent = await lookup({ question: 'What were orders in Norway in August 2026?' })
+    expect(sent.some((e) => e.type === 'plan')).toBe(false)
+    expect(answerIn(sent)?.reading).toBeUndefined()
+    expect(await assistantCalls()).toBe(spent + 1)
+  })
+
+  it('carries the last turn into a follow-up, which the browser sends and nothing keeps', async () => {
+    const first = answerIn(await lookup({ question: 'why did orders drop in Norway?' }))!
+    const sent = await lookup({
+      question: 'and in September?',
+      previous: {
+        question: 'why did orders drop in Norway?',
+        scope: first.scope,
+        sources: first.items.map((item) => item.id).slice(0, 10),
+      },
+    })
+    const answer = answerIn(sent)!
+    expect(answer.scope).toMatchObject({
+      metrics: ['metric:orders'],
+      filters: { 'dim:market': ['val:market/norway'] },
+      window: { start: '2026-09-01', end: '2026-10-01' },
+    })
+    expect(answer.reading?.carried).toEqual(['Orders', 'Norway'])
+    const after = await tableContents(client, ['auth.sessions', 'public.setup_marks'])
+    expect(after.join('\n')).not.toContain('and in September')
+    expect(after.join('\n')).not.toContain('why did orders drop')
+  })
+
+  it('answers a question off topic with its own sentence, and looks nothing up', async () => {
+    const sent = await lookup({ question: "what's the weather in Oslo?" })
+    expect(sent.map((e) => e.type)).toEqual(['reply'])
+    const [reply] = sent
+    expect(reply?.type === 'reply' && reply.reply.kind).toBe('off_topic')
+    expect(reply?.type === 'reply' && reply.reply.text).toMatch(/outside that/)
+  })
+
+  it('answers as with no model when the plan fails the check, and logs why, never the words', async () => {
+    model = () =>
+      fixedWordsModel('{"reads":[{"kind":"lookup","metrics":["metric:no_such_metric"]}]}')
+    const at = lines.length
+    const sent = await lookup({ question: 'any campaigns about Zanzibar puffins?' })
+    expect(sent.some((e) => e.type === 'plan')).toBe(false)
+    expect(answerIn(sent)?.status).toBe('need_more_detail')
+    const miss = lines.slice(at).find((l) => l.includes('ask plan not used'))!
+    expect(JSON.parse(miss)).toMatchObject({ reason: 'not checked', why: 'unknown key' })
+    expect(lines.slice(at).join('\n')).not.toMatch(/Zanzibar|no_such_metric/)
+  })
+
+  it('never reads a source the browser sends that no agent may be given', async () => {
+    const sent = await lookup({
+      question: 'tell me more about the first one',
+      previous: { question: 'why did orders drop in Norway?', sources: ['itm_does_not_exist'] },
+    })
+    // With nothing it may read, the plan names no source: the rules answer as with no model.
+    expect(sent.some((e) => e.type === 'plan')).toBe(false)
+    expect(answerIn(sent)?.items ?? []).toEqual([])
   })
 })
 
