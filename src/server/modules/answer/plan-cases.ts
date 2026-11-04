@@ -1,6 +1,8 @@
 import type { AnswerState } from '../../../domain/answer.ts'
-import type { PlanKind, PlanPeriod, PreviousTurn } from '../../../domain/ask-plan.ts'
-import { previousOf, routeQuestion, type Planner, type Routed } from '../../../domain/ask-route.ts'
+import { asksAgain } from '../../../domain/ask-again.ts'
+import type { ChatTurn } from '../../../domain/ask-chat.ts'
+import type { PlanKind, PlanPeriod } from '../../../domain/ask-plan.ts'
+import { chatOf, routeQuestion, type Planner, type Routed } from '../../../domain/ask-route.ts'
 import type { ItemKind } from '../../../domain/item.ts'
 import { recogniseRecords, type RecordsIntent } from '../../../domain/records.ts'
 import { readQuestion } from '../../../domain/scope.ts'
@@ -8,7 +10,8 @@ import { PLAN_NOW, PLAN_TODAY, planAreas, planBundle, planItem } from './plan-wo
 
 /*
   The planner cases (FR-710, FR-719): the 42 questions a scout asked the live Ask on 3 November
-  2026, with the questions that test a plan's checks, each with the answer a person should get in
+  2026, the chat of 4 November 2026 whose "try again" read as a search, what a follow-up carries,
+  messages that ask nothing, and the questions that test a plan's checks, each with the answer a person should get in
   the invented world of plan-world.ts. Each says how the question must be read (by the rules, as
   records, or by the planner, and as which reads), the dates, the state, the items it must and
   must not give, and what a reply must say. They run with the scripted planner in every build
@@ -17,8 +20,11 @@ import { PLAN_NOW, PLAN_TODAY, planAreas, planBundle, planItem } from './plan-wo
   answered as Ask answers it with no model (the fallback).
 */
 
-/** How a case's question is answered: by the rules' engine, as a records question, or by a plan. */
-export type PlanRoute = 'rules' | 'records' | 'planner'
+/**
+ * How a case's question is answered: by the rules' engine, as a records question, by a plan, or
+ * told it asked nothing, with no model.
+ */
+export type PlanRoute = 'rules' | 'records' | 'planner' | 'nothing'
 
 export type PlanCase = {
   /** The scout's id for the 42 questions (A1 to X3), or a name for the others. */
@@ -26,10 +32,12 @@ export type PlanCase = {
   /** What the case is about, in plain words. */
   what: string
   question: string
-  /** The case asked just before it in the same chat: its turn is the last one. */
+  /** The case asked just before it in the same chat: its turn is the last one, and so on back. */
   after?: string
   /** Sources of the last turn the browser sends, by item title, instead of the case's own. */
   sources?: string[]
+  /** Scoped with @, so the browser sends no chat with it. */
+  scoped?: true
   expect: {
     route: PlanRoute
     /** The reads, or the reply, the plan must choose. */
@@ -37,6 +45,13 @@ export type PlanCase = {
     state?: AnswerState | null
     /** Keys the reads must ask for. */
     keys?: string[]
+    /** Keys the reads must not ask for. */
+    without?: string[]
+    /** The domain of a records question, by id, or its metric, by key. */
+    domain?: string
+    metric?: string
+    /** What the question must read as on its own. */
+    standalone?: RegExp
     kinds?: ItemKind[]
     period?: PlanPeriod
     /** The records question it must be. */
@@ -438,6 +453,144 @@ export const planCases: PlanCase[] = [
     after: 'B1',
     expect: { route: 'rules', state: 'conflict', cites: norwayPair },
   },
+  // The chat of 4 November 2026, as it was asked, and what its last message must do.
+  {
+    id: 'chat-1',
+    what: 'What is due for a check, with no chat yet.',
+    question: 'what context do i need to go through today?',
+    expect: { route: 'planner', plan: ['records'], intent: 'due' },
+  },
+  {
+    id: 'chat-2',
+    what: 'What is due in a domain, scoped with @.',
+    question: 'I am working in Sales what are the context that needs checking?',
+    after: 'chat-1',
+    scoped: true,
+    expect: { route: 'records', intent: 'due', domain: 'area_sales' },
+  },
+  {
+    id: 'chat-3',
+    what: 'What is due in another domain, scoped with @.',
+    question: 'I am in Paid media what contexts are needing check?',
+    after: 'chat-2',
+    scoped: true,
+    expect: { route: 'planner', plan: ['records'], intent: 'due', domain: 'area_paid_media' },
+  },
+  {
+    id: 'chat-4',
+    what: 'Try again asks the Paid media question again, as Ask again does: no search of warnings.',
+    question: 'try again',
+    after: 'chat-3',
+    expect: {
+      route: 'planner',
+      plan: ['records'],
+      intent: 'due',
+      domain: 'area_paid_media',
+      never: norwayPair,
+    },
+  },
+  // A follow-up keeps what it does not change, whatever the plan left out.
+  {
+    id: 'carry-month',
+    what: 'What about last month keeps the metric and the market, and takes its own dates.',
+    question: 'what about last month?',
+    after: 'B1',
+    expect: {
+      route: 'planner',
+      keys: ['metric:orders', 'val:market/norway'],
+      period: 'asked',
+      carried: ['Orders', 'Norway'],
+    },
+  },
+  {
+    id: 'carry-owner',
+    what: 'And the owner keeps the metric: who owns Orders.',
+    question: 'and the owner?',
+    after: 'B1',
+    expect: {
+      route: 'planner',
+      plan: ['records'],
+      intent: 'owner',
+      metric: 'metric:orders',
+      carried: ['Orders'],
+      standalone: /orders/i,
+    },
+  },
+  {
+    id: 'carry-market',
+    what: 'And in Sweden keeps the metric and changes the market.',
+    question: 'and in Sweden?',
+    after: 'B1',
+    expect: {
+      route: 'planner',
+      keys: ['metric:orders', 'val:market/sweden'],
+      without: ['val:market/norway'],
+      carried: ['Orders'],
+    },
+  },
+  {
+    id: 'carry-window',
+    what: 'And in Sweden keeps the dates the last question named, and says so.',
+    question: 'and in Sweden?',
+    after: 'D2',
+    expect: {
+      route: 'planner',
+      keys: ['metric:orders', 'val:market/sweden'],
+      period: 'carried',
+      carried: ['Orders', 'the dates'],
+    },
+  },
+  {
+    id: 'carry-domain',
+    what: 'And the owner after a records question keeps its domain.',
+    question: 'and the owner?',
+    after: 'chat-3',
+    expect: {
+      route: 'planner',
+      plan: ['records'],
+      intent: 'owner',
+      domain: 'area_paid_media',
+      carried: ['Paid media'],
+    },
+  },
+  {
+    id: 'no-carry-new-subject',
+    what: 'A question with a subject of its own keeps nothing of the last one.',
+    question: 'what events happened in August?',
+    after: 'B1',
+    expect: {
+      route: 'planner',
+      plan: ['explore'],
+      kinds: ['event'],
+      without: ['metric:orders', 'val:market/norway'],
+    },
+  },
+  // A message with no subject of its own and no question that fits: one sentence, no search.
+  {
+    id: 'empty-try-again',
+    what: 'Try again with nothing to repeat is told so, and nothing is searched.',
+    question: 'try again',
+    expect: { route: 'nothing', plan: ['nothing_asked'], state: null, says: /no earlier question/ },
+  },
+  {
+    id: 'empty-why',
+    what: 'Why, with no chat, has no subject.',
+    question: 'why?',
+    expect: { route: 'nothing', plan: ['nothing_asked'], state: null, says: /look at\?$/ },
+  },
+  {
+    id: 'empty-thanks',
+    what: 'A word of thanks after an answer starts no search.',
+    question: 'ok thanks',
+    after: 'chat-3',
+    expect: { route: 'nothing', plan: ['nothing_asked'], state: null, says: /repeat\?$/ },
+  },
+  {
+    id: 'empty-model',
+    what: 'The planner can say so too, for a message the fixed words do not hold.',
+    question: 'do the thing',
+    expect: { route: 'planner', plan: ['nothing_asked'], state: null, says: /look at\?$/ },
+  },
   // Off topic and numbers.
   {
     id: 'X1',
@@ -519,7 +672,7 @@ export type PlanOutcome = {
   /** The items the answer gave, by title. */
   titles: string[]
   /** The turn a follow-up sends. */
-  turn: PreviousTurn
+  turn: ChatTurn
 }
 
 const titleOf = new Map(planBundle.items.map((item) => [item.id, item.title]))
@@ -527,12 +680,12 @@ const titleOf = new Map(planBundle.items.map((item) => [item.id, item.title]))
 /**
  * Asks a case's question in the planner cases' world as Ask does (src/domain/ask-route.ts): the
  * records question the rules read, the rules' answer, then the planner when it is to read it.
- * `previous` is the turn of the case it follows.
+ * `chat` is the turns of the cases it follows, oldest first.
  */
 export async function askPlanCase(
-  c: Pick<PlanCase, 'question' | 'sources'>,
+  c: Pick<PlanCase, 'question' | 'sources' | 'scoped'>,
   planner: Planner | null,
-  previous: PreviousTurn | null,
+  chat: readonly ChatTurn[],
 ): Promise<PlanOutcome> {
   const read = readQuestion(c.question, planBundle.terms, PLAN_TODAY)
   const records = recogniseRecords(c.question, {
@@ -541,15 +694,16 @@ export async function askPlanCase(
     domains: planAreas,
     now: PLAN_NOW,
   })
-  const given = previous && {
-    ...previous,
-    ...(c.sources ? { sources: c.sources.map(planItem) } : {}),
-  }
+  const given = c.sources
+    ? chat.map((turn, i) =>
+        i === chat.length - 1 ? { ...turn, sources: c.sources!.map(planItem) } : turn,
+      )
+    : chat
   let calls = 0
   const routed = await routeQuestion({
     bundle: { ...planBundle, areas: planAreas },
     ask: { question: c.question },
-    previous: previousOf({ ...planBundle, areas: planAreas }, given ?? undefined, PLAN_TODAY),
+    turns: c.scoped ? [] : chatOf({ ...planBundle, areas: planAreas }, given, PLAN_TODAY),
     records,
     today: PLAN_TODAY,
     now: PLAN_NOW,
@@ -563,13 +717,16 @@ export async function askPlanCase(
   const answer =
     routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
   const sources = answer?.items.map((item) => item.id) ?? []
+  const found = routed.kind === 'records' ? routed.found : null
   return {
     route:
       routed.kind === 'rules'
         ? 'rules'
         : routed.kind === 'records' && !routed.planned
           ? 'records'
-          : 'planner',
+          : routed.kind === 'reply' && routed.reply.kind === 'nothing_asked' && !routed.asked
+            ? 'nothing'
+            : 'planner',
     calls,
     routed,
     titles: sources.map((id) => titleOf.get(id) ?? id),
@@ -577,6 +734,13 @@ export async function askPlanCase(
       question: c.question,
       scope: answer?.scope ?? null,
       sources: sources.slice(0, 10),
+      ...(answer ? { state: answer.state } : {}),
+      ...(found?.type === 'records'
+        ? {
+            domain: found.ask.domain,
+            period: found.ask.period?.assumed === false ? found.ask.period.words : null,
+          }
+        : {}),
       ...(routed.kind === 'reply' && routed.reply.kind === 'clarify'
         ? { asked: routed.reply.text }
         : {}),
@@ -622,6 +786,7 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     ),
   ])
   for (const key of e.keys ?? []) if (!keys.has(key)) problems.push(`does not ask for ${key}`)
+  for (const key of e.without ?? []) if (keys.has(key)) problems.push(`asks for ${key}`)
   const kinds = reads.flatMap((r) => (r.kind === 'explore' ? r.kinds : []))
   for (const kind of e.kinds ?? [])
     if (!kinds.includes(kind)) problems.push(`does not read ${kind}`)
@@ -630,11 +795,14 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     if (!periods.includes(e.period))
       problems.push(`reads ${periods.join(',') || 'no dates'}, not ${e.period}`)
   }
-  if (e.intent) {
-    const intent =
-      routed.kind === 'records' && routed.found.type === 'records' ? routed.found.ask.intent : null
-    if (intent !== e.intent) problems.push(`records ${intent}, not ${e.intent}`)
-  }
+  const records =
+    routed.kind === 'records' && routed.found.type === 'records' ? routed.found.ask : null
+  if (e.intent && records?.intent !== e.intent)
+    problems.push(`records ${records?.intent ?? 'none'}, not ${e.intent}`)
+  if (e.domain && records?.domain !== e.domain)
+    problems.push(`domain ${records?.domain ?? 'none'}, not ${e.domain}`)
+  if (e.metric && records?.metric !== e.metric)
+    problems.push(`metric ${records?.metric ?? 'none'}, not ${e.metric}`)
   for (const title of e.cites ?? [])
     if (!got.titles.includes(title)) problems.push(`does not give "${title}"`)
   for (const title of e.never ?? [])
@@ -649,9 +817,24 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     if (!e.says.test(text)) problems.push(`does not say ${e.says}`)
   }
   if (e.carried) {
-    const carried = routed.kind === 'reads' ? routed.planned.reading.carried : []
+    const carried =
+      routed.kind === 'reads'
+        ? routed.planned.reading.carried
+        : routed.kind === 'records'
+          ? (routed.carried ?? [])
+          : []
     if (carried.join(',') !== e.carried.join(','))
       problems.push(`carried ${carried.join(',') || 'nothing'}, not ${e.carried.join(',')}`)
+  }
+  if (e.standalone) {
+    const standalone =
+      routed.kind === 'reads'
+        ? routed.planned.reading.standalone
+        : routed.kind === 'records'
+          ? routed.standalone
+          : undefined
+    if (!standalone || !e.standalone.test(standalone))
+      problems.push(`read alone as ${standalone ?? 'nothing'}, not ${e.standalone}`)
   }
   // No reply after the first message suggests a question to ask, and none lists choices as chips.
   if (routed.kind === 'reply' && /\n|- |•/.test(routed.reply.text))
@@ -670,11 +853,22 @@ export async function runPlanCases(
 ): Promise<Map<string, PlanOutcome>> {
   const got = new Map<string, PlanOutcome>()
   const byId = new Map(planCases.map((c) => [c.id, c]))
+  /** The cases a case follows, oldest first: the chat it is asked in. */
+  const chain = (c: PlanCase): PlanCase[] => {
+    const before = c.after ? byId.get(c.after) : undefined
+    return before ? [...chain(before), before] : []
+  }
   const ask = async (c: PlanCase): Promise<PlanOutcome> => {
     const known = got.get(c.id)
     if (known) return known
-    const before = c.after ? await ask(byId.get(c.after)!) : null
-    const outcome = await askPlanCase(c, planner, before?.turn ?? null)
+    const chat = chain(c)
+    const turns: ChatTurn[] = []
+    for (const before of chat) turns.push((await ask(before)).turn)
+    // Asked again in words: the last question, with the chat before it, as the browser sends it.
+    const repeated = asksAgain(c.question) ? chat.at(-1) : undefined
+    const outcome = repeated
+      ? await askPlanCase(repeated, planner, turns.slice(0, -1))
+      : await askPlanCase(c, planner, turns)
     got.set(c.id, outcome)
     onCase?.(c, outcome)
     return outcome

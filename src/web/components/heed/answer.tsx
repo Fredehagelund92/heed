@@ -52,6 +52,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  askedOf,
   midSentence,
   scopeText,
   type Answer,
@@ -186,10 +187,20 @@ export function Question({
           </IconButton>
         )}
       </div>
+      {answer.again && (
+        <p className="max-w-22/25 text-right text-xs text-muted-foreground @lg:max-w-4/5">
+          Asked again: {answer.again.question}
+        </p>
+      )}
+      {reading?.standalone && (
+        <p className="max-w-22/25 text-right text-xs text-muted-foreground @lg:max-w-4/5">
+          Understood as {reading.standalone}
+        </p>
+      )}
       {reading && (
         <p className="flex max-w-22/25 flex-wrap items-center justify-end gap-x-2 text-right text-xs text-muted-foreground @lg:max-w-4/5">
           <span>
-            Read by the model as {midSentence(reading.words)}
+            Read by the model{reading.words && ` as ${midSentence(reading.words)}`}
             {reading.carried.length > 0 &&
               `, with ${listOf(reading.carried)} carried from your last question`}
           </span>
@@ -198,7 +209,7 @@ export function Question({
               type="button"
               className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
               onClick={() =>
-                onRescope([`${answer.question} `, ...readScope(answer).flatMap((m) => [m, ' '])])
+                onRescope([`${askedOf(answer)} `, ...readScope(answer).flatMap((m) => [m, ' '])])
               }
             >
               Change it
@@ -214,7 +225,7 @@ export function Question({
               type="button"
               className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
               onClick={() =>
-                onRescope([`${answer.question} `, ...readScope(answer).flatMap((m) => [m, ' '])])
+                onRescope([`${askedOf(answer)} `, ...readScope(answer).flatMap((m) => [m, ' '])])
               }
             >
               Change it
@@ -290,7 +301,7 @@ function LookupCard({
 }) {
   const { stage, stopped } = turn
   const answered = shown === 'answered'
-  const scope = answer.reading?.words ?? (scopeText(answer) || 'Nothing matched')
+  const scope = answer.reading?.words || scopeText(answer) || 'Nothing matched'
   const raw = agentReply(answer, facts)
   // Looking up and reading come from the look-up's own steps, until its answer is in.
   const running = !stopped && !answered
@@ -849,7 +860,7 @@ function SomethingWrong({
         }
         setSending(true)
         write('reportAnswer', {
-          question: answer.question,
+          question: askedOf(answer),
           part,
           sources: answer.sources,
           what: text('what'),
@@ -1268,7 +1279,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   const [sentNow, setSentNow] = React.useState(answer.report)
   // A report the person sent about this answer, here or before: what the owners did comes back.
   const mine = useQuery({ ...myReportsQuery(), enabled: !draft }).data?.find(
-    (r) => r.question.toLowerCase() === answer.question.toLowerCase(),
+    (r) => r.question.toLowerCase() === askedOf(answer).toLowerCase(),
   )
   const report = mine ? { on: mine.on, outcome: mine.outcome } : sentNow
 
@@ -1338,7 +1349,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   const lead =
     !draft &&
     !!answer.definitions?.some((d) => d.words) &&
-    asksWhatItIs(answer.question, { values: answer.markets.length > 0, dates: !!answer.dates })
+    asksWhatItIs(askedOf(answer), { values: answer.markets.length > 0, dates: !!answer.dates })
       ? answer.definitions
       : null
   const definitionOnly = !!lead && answer.state === 'missing'
@@ -1668,7 +1679,7 @@ function AnswerActions({
       )}
       {opened === 'save' && (
         <SaveQuestion
-          question={answer.question}
+          question={askedOf(answer)}
           domain={saveDomain}
           answer={answer}
           from={more}

@@ -93,7 +93,7 @@ async function main() {
     const bundle = { ...planBundle, areas: planAreas }
     // Every planner call, and the words of each planned answer: at most the output limits.
     const estimate = cases.reduce((sum, c) => {
-      const input = plannerInputOf(bundle, c.question, null, PLAN_TODAY)
+      const input = plannerInputOf(bundle, c.question, [], PLAN_TODAY)
       const plan = costMicros(choice.prices, {
         inputTokens: tokens(input.system) + tokens(input.vocabulary) + tokens(input.prompt),
         outputTokens: PLAN_MAX_TOKENS,
@@ -128,6 +128,7 @@ async function main() {
     const metered = meter.wrap(choice, { role: 'assistant' })
     const timing: number[] = []
     const planCost: number[] = []
+    const planTokens: PlanTokens[] = []
     const planner: Planner = async (input, check) => {
       const at = performance.now()
       const before = calls.length
@@ -137,7 +138,13 @@ async function main() {
       })
       timing.push(performance.now() - at)
       await meter.settled()
-      planCost.push(calls.slice(before).reduce((t, c) => t + c.costMicros, 0))
+      const made = calls.slice(before)
+      planCost.push(made.reduce((t, c) => t + c.costMicros, 0))
+      planTokens.push({
+        input: made.reduce((t, c) => t + c.inputTokens + c.cacheWriteTokens, 0),
+        cached: made.reduce((t, c) => t + c.cacheReadTokens, 0),
+        output: made.reduce((t, c) => t + c.outputTokens, 0),
+      })
       if (!reply) return null
       const checked = check(parsePlan(reply.text))
       if (!checked.ok) console.log(`\tthe plan failed the check: ${checked.why}`)
@@ -170,6 +177,7 @@ async function main() {
     const code = report(cases, got, {
       timing,
       planCost,
+      planTokens,
       wordsCost,
       wordsFailed,
       spent: meter.costMicros,
@@ -181,9 +189,13 @@ async function main() {
   }
 }
 
+/** What one planner call used, in tokens: input read in full, read from the cache, and written. */
+type PlanTokens = { input: number; cached: number; output: number }
+
 type Measured = {
   timing: number[]
   planCost: number[]
+  planTokens: PlanTokens[]
   wordsCost: number[]
   wordsFailed: number
   spent: number
@@ -215,6 +227,11 @@ function report(
       xs.length ? xs.reduce((t, x) => t + x, 0) / xs.length : 0
     console.log(
       `Planner: ${measured.timing.length} calls, p50 ${Math.round(percentile(sorted, 0.5))} ms, p90 ${Math.round(percentile(sorted, 0.9))} ms, ${micro(mean(measured.planCost))} a call.`,
+    )
+    const used = (part: keyof PlanTokens) =>
+      Math.round(mean(measured.planTokens.map((t) => t[part])))
+    console.log(
+      `Planner tokens a call: ${used('input')} input, ${used('cached')} from the cache, ${used('output')} output.`,
     )
     console.log(
       `Words: ${measured.wordsCost.length} calls, ${measured.wordsFailed} failed the check, ${micro(mean(measured.wordsCost))} a call.`,

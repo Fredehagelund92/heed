@@ -1,5 +1,4 @@
-import type { Answer, QuestionPart } from './ask'
-import type { MentionRef } from '@/lib/mentions'
+import type { Answer } from './ask'
 
 // One question and its answer in Ask's chat, as the look-up's events arrive (docs/product.md,
 // section 5): the question shows the moment it is sent, the look-up's real steps say what it is
@@ -47,7 +46,7 @@ export type Turn = {
 export const askedTurn = (
   id: string,
   question: string,
-  extra: { parts?: QuestionPart[]; scope?: MentionRef[] } = {},
+  extra: Pick<Answer, 'parts' | 'scope' | 'again'> = {},
 ): Turn => ({
   answer: {
     id,
@@ -103,9 +102,15 @@ export function turnReducer(turn: Turn, action: TurnAction): Turn {
   if (turn.stopped || turn.error) return turn
   if (action.type === 'stop') return { ...turn, stopped: true }
   if (turn.stage === 'done') return turn
-  // The question as it was sent: its id in the chat, and the mentions it was asked with.
-  const { id, parts, scope } = turn.answer
-  const keep = { id, ...(parts ? { parts } : {}), ...(scope ? { scope } : {}) }
+  // The question as it was sent: its id in the chat, and the mentions it was asked with. Asked
+  // again in words, the chat keeps what was typed and what it repeated.
+  const { id, parts, scope, again, question } = turn.answer
+  const keep = {
+    id,
+    ...(again ? { question, parts, again } : {}),
+    ...(parts ? { parts } : {}),
+    ...(scope ? { scope } : {}),
+  }
   switch (action.type) {
     case 'plan':
       return { ...turn, working: action.working }

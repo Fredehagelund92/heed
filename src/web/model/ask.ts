@@ -1,3 +1,4 @@
+import { CHAT_LINE, CHAT_SOURCES, type ChatTurn } from '@domain/ask-chat'
 import { notLookedUp } from '@domain/say'
 import type { RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
@@ -164,14 +165,24 @@ export type Answer = {
   reading?: {
     words: string
     carried: string[]
+    /** The question as it reads alone, as the model restated it, when the chat matters. */
+    standalone?: string
+    /** Where the dates came from, as the service read them. */
+    period?: 'asked' | 'carried' | 'today' | 'recent' | 'any' | null
     /** On the mock binding, what the working line said while the reads ran (the service sends it). */
     working?: string
   }
   /**
-   * No answer from the context: a short question Ask asked back (`clarify`), or a question off
-   * topic. Nothing was looked up, so there is no state; `text` says it.
+   * No answer from the context: a short question Ask asked back (`clarify`), a question off
+   * topic, or a message that asks nothing. Nothing was looked up, so there is no state; `text` says
+   * it.
    */
-  reply?: 'clarify' | 'off_topic'
+  reply?: 'clarify' | 'off_topic' | 'nothing_asked'
+  /**
+   * The last question, asked again because the person said so in words ("try again"): what was
+   * asked. `question` and `parts` stay what they typed.
+   */
+  again?: { question: string; parts?: QuestionPart[]; scope?: MentionRef[] }
 }
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
@@ -181,31 +192,71 @@ export type AskScopeKeys = {
   window: { start: string; end: string | null }
 }
 
-/**
- * The chat's last turn, sent with the next question so a follow-up ("what about Sweden?") can
- * carry what it asked: its question, how it was read, its sources, and the question Ask asked
- * back. It goes with the question only, and is never kept by the service (FR-602, FR-717).
- */
-export type AskPrevious = {
-  question: string
-  scope?: AskScopeKeys | null
-  sources: string[]
-  asked?: string
+/** The question an answer read: the one it repeated, when it was asked again in words. */
+export const askedOf = (a: Pick<Answer, 'question' | 'again'>) => a.again?.question ?? a.question
+
+const clipped = (line: string) =>
+  line.length > CHAT_LINE ? `${line.slice(0, CHAT_LINE - 1).trimEnd()}…` : line
+
+/** How a turn was read, in words: its Understood as line. */
+function understoodOf(a: Answer) {
+  if (a.records && !a.records.refused) {
+    const { understood, period } = a.records
+    return clipped(period ? `${understood} (${period.words})` : understood)
+  }
+  const read = a.reading?.standalone ?? a.reading?.words ?? scopeText(a)
+  return read ? clipped(read) : null
 }
 
-/** What a turn sends on to the next question: none for one with nothing to carry. */
-export const previousOf = (a: Answer): AskPrevious | undefined =>
-  a.question.trim()
+const items = (n: number) => (n === 1 ? '1 context item' : `${n} context items`)
+
+/**
+ * What a turn answered, in one sentence the planner may read: how much was found, from a
+ * template. Never an item's words, a name or a data value.
+ */
+function headlineOf(a: Answer) {
+  if (a.records)
+    return a.records.refused
+      ? null
+      : a.records.total === 0
+        ? 'Nothing found.'
+        : `${a.records.total} found.`
+  if (a.state === null || a.state === 'failed') return null
+  const about = scopeText(a)
+  return clipped(`${items(a.sources.length)}${about ? ` about ${about}` : ''}.`)
+}
+
+/** Whether a turn was read for dates it named or carried, not for today or for any date. */
+const datedOf = (a: Answer) =>
+  a.reading ? a.reading.period === 'asked' || a.reading.period === 'carried' : !!a.dates
+
+/** What a turn sends on to the next question: none for one that asked nothing. */
+export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
+  askedOf(a).trim() && a.reply !== 'nothing_asked'
     ? {
-        question: a.question,
+        question: askedOf(a),
         scope: a.keys ?? null,
-        sources: a.sources.slice(0, 10),
+        sources: a.sources.slice(0, CHAT_SOURCES),
+        understood: understoodOf(a),
+        state: a.state,
+        headline: headlineOf(a),
+        ...(datedOf(a) ? { dated: true } : {}),
+        ...(a.records && !a.records.refused
+          ? {
+              domain: a.records.domain?.id ?? null,
+              period: a.records.period?.assumed === false ? a.records.period.words : null,
+            }
+          : {}),
         ...(a.reply === 'clarify' ? { asked: a.text } : {}),
       }
     : undefined
 
 /** A records answer in Ask: nothing was looked up in the context, so it has no answer state. */
-export const recordsAnswer = (question: string, records: RecordsAnswer): Answer => ({
+export const recordsAnswer = (
+  question: string,
+  records: RecordsAnswer,
+  reading?: { carried: string[]; standalone?: string },
+): Answer => ({
   id: 'custom',
   question,
   metric: '',
@@ -215,15 +266,18 @@ export const recordsAnswer = (question: string, records: RecordsAnswer): Answer 
   sources: [],
   said: '',
   records,
+  // Its own Understood as line says how it was read: the reading adds what the model carried.
+  ...(reading && !records.refused ? { reading: { words: '', ...reading } } : {}),
 })
 
 /**
- * A question Ask's planner answered with no look-up (FR-719): a short question back, in prose, or
- * the sentence for a question off topic. No state and no sources: nothing was looked up.
+ * A question answered with no look-up (FR-719): a short question back, in prose, the sentence for
+ * a question off topic, or the sentence for a message that asks nothing. No state and no sources:
+ * nothing was looked up.
  */
 export const replyAnswer = (
   question: string,
-  reply: { kind: 'clarify' | 'off_topic'; text: string },
+  reply: { kind: NonNullable<Answer['reply']>; text: string },
 ): Answer => ({
   id: 'custom',
   question,
@@ -303,8 +357,8 @@ export type AskInput = {
   example?: string
   /** Read the question afresh (a check that failed): the dates it was read with before. */
   reread?: { dates?: string }
-  /** The chat's last turn, for a follow-up. */
-  previous?: AskPrevious
+  /** The chat's last turns, oldest first, for a follow-up. */
+  turns?: ChatTurn[]
 }
 
 /** What the owners did after a named report, the first of them. */

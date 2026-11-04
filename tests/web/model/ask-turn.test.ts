@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MOCK_LOOK_MS, MOCK_READ_MS, MOCK_SENTENCE_MS, playAnswer } from '@/api/mock/ask-live'
-import type { Answer } from '@/model/ask'
+import { askedOf, chatTurnOf, recordsAnswer, type Answer } from '@/model/ask'
 import {
   askedTurn,
   doneTurn,
@@ -177,5 +177,121 @@ describe("the mock's answers in a live chat", () => {
     await vi.runAllTimersAsync()
     await failed
     expect(events).toEqual(['found', 'answer', 'sentence'])
+  })
+})
+
+describe('a turn asked again in words', () => {
+  const again = { question: engine.question, parts: [engine.question] }
+  const repeated = () => askedTurn('t1', 'try again', { again })
+
+  it('keeps what was typed, and what it repeated', () => {
+    const turn = run(repeated(), { type: 'done', answer: engine })
+    expect(turn.answer).toMatchObject({ id: 't1', question: 'try again', state: 'grounded', again })
+    expect(turn.answer.parts).toBeUndefined()
+    expect(askedOf(turn.answer)).toBe(engine.question)
+  })
+
+  it('sends on the question it repeated, so asking again twice stays on it', () => {
+    const turn = run(repeated(), { type: 'done', answer: engine })
+    expect(chatTurnOf(turn.answer)?.question).toBe(engine.question)
+  })
+})
+
+describe('what a turn sends on to the next question', () => {
+  it('holds how it was read and what it found, never the answer’s words', () => {
+    const turn = chatTurnOf({ ...engine, keys: undefined })!
+    expect(turn).toEqual({
+      question: engine.question,
+      scope: null,
+      sources: ['fct-1', 'fct-2'],
+      understood: 'Orders in Norway',
+      state: 'grounded',
+      headline: '2 context items about Orders in Norway.',
+    })
+    expect(JSON.stringify(turn)).not.toMatch(/stopped on 4 August|Store credit/)
+  })
+
+  it('holds at most 10 sources, and lines the contract takes', () => {
+    const many = Array.from({ length: 14 }, (_, i) => `fct-${i}`)
+    const long = 'Orders'.repeat(60)
+    const turn = chatTurnOf({ ...engine, sources: many, metric: long })!
+    expect(turn.sources).toHaveLength(10)
+    expect(turn.understood!.length).toBeLessThanOrEqual(200)
+    expect(turn.headline!.length).toBeLessThanOrEqual(200)
+  })
+
+  it('carries a records question’s domain and its named period', () => {
+    const records = {
+      refused: false,
+      intent: 'due',
+      understood: 'Due for a check, in Paid media',
+      period: null,
+      domain: { id: 'paid', name: 'Paid media' },
+      read: 'Read 2 context items in Paid media',
+      sentence: 'Nothing in Paid media is due for a check.',
+      detail: null,
+      detailItem: null,
+      columns: [],
+      rows: [],
+      total: 0,
+      shown: null,
+      more: null,
+      note: null,
+    } as const
+    expect(
+      chatTurnOf({
+        ...recordsAnswer('what is due in Paid media?', { ...records, columns: [], rows: [] }),
+      }),
+    ).toMatchObject({
+      understood: 'Due for a check, in Paid media',
+      headline: 'Nothing found.',
+      domain: 'paid',
+      period: null,
+      state: null,
+    })
+  })
+
+  it('names no one in a records headline, and sends none for a refusal', () => {
+    const found = recordsAnswer('who owns Sales?', {
+      refused: false,
+      intent: 'due',
+      understood: 'Owners',
+      period: null,
+      domain: null,
+      read: 'Read 3 items',
+      sentence: 'Anna Berg owns Sales.',
+      detail: null,
+      detailItem: null,
+      columns: [],
+      rows: [],
+      total: 3,
+      shown: null,
+      more: null,
+      note: null,
+    } as never)
+    expect(chatTurnOf(found)!.headline).toBe('3 found.')
+    const refused = recordsAnswer('what has Anna done?', {
+      refused: true,
+      reason: 'person',
+      sentence: 'Anna Berg',
+      detail: '',
+      offers: [],
+    })
+    expect(chatTurnOf(refused)!.headline).toBeNull()
+  })
+
+  it('reads dates from the reading alone when it has one', () => {
+    const turn = chatTurnOf({
+      ...engine,
+      dates: '1 to 31 Aug 2026',
+      reading: { words: 'x', carried: [], period: 'today' },
+    } as never)!
+    expect(turn.dated).toBeUndefined()
+  })
+
+  it('sends nothing for a message that asked nothing', () => {
+    expect(
+      chatTurnOf({ ...engine, reply: 'nothing_asked', state: null, sources: [] }),
+    ).toBeUndefined()
   })
 })

@@ -780,19 +780,26 @@ and `next` as before.
   (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
   with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
   `models.assistant`, which sends the cases' made-up questions and items to its provider.
-- Ask's planner (FR-719, `src/domain/ask-plan.ts`, `src/domain/ask-route.ts`): the input may carry
-  `previous`, the chat's last turn as the browser keeps it (its `question`, its `scope` as keys,
-  up to 10 `sources` by item id, and `asked`, the question Ask asked back), which is never stored.
-  For a question the rules cannot read (`need_more_detail`), a value alone that finds nothing, a
-  question about what changed that names nothing Heed keeps, or a follow-up of `previous`, the
-  model of `models.assistant` (with `MODELS=live`; the scripted planner with `MODELS=mock`)
-  chooses Ask's reads in one call of at most 3 seconds, under the spending limits and metered as
-  the assistant's. A checked plan sends a `plan` event first, with what the working line says,
-  then the reads' steps and `answer`, whose `reading` says how the model read the question and
-  what it carried; or one `reply` event, `clarify` (one short question back) or `off_topic`, with
-  nothing looked up. A plan that fails the check, a limit, an error or a slow call leaves the
-  rules' answer, and the log says why (`ask plan not used`, a reason only). The planner cases
-  (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
+- Ask's planner (FR-719, `src/domain/ask-plan.ts`, `src/domain/ask-route.ts`,
+  `src/domain/ask-chat.ts`): the input may carry `turns`, the chat's last six turns as the browser
+  keeps them, oldest first: each its `question`, `scope` as keys, up to 10 `sources` by item id,
+  `asked` (the question Ask asked back), `understood` (its Understood as line), `state`, `headline`
+  (one sentence from a template), `domain`, `period` and `dated`. They hold no answer text and no
+  data value and are never stored; the service keeps the newest that fit 4,000 characters. For a
+  question the rules cannot read (`need_more_detail`), a value alone that finds nothing, a question
+  about what changed that names nothing Heed keeps, or a follow-up of the chat, the model of
+  `models.assistant` (with `MODELS=live`; the scripted planner with `MODELS=mock`) chooses Ask's
+  reads in one call of at most 3 seconds, under the spending limits and metered as the assistant's.
+  A checked plan sends a `plan` event first, with what the working line says, then the reads' steps
+  and `answer`, whose `reading` says how the model read the question, what it carried, and, when
+  the chat matters, the question as it reads alone (`standalone`); a planned `records` event has a
+  `reading` with `carried` and `standalone`. Or one `reply` event, `clarify` (one short question
+  back), `off_topic` or `nothing_asked`, with nothing looked up. A message with no subject of its
+  own and no question that fits ("hmm", or "try again" with nothing to repeat) gets `nothing_asked`
+  with no model call. A message that only asks again never reaches the service as such: the browser
+  sends the last question instead (`src/domain/ask-again.ts`). A plan that fails the check, a limit,
+  an error or a slow call leaves the rules' answer, and the log says why (`ask plan not used`, a
+  reason only). The planner cases (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
   `npm run eval:ask-plan` (mock), or `-- --real --max-cost-usd <dollars>`, which also asks for the
   words of each planned answer and reports the planner's time and the cost of a planned question.
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with

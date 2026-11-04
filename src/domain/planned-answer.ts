@@ -1,4 +1,5 @@
-import type { PlannedRead, PlanPeriod, PreviousTurn } from './ask-plan.ts'
+import type { ChatTurn } from './ask-chat.ts'
+import type { PlannedRead, PlanPeriod } from './ask-plan.ts'
 import { rankItems, readQuery, type SearchArea } from './context-search.ts'
 import { fullDayWords } from './dates.ts'
 import {
@@ -39,6 +40,8 @@ export type PlanReading = {
   words: string
   /** The names and the period carried from the last question, in words. */
   carried: string[]
+  /** The question as it reads alone, as the planner restated it, when the chat matters. */
+  standalone?: string
   /** Where the dates came from, for the answer to say when it took some. */
   period: PlanPeriod | null
 }
@@ -133,25 +136,26 @@ const nameOf = (bundle: Pick<AnswerBundle, 'terms'>, key: string) =>
   bundle.terms.find((t) => t.key === key)?.name ?? key
 
 /**
- * What a planned read carried from the last question: the metrics and values it reads that the
- * last question had and the question's own words do not name, and the last question's period.
+ * What a planned read carried from the chat: the metrics and values it reads that the chat's
+ * questions had and the question's own words do not name, and the last question's period.
  */
 export function carriedNames(
   bundle: Pick<AnswerBundle, 'terms'>,
   reads: readonly PlannedRead[],
   question: string,
-  previous: PreviousTurn | null,
+  turns: readonly ChatTurn[],
   today: string,
 ): string[] {
-  if (!previous) return []
+  if (!turns.length) return []
   const keysIn = (words: string) => readQuestion(words, bundle.terms, today).terms.map((t) => t.key)
   const named = new Set(keysIn(question))
-  // What the last question asked: how it was read, or its own words when nothing was looked up.
-  const last = previous.scope
-  const before = new Set([
-    ...(last ? [...last.metrics, ...Object.values(last.filters).flat()] : []),
-    ...keysIn(previous.question),
-  ])
+  // What the chat asked: how each turn was read, or its own words when nothing was looked up.
+  const before = new Set(
+    turns.flatMap((turn) => [
+      ...(turn.scope ? [...turn.scope.metrics, ...Object.values(turn.scope.filters).flat()] : []),
+      ...keysIn(turn.question),
+    ]),
+  )
   const carried = new Set<string>()
   let period = false
   for (const read of reads) {
@@ -382,7 +386,7 @@ export function previousSources(
 export function runRead(
   bundle: PlannedBundle,
   read: PlannedRead,
-  c: { today: string; previous: PreviousTurn | null; now?: () => number },
+  c: { today: string; previous: ChatTurn | null; now?: () => number },
 ): { answer: Answer; reads: PlannedRead[] } {
   const now = c.now ?? (() => 0)
   if (read.kind === 'explore') return explore(bundle, read, c.today, now)
@@ -392,7 +396,7 @@ export function runRead(
 function engineRead(
   bundle: PlannedBundle,
   read: Exclude<PlannedRead, { kind: 'explore' }>,
-  c: { today: string; previous: PreviousTurn | null },
+  c: { today: string; previous: ChatTurn | null },
   now: () => number,
 ): Answer {
   switch (read.kind) {
@@ -415,7 +419,15 @@ function engineRead(
     case 'definition':
       return answer(bundle, { question: '', metrics: read.metrics }, { today: c.today, now })
     case 'about_previous':
-      return previousSources(bundle, read.ids, c.previous?.scope ?? null, c.today, now)
+      return previousSources(
+        bundle,
+        read.ids,
+        c.previous && read.ids.every((id) => c.previous!.sources.includes(id))
+          ? (c.previous.scope ?? null)
+          : null,
+        c.today,
+        now,
+      )
   }
 }
 
@@ -483,7 +495,15 @@ export type PlannedAnswer = {
 export function plannedAnswer(
   bundle: PlannedBundle,
   reads: readonly PlannedRead[],
-  c: { question: string; today: string; previous: PreviousTurn | null; now?: () => number },
+  c: {
+    question: string
+    today: string
+    previous: ChatTurn | null
+    /** The chat, oldest first: what the read may have carried. */
+    turns?: readonly ChatTurn[]
+    standalone?: string
+    now?: () => number
+  },
 ): PlannedAnswer {
   const runs = reads.map((read) => runRead(bundle, read, c))
   const ran = runs.flatMap((r) => r.reads)
@@ -493,8 +513,15 @@ export function plannedAnswer(
     answer: combined(runs.map((r) => r.answer)),
     reading: {
       words: readsWords(bundle, ran, c.today),
-      carried: carriedNames(bundle, ran, c.question, c.previous, c.today),
+      carried: carriedNames(
+        bundle,
+        ran,
+        c.question,
+        c.turns ?? (c.previous ? [c.previous] : []),
+        c.today,
+      ),
       period: dated?.period ?? null,
+      ...(c.standalone ? { standalone: c.standalone } : {}),
     },
     defines: [...new Set(ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])))],
   }

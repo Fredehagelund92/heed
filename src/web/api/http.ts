@@ -32,16 +32,11 @@ import { refusals } from '@contract/refusals'
 import { REVIEW_SHEETS_MAX, type ReviewSheet } from '@contract/review-path'
 import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
 import { thresholdOfWords } from '@domain/alerts'
+import type { ChatTurn } from '@domain/ask-chat'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
-import {
-  recordsAnswer,
-  replyAnswer,
-  reportedOn,
-  reportOutcomeWords,
-  type AskPrevious,
-} from '@/model/ask'
+import { recordsAnswer, replyAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
 import { parseMentionId } from '@/lib/mentions'
 import type { Definition } from '@/lib/definitions'
@@ -839,7 +834,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
    * `signal` stops the look-up, the model's call with it.
    */
   async function lookUp(
-    input: { question: string; previous?: AskPrevious } & Partial<ReturnType<typeof lookupFields>>,
+    input: { question: string; turns?: ChatTurn[] } & Partial<ReturnType<typeof lookupFields>>,
     seen: (event: LookupEvent) => void,
     signal?: AbortSignal,
   ) {
@@ -853,11 +848,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     let records: Extract<LookupEvent, { type: 'records' }>['records'] | undefined
     // A short question back, or a question off topic: its one event, and nothing looked up.
     let reply: Extract<LookupEvent, { type: 'reply' }>['reply'] | undefined
+    let reading: Extract<LookupEvent, { type: 'records' }>['reading']
     try {
       for await (const event of events) {
         if (event.type === 'answer') answer = event.answer
         else if (event.type === 'sentence') written.push(event.text)
-        else if (event.type === 'records') records = event.records
+        else if (event.type === 'records') ({ records, reading } = event)
         else if (event.type === 'reply') reply = event.reply
         seen(event)
       }
@@ -865,7 +861,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       // Once the engine's answer is in, a stream that breaks ends the words there; the answer stays.
       if (!answer || signal?.aborted) throw error
     }
-    if (records) return { records }
+    if (records) return { records, reading }
     if (reply) return { reply }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
     return { answer, written: written.join(' ') || undefined }
@@ -892,7 +888,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example, previous }, live) => {
+  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example, turns }, live) => {
     let words = question
     let offered = offeredScopes.get(question.toLowerCase())
     if (example) {
@@ -919,10 +915,11 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       else if (event.type === 'sentence') tell({ type: 'sentence', text: event.text })
     }
     try {
-      // A follow-up carries the chat's last turn; a question scoped with @ is read as scoped.
-      const carry = previous && !example && !scope?.length ? { previous } : {}
+      // A follow-up carries the chat's last turns; a question scoped with @ is read as scoped.
+      const carry = turns?.length && !example && !scope?.length ? { turns } : {}
       const looked = await lookUp({ question: words, ...fields, ...carry }, seen, live?.signal)
-      if (looked.records) return { ...recordsAnswer(words, looked.records), ...extra }
+      if (looked.records)
+        return { ...recordsAnswer(words, looked.records, looked.reading), ...extra }
       if (looked.reply) return { ...replyAnswer(words, looked.reply), ...extra }
       const answer = answerOf(looked.answer, words, names, extra, looked.written)
       said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
