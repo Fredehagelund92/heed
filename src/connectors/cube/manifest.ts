@@ -97,6 +97,8 @@ export const manifest = defineManifest({
     domain: 'hint',
     marks: 'meaning',
     mergeDimensions: 'by-name',
+    // Its folder is the server's own setting, CUBE_MODEL_DIR.
+    serverFolder: true,
     figures: true,
   },
   schedule: { default: 'PT1H', minimum: 'PT15M' },

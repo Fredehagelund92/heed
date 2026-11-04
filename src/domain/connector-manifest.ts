@@ -13,7 +13,7 @@ import { connectorIdPattern } from './connector-id.ts'
 */
 
 /** The connector interface this build speaks (CON-109). A minor version only adds. */
-export const CONNECTOR_INTERFACE_VERSION = '3.1.0'
+export const CONNECTOR_INTERFACE_VERSION = '3.2.0'
 
 const CONNECTOR_ID_MAX = 64
 
@@ -186,6 +186,12 @@ export const connectorManifestSchema = z.strictObject({
      * another group has one of the same name (dbt's semantic models). Absent means `by-name`.
      */
     mergeDimensions: z.optional(z.enum(['by-name', 'never'])),
+    /**
+     * Definitions: it can read a folder on the server, as `ctx.folder`, with no settings at all.
+     * Whoever runs the server names the folder (`HEED_SERVER_FOLDERS`); the core hands one only
+     * to a connector that declares this.
+     */
+    serverFolder: z.optional(z.boolean()),
     links: z.optional(z.boolean()),
     /**
      * Definitions: it can read one figure for Ask from the tool's data endpoint (CON-612), when
@@ -431,6 +437,8 @@ export function checkManifest(
       problem('capabilities.figures', 'Only a definitions connector reads figures.')
     if (manifest.capabilities.mergeDimensions !== undefined)
       problem('capabilities.mergeDimensions', 'Only a definitions connector has dimensions.')
+    if (manifest.capabilities.serverFolder !== undefined)
+      problem('capabilities.serverFolder', 'Only a definitions connector reads a server folder.')
     if (manifest.limits.draftsPerDay === undefined)
       problem('limits.draftsPerDay', 'Say how many drafts a source may make in a day.')
   }

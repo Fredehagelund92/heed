@@ -74,9 +74,12 @@ worded in the manifest and sent as `<id>.<code>`.
 - **Where the input comes from.** A file or folder in a Git repository (`ctx.git`), the folder
   whoever runs the server names (`ctx.folder`), or an https API (`ctx.fetch`). Prefer the tool's
   own resolved output (a built artifact) to its source files: re-implementing a tool's parser is
-  guessing. Never run the tool. A runtime should read `ctx.folder` when it is there, but today the
-  core hands one only to Cube's source (`CUBE_MODEL_DIR`): for any other connector, an
-  administrator's route is Git or an API, and your README must say so.
+  guessing. Never run the tool.
+- **Whether it can read a folder on the server.** If `read` works from `ctx.folder` with no
+  settings, declare `capabilities.serverFolder: true`. Whoever runs the server then names a folder
+  for it (`HEED_SERVER_FOLDERS`, by connector id), and that folder is one of the server's own
+  sources, with no form. The connector never names the path, and the core hands no folder to a
+  connector that does not declare this. Leave it out for an API or a live service.
 - **What a group is.** The part of a name before the last dot. Integrations lists groups in the
   Choose and Map steps, and an administrator maps each to a domain. A name without a dot is in no
   group, and Integrations cannot list it.
@@ -201,20 +204,21 @@ bug to fix, not a line to add.
 (CON-108) through the core, as Integrations and the pipelines do. Its tests switch on by what the
 manifest declares and by the hooks the fixture gives:
 
-| Hook            | What the kit proves                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------ |
-| `folder`        | The manifest is valid, its README is there and names its title                                   |
-| `good`          | The form takes it, the check passes, refs are prefixed and once, marks are stable                |
-| `refused`       | A secret the tool refuses is for an administrator to fix                                         |
-| `unreachable`   | A host that cannot be reached fails, and says so                                                 |
-| `invalid`       | Each setting the form must refuse is refused on its field                                        |
-| `partial`       | Input with a record it cannot read gives a partial read with a warning                           |
-| `calculation`   | None of these strings (every planted calculation) is in any definition or warning                |
-| `expected`      | The read of `good` gives exactly the definitions and warnings of `definitions.json`              |
-| `reformat`      | The same meaning in another form (order, layout, environment) gives the same refs and marks      |
-| `meaningChange` | One changed calculation moves exactly the refs you name: it and what is built on it              |
-| `wrongFormat`   | Input of another format is refused by the form, or fails with a worded `config` or `source` code |
-| `planted`       | The secret is in no check, record or warning                                                     |
+| Hook            | What the kit proves                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| `folder`        | The manifest is valid, its README is there and names its title                                    |
+| `good`          | The form takes it, the check passes, refs are prefixed and once, marks are stable                 |
+| `refused`       | A secret the tool refuses is for an administrator to fix                                          |
+| `unreachable`   | A host that cannot be reached fails, and says so                                                  |
+| `invalid`       | Each setting the form must refuse is refused on its field                                         |
+| `serverFolder`  | A folder on the machine holding the good input: the read through it gives the same refs and marks |
+| `partial`       | Input with a record it cannot read gives a partial read with a warning                            |
+| `calculation`   | None of these strings (every planted calculation) is in any definition or warning                 |
+| `expected`      | The read of `good` gives exactly the definitions and warnings of `definitions.json`               |
+| `reformat`      | The same meaning in another form (order, layout, environment) gives the same refs and marks       |
+| `meaningChange` | One changed calculation moves exactly the refs you name: it and what is built on it               |
+| `wrongFormat`   | Input of another format is refused by the form, or fails with a worded `config` or `source` code  |
+| `planted`       | The secret is in no check, record or warning                                                      |
 
 For every definitions connector, whatever the hooks, every name has a group, a definition without
 a hint says `none`, one with a hint says `source` or `override`, and every warning code is worded.
@@ -242,7 +246,8 @@ means an input's calculation is not.
 
 - [ ] Copied from `_template/`; the folder is listed twice; `describeConnector` has `good`,
       `refused`, `unreachable`, `invalid`, `partial`, `calculation` (every planted
-      calculation), `planted`, `expected`, `reformat`, `meaningChange` and `wrongFormat`.
+      calculation), `planted`, `expected`, `reformat`, `meaningChange` and `wrongFormat`, and
+      `serverFolder` when the manifest declares it.
 - [ ] `mapping.ts` is pure, and `definitions.json` reads right.
 - [ ] The fixture is invented, `REBUILD.md` rebuilds it, and environment names are neutral.
 - [ ] Every warning code is worded in the manifest, and no screen word outside the folder names

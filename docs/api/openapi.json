@@ -58135,6 +58135,9 @@
                                 ],
                                 "type": "string"
                               },
+                              "serverFolder": {
+                                "type": "boolean"
+                              },
                               "links": {
                                 "type": "boolean"
                               },

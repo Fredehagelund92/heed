@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
+import { manifest as templateManifest } from '../../../src/connectors/_template/manifest.ts'
 import { manifest as staticManifest } from '../../../src/connectors/static-definitions/manifest.ts'
 import {
   defineConnector,
@@ -14,9 +15,12 @@ import type { ConnectorManifest } from '../../../src/domain/connector-manifest.t
 import {
   ConnectorRegistry,
   ConnectorRegistryError,
+  configuredSources,
   connectorType,
   createDemoSource,
+  createFolderSource,
   createWorkspaceSources,
+  fromModule,
   guardedFetch,
   noSecretStore,
   type DefinitionSource,
@@ -425,5 +429,79 @@ describe('the groups an admin chose for a definitions source (CON-118)', () => {
       { code: 'domain_override', target: 'cube:orders.count' },
       { code: 'domain_override', target: 'cube:orders.revenue' },
     ])
+  })
+})
+
+describe('a folder on the server (CON-119)', () => {
+  /** What a runtime is handed: whether it got a folder. */
+  const folderHanded = async (serverFolder: boolean | undefined) => {
+    const { serverFolder: _, ...capabilities } = templateManifest.capabilities
+    let handed: boolean | null = null
+    const module = defineConnector(
+      {
+        ...templateManifest,
+        capabilities: { ...capabilities, ...(serverFolder ? { serverFolder } : {}) },
+      },
+      defineRuntime({
+        check: () => Promise.resolve({ steps: [] }),
+        async *read(context) {
+          handed = context.folder !== null
+          yield await Promise.resolve({ type: 'end' as const, version: 'v', complete: true })
+        },
+      }),
+    )
+    await fromModule(module)
+      .source({ id: 'kit', name: 'Kit', config: {}, secrets: {}, folder: '/nowhere' })
+      .read({ cursor: null })
+    return handed
+  }
+
+  it('is handed to a connector that declares it', async () => {
+    expect(await folderHanded(true)).toBe(true)
+  })
+
+  it('is never handed to one that does not, whatever its source says', async () => {
+    expect(await folderHanded(undefined)).toBe(false)
+  })
+
+  it('is read as one of the server’s own sources, for a connector that declares it', () => {
+    const [source, ...others] = configuredSources({
+      cubeModelDir: undefined,
+      domainOverridesFile: undefined,
+      renamesFile: undefined,
+      serverFolders: { 'dbt-metricflow': '/srv/dbt' },
+    })
+    expect(others).toEqual([])
+    expect(source).toMatchObject({ id: 'dbt-metricflow', type: 'dbt-metricflow' })
+    expect(source!.serverSettings).toEqual([
+      { key: 'model_folder', variable: 'HEED_SERVER_FOLDERS', value: '/srv/dbt' },
+      { key: 'domain_overrides', variable: 'HEED_DOMAIN_OVERRIDES', value: null },
+    ])
+  })
+
+  it('keeps Cube’s folder and the demo as they were', () => {
+    const ids = (config: { cubeModelDir?: string; serverFolders?: Record<string, string> }) =>
+      configuredSources({
+        cubeModelDir: undefined,
+        domainOverridesFile: undefined,
+        renamesFile: undefined,
+        ...config,
+      }).map((source) => source.id)
+    expect(ids({})).toEqual(['demo'])
+    expect(ids({ cubeModelDir: '/srv/cube' })).toEqual(['cube'])
+    expect(
+      ids({ cubeModelDir: '/srv/cube', serverFolders: { 'dbt-metricflow': '/srv/dbt' } }),
+    ).toEqual(['cube', 'dbt-metricflow'])
+  })
+
+  it('stops the server for a name it cannot honour, saying which', () => {
+    const named = (connector: string) => () =>
+      createFolderSource({ connector, folder: '/srv/somewhere' })
+    expect(named('nothing')).toThrow('HEED_SERVER_FOLDERS: nothing is not a connector.')
+    expect(named('git-markdown')).toThrow(
+      'HEED_SERVER_FOLDERS: git-markdown cannot read a server folder.',
+    )
+    expect(named('static-definitions')).toThrow('cannot read a server folder')
+    expect(named('cube')).toThrow('HEED_SERVER_FOLDERS: cube has CUBE_MODEL_DIR for its folder.')
   })
 })

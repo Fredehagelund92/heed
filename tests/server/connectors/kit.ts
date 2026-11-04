@@ -80,6 +80,11 @@ export interface ConnectorFixture {
    */
   meaningChange?: () => { source: FixtureSource; moved: string[] }
   /**
+   * Definitions with `capabilities.serverFolder`: a folder on this machine that holds the good
+   * input, which the connector reads with no settings, through the core, as `ctx.folder`.
+   */
+  serverFolder?: () => string
+  /**
    * Definitions: settings that point at input of another format (another file of the tool, a
    * file of another tool). The form refuses them, or the read fails with a code worded for an
    * administrator, of class `config` or `source`: never `invalid_output`.
@@ -326,6 +331,22 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
           expect(good.length).toBeGreaterThan(0)
           const reformatted = connector().source(stored(fixture.reformat!()))
           expect(marks(await reformatted.read({ cursor: null }))).toEqual(good)
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.serverFolder)
+      it(
+        'reads a folder on the server with no settings, to the same refs and marks',
+        async () => {
+          const marks = (read: Awaited<ReturnType<typeof readGood>>) =>
+            read.definitions.map((d) => [d.ref, d.changeMark])
+          expect(manifest.capabilities.serverFolder).toBe(true)
+          const source = connector().source({
+            ...stored({ config: {}, secrets: {} }),
+            folder: fixture.serverFolder!(),
+          })
+          expect(marks(await source.read({ cursor: null }))).toEqual(marks(await readGood()))
         },
         fixture.timeout,
       )

@@ -368,6 +368,7 @@ export default defineManifest({
     domain: 'per-scope', // 'hint' (definitions) | 'per-scope' (content)
     marks: undefined, // definitions: 'meaning' | 'metadata' (do marks see calculations? CON-505)
     mergeDimensions: undefined, // definitions: 'by-name' | 'never' (CON-201), absent is by-name
+    serverFolder: undefined, // definitions: reads a folder on the server with no settings (CON-119)
     links: true,
     figures: undefined, // definitions: reads one figure for Ask (CON-612)
   },
@@ -556,8 +557,9 @@ capabilities a manifest declares:
 
 ### Versions
 
-- **Interface version**, a semver: 3.1 today (3.1 added `capabilities.mergeDimensions` and a
-  secret's `file`, so a connector that uses them says `^3.1`). A minor version only adds; a
+- **Interface version**, a semver: 3.2 today (3.1 added `capabilities.mergeDimensions` and a
+  secret's `file`, and 3.2 `capabilities.serverFolder`, so a connector that uses them says that
+  version). A minor version only adds; a
   major one may break. Heed runs the current and the previous major for at least 12 months or two
   releases, whichever is longer, and warns on a source's page when its connector uses a major that
   will stop being supported (CON-109). Experimental parts are open to built-in connectors only.
@@ -653,7 +655,12 @@ Where the build differs from the decided text above:
   for the server's own model folder (`CUBE_MODEL_DIR`), which its runtime reads as `ctx.folder`;
   the core applies the server's domain names (`HEED_DOMAIN_OVERRIDES`) and renames
   (`CUBE_RENAMES_FILE`) to that folder's reads (`server-source.ts`), and `npm run
-connectors:sync` is unchanged. Its settings, its refs and the sources administrators added on
+connectors:sync` reads each of the server's own sources.
+- **A folder on the server**, for any other definitions connector that declares
+  `capabilities.serverFolder` (CON-119): `HEED_SERVER_FOLDERS` maps connector ids to folders, each
+  read as `ctx.folder` by a source of the server's own, with the server's domain names. The core
+  hands no folder to a connector that does not declare it, and a name it cannot honour stops the
+  server. With a folder named and no `CUBE_MODEL_DIR`, the demo is not read. Its settings, its refs and the sources administrators added on
   interface 2 are as they were. Its warnings are the core's codes it always had
   (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
 - **What is stored**: a source's `connectors.type` is its connector's id and `interface_version`

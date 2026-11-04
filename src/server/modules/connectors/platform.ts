@@ -82,8 +82,9 @@ export interface StoredSource {
    */
   scopes?: readonly StoredScope[]
   /**
-   * The folder on the server that whoever runs it named for the source (`CUBE_MODEL_DIR`), which
-   * the runtime reads as `ctx.folder`; only for a source the server's configuration selects.
+   * The folder on the server that whoever runs it named for the source (`CUBE_MODEL_DIR`,
+   * `HEED_SERVER_FOLDERS`), which a connector that declares `capabilities.serverFolder` reads as
+   * `ctx.folder`; only for a source the server's configuration selects.
    */
   folder?: string
 }
@@ -368,7 +369,11 @@ function contextFor(
         : null,
     fetch: guardedFetch(manifest, stored.config, signal),
     git: guardedGit(manifest, stored.config, stored.secrets),
-    folder: stored.folder === undefined ? null : folderTree(stored.folder),
+    // Only a connector that declares it gets a folder on the server, whatever a source says.
+    folder:
+      stored.folder === undefined || !manifest.capabilities.serverFolder
+        ? null
+        : folderTree(stored.folder),
     worker: (input) =>
       worker
         ? runWorker(worker, input, { signal, limits })

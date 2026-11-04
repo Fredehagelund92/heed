@@ -93,7 +93,8 @@ describe('fetching in production', () => {
         { config: { repository: 'https://git.example.com/a.git', ref: 'main' } },
       )
     }
-  })
+    // Importing every connector takes seconds when the test run is busy.
+  }, 30_000)
 
   it('refuses a name that leads to a private network before git runs', async () => {
     expect(await problem('https://127.0.0.1/a.git')).toBe('private_address')

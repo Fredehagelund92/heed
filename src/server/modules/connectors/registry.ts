@@ -11,7 +11,7 @@ import {
   type StoredScope,
 } from './platform.ts'
 import { noSecretStore, SecretStoreError, type SecretStore } from './secrets.ts'
-import { createCubeSource, cubeServerType } from './server-source.ts'
+import { createCubeSource, createFolderSource, cubeServerType } from './server-source.ts'
 import type { ConnectorType, DefinitionSource } from './types.ts'
 import { workerLimits, type WorkerLimits } from './worker.ts'
 
@@ -203,6 +203,20 @@ export class ConnectorRegistry {
     if (!source) throw new Error(`Unknown connector: ${id}`)
     return source
   }
+}
+
+/**
+ * The definition sources the configuration selects: the Cube model folder, and each folder
+ * `HEED_SERVER_FOLDERS` names for a connector. The demo is read only when it names neither.
+ */
+export function configuredSources(
+  config: Pick<Config, 'cubeModelDir' | 'domainOverridesFile' | 'renamesFile'> &
+    Partial<Pick<Config, 'cubeCompile' | 'serverFolders'>>,
+): DefinitionSource[] {
+  const folders = Object.entries(config.serverFolders ?? {}).map(([connector, folder]) =>
+    createFolderSource({ connector, folder, domainOverridesFile: config.domainOverridesFile }),
+  )
+  return config.cubeModelDir || !folders.length ? [configuredSource(config), ...folders] : folders
 }
 
 /** The definition source the configuration selects: the Cube model folder, or the demo. */

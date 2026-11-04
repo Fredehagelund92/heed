@@ -1,6 +1,9 @@
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll } from 'vitest'
 import { manifest as templateManifest } from '../../../src/connectors/_template/manifest.ts'
 import { runtime as templateRuntime } from '../../../src/connectors/_template/runtime.ts'
@@ -34,6 +37,8 @@ let drive: DriveHost
 /** The fake Drive's folders and documents, by name. */
 const driveIds: Record<string, string> = {}
 let driveKey = ''
+/** A folder on this machine that holds each file a connector reads as `ctx.folder`. */
+let serverFolder = ''
 
 beforeAll(async () => {
   cubeApi = createServer((req, res) => {
@@ -106,6 +111,9 @@ beforeAll(async () => {
     'metrics/metrics.json': JSON.stringify(withoutRevenue(metrics)),
   })
   await host.repository('example-wrong', { 'metrics/metrics.json': '{ "metrics": [] }' })
+  serverFolder = await mkdtemp(join(tmpdir(), 'heed-kit-folder-'))
+  await writeFile(join(serverFolder, 'metrics.json'), JSON.stringify(metrics))
+  await writeFile(join(serverFolder, 'semantic_manifest.json'), JSON.stringify(legacyManifest))
   const semantic = (file: unknown, space?: number) => ({
     'semantic/semantic_manifest.json': JSON.stringify(file, null, space),
   })
@@ -151,6 +159,7 @@ afterAll(async () => {
   await new Promise<void>((resolve) => cubeApi.close(() => resolve()))
   await host.close()
   await drive.close()
+  await rm(serverFolder, { recursive: true, force: true })
 })
 
 const module = (id: string) => builtInConnectors.find((candidate) => candidate.manifest.id === id)!
@@ -254,6 +263,7 @@ const analyticsAt = (repository: string): FixtureSource => ({
 
 describeConnector(module('cube'), {
   folder: builtInFolder('cube'),
+  serverFolder: () => fileURLToPath(new URL('../../fixtures/cube/model/', import.meta.url)),
   good: () => analytics(TOKEN),
   refused: () => analytics('not-the-token'),
   unreachable: () => ({
@@ -401,6 +411,7 @@ describeConnector(module('dbt-metricflow'), {
     ],
   }),
   wrongFormat: () => dbtSource('shop-metrics-wrong'),
+  serverFolder: () => serverFolder,
   planted: TOKEN,
 })
 
@@ -538,5 +549,6 @@ describeConnector(defineConnector(templateManifest, templateRuntime), {
     moved: ['example:orders.revenue', 'example:orders.average_order_value'],
   }),
   wrongFormat: () => example('example-wrong'),
+  serverFolder: () => serverFolder,
   planted: TOKEN,
 })

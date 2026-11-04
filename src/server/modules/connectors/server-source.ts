@@ -22,6 +22,9 @@ import { workerLimits } from './worker.ts'
   What only whoever runs the server can say is applied here, the same for any definitions
   connector: the domains of views the model names none for (`HEED_DOMAIN_OVERRIDES`), and the
   members renamed (`CUBE_RENAMES_FILE`, CON-512).
+
+  Any other connector that declares `capabilities.serverFolder` is read the same way from the
+  folder `HEED_SERVER_FOLDERS` names for it (CON-119).
 */
 
 /** The type of the server's model folder: Cube's, with the setting of its page in Sources. */
@@ -113,6 +116,48 @@ export function renamesOf(
     else warnings.push({ code: 'invalid_rename', target: from })
   }
   return { renames, warnings }
+}
+
+/**
+ * The folder `HEED_SERVER_FOLDERS` names for a connector, read by that connector as `ctx.folder`,
+ * with the server's domains. Its settings are shown read only in Sources, with "Set on the
+ * server". A connector that does not declare `capabilities.serverFolder`, one this build does not
+ * know, and one that has a setting of its own for its folder stop the server, each said.
+ */
+export function createFolderSource(options: {
+  connector: string
+  folder: string
+  domainOverridesFile?: string | undefined
+}): DefinitionSource {
+  const module = builtInConnectors.find(({ manifest }) => manifest.id === options.connector)
+  const problem = (why: string) => new Error(`HEED_SERVER_FOLDERS: ${options.connector} ${why}`)
+  if (!module) throw problem('is not a connector.')
+  if (!module.manifest.capabilities.serverFolder) throw problem('cannot read a server folder.')
+  if (options.connector === cubeManifest.id) throw problem('has CUBE_MODEL_DIR for its folder.')
+  const source = fromModule(module, workerLimits()).source({
+    id: module.manifest.id,
+    name: module.manifest.title,
+    config: {},
+    secrets: {},
+    folder: options.folder,
+  })
+  const overridesFile = options.domainOverridesFile
+  return {
+    ...source,
+    serverSettings: [
+      { key: 'model_folder', variable: 'HEED_SERVER_FOLDERS', value: options.folder },
+      { key: 'domain_overrides', variable: 'HEED_DOMAIN_OVERRIDES', value: overridesFile ?? null },
+    ],
+    async read(context) {
+      const read = await source.read(context)
+      if (!overridesFile) return read
+      const overrides = await jsonObject(overridesFile)
+      return {
+        ...withOverrides(read, overrides),
+        sourceVersion: await contentDigest({ version: read.sourceVersion, overrides }),
+      }
+    },
+  }
 }
 
 /**

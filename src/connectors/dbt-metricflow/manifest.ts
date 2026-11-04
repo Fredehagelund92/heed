@@ -3,14 +3,14 @@ import { defineManifest } from '../../domain/define-manifest.ts'
 /**
  * dbt MetricFlow definitions (CON-701 to CON-708): the `semantic_manifest.json` a dbt project
  * writes, read from a Git repository an admin names, or from the folder whoever runs the server
- * names. Its metrics and dimensions become the definitions Heed checks context against. A read
+ * names (`HEED_SERVER_FOLDERS`). Its metrics and dimensions become the definitions Heed checks context against. A read
  * takes that one file: never dbt itself, dbt Cloud, a warehouse or data, and it keeps no
  * calculation and no value.
  */
 export const manifest = defineManifest({
   id: 'dbt-metricflow',
   version: '1.0.0',
-  heed: '^3.1',
+  heed: '^3.2',
   kind: 'definitions',
   tool: 'dbt',
   title: 'dbt MetricFlow definitions in a Git repository',
@@ -99,6 +99,7 @@ export const manifest = defineManifest({
     marks: 'meaning',
     // Each semantic model's dimensions are its own: `orders.status` is not `customers.status`.
     mergeDimensions: 'never',
+    serverFolder: true,
   },
   schedule: { default: 'PT1H', minimum: 'PT15M' },
   staleAfter: 'PT6H',

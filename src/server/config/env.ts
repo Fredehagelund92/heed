@@ -16,6 +16,17 @@ import { modelProviders } from '../modules/models/index.ts'
 
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
 
+const serverFoldersSchema = z.record(z.string(), z.string().min(1))
+
+/** The value of a variable that holds JSON; undefined when it is not JSON. */
+function parsedJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return undefined
+  }
+}
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -129,6 +140,20 @@ const envSchema = z
     MODEL_PROVIDER: z.string().optional(),
     // A folder of Cube model files, read offline. Unset selects the demo connector.
     CUBE_MODEL_DIR: z.string().optional(),
+    // Folders on the server, by connector id: a JSON object each connector named reads as
+    // `ctx.folder`, when its manifest declares `capabilities.serverFolder`.
+    HEED_SERVER_FOLDERS: z
+      .string()
+      .transform((text, context) => {
+        const folders = serverFoldersSchema.safeParse(parsedJson(text))
+        if (folders.success) return folders.data
+        context.addIssue({
+          code: 'custom',
+          message: 'Expected a JSON object of connector ids to folders',
+        })
+        return z.NEVER
+      })
+      .optional(),
     HEED_DOMAIN_OVERRIDES: z.string().optional(),
     // A JSON file of renamed Cube members, old id to new id (CON-512).
     CUBE_RENAMES_FILE: z.string().optional(),
@@ -296,6 +321,8 @@ export interface Config {
   /** The registry's key and base URL variables that are set, by name. Never logged. */
   modelEnv: Record<string, string>
   cubeModelDir: string | undefined
+  /** The folders on the server, by connector id (`HEED_SERVER_FOLDERS`). */
+  serverFolders: Readonly<Record<string, string>>
   domainOverridesFile: string | undefined
   renamesFile: string | undefined
   /** Cube's compile limits, when the server sets them. */
@@ -378,6 +405,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
         .flatMap((name) => (present[name] === undefined ? [] : [[name, present[name]]])),
     ),
     cubeModelDir: env.CUBE_MODEL_DIR,
+    serverFolders: env.HEED_SERVER_FOLDERS ?? {},
     domainOverridesFile: env.HEED_DOMAIN_OVERRIDES,
     renamesFile: env.CUBE_RENAMES_FILE,
     cubeCompile: {

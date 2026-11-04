@@ -2,17 +2,12 @@
 
 The definitions connector for a dbt project's semantic layer
 ([how a connector is built](../../../docs/connectors/authoring.md)). It reads one file dbt writes,
-`semantic_manifest.json`, from a Git repository at a set branch, tag or commit, or from a folder
-the core hands it as `ctx.folder`, and gives Heed each metric and dimension under `dbt:`. It takes
+`semantic_manifest.json`, from a Git repository at a set branch, tag or commit, or from a folder on
+the server, and gives Heed each metric and dimension under `dbt:`. It takes
 the definitions only. It never runs dbt or reads the project's YAML, and never reaches dbt Cloud, a
 warehouse or data. It keeps no calculation and no value, and has no figures. A read only flags the
 items that rely on a definition that changed or left: it never changes an item and never publishes
 (I-2).
-
-Today only the Git route can be set up: the server has no setting yet that names a folder for
-this connector (the server's own sources are a later slice, in
-[the contract](../../../docs/connectors.md#what-the-next-slices-build)). The runtime reads
-`ctx.folder` as soon as the core hands it one, and a test proves that it does.
 
 ## Setting it up
 
@@ -66,6 +61,16 @@ config:
     synonyms: ['purchases', 'order count']
 ```
 
+**A folder on the server.** When your CI drops the file on the machine that runs Heed, skip the
+commit: whoever runs the server names the folder, and the connector reads `semantic_manifest.json`
+in it (`ctx.folder`). It is then one of the server's own sources, with no settings, token or Git.
+The server's domain map (`HEED_DOMAIN_OVERRIDES`) gives a semantic model with no domain its domain.
+[Configuration](../../../docs/operations.md) has the rest.
+
+```sh
+HEED_SERVER_FOLDERS='{"dbt-metricflow":"/srv/dbt/target"}'
+```
+
 ## Settings
 
 | Field                 | What it is                                                                                                            |
@@ -81,8 +86,8 @@ config:
 ## What a read does
 
 1. Fetches the one commit the ref names, read only, through `ctx.git`
-   ([security](../../../docs/connectors/security.md#git)), or takes `ctx.folder`, and reads the one
-   file.
+   ([security](../../../docs/connectors/security.md#git)), or takes the server's folder
+   (`ctx.folder`), and reads the one file.
 2. Maps it, in plain code with no worker:
    - **A semantic model is a group**, which Integrations lists and maps to a domain.
    - **Every dimension is a definition**, `dbt:<semantic model>.<dimension>`, with `categorical` or
@@ -96,7 +101,7 @@ config:
      and plumbing, not what people ask about.
 3. Gives each one its label and description (500 characters at most), the other names in
    `meta.synonyms` and a domain, then ends with the commit as its version and its cursor (for
-   `ctx.folder`, a digest of the file). Every read is a full listing.
+   the server's folder, a digest of the file). Every read is a full listing.
 
 **Domains.** A definition's own valid `meta.domain` wins. A dimension otherwise takes its semantic
 model's, as a metric does; a `_shared` metric takes the one domain all its semantic models agree
@@ -139,4 +144,5 @@ The conformance kit runs against it in `tests/server/connectors/conformance.test
 invented shop in `tests/fixtures/dbt-metricflow/` (both YAML specs, and `REBUILD.md`).
 `tests/server/connectors/dbt-metricflow.test.ts` checks the mapping on both specs, and
 `tests/integration/dbt-sources.test.ts` takes a source through the API and the definitions
-pipeline, and proves a read never publishes.
+pipeline, and proves a read never publishes. `tests/integration/server-folders.test.ts` reads the
+file from a folder on the server.
