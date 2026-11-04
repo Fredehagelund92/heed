@@ -1,4 +1,4 @@
-import { isCalendarDate, shiftDate, type DateWindow } from './validity.ts'
+import { isAnyDate, isCalendarDate, shiftDate, type DateWindow } from './validity.ts'
 
 /*
   The date reader: the period the words of a question name, read the same way for get_facts,
@@ -43,8 +43,12 @@ export const longDayWords = (day: string) => {
   return `${Number(day.slice(8, 10))} ${month[0]!.toUpperCase()}${month.slice(1)} ${day.slice(0, 4)}`
 }
 
-/** The days of a window (end exclusive) as people read them: "7 Oct 2026", "1-7 Oct 2026". */
+/**
+ * The days of a window (end exclusive) as people read them: "7 Oct 2026", "1-7 Oct 2026"; every
+ * date (`anyDate`) is "any date".
+ */
 export function windowWords(window: DateWindow): string {
+  if (isAnyDate(window)) return 'any date'
   if (window.end === null) return `from ${dayWords(window.start)}`
   const last = shiftDate(window.end, -1)
   if (last <= window.start) return dayWords(window.start)
@@ -69,9 +73,10 @@ export const fullDayWords = (day: string) =>
 /**
  * The days of a window (end exclusive) as a phrase that follows a subject, with whole month names
  * (docs/design/voice.md, principle 8): "on 14 October 2026", "from 1 to 7 October 2026", "in
- * September 2026", "from July to September 2026", "in 2026", "from 15 June 2026 on".
+ * September 2026", "from July to September 2026", "in 2026", "from 15 June 2026 on", "at any date".
  */
 export function periodWords(window: DateWindow): string {
+  if (isAnyDate(window)) return 'at any date'
   if (window.end === null) return `from ${fullDayWords(window.start)} on`
   const last = shiftDate(window.end, -1)
   if (last <= window.start) return `on ${fullDayWords(window.start)}`

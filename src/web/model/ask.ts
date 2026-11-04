@@ -85,6 +85,15 @@ export function closestNames(question: string, terms: readonly Term[]): string[]
 /** How alike a run of words and a name must read to be offered (see `nameSimilarity`). */
 const CLOSE = 0.5
 
+/**
+ * A planner's reading in the middle of a sentence: "Read by the model as events, in the last 3
+ * months". Its first word keeps its capital when it is a name ("Orders in Sweden").
+ */
+export const midSentence = (words: string) =>
+  /^(?:Events|Guides|Warnings|Rules|Everything|What|A)\b/.test(words)
+    ? `${words.charAt(0).toLowerCase()}${words.slice(1)}`
+    : words
+
 /** What a question was read as, in words: "Orders in Norway, 1 to 31 Aug 2026". Empty when nothing matched. */
 export function scopeText(a: Pick<Answer, 'metric' | 'markets' | 'dates'>) {
   const what = [a.metric, a.markets.join(' and ')].filter(Boolean).join(' in ')
@@ -146,7 +155,54 @@ export type Answer = {
    * sources, and agents never read it. Or a question about one person's work, refused.
    */
   records?: RecordsAnswer
+  /** How it was read, as keys: what the next question in the chat carries (FR-713, FR-719). */
+  keys?: AskScopeKeys
+  /**
+   * How Ask's planner read the question (FR-719), when it did: the reads in words, and the names
+   * and dates carried from the last question. The state and the sources stay the reads' own.
+   */
+  reading?: {
+    words: string
+    carried: string[]
+    /** On the mock binding, what the working line said while the reads ran (the service sends it). */
+    working?: string
+  }
+  /**
+   * No answer from the context: a short question Ask asked back (`clarify`), or a question off
+   * topic. Nothing was looked up, so there is no state; `text` says it.
+   */
+  reply?: 'clarify' | 'off_topic'
 }
+
+/** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
+export type AskScopeKeys = {
+  metrics: string[]
+  filters: Record<string, string[]>
+  window: { start: string; end: string | null }
+}
+
+/**
+ * The chat's last turn, sent with the next question so a follow-up ("what about Sweden?") can
+ * carry what it asked: its question, how it was read, its sources, and the question Ask asked
+ * back. It goes with the question only, and is never kept by the service (FR-602, FR-717).
+ */
+export type AskPrevious = {
+  question: string
+  scope?: AskScopeKeys | null
+  sources: string[]
+  asked?: string
+}
+
+/** What a turn sends on to the next question: none for one with nothing to carry. */
+export const previousOf = (a: Answer): AskPrevious | undefined =>
+  a.question.trim()
+    ? {
+        question: a.question,
+        scope: a.keys ?? null,
+        sources: a.sources.slice(0, 10),
+        ...(a.reply === 'clarify' ? { asked: a.text } : {}),
+      }
+    : undefined
 
 /** A records answer in Ask: nothing was looked up in the context, so it has no answer state. */
 export const recordsAnswer = (question: string, records: RecordsAnswer): Answer => ({
@@ -159,6 +215,25 @@ export const recordsAnswer = (question: string, records: RecordsAnswer): Answer 
   sources: [],
   said: '',
   records,
+})
+
+/**
+ * A question Ask's planner answered with no look-up (FR-719): a short question back, in prose, or
+ * the sentence for a question off topic. No state and no sources: nothing was looked up.
+ */
+export const replyAnswer = (
+  question: string,
+  reply: { kind: 'clarify' | 'off_topic'; text: string },
+): Answer => ({
+  id: 'custom',
+  question,
+  metric: '',
+  markets: [],
+  state: null,
+  text: reply.text,
+  sources: [],
+  said: '',
+  reply: reply.kind,
 })
 
 /** A metric's definition, as the definition source gives it. */
@@ -228,6 +303,8 @@ export type AskInput = {
   example?: string
   /** Read the question afresh (a check that failed): the dates it was read with before. */
   reread?: { dates?: string }
+  /** The chat's last turn, for a follow-up. */
+  previous?: AskPrevious
 }
 
 /** What the owners did after a named report, the first of them. */

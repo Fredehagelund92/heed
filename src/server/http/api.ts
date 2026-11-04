@@ -75,10 +75,13 @@ import {
   createBundleCache,
   lookupQuestion,
   minimumCount,
+  planQuestion,
   planWords,
   replayTopic,
+  scriptedPlan,
   wordsInputOf,
   writeWords,
+  type LookupDeps,
 } from '../modules/answer/index.ts'
 import {
   createReviewPath,
@@ -1127,12 +1130,31 @@ export function createRouter({
         // assistant's turn, that call outlives the request's transaction and opens its own.
         const plan = await planWords(context.tx, models, context.session!.person.id)
         const log = context.request.log
-        return lookupQuestion(
-          context.tx,
-          clock,
-          answerBundles,
-          input,
-          plan
+        // The planner (FR-719): the same model, under the same limits; the scripted one on the mock.
+        const planner: LookupDeps['planner'] = plan
+          ? (asked, check) =>
+              planQuestion(
+                {
+                  database: forRequest(database, context.request.id),
+                  call: plan,
+                  ...(signal ? { signal } : {}),
+                  // Names the failure only, never the question, the last turn or the plan.
+                  onError: (error) =>
+                    log.warn(
+                      { error: error instanceof Error ? error.name : 'unknown' },
+                      'ask plan not used',
+                    ),
+                  onMiss: (miss) => log.warn(miss, 'ask plan not used'),
+                },
+                asked,
+                check,
+              )
+          : models.mode === 'mock'
+            ? scriptedPlan
+            : undefined
+        return lookupQuestion(context.tx, clock, answerBundles, input, {
+          ...(planner ? { planner } : {}),
+          words: plan
             ? (answer) =>
                 writeWords(
                   {
@@ -1150,9 +1172,9 @@ export function createRouter({
                   },
                   wordsInputOf(input.question, answer),
                 )
-            : undefined,
+            : () => null,
           // A question about the context's own records, from what the person may see (FR-718).
-          {
+          records: {
             index: () => context.library.getIndex(),
             areas: () => context.areas.list(),
             people: () => listMembers(context.tx),
@@ -1163,7 +1185,7 @@ export function createRouter({
             hidden: () => hiddenDefinitions(context.tx),
             conflicts: () => context.conflicts.list({ whose: 'all' }),
           },
-        )
+        })
       }),
       asked: authorized.ask.asked.handler(({ context }) =>
         askedThisWeek(context.tx, clock, answerBundles),

@@ -93,24 +93,37 @@ export async function planWords(
   }
 }
 
-/** The words the model's input is made of, from the engine's answer. */
-export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput => ({
-  question,
-  state: answer.state,
-  say: answer.say,
-  items: answer.items.map((item) => ({
-    title: item.title,
-    summary: item.summary,
-    notToConclude: item.notToConclude,
-  })),
-})
+/**
+ * The words the model's input is made of, from the engine's answer: its items, the definitions it
+ * shows (so what a metric means is said in the source's words), and how the planner read the
+ * question, when it did.
+ */
+export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput => {
+  const definitions = (answer.definitions ?? []).flatMap((d) =>
+    d.words ? [{ name: d.name, words: d.words }] : [],
+  )
+  return {
+    question,
+    state: answer.state,
+    say: answer.say,
+    items: answer.items.map((item) => ({
+      title: item.title,
+      summary: item.summary,
+      notToConclude: item.notToConclude,
+    })),
+    ...(definitions.length ? { definitions } : {}),
+    ...(answer.reading ? { read: answer.reading.words } : {}),
+  }
+}
 
 /**
  * Why the model's words were not used, for the service log: the step that refused them, and for a
  * call that ended, why the model stopped and how much it reasoned. Never the words or the question.
  */
 export type WordsMiss = {
-  reason: 'spending limit' | 'not finished' | 'failed the check'
+  reason: 'spending limit' | 'not finished' | 'failed the check' | 'sentences left out'
+  /** How many sentences the check left out on the way, for `sentences left out`. */
+  count?: number
   why?: string
   finishReason?: FinishReason
   reasoningTokens?: number
@@ -170,7 +183,7 @@ async function* sentencesOf(
       ...(deps.onError ? { onRecordError: deps.onError } : {}),
     })
     const choice = meter.wrap(plan.choice, { role: 'assistant' })
-    const gate = wordsGate(input.items.length, prompt)
+    const gate = wordsGate(input)
     let finishReason: FinishReason | undefined
     let reasoningTokens = 0
     try {
@@ -216,7 +229,14 @@ async function* sentencesOf(
         ...(finishReason ? { finishReason } : {}),
         reasoningTokens,
       })
-    } else if (cut)
+    } else if (gate.dropped.length && !cut)
+      // The words stood, without the sentences that said more than the items do.
+      deps.onMiss?.({
+        reason: 'sentences left out',
+        why: gate.dropped[0]!,
+        count: gate.dropped.length,
+      })
+    else if (cut)
       // Cut off at the output limit or the time limit: what passed before it stands.
       deps.onMiss?.({
         reason: 'not finished',

@@ -20,7 +20,6 @@ import { cn } from '@/lib/utils'
 import { marksExceptions } from '@/lib/marks'
 import { TypeGlyph } from '@/components/heed/definition'
 import { kindIcons } from '@/components/heed/kind-icons'
-import { ComingSoon } from '@/components/heed/bits'
 import { DefinitionHelp, StateHelp } from '@/components/heed/state-help'
 import { asksWhatItIs } from '@domain/scope'
 import { SharePopover } from '@/components/heed/share-answer'
@@ -53,6 +52,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  midSentence,
   scopeText,
   type Answer,
   type AnswerLinks,
@@ -149,8 +149,11 @@ export function Question({
   onEdit?: (parts: QuestionPart[]) => void
 }) {
   const [copied, copy] = useCopied()
-  // Scoped with '@', the answer's header says how; otherwise one quiet line, only when the reading differs from the words.
-  const showReadAs = !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
+  // Scoped with '@', the answer's header says how; read by the planner, how it read it and what
+  // it carried; otherwise one quiet line, only when the reading differs from the words.
+  const reading = !answer.scope?.length ? answer.reading : undefined
+  const showReadAs =
+    !reading && !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
       <div className="max-w-22/25 min-w-0 rounded-surface bg-muted px-4 py-2.5 text-base leading-chat wrap-anywhere whitespace-pre-line @lg:max-w-4/5 [&_.mention-chip]:bg-background">
@@ -184,6 +187,26 @@ export function Question({
           </IconButton>
         )}
       </div>
+      {reading && (
+        <p className="flex max-w-22/25 flex-wrap items-center justify-end gap-x-2 text-right text-xs text-muted-foreground @lg:max-w-4/5">
+          <span>
+            Read by the model as {midSentence(reading.words)}
+            {reading.carried.length > 0 &&
+              `, with ${listOf(reading.carried)} carried from your last question`}
+          </span>
+          {onRescope && scopeText(answer) && (
+            <button
+              type="button"
+              className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              onClick={() =>
+                onRescope([`${answer.question} `, ...readScope(answer).flatMap((m) => [m, ' '])])
+              }
+            >
+              Change it
+            </button>
+          )}
+        </p>
+      )}
       {showReadAs && (
         <p className="flex flex-wrap items-center justify-end gap-x-2 text-xs text-muted-foreground">
           <span>Understood as {scopeText(answer)}</span>
@@ -268,7 +291,7 @@ function LookupCard({
 }) {
   const { stage, stopped } = turn
   const answered = shown === 'answered'
-  const scope = scopeText(answer) || 'Nothing matched'
+  const scope = answer.reading?.words ?? (scopeText(answer) || 'Nothing matched')
   const raw = agentReply(answer, facts)
   // Looking up and reading come from the look-up's own steps, until its answer is in.
   const running = !stopped && !answered
@@ -296,7 +319,7 @@ function LookupCard({
         ? shown === 'looking'
           ? still
             ? 'Still looking up…'
-            : 'Looking up context…'
+            : (turn.working ?? 'Looking up context…')
           : found
             ? `Reading ${found} context ${found === 1 ? 'item' : 'items'}…`
             : 'Found no context items'
@@ -1016,11 +1039,11 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const write = useWrite()
   const owns = me.owns.includes('sales') || me.admin
   const scope = scopeText({ metric: answer.metric, markets: answer.markets.slice(-1) })
-  const tellReason = React.useId()
   if (answer.state === 'missing' || answer.state === 'partial') {
+    if (!owns && !answer.times) return null
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {owns ? (
+        {owns && (
           <Button
             size="sm"
             variant="outline"
@@ -1038,17 +1061,6 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
             <PencilIcon data-icon="inline-start" />
             Write context for {scope}
           </Button>
-        ) : (
-          // Not built yet: the button stays disabled where it will be, and the reason is text.
-          <>
-            <Button size="sm" variant="outline" aria-disabled aria-describedby={tellReason}>
-              Tell the owner
-              <ComingSoon />
-            </Button>
-            <span id={tellReason} className="text-xs text-muted-foreground">
-              Sending this to the owner from here comes later.
-            </span>
-          </>
         )}
         {answer.times && (
           <span className="text-xs text-muted-foreground">
@@ -1484,11 +1496,10 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           {view?.kind === 'link' && <FigureLink view={view} />}
           {answer.alias && <AliasChip alias={answer.alias} />}
           {answer.related?.length ? <Related ids={answer.related} /> : null}
-          {answer.state === null ? (
-            <AskableKinds answer={answer} />
-          ) : (
-            !draft && <NextStep answer={answer} facts={facts} />
-          )}
+          {answer.state === null
+            ? // A question back, or one off topic, says what it needs on its own.
+              !answer.reply && <AskableKinds answer={answer} />
+            : !draft && <NextStep answer={answer} facts={facts} />}
           {!draft && report && <ReportLine report={report} />}
           {!draft && wrong && !report && facts.length > 0 && (
             <SomethingWrong
