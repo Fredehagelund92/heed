@@ -826,7 +826,8 @@ export function recordsText(r: RecordsAnswer): string[] {
             : row.type === 'kind' || row.type === 'line'
               ? row.label
               : row.name
-    const link = row.type === 'topic' && row.gap ? (row.gap.draft ? 'Write it' : 'Open the card') : ''
+    const link =
+      row.type === 'topic' && row.gap ? (row.gap.draft ? 'Write it' : 'Open the card') : ''
     return [name, ...row.cells, link].filter(Boolean).join(' | ')
   }
   return [
@@ -871,8 +872,7 @@ function renderedOf(routed: Routed, records: RecordsAnswer | null, define: strin
     lines.push(...define.flatMap((key) => planDefinitions[key] ?? []))
     lines.push(...answer.items.map((item) => item.title))
     if (!answer.items.length)
-      for (const key of define)
-        lines.push(`Nothing else is written about ${titleOfTerm(key)} yet.`)
+      for (const key of define) lines.push(`Nothing else is written about ${titleOfTerm(key)} yet.`)
     if (routed.kind === 'reads' && routed.planned.reading.left)
       lines.push(`Not answered here: ${routed.planned.reading.left}`)
   }
@@ -995,7 +995,8 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     typeof p === 'string' ? got.rendered.includes(p) : p.test(got.rendered)
   for (const p of e.must ?? []) if (!said(p)) problems.push(`does not say ${p}`)
   for (const p of e.refuse ?? []) if (said(p)) problems.push(`says ${p}`)
-  if (e.miss && got.miss !== e.miss) problems.push(`refused as ${got.miss ?? 'nothing'}, not ${e.miss}`)
+  if (e.miss && got.miss !== e.miss)
+    problems.push(`refused as ${got.miss ?? 'nothing'}, not ${e.miss}`)
   if (e.audit) {
     const facets = records?.audit?.facets ?? []
     if ([...facets].sort().join(',') !== [...e.audit].sort().join(','))

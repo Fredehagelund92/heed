@@ -177,9 +177,7 @@ export function cannotAnswer(
   world: Pick<PlannerWorld, 'definitions'>,
 ): Answer {
   const nameOf = (key: string | undefined) =>
-    key
-      ? (termsOf(world.definitions).find((t) => t.key === key)?.name ?? null)
-      : null
+    key ? (termsOf(world.definitions).find((t) => t.key === key)?.name ?? null) : null
   const definitions =
     plan.reason === 'source'
       ? plan.metrics.flatMap((key) => {

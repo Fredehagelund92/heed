@@ -110,7 +110,10 @@ const alone: Record<string, RawPlan> = {
   'can i compare orders from before 19 january 2026': one(
     explore(['rule'], { metrics: ['metric:orders'], dates: 'January 2026' }),
   ),
-  'what is the biggest risk in our numbers right now': { ...one(explore(['warning'])), limit: 'advice' },
+  'what is the biggest risk in our numbers right now': {
+    ...one(explore(['warning'])),
+    limit: 'advice',
+  },
   'is churn rate well defined': { reads: [definition('churn_rate')] },
   'what should we do about norway': {
     ...one(explore([], { values: ['val:market/norway'] })),

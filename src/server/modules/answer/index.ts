@@ -26,6 +26,15 @@ export {
   type PlanRoute,
 } from './plan-cases.ts'
 export { stewardCases } from './steward-cases.ts'
+export {
+  classOf,
+  engineDigest,
+  GATE_BUDGETS,
+  gatePasses,
+  plannerDigest,
+  recordedPlansFile,
+  scoreRun,
+} from './plan-gate.ts'
 export { PLAN_NOW, PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
 export {
   askForPlan,

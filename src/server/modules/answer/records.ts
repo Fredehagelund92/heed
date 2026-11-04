@@ -2,7 +2,13 @@ import type { Asked, LookupInput, RecordsAnswer } from '../../../contract/answer
 import type { Catalogue } from '../../../contract/index.ts'
 import type { ConflictList } from '../../../contract/conflicts.ts'
 import type { LibraryIndex } from '../../../contract/schemas.ts'
-import type { AuditItem, AuditMembers, AuditTerm, AuditWorld, QueueLine } from '../../../domain/audit.ts'
+import type {
+  AuditItem,
+  AuditMembers,
+  AuditTerm,
+  AuditWorld,
+  QueueLine,
+} from '../../../domain/audit.ts'
 import {
   answerRecords,
   recogniseRecords,
@@ -126,9 +132,14 @@ const isRecordsKind = (kind: string): kind is RecordsKind =>
   (recordsKinds as readonly string[]).includes(kind)
 
 /** The Context list's items as the records keep them, with their times moved to the service's day. */
-async function itemsOf(tx: Queryable, index: LibraryIndex, shift: number): Promise<RecordsItem[]> {
+async function itemsOf(
+  tx: Queryable,
+  index: LibraryIndex,
+  shift: number,
+  dated = true,
+): Promise<RecordsItem[]> {
   const listed = index.items.filter((i) => isRecordsKind(i.kind))
-  const times = await timesOf(tx, listed)
+  const times = dated ? await timesOf(tx, listed) : new Map()
   const moved = (iso: string | null | undefined) =>
     iso ? new Date(Date.parse(iso) + shift).toISOString() : null
   return listed.map((i) => {
@@ -231,11 +242,10 @@ async function auditWorldOf(
   need: ReturnType<typeof needs>,
   conflicts: ConflictList | null,
 ): Promise<AuditWorld> {
-  const [catalogue, index, members] = await Promise.all([
-    reads.catalogue(),
-    reads.index(),
-    need.members ? reads.members() : { total: 0, unlinked: [] },
-  ])
+  // One after the other: a transaction runs one statement at a time.
+  const catalogue = await reads.catalogue()
+  const index = await reads.index()
+  const members = need.members ? await reads.members() : { total: 0, unlinked: [] }
   const read = catalogue.sources
     .flatMap((source) => source.readAt ?? [])
     .sort()
@@ -309,15 +319,16 @@ async function worldFor(
   shift: number,
 ): Promise<RecordsWorld> {
   const need = needs(ask)
-  const [items, people, asked, hidden, conflicts, queue, glossary] = await Promise.all([
-    need.items ? reads.index().then((index) => itemsOf(tx, index, shift)) : [],
+  const [items, people, asked, hidden, conflicts] = await Promise.all([
+    // An analysis reads an item's state and its check date, never when it was served.
+    need.items ? reads.index().then((index) => itemsOf(tx, index, shift, !need.audit)) : [],
     reads.people(),
     need.asked ? reads.asked() : null,
     need.terms ? reads.hidden().then((refs) => new Set(refs)) : new Set<string>(),
     need.conflicts ? reads.conflicts() : null,
-    need.queue ? reads.queue() : null,
-    need.glossary ? reads.glossary() : null,
   ])
+  const queue = need.queue ? await reads.queue() : null
+  const glossary = need.glossary ? await reads.glossary() : null
   const audit = need.audit ? await auditWorldOf(reads, need, conflicts) : null
   // A term is left out when its groups may not see one of its definitions, as the catalogue
   // leaves it out, and a value with its dimension.

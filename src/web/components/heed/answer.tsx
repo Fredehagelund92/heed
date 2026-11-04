@@ -1363,7 +1363,9 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
         ),
         definitionOnly ? `Nothing else is written about ${defined} yet.` : answer.text,
       ].join('\n\n')
-    : answer.text
+    : answer.limit
+      ? `${answer.limit.sentence}\n\n${answer.text}`
+      : answer.text
   // The two items that disagree, as the answer numbers them: named in the state's card.
   const disagree =
     answer.state === 'conflict'
@@ -1465,6 +1467,23 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           ))}
         </p>
       )}
+      {/* What Ask cannot do says it first: what it shows instead sits under that sentence. */}
+      {answered && answer.reply === 'cannot' && answer.definitions && (
+        <AnswerDefinitions definitions={answer.definitions} />
+      )}
+      {answered && answer.write && (
+        <p className="text-sm">
+          <a
+            href={href('/context/new', {
+              metric: answer.write.metric ?? undefined,
+              market: answer.write.market ?? undefined,
+            })}
+            className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Write context
+          </a>
+        </p>
+      )}
       {/* The sources are the engine's, in with its answer; a model's words never change them. Then
             what was looked up, which opens What agents get. */}
       {answered && (
@@ -1496,22 +1515,6 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
             </Button>
-          )}
-          {answer.reply === 'cannot' && answer.definitions && (
-            <AnswerDefinitions definitions={answer.definitions} />
-          )}
-          {answer.write && (
-            <p className="text-sm">
-              <a
-                href={href('/context/new', {
-                  metric: answer.write.metric ?? undefined,
-                  market: answer.write.market ?? undefined,
-                })}
-                className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                Write context
-              </a>
-            </p>
           )}
           {answer.reading?.left && (
             <p className="text-sm text-muted-foreground">

@@ -771,7 +771,7 @@ export const plannerSystem = [
   '',
   'The exits:',
   '- limit on reads or audit: advice (what to do, should we, the biggest risk), forecast (what happens next), outside (what others do, the industry), numbers (an amount worked out). Ask leads with a fixed sentence, then what is read.',
-  '- cannot, when nothing can be read: numbers (needs figures, such as which market grew or how we do against target), source (change or write a definition), write (write or draft context; give its metrics and values), person (blame or one person\'s work), not_yet (words used but not defined, or an analysis you have no facet for). Give metrics with source to show the definition.',
+  "- cannot, when nothing can be read: numbers (needs figures, such as which market grew or how we do against target), source (change or write a definition), write (write or draft context; give its metrics and values), person (blame or one person's work), not_yet (words used but not defined, or an analysis you have no facet for). Give metrics with source to show the definition.",
   '',
   'Rules:',
   '- Use only keys listed under Vocabulary, and only source numbers listed under Last answer or Earlier in the chat. Never invent one. Leave out a name the vocabulary does not have; never swap in a similar one.',
@@ -909,19 +909,15 @@ export function promptQuestions(prompt: string): { question: string; last: strin
 
 /** Why the planner reads a question: what the rules gave, or that it follows on from the last turn. */
 export type PlannerReason =
-  | 'follow-up'
-  | 'unread'
-  | 'market alone'
-  | 'business change'
-  | 'judgement'
-  | 'beyond'
+  'follow-up' | 'unread' | 'market alone' | 'business change' | 'judgement' | 'beyond'
 
 const ADVICE =
   /\bshould (?:we|i|the team|the company)\b(?! (?:know|rule out|check before|read|look at|be aware))|\b(?:do|would) you (?:recommend|suggest)\b/
 const FORECAST =
   /^will\b|\bwill (?:\w+ ){1,4}(?:recover|grow|fall|rise|drop|come back|improve)\b|\bnext (?:quarter|year)\b|\bforecast\b|\bgoing to (?:recover|grow|fall|rise|drop)\b/
 const OUTSIDE = /\b(?:industry|competitors?|benchmarks?|other companies|peers)\b/
-const NUMBERS = /\bhow much (?:did|do|does|have|has|will) (?:we|it|they)\b|\bhow much (?:money|revenue)\b/
+const NUMBERS =
+  /\bhow much (?:did|do|does|have|has|will) (?:we|it|they)\b|\bhow much (?:money|revenue)\b/
 /** Words that ask for a verdict on a definition, or for something to be written. */
 const VERDICT =
   /\bwell defined\b|\bdefined (?:well|clearly|properly)\b|^(?:please )?(?:draft|write|rewrite)\b/

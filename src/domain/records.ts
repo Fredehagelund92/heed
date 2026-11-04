@@ -917,7 +917,8 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
         total: n,
         shown: section?.shown ?? null,
         note: `A topic asked about fewer than ${asked.minimum} times is not shown, so no small count is given away.`,
-        notSeen: "Not seen: what people ask in Ask, which is kept nowhere: this counts agents' calls only.",
+        notSeen:
+          "Not seen: what people ask in Ask, which is kept nowhere, so this counts agents' calls only.",
       }
     }
     case 'audit':

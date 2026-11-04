@@ -115,12 +115,15 @@ const facetWords: Record<AuditFacet, string> = {
   conflicts: 'the conflicts',
   duplicates: 'what is written twice',
   overlaps: 'what overlaps',
-  review: 'the review',
+  review: 'a review of the records',
 }
 
 /** An audit in words: "what has no context". */
 export const auditWords = (read: Pick<AuditRead, 'facets'>) =>
   list(read.facets.map((f) => facetWords[f]))
+
+/** The words of "what definitions are missing": each thing an honest answer is made from. */
+const MISSING: AuditFacet[] = ['no_context', 'no_words', 'no_domain', 'unlinked', 'asked_nothing']
 
 /** What each facet cannot see, said once however many facets share it. */
 const notSeenOf: Record<AuditFacet, string> = {
@@ -129,8 +132,8 @@ const notSeenOf: Record<AuditFacet, string> = {
   no_domain: 'a definition your source does not hold, or a word people use that Heed cannot read',
   unlinked: 'a definition your source does not hold, or a word people use that Heed cannot read',
   source_changed: 'a change at the source since the last read',
-  asked_nothing: "what people ask in Ask, which is kept nowhere: this counts agents' calls only",
-  asked_most: "what people ask in Ask, which is kept nowhere: this counts agents' calls only",
+  asked_nothing: "what people ask in Ask, which is kept nowhere, so this counts agents' calls only",
+  asked_most: "what people ask in Ask, which is kept nowhere, so this counts agents' calls only",
   due: 'an item that is wrong before its check date',
   conflicts: 'two items that disagree when no owner marked them',
   duplicates: 'two items that say the same thing under different titles',
@@ -353,9 +356,7 @@ function readingOf(
     const listed = terms()
     const moved = listed.filter((t) => t.state !== 'current')
     const n = moved.length
-    const lastRead = audit.readAt
-      ? ` The source was last read on ${dayWords(audit.readAt)}.`
-      : ''
+    const lastRead = audit.readAt ? ` The source was last read on ${dayWords(audit.readAt)}.` : ''
     return {
       sentence: n
         ? `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)} changed or went at the source.${lastRead}`
@@ -410,9 +411,7 @@ function readingOf(
   const askedMost = (): Part => {
     const { rows, minimum } = askedTopics()
     const n = rows.length
-    const named = read.value
-      ? (world.terms.find((t) => t.key === read.value)?.name ?? '')
-      : ''
+    const named = read.value ? (world.terms.find((t) => t.key === read.value)?.name ?? '') : ''
     const about = named ? ` about ${named}` : ''
     return {
       sentence: n
@@ -696,7 +695,8 @@ function readingOf(
         count: `${count(rows.length)} ${noun(rows.length, 'domain', 'domains')}`,
         columns: ['Domain', 'No context', 'Due for a check', 'Conflicts'],
         rows: rows.slice(0, SECTION_ROWS),
-        shown: rows.length > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(rows.length)}` : null,
+        shown:
+          rows.length > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(rows.length)}` : null,
         more: null,
       },
       clear: null,
@@ -733,7 +733,18 @@ function readingOf(
     }
   }
 
-  return { terms, part, unlinked, askedAndUncovered, noContext, duePart, conflictsPart, duplicates, askedNothing, definitionsMore }
+  return {
+    terms,
+    part,
+    unlinked,
+    askedAndUncovered,
+    noContext,
+    duePart,
+    conflictsPart,
+    duplicates,
+    askedNothing,
+    definitionsMore,
+  }
 }
 
 const pairRow = (a: AuditItem, b: AuditItem, cells: string[]): RecordsRow => ({
@@ -801,7 +812,10 @@ function nothingCell(
 export function foundNothing(asked: {
   rows: NonNullable<RecordsWorld['asked']>['rows']
   minimum: number
-}): { nothing: NonNullable<RecordsWorld['asked']>['rows'][number][]; section: RecordsSection | null } {
+}): {
+  nothing: NonNullable<RecordsWorld['asked']>['rows'][number][]
+  section: RecordsSection | null
+} {
   const share = (r: { nothing?: number | null; atLeast: number; count: number | null }) =>
     (r.nothing ?? 0) / Math.max(r.count ?? r.atLeast, 1)
   const nothing = asked.rows
@@ -857,7 +871,9 @@ function queuePart(lines: readonly QueueLine[]): Part {
 }
 
 const understoodOf = (read: AuditRead, domain: { name: string } | null, queue: boolean) => {
-  const what = [queue ? 'what is waiting on you' : null, read.facets.length ? auditWords(read) : null]
+  const asksMissing = MISSING.every((facet) => read.facets.includes(facet))
+  const asked = asksMissing ? 'what may be missing from Definitions' : auditWords(read)
+  const what = [queue ? 'what is waiting on you' : null, read.facets.length ? asked : null]
     .filter(Boolean)
     .join(' and ')
   const said = `${what[0]!.toUpperCase()}${what.slice(1)}`
@@ -890,21 +906,31 @@ export function auditAnswer(
   const left = full.slice(SECTIONS)
   const only = parts.length === 1 ? parts[0]! : null
   const lone = only?.section ?? null
-  const notSeen = [...new Set(facets.map((f) => notSeenOf[f]))]
+  const notSeen = [
+    ...new Set([
+      ...(queue ? ['anything outside your own Inbox'] : []),
+      ...facets.map((f) => notSeenOf[f]),
+    ]),
+  ]
   const clear = parts.flatMap((p) => (!p.section && !only && p.clear ? [p.clear] : []))
   const ranked = parts.find((p) => p.ranked)?.ranked ?? null
   const asksDefinitions = facets.includes('unlinked') && !reading.unlinked(true).found
   const lead = asksDefinitions
     ? 'Nothing here says a definition is missing from your source. This is what the records show.'
     : 'This is what the records show.'
+  const uses = (...wanted: AuditFacet[]) =>
+    facets.some((f) => f === 'review' || wanted.includes(f))
+  const allTerms = world.audit?.terms ?? []
+  const metrics = allTerms.filter((t) => t.kind === 'metric').length
+  const items = world.items.filter((i) => i.status !== 'archived').length
+  // What was read, truly: only what the facets chose.
   const reads = [
-    world.audit ? `${count(world.audit.terms.filter((t) => t.kind === 'metric').length)} metrics` : null,
-    world.audit
-      ? `${count(world.audit.terms.filter((t) => t.kind === 'dimension').length)} dimensions`
+    uses('no_context', 'no_words', 'no_domain', 'source_changed')
+      ? `${count(metrics)} metrics and ${count(allTerms.length - metrics)} dimensions`
       : null,
-    facets.some((f) => f === 'asked_nothing' || f === 'asked_most')
-      ? 'what agents asked this week'
-      : null,
+    uses('due', 'conflicts', 'duplicates', 'overlaps') ? `${count(items)} context items` : null,
+    uses('unlinked') ? 'what the source lists' : null,
+    uses('asked_nothing', 'asked_most') ? 'what agents asked this week' : null,
     queue ? 'your Inbox' : null,
   ].filter(Boolean) as string[]
   const notes = parts.flatMap((p) => (p.note ? [p.note] : []))
@@ -926,7 +952,9 @@ export function auditAnswer(
           clear: [
             ...clear,
             ...(left.length
-              ? [`Also found, not shown here: ${list(left.map((p) => `${p.section!.title.toLowerCase()} (${p.section!.count})`))}.`]
+              ? [
+                  `Also found, not shown here: ${list(left.map((p) => `${p.section!.title.toLowerCase()} (${p.section!.count})`))}.`,
+                ]
               : []),
           ],
         }
@@ -956,19 +984,13 @@ export function auditedTerms(
   )
 }
 
-/** The words of "what definitions are missing": each thing an honest answer is made from. */
-const MISSING: AuditFacet[] = ['no_context', 'no_words', 'no_domain', 'unlinked', 'asked_nothing']
-
 /**
  * How the most common analyses read, with no model. Each pattern names a kind of question, not one
  * phrase: what is missing, what has none of something, what is written twice, what overlaps, what
  * contradicts, how much is covered, a domain's review, and the person's own Inbox. A question that
  * names a metric or a market stays a question about the business.
  */
-export function readAudit(
-  t: string,
-  scoped: boolean,
-): { read: AuditRead; queue?: true } | null {
+export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?: true } | null {
   const of = /\bdimensions?\b/.test(t) ? 'dimension' : /\bmetrics?\b/.test(t) ? 'metric' : null
   const read = (facets: AuditFacet[], kind: RecordsKind | null = null) => ({
     read: { facets, of, kind, value: null } satisfies AuditRead,
@@ -976,7 +998,8 @@ export function readAudit(
   if (/\bwaiting (?:on|for) me\b|\bneeds? me\b|\bmy (?:inbox|queue)\b/.test(t))
     return { ...read([]), queue: true }
   if (scoped || /\bmost\b.*\bleast\b/.test(t)) return null
-  if (/\bduplicat(?:es?|ed)\b|\b(?:written|said|listed) twice\b/.test(t)) return read(['duplicates'])
+  if (/\bduplicat(?:es?|ed)\b|\b(?:written|said|listed) twice\b/.test(t))
+    return read(['duplicates'])
   if (/\boverlap(?:s|ping)?\b/.test(t)) return read(['overlaps'])
   if (/\bcontradict(?:s|ing|ions?|ory)?\b/.test(t) && !/\bdefinitions?\b/.test(t))
     return read(['conflicts'])

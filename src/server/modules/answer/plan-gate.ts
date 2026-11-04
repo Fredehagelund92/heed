@@ -11,6 +11,9 @@ import { PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
   model on request (`npm run eval:ask-gate`), reported apart (FR-710).
 */
 
+/** The last real run's plans: replayed through the check in every build. */
+export const recordedPlansFile = new URL('./recorded-plans.json', import.meta.url)
+
 /** The classes a case is scored in. The planner cases that came first have none of their own. */
 export type GateClass = 'R' | 'S' | 'D' | 'A' | 'X' | 'earlier'
 
@@ -22,11 +25,7 @@ const SMALL_COUNT = /\b[Aa]sked (?:[1-4])\b/
 const OWN_VOICE = /\b(?:I recommend|I suggest|you should|we should|I would)\b/i
 
 export type ZeroRule =
-  | 'invented'
-  | 'unsupported sentence'
-  | 'hidden given away'
-  | 'substitution'
-  | 'advice'
+  'invented' | 'unsupported sentence' | 'hidden given away' | 'substitution' | 'advice'
 
 export type GateScore = {
   cases: number

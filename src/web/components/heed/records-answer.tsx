@@ -62,7 +62,10 @@ function KindGlyph({ kind }: { kind: RecordsKind }) {
 }
 
 /** Where a list lives, as an address. */
-function moreTo(more: NonNullable<RecordsFound['more']>, href: ReturnType<typeof useParts>['href']) {
+function moreTo(
+  more: NonNullable<RecordsFound['more']>,
+  href: ReturnType<typeof useParts>['href'],
+) {
   return more.to === 'context'
     ? href('/context', {
         domain: more.domain ?? undefined,
@@ -231,16 +234,16 @@ function RecordsRows({ found }: { found: Pick<RecordsFound, 'columns' | 'rows'> 
         {found.rows.map((row) => (
           <li
             key={rowKey(row)}
-            className="flex min-h-11 flex-col gap-0.5 border-t px-3 py-2 first:border-t-0"
+            className="flex min-h-11 flex-col justify-center gap-0.5 border-t px-3 py-2 first:border-t-0"
           >
             <RowName row={row} />
-            <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
-              {row.cells.map((cell, i) => (
-                <span key={i}>
-                  {rest[i]} {cell}
-                </span>
-              ))}
-            </span>
+            {row.cells.length > 0 && (
+              <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
+                {row.cells.map((cell, i) => (
+                  <span key={i}>{row.type === 'line' ? cell : `${rest[i]} ${cell}`}</span>
+                ))}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -362,9 +365,13 @@ function RecordsBody({
       )}
       {records.rows.length > 0 && <RecordsRows found={records} />}
       <More found={records} />
-      {records.sections?.map((section) => (
-        <RecordsPart key={section.title} section={section} />
-      ))}
+      {records.sections && (
+        <div className="mt-1 flex flex-col gap-5">
+          {records.sections.map((section) => (
+            <RecordsPart key={section.title} section={section} />
+          ))}
+        </div>
+      )}
       {records.clear?.map((line) => (
         <p key={line} className="text-sm text-muted-foreground">
           {line}

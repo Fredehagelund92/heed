@@ -179,8 +179,7 @@ const members: AuditMembers = {
 function auditOf(world: Pick<RecordsSource, 'pool' | 'definitions'>): AuditWorld {
   const live = world.pool.filter((f) => f.status === 'Live' || f.status === 'Needs checking')
   const names = new Map(world.definitions.map((d) => [d.name, d]))
-  const key = (name: string) =>
-    names.get(name)?.type === 'metric' ? `metric:${slug(name)}` : null
+  const key = (name: string) => (names.get(name)?.type === 'metric' ? `metric:${slug(name)}` : null)
   return {
     terms: world.definitions
       .filter((d) => (d.type === 'metric' || d.type === 'dimension') && !d.sameAs)
