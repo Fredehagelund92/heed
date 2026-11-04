@@ -76,6 +76,25 @@ A question about what a metric is or means, answered by its definition and nothi
 
 An answer from the records (what was created, what is due, who owns a domain) has no state either. Its chip says **Records**, in the neutral tint with a table icon, and the line under it says "Counted from the workspace's records." The answer is one sentence from a template ("Nothing was created in the last 24 hours."), and it ends "Agents did not read this answer. It says nothing about what they get." A question about one person's work gets "Ask does not answer questions about one person's work."
 
+An analysis of the records is a records answer: the Records chip, the same line under it, and one sentence from a template. Its rows come in up to four sections, each headed by what it counts with its denominator: "No context written: 13 of 22 metrics". A ranking says its rule in words: "Look first at Orders in Spain: agents found nothing there most often." Its last lines say what the read cannot see and that agents did not read it: "Not seen: a definition your source does not hold, or a word people use that Heed cannot read." A count never stands alone, and never a quality word such as "good" or "healthy" without the count behind it.
+
+When Ask cannot answer the question asked, it says so in a fixed sentence (FR-720). A limit sentence comes first, and what is written follows it. A cannot sentence stands alone: nothing was looked up, so it has no state.
+
+| Exit             | Sentence                                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `limit:advice`   | What to do is not written down. Here is what is.                                                                       |
+| `limit:forecast` | What happens next is not written down. Here is what is.                                                                |
+| `limit:outside`  | Ask knows only what is written here, not what others do. Here is what is.                                              |
+| `limit:numbers`  | Heed keeps no numbers, so Ask cannot work this out. Here is what is written.                                           |
+| `cannot:numbers` | Heed keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first. |
+| `cannot:source`  | Definitions live in your source tool, so Ask cannot change one.                                                        |
+| `cannot:write`   | Ask does not write context. You can start it here.                                                                     |
+| `cannot:person`  | Ask does not answer questions about one person's work.                                                                 |
+| `cannot:not_yet` | Ask cannot work this out yet.                                                                                          |
+| Plan not used    | Ask could not read this question just now, so nothing was looked up.                                                   |
+
+These sentences name the product where the voice needs a subject, as Ask's other fixed sentences do. Ask does not advise: no "should", "recommend" or "I suggest" in its own voice. A cited item may say so, and Ask may quote it.
+
 ### Kinds
 
 Event (lightning), Warning (triangle), Rule (ruler), Guide (route). Stored as `event`, `issue`, `note`, `guide`. Hints, each fourteen words or fewer:
