@@ -757,7 +757,7 @@ export async function askPlanCase(
     routed.kind === 'rules' ? routed.answer : routed.kind === 'reads' ? routed.planned.answer : null
   const sources = answer?.items.map((item) => item.id) ?? []
   const found = routed.kind === 'records' ? routed.found : null
-  const records =
+  const shown =
     found?.type === 'refused'
       ? refusedAnswer(planRecords)
       : found
@@ -781,8 +781,8 @@ export async function askPlanCase(
     calls,
     routed,
     titles: sources.map((id) => titleOf.get(id) ?? id),
-    records,
-    rendered: renderedOf(routed, records, define),
+    records: shown,
+    rendered: renderedOf(routed, shown, define),
     turn: {
       question: c.question,
       scope: answer?.scope ?? null,
