@@ -799,7 +799,8 @@ describe('what a question back leaves open', () => {
       window: { start: '2026-09-01', end: '2026-10-01' },
     },
   }
-  const open = (question: string, previous: ChatTurn = back) => leftOpen(ctx({ question, previous }))
+  const open = (question: string, previous: ChatTurn = back) =>
+    leftOpen(ctx({ question, previous }))
 
   it.each(['net', 'orders', 'last month', 'the second one'])(
     'carries all of it to the answer "%s"',
