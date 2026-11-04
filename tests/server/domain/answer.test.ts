@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { peopleVoice } from '../../../src/domain/say.ts'
 import {
   answer,
   answerState,
@@ -56,6 +57,13 @@ describe('the steps', () => {
     expect(names).toEqual(['read_scope', 'looked_up', 'left_out', 'checked', 'said'])
     expect(next.value).toMatchObject({ state: 'grounded', ms: 12.5 })
     expect(next.value.steps.map((s) => s.step)).toEqual(names)
+  })
+
+  it("says context item in the people's voice, with the answer line left to the screen", () => {
+    const result = answer(bundleOf([orders('itm_00000001')]), ask, { today, voice: peopleVoice })
+    expect(result.say).toBe(
+      '1 context item applies to Orders in Norway in August 2026 (the whole month, including the days after today). Only that was checked.',
+    )
   })
 
   it('say what was read, what applies, the state, and the sentence', () => {

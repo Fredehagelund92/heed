@@ -2,21 +2,15 @@ import { and, cn } from '@/lib/utils'
 import { ContextText, MentionText } from '@/components/heed/mention-chip'
 import {
   ArchiveIcon,
-  CalendarIcon,
   CircleCheckIcon,
   CircleDashedIcon,
-  CircleDotIcon,
   ExternalLinkIcon,
-  MapPinIcon,
-  ShapesIcon,
-  ShieldAlertIcon,
 } from '@/components/icons'
-import { StatusBadge } from '@/components/heed/bits'
+import { DetailsBody, detailsSummary } from '@/components/heed/details-body'
 import { PeekFact, PeekFacts } from '@/components/heed/peek'
-import { MoreProperties, Property, prose } from '@/components/heed/doc'
+import { DocFold, prose } from '@/components/heed/doc'
 import { Badge } from '@/components/ui/badge'
-import { ScopeChips } from '@/components/heed/scope-chips'
-import { kindLabel, type Fact } from '@/model/items'
+import type { Fact } from '@/model/items'
 import { ownersOf } from '@/model/people'
 import { useDomains } from '@/lib/workspace'
 
@@ -100,30 +94,12 @@ export function ItemDocument({
           )}
         </PeekFacts>
         <div className="mt-1">
-          <MoreProperties
-            label="Details"
-            summary={[
-              kindLabel[fact.kind],
-              fact.where.join(', ') || 'Read from the text',
-              fact.when,
-            ].join(' - ')}
-          >
-            <Property label="Status" icon={<CircleDotIcon />}>
-              <StatusBadge status={fact.status} />
-            </Property>
-            <Property label="Kind" icon={<ShapesIcon />}>
-              {kindLabel[fact.kind]}
-            </Property>
-            <Property label="Applies to" icon={<MapPinIcon />}>
-              {fact.where.length ? <ScopeChips fact={fact} /> : <span>Read from the text</span>}
-            </Property>
-            <Property label="When" icon={<CalendarIcon />}>
-              {fact.when}
-            </Property>
-            <Property label="Don't conclude" icon={<ShieldAlertIcon />}>
-              <span className="py-1 text-foreground">{fact.dontConclude}</span>
-            </Property>
-          </MoreProperties>
+          <DocFold label="Details" summary={detailsSummary(fact)}>
+            <div className="pt-1">
+              {/* The quote is in the text above, and the page's side panel has Related. */}
+              <DetailsBody fact={fact} leaveOut={['source', 'related']} />
+            </div>
+          </DocFold>
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
 import { useDomains } from '@/lib/workspace'
 import { diffWords } from 'diff'
-import { BotIcon, ClockIcon } from '@/components/icons'
+import { BotIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import type { DomainId, Status } from '@/model/items'
+import type { DomainId } from '@/model/items'
 
 /* ---------- people ---------- */
 
@@ -94,22 +94,6 @@ export function AgentAvatar({ size = 28 }: { size?: 28 | 32 }) {
 export function DomainBadge({ id }: { id: DomainId }) {
   const domains = useDomains()
   return <Badge variant="outline">{domains[id]?.name}</Badge>
-}
-
-export function StatusBadge({ status }: { status: Status }) {
-  if (status === 'Live') return <Badge variant="outline">Live</Badge>
-  if (status === 'Needs checking')
-    return (
-      <Badge variant="secondary">
-        <ClockIcon data-icon="inline-start" aria-hidden />
-        Needs checking
-      </Badge>
-    )
-  return (
-    <Badge variant="ghost" className="text-muted-foreground">
-      {status}
-    </Badge>
-  )
 }
 
 /* ---------- answer states ---------- */

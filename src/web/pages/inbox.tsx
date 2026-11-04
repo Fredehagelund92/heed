@@ -131,7 +131,8 @@ function evidence(r: Review | undefined) {
       : r.mode === 'retire'
         ? 'Archives an item'
         : r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(', ')
-  return [size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? 'question' : 'questions'}`].join(' - ')
+  const reach = r.tryIt.reach
+  return reach ? [size, `${reach} ${reach === 1 ? 'question' : 'questions'}`].join(' - ') : size
 }
 
 /** What a row's suggestion needs before it can go out, from its review: "Overlaps live context". */

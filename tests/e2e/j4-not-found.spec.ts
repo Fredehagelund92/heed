@@ -18,5 +18,5 @@ test('a Not found card is a draft to review and publish', async ({ page }) => {
   const details = page.getByRole('button', { name: /^Details/ })
   await expect(details).toContainText('14 to 16 Oct 2026')
   await details.click()
-  await expect(page.getByRole('definition').filter({ hasText: '14 to 16 Oct 2026' })).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: '14 to 16 Oct 2026' })).toBeVisible()
 })

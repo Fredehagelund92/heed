@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { cn } from '@/lib/utils'
 import { DisagreesSection } from '@/components/heed/disagrees'
 import { mentionId } from '@/lib/mentions'
 import { CircleCheckIcon, ClockIcon, EllipsisIcon, MessageSquareIcon } from '@/components/icons'
@@ -175,20 +176,24 @@ export function FactPage({ id }: { id: string }) {
       {wide && attention}
       {/* What an agent can follow from here, both ways: the links in the text and the owners' relations. */}
       {related.links.length > 0 && (
-        <SideSection title="Related">
+        <SideSection title="Related" className={cn(!history.length && 'border-b-0')}>
           <Related id={mentionId('context', fact.id)} />
         </SideSection>
       )}
-      <SideSection title="History" className="border-b-0">
-        <VersionHistory
-          versions={history}
-          canRestore={owner}
-          onRestore={(version) => write('restoreAsDraft', { id: fact.id, v: version.v })}
-          onUndo={(token) => write('undo', { token })}
-        />
-      </SideSection>
+      {history.length > 0 && (
+        <SideSection title="History" className="border-b-0">
+          <VersionHistory
+            versions={history}
+            canRestore={owner}
+            onRestore={(version) => write('restoreAsDraft', { id: fact.id, v: version.v })}
+            onUndo={(token) => write('undo', { token })}
+          />
+        </SideSection>
+      )}
     </Loadable>
   )
+  // A draft nobody linked to has nothing beside it: no panel, once the read says so.
+  const sideEmpty = !!page.data && !related.links.length && !history.length
 
   return (
     <Page
@@ -341,9 +346,9 @@ export function FactPage({ id }: { id: string }) {
             </React.Suspense>
           </Loadable>
         </Paper>
-        {!wide && <div className="border-t bg-background">{side}</div>}
+        {!wide && !sideEmpty && <div className="border-t bg-background">{side}</div>}
       </Canvas>
-      {wide && (
+      {wide && !(sideEmpty && !attention) && (
         <ResizableAside
           side="right"
           storageKey="doc-side"

@@ -64,9 +64,31 @@ export function Property({
   )
 }
 
+/** One closed row in a document, like the quick view's Details: a label and what is set. */
+export function DocFold({
+  label,
+  summary,
+  children,
+}: {
+  label: string
+  summary: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <Collapsible>
+      {/* One line, one target: the label, then what is set, muted, then the chevron. Its band
+          reaches a little past the words, which stay in line with the rows above. */}
+      <div className="-mx-2">
+        <FoldTrigger label={label} summary={summary} className="rounded-md px-2" />
+      </div>
+      <CollapsibleContent keepMounted>{children}</CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 /**
- * The properties a new person doesn't need up front, folded into one row like the quick view's
- * Details: "More" and a quiet one-line summary of what is set; opened, the rows themselves.
+ * The properties a new person doesn't need up front, folded into one row: "More" and a quiet
+ * one-line summary of what is set; opened, the rows themselves.
  */
 export function MoreProperties({
   summary,
@@ -78,16 +100,9 @@ export function MoreProperties({
   label?: string
 }) {
   return (
-    <Collapsible>
-      {/* One line, one target: the label, then what is set, muted, then the chevron. Its band
-          reaches a little past the words, which stay in line with the rows above. */}
-      <div className="-mx-2">
-        <FoldTrigger label={label} summary={summary} className="rounded-md px-2" />
-      </div>
-      <CollapsibleContent keepMounted render={<dl />} className="flex flex-col gap-0.5">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
+    <DocFold label={label} summary={summary}>
+      <dl className="flex flex-col gap-0.5">{children}</dl>
+    </DocFold>
   )
 }
 

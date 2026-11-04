@@ -34,6 +34,9 @@ export default defineConfig({
     /\/visual-ask-definition\.spec\.ts$/,
     // So are Overview's.
     /\/visual-overview\.spec\.ts$/,
+    // And Details' and the review Preview's.
+    /\/visual-details\.spec\.ts$/,
+    /\/visual-review-preview\.spec\.ts$/,
     /\/docs-controls\.spec\.ts$/,
     // J8 asks the mock for a loading, failed or offline state (?state=), which the service has not.
     /\/j8-states\.spec\.ts$/,

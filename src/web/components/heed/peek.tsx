@@ -10,7 +10,8 @@ import { FoldTrigger } from '@/components/heed/fold'
 // a decision they make here, or machinery the product does? Machinery is gone or behind Details.
 // A peek is a few bands cut by full-width hairlines: the title, the meaning and (only when a
 // decision is needed) one attention line; who owns it, whether it is still right and where it
-// comes from; for a definition the other words; then Details, closed.
+// comes from; for a definition the other words; then Details, closed; for a context item the
+// toolbar under it.
 
 /** The bands, each cut from the next by a hairline that runs edge to edge. */
 export function PeekBands({ children }: { children: React.ReactNode }) {
@@ -111,8 +112,20 @@ export function PeekLabel({ children }: { children: React.ReactNode }) {
 
 /**
  * One closed row with what experienced people need in place: content people wrote or read, never
- * machinery. Opened, it is a short label-value list and a few quiet links.
+ * machinery.
  */
+export function PeekFold({ summary, children }: { summary: string; children: React.ReactNode }) {
+  return (
+    <Collapsible>
+      <FoldTrigger label="Details" summary={summary} className="px-4 @md:px-5" />
+      <CollapsibleContent keepMounted>
+        <div className="px-4 pb-5 @md:px-5">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/** A definition's Details: a short label-value list and a few quiet links. */
 export function PeekDetails({
   rows,
   links,
@@ -121,45 +134,51 @@ export function PeekDetails({
   links: React.ReactNode[]
 }) {
   return (
-    <Collapsible>
-      <FoldTrigger
-        label="Details"
-        summary={rows.map(([k]) => k).join(', ')}
-        className="px-4 @md:px-5"
-      />
-      <CollapsibleContent keepMounted>
-        <div className="px-4 pb-5 @md:px-5">
-          <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
-            {rows.map(([k, v]) => (
-              <React.Fragment key={k}>
-                <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
-                <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-          {links.length > 0 && (
-            <div className="mt-4 flex flex-col items-start gap-1.5">{links}</div>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <PeekFold summary={rows.map(([k]) => k).join(', ')}>
+      <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
+        {rows.map(([k, v]) => (
+          <React.Fragment key={k}>
+            <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
+            <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+      {links.length > 0 && <div className="mt-4 flex flex-col items-start gap-1.5">{links}</div>}
+    </PeekFold>
   )
 }
 
-/** A quiet link inside Details: an icon and a few words. */
+/** The quiet actions on a context item, in their own band under Details, open or shut. */
+export function PeekToolbar({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="flex flex-wrap items-center gap-x-2.5 px-4 py-1.5 @md:px-5"
+    >
+      {children}
+    </div>
+  )
+}
+
+/** A quiet link in Details or the toolbar: an icon and a few words, 44 px under a finger. */
 export function PeekLink({
   icon: Icon,
   children,
   onClick,
   href,
+  className,
 }: {
   icon: LucideIcon
   children: React.ReactNode
   onClick?: () => void
   href?: string
+  className?: string
 }) {
-  const cls =
-    "h-7 gap-1.5 px-1.5 -ml-1.5 text-dense font-medium text-muted-foreground hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+  const cls = cn(
+    "-ml-1.5 h-7 gap-1.5 px-1.5 text-dense font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-11 [&_svg:not([class*='size-'])]:size-3.5",
+    className,
+  )
   if (href)
     return (
       <Button

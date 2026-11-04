@@ -28,7 +28,7 @@ import {
   type ResolverItem,
   type Resolution,
 } from './resolver.ts'
-import { askedGroups, askedMetrics, contextSaid, scopeWords } from './say.ts'
+import { askedGroups, askedMetrics, contextSaid, scopeWords, type Voice } from './say.ts'
 import {
   assumedDate,
   extractScope,
@@ -97,6 +97,8 @@ export type AnswerOptions = {
   maxItems?: number
   /** A clock in milliseconds, to time the steps; without it every step takes 0 ms. */
   now?: () => number
+  /** Whose words `say` is in; get_facts's without it. */
+  voice?: Voice
 }
 
 /** An item the answer gives, in the order get_context gives it. */
@@ -370,7 +372,7 @@ function nearMisses(
 export function* lookUp(
   bundle: AnswerBundle,
   ask: AnswerAsk,
-  { today, maxItems = ANSWER_MAX_ITEMS, now = () => 0 }: AnswerOptions,
+  { today, maxItems = ANSWER_MAX_ITEMS, now = () => 0, voice }: AnswerOptions,
 ): Generator<AnswerStep, Answer, void> {
   const steps: AnswerStep[] = []
   // A step's time is its own work: the clock starts again when the caller asks for the next step.
@@ -442,21 +444,25 @@ export function* lookUp(
   mark = now()
 
   const metrics = scope ? askedMetrics(bundle, scope) : []
-  const said = contextSaid(bundle, {
-    status: resolution.status,
-    scope: resolution.scope,
-    issues: resolution.issues,
-    question: 'question' in ask ? ask.question : '',
-    delivered: items.length,
-    partial: items.filter((item) => item.match === 'partial').length,
-    unverified: items.filter((item) => item.unverified).length,
-    cut: cut.length,
-    withheld: resolution.withheld.map((w) => w.reason),
-    assumed: assumed ? assumedDate(assumed).note.sentence : null,
-    readsAs: dates?.reads_as ?? null,
-    groups: resolution.scope ? askedGroups(bundle, resolution.scope) : [],
-    about: metrics.length > 1,
-  })
+  const said = contextSaid(
+    bundle,
+    {
+      status: resolution.status,
+      scope: resolution.scope,
+      issues: resolution.issues,
+      question: 'question' in ask ? ask.question : '',
+      delivered: items.length,
+      partial: items.filter((item) => item.match === 'partial').length,
+      unverified: items.filter((item) => item.unverified).length,
+      cut: cut.length,
+      withheld: resolution.withheld.map((w) => w.reason),
+      assumed: assumed ? assumedDate(assumed).note.sentence : null,
+      readsAs: dates?.reads_as ?? null,
+      groups: resolution.scope ? askedGroups(bundle, resolution.scope) : [],
+      about: metrics.length > 1,
+    },
+    voice,
+  )
   yield step({ step: 'said', ms: lap(), say: said.say, next: said.next ?? null })
   mark = now()
 

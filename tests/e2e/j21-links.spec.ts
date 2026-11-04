@@ -1,9 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect, go, mode, test, unfold } from './go.ts'
 
-// J21, following links (get_related): Related shows what an agent can follow both ways, the
-// owners' relations labelled, a retired item not followed, a definition from another domain
-// marked; Ask says what it followed, one step; the switch in Settings turns it off.
+// J21, following links (get_related): Related shows what an agent can follow in two groups, one
+// clean line per link: the owners' relations labelled and an archived item marked; Ask says what it
+// followed, one step; the switch in Settings turns it off.
 
 /**
  * Opens Details in the quick view once it shows the item: go moves inside the app and goes on at
@@ -38,21 +38,49 @@ async function askGrounded(page: Page) {
 const looked = mode === 'http' ? 'Looked up 3 context items' : 'Looked up 2 context items'
 const followed = mode === 'http' ? 'followed 2 links' : 'followed 1 link'
 
-test("Related in the quick view: another domain's definition, and the owners' relations", async ({
-  page,
-}) => {
+test("Related in the quick view: a definition, and the owners' relations", async ({ page }) => {
   await go(page, '/context?dock=context.itm_eprlkrz2')
   await details(page, campaign)
   const links = page.getByRole('list', { name: 'Links to' })
   await expect(links).toContainText('Orders')
-  await expect(links).toContainText('from Sales')
+  await expect(page.getByText('An agent can follow these')).toHaveCount(0)
   await go(page, '/context?dock=context.itm_0tmqp7o1')
   await details(page, 'Orders lags by one day in the source tool')
-  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('replaces')
-  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('not followed')
+  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('Replaces')
+  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('Archived')
   await go(page, '/context?dock=context.itm_gift_store_credit')
   await details(page, 'Norway orders count store credit')
-  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('disagrees with')
+  await expect(page.getByRole('list', { name: 'Links to' })).toContainText('Disagrees with')
+})
+
+test('the toolbar stays under Details, open or shut', async ({ page }) => {
+  await go(page, '/context?dock=context.itm_0tmqp7o1')
+  await expect(
+    page.getByRole('heading', { name: 'Orders lags by one day in the source tool', exact: true }),
+  ).toBeVisible()
+  const toolbar = page.getByRole('group', { name: 'More about this context item' })
+  await expect(toolbar.getByRole('button', { name: 'Try it', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Details', exact: true }).click()
+  await expect(toolbar.getByText(/^History/)).toBeVisible()
+  await expect(toolbar.getByText(/^Comments/)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Context' }).getByText(/^Status$/)).toHaveCount(0)
+})
+
+test('on the service, nothing counts zero, and a draft has no empty History', async ({ page }) => {
+  test.skip(mode !== 'http', "The mock's drafts have versions, and its suggestions have questions")
+  await go(page, '/context')
+  await page.getByText('Store returns in Spain count on the day they are booked').first().click()
+  const toolbar = page.getByRole('group', { name: 'More about this context item' })
+  await expect(toolbar.getByText('History', { exact: true })).toBeVisible()
+  const id = new URL(page.url()).searchParams.get('dock')!.replace('context.', '')
+  await go(page, `/context/${id}`)
+  await expect(
+    page.getByRole('heading', { name: 'Store returns in Spain count on the day they are booked' }),
+  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toHaveCount(0)
+  await go(page, '/inbox')
+  await expect(page.getByText('Ines Duarte - 1 link', { exact: true })).toBeVisible()
+  await expect(page.getByText(/\b0 questions/)).toHaveCount(0)
 })
 
 test('Ask says what it followed, one step, and what it left alone', async ({ page }) => {

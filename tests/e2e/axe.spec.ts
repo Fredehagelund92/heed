@@ -169,6 +169,14 @@ for (const { name, width, height } of widths) {
         })
       }
 
+      // A context item's Details, open: the lines, the source block, Related and the toolbar.
+      test('the Details of a context item, open', async ({ page }) => {
+        await page.goto(withTheme('/context?dock=context.itm_0tmqp7o1', theme))
+        await page.getByRole('button', { name: 'Details', exact: true }).click()
+        await expect(page.getByRole('list', { name: 'Links to' })).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
+
       // Publishing without review (FR-421): the dialog that sets a policy, the policy on the domain
       // page, the workspace switch, and the policy with Turn off in the agent's Details.
       test('publishing without review: the dialog, the policy and its Details', async ({

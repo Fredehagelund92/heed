@@ -19,6 +19,7 @@ import {
   type ClashRelation,
 } from '../../../domain/readiness.ts'
 import { matchingProbes } from '../../../domain/review.ts'
+import { peopleVoice } from '../../../domain/say.ts'
 import type { ResolvedScope } from '../../../domain/scope.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
 import type { Clock } from '../../clock.ts'
@@ -410,8 +411,9 @@ export function createReviewPath(
     const today = clock.today()
     const ask = r.scope ? { scope: r.scope } : null
     const empty = { state: 'missing' as const, say: '', items: [] }
-    const before = ask ? brief(answer(r.bundle, ask, { today })) : empty
-    const after = ask ? brief(answer(r.candidate, ask, { today })) : empty
+    const options = { today, voice: peopleVoice }
+    const before = ask ? brief(answer(r.bundle, ask, options)) : empty
+    const after = ask ? brief(answer(r.candidate, ask, options)) : empty
     const [name] = await tx.query<{ name: string | null }>(
       'select display_name as name from people where id=$1',
       [p.proposerId],
