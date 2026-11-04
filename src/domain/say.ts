@@ -222,7 +222,7 @@ const some = (names: readonly string[]) =>
  * What could not be read, for the AI agent: each issue's own message with the closest names and
  * their keys, and the choices when no name is close enough.
  */
-export function issueWords(bundle: Names, issues: readonly ScopeIssue[], question?: string) {
+export function issueWords(bundle: Names, issues: readonly ScopeIssue[]) {
   const words = issues.slice(0, 3).map((issue) => {
     if (issue.message)
       return issue.options.length && !issue.message.includes('Did you mean')
@@ -230,8 +230,6 @@ export function issueWords(bundle: Names, issues: readonly ScopeIssue[], questio
         : issue.message
     if (issue.field === 'dates')
       return 'The window given is not a period that can be read: pass window with from and to.'
-    if (issue.field === 'scope' && issue.input !== question && issue.options.length)
-      return `'${issue.input}' names more than one thing: ${list(issue.options.map((key) => nameOf(bundle, key)))}.`
     if (issue.field === 'scope') {
       const examples = issue.options.slice(0, 3).map((key) => nameOf(bundle, key))
       return `The question names no metric, market or other name in the vocabulary${examples.length ? `: name one, such as ${list(examples)}` : ''}.`
@@ -265,8 +263,6 @@ function issueSay(bundle: Names, issues: readonly ScopeIssue[], question?: strin
             ? ` Try ${names('or')}.`
             : ''
       }`
-    if (issue.field === 'scope' && issue.input !== question && issue.options.length)
-      return `"${issue.input}" could mean ${names('or')}.`
     if (issue.field === 'scope')
       return `The question needs a metric or a market${issue.options.length ? `, such as ${names('or')}` : ''}.`
     return `"${issue.input}" can't be read.`
@@ -338,7 +334,7 @@ export function unreadSaid(bundle: Names, issues: readonly ScopeIssue[], questio
   }
   return {
     say: `${notLookedUp} ${issueSay(bundle, issues, question)}`,
-    next: `Fix it from options and call again. ${issueWords(bundle, issues, question)}`,
+    next: `Fix it from options and call again. ${issueWords(bundle, issues)}`,
   }
 }
 

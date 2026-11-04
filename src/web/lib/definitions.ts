@@ -114,14 +114,15 @@ export function conflictOf(all: Definition[], d: Definition, self?: string): Con
       short: `${d.sameAs} isn't in Definitions any more.`,
     }
   // A term never conflicts with itself (a draft of it is a different object with the same name).
-  const reads = all.find(
-    (x) =>
-      !(x.type === 'term' && (x.name === d.name || x.name === self)) &&
-      x !== target &&
-      (same(x.name, d.name) || x.sourceNames.some((n) => same(n, d.name))),
-  )
-  const other = reads && meaningOf(all, reads)
-  if (other && other !== target)
+  const other = all
+    .filter(
+      (x) =>
+        !(x.type === 'term' && (x.name === d.name || x.name === self)) &&
+        (same(x.name, d.name) || x.sourceNames.some((n) => same(n, d.name))),
+    )
+    .map((x) => meaningOf(all, x))
+    .find((x) => x !== target)
+  if (other)
     return {
       kind: 'two-things',
       message: `“${d.name}” already means ${other.name}${other.synced ? ` in ${other.tool}` : ' here'}${target ? `, and this term says it means ${target.name}` : ''}. An agent can't tell which one a person means. Rename this term or point it at ${other.name}.`,
