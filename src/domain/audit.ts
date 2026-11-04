@@ -445,30 +445,37 @@ function readingOf(
   const askedAndUncovered = (): Part => {
     const listed = terms()
     const none = listed.filter((t) => Object.values(t.shelf).every((n) => n === 0))
-    const { rows } = askedTopics()
-    const times = (t: AuditTerm) =>
-      rows
-        .filter((r) => (r.metrics ?? []).includes(t.key))
-        .reduce((sum, r) => sum + (r.count ?? r.atLeast), 0)
+    const { rows, minimum } = askedTopics()
+    const matching = (t: AuditTerm) => rows.filter((r) => (r.metrics ?? []).includes(t.key))
     const asked = none
-      .map((t) => ({ t, n: times(t) }))
+      .map((t) => {
+        const hits = matching(t)
+        return {
+          t,
+          n: hits.reduce((sum, r) => sum + (r.count ?? r.atLeast), 0),
+          floor: hits.some((r) => r.count === null),
+        }
+      })
       .filter((x) => x.n > 0)
       .sort((a, b) => b.n - a.n || byName(a.t, b.t))
     const word = termsWord(none.length)
     return {
-      sentence: `${count(none.length)} of ${count(listed.length)} ${termsWord(listed.length)} have no context written. Of those, agents asked about ${count(asked.length)} this week.`,
+      sentence: `${count(none.length)} of ${count(listed.length)} ${termsWord(listed.length)} have no context written. Of those, agents asked about ${count(asked.length)} ${minimum} times or more this week.`,
       section: asked.length
         ? {
             title: 'Asked most, nothing written',
             count: `${count(asked.length)} of ${count(none.length)} ${word}`,
             columns: [nameColumns()[0]!, 'Asked'],
-            rows: asked.slice(0, SECTION_ROWS).map(({ t, n }) => termRow(t, [count(n)])),
+            rows: asked
+              .slice(0, SECTION_ROWS)
+              .map(({ t, n, floor }) => termRow(t, [floor ? `${count(n)}+` : count(n)])),
             shown: asked.length > SECTION_ROWS ? `Showing the ${SECTION_ROWS} asked most` : null,
             more: definitionsMore(),
           }
         : null,
-      clear: `Agents did not ask about any of the ${count(none.length)} ${word} with no context this week.`,
+      clear: `Agents did not ask about any of the ${count(none.length)} ${word} with no context ${minimum} times or more this week.`,
       ranked: 'Asked most first, among what has no context written.',
+      note: `A topic asked about fewer than ${minimum} times is not shown, so no small count is given away.`,
       found: asked.length,
     }
   }
