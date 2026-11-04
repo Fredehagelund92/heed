@@ -11,6 +11,7 @@ import {
   wordRefusal,
   type WordHolder,
 } from '../../../src/domain/terms.ts'
+import { normalizeName, normalizeWithMap } from '../../../src/domain/vocabulary.ts'
 
 describe('how a word is compared', () => {
   it('sets aside case, spaces and accents, as the reader does', () => {
@@ -18,6 +19,14 @@ describe('how a word is compared', () => {
       expect(termWord(word)).toBe('sales')
     expect(termWord('Peak   season')).toBe('peak season')
     expect(termWord('Net-revenue')).not.toBe(termWord('Net revenue'))
+  })
+
+  it('reads every sigma as one letter, wherever it stands', () => {
+    for (const word of ['ΑΣ', 'ασ', 'ας']) {
+      expect(termWord(word)).toBe('ασ')
+      expect(normalizeWithMap(word).text).toBe(normalizeName(word))
+    }
+    expect(normalizeWithMap('.Σ').text).toBe(normalizeName('.Σ'))
   })
 })
 

@@ -101,7 +101,7 @@ it('keeps the words there are, and compares a word one way from then on', async 
     const words = [
       ...samples.map((letters) => letters.join('')),
       'Salés',
-      'ΑΣ',
+      ...['ΑΣ', 'ΑΣΑ', 'Σ', '.Σ', ' Σ', '1Σ', 'ας', 'ΑΣ.'],
       'Øre Æble Straße',
       'Net Revenue',
       '  Peak   Season ',

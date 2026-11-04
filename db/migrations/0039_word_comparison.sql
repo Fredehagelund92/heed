@@ -4,16 +4,17 @@
 -- reader then saw two claims on one word and served neither.
 --
 -- - cl_term_word() is the database's normalizeName (src/domain/vocabulary.ts): compatibility forms
---   opened (NFKD), every combining mark dropped, lower case, æ, ø and ß spelled out, spaces folded
---   and trimmed. It lists the marks by code point, as a pattern here has no \p{M}, and takes its
---   lower case from pg_unicode_fast, which is the same on every install and, like the service,
---   knows a final sigma. tests/integration/word-comparison.test.ts holds the two to one answer.
+--   opened (NFKD), every combining mark dropped, lower case, æ, ø and ß spelled out, every sigma
+--   (Σ, σ and ς) read as σ, spaces folded and trimmed. It lists the marks by code point, as a pattern here has no \p{M}, and takes its
+--   lower case from pg_unicode_fast, which is the same on every install. It does not rely
+--   on that for a final sigma: both sides fold every sigma to σ. tests/integration/word-comparison.test.ts holds the two to one answer.
 -- - terms.word, and so terms_one_word, cl_vocabulary_words() and what serving_terms() compares, are
 --   that form now. Hyphens stay: "Net-revenue" is a look-alike, not the same word.
 -- - Nothing is renamed or dropped. Two live terms that only now read as one word both stay, and the
 --   later one is marked (word_clash), which keeps it out of terms_one_word; the earlier one still
---   holds the word, so nobody can take it a third time. Agents ask which one until an owner renames
---   one, as for a word a sync gave a second meaning. The mark goes when the term next claims a
+--   holds the word, so nobody can take it a third time. Agents ask which one when one of the
+--   meanings is a metric or a dimension; two terms that each have their own meaning stay out until
+--   an owner renames one. The mark goes when the term next claims a
 --   word. A later migration can set the column's expression back: the names themselves never
 --   changed.
 -- - serving_terms() also says which metrics and dimensions a word's second meaning is (also_means).
@@ -25,7 +26,7 @@ create function public.cl_term_word(p_name text) returns text
     set search_path to 'public', 'pg_temp'
     as $$
   select btrim(regexp_replace(
-           replace(replace(replace(
+           replace(replace(replace(replace(
              lower(regexp_replace(normalize(p_name, nfkd),
              '[\u0300-\u036f\u0483-\u0489\u0591-\u05bd\u05bf\u05c1-\u05c2\u05c4-\u05c5\u05c7'
              '\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06dc\u06df-\u06e4\u06e7-\u06e8\u06ea-\u06ed'
@@ -87,7 +88,7 @@ create function public.cl_term_word(p_name text) returns text
              '\U0001e5ee-\U0001e5ef\U0001e6e3\U0001e6e6\U0001e6ee-\U0001e6ef\U0001e6f5'
              '\U0001e8d0-\U0001e8d6\U0001e944-\U0001e94a\U000e0100-\U000e01ef]',
                    '', 'g') collate pg_unicode_fast),
-             'æ', 'ae'), 'ø', 'o'), 'ß', 'ss'),
+             'æ', 'ae'), 'ø', 'o'), 'ß', 'ss'), 'ς', 'σ'),
            '[\u0009-\u000d\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g')) $$;
 
 revoke execute on function public.cl_term_word(text) from public;
