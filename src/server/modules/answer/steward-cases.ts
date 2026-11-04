@@ -1,3 +1,4 @@
+import { DEFAULT_PRODUCT_NAME as PRODUCT } from '../../../domain/brand.ts'
 import type { PlanCase } from './plan-cases.ts'
 
 /*
@@ -914,10 +915,9 @@ const LIMITS = {
   advice: 'What to do is not written down. Here is what is.',
   forecast: 'What happens next is not written down. Here is what is.',
   outside: 'Ask knows only what is written here, not what others do. Here is what is.',
-  numbers: 'Heed keeps no numbers, so Ask cannot work this out. Here is what is written.',
+  numbers: `${PRODUCT} keeps no numbers, so Ask cannot work this out. Here is what is written.`,
 }
-const NO_NUMBERS =
-  'Heed keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first.'
+const NO_NUMBERS = `${PRODUCT} keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first.`
 
 const A: PlanCase[] = [
   {
@@ -959,7 +959,7 @@ const A: PlanCase[] = [
   },
   {
     id: 'A05',
-    what: 'A number Heed does not keep: an honest exit, not a metric to name.',
+    what: 'A number nobody keeps here: an honest exit, not a metric to name.',
     question: 'how are we doing against target?',
     expect: {
       route: 'planner',

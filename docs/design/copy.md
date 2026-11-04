@@ -93,7 +93,7 @@ When Ask cannot answer the question asked, it says so in a fixed sentence (FR-72
 | `cannot:not_yet` | Ask cannot work this out yet.                                                                                          |
 | Plan not used    | Ask could not read this question just now, so nothing was looked up.                                                   |
 
-These sentences name the product where the voice needs a subject, as Ask's other fixed sentences do. Ask does not advise: no "should", "recommend" or "I suggest" in its own voice. A cited item may say so, and Ask may quote it.
+Ask does not advise: no "should", "recommend" or "I suggest" in its own voice. A cited item may say so, and Ask may quote it.
 
 ### Kinds
 

@@ -139,7 +139,7 @@ async function itemsOf(
   dated = true,
 ): Promise<RecordsItem[]> {
   const listed = index.items.filter((i) => isRecordsKind(i.kind))
-  const times = dated ? await timesOf(tx, listed) : new Map()
+  const times: Awaited<ReturnType<typeof timesOf>> = dated ? await timesOf(tx, listed) : new Map()
   const moved = (iso: string | null | undefined) =>
     iso ? new Date(Date.parse(iso) + shift).toISOString() : null
   return listed.map((i) => {

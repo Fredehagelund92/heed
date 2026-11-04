@@ -1,4 +1,5 @@
 import type { AnswerState } from './answer.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import {
   auditAnswer,
   auditedTerms,
@@ -623,7 +624,7 @@ export const limitSaid: Record<LimitReason, string> = {
   advice: 'What to do is not written down. Here is what is.',
   forecast: 'What happens next is not written down. Here is what is.',
   outside: 'Ask knows only what is written here, not what others do. Here is what is.',
-  numbers: 'Heed keeps no numbers, so Ask cannot work this out. Here is what is written.',
+  numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out. Here is what is written.`,
 }
 const itemsWords = (n: number, kind: RecordsKind | null = null) =>
   `${count(n)} ${kind ? (n === 1 ? kindWords[kind].one : kindWords[kind].many) : n === 1 ? 'context item' : 'context items'}`

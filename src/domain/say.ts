@@ -1,6 +1,7 @@
 import { stateOfStatus, stateWords } from './answer-state.ts'
 import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import type { CannotReason } from './records-answer.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
 import { concepts as peopleConcepts } from './words.ts'
@@ -91,8 +92,7 @@ export const offTopicSaid =
 
 /** What Ask says when it cannot answer the question asked, and reads nothing (FR-720). */
 export const cannotSaid: Record<CannotReason, string> = {
-  numbers:
-    'Heed keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first.',
+  numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first.`,
   source: 'Definitions live in your source tool, so Ask cannot change one.',
   write: 'Ask does not write context. You can start it here.',
   person: "Ask does not answer questions about one person's work.",

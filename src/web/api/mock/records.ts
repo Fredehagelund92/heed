@@ -207,7 +207,7 @@ function auditOf(world: Pick<RecordsSource, 'pool' | 'definitions'>): AuditWorld
       }),
     items: live.map((f) => ({
       id: f.id,
-      kind: f.kind as RecordsItem['kind'],
+      kind: f.kind,
       title: f.title,
       areaId: f.domain,
       metrics: f.where.flatMap((w) => key(w) ?? []),

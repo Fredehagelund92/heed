@@ -1048,15 +1048,15 @@ export async function runPlanCases(
     const own: Planner | null = !c.with
       ? planner
       : 'raw' in c.with
-        ? async (_input, check) => {
+        ? (_input, check) => {
             const checked = check((c.with as { raw: unknown }).raw)
-            if (checked.ok) return checked.plan
+            if (checked.ok) return Promise.resolve(checked.plan)
             miss = checked.why
-            return 'missed'
+            return Promise.resolve('missed' as const)
           }
         : c.with.planner === 'none'
           ? null
-          : async () => 'missed'
+          : () => Promise.resolve('missed' as const)
     const asked = repeated
       ? await askPlanCase(repeated, own, turns.slice(0, -1))
       : await askPlanCase(c, own, turns)

@@ -1,3 +1,4 @@
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import { overlaps } from './validity.ts'
 import {
   type AuditFacet,
@@ -125,12 +126,14 @@ export const auditWords = (read: Pick<AuditRead, 'facets'>) =>
 /** The words of "what definitions are missing": each thing an honest answer is made from. */
 const MISSING: AuditFacet[] = ['no_context', 'no_words', 'no_domain', 'unlinked', 'asked_nothing']
 
+const OUT_OF_SIGHT = `a definition your source does not hold, or a word people use that ${DEFAULT_PRODUCT_NAME} cannot read`
+
 /** What each facet cannot see, said once however many facets share it. */
 const notSeenOf: Record<AuditFacet, string> = {
-  no_context: 'a definition your source does not hold, or a word people use that Heed cannot read',
-  no_words: 'a definition your source does not hold, or a word people use that Heed cannot read',
-  no_domain: 'a definition your source does not hold, or a word people use that Heed cannot read',
-  unlinked: 'a definition your source does not hold, or a word people use that Heed cannot read',
+  no_context: OUT_OF_SIGHT,
+  no_words: OUT_OF_SIGHT,
+  no_domain: OUT_OF_SIGHT,
+  unlinked: OUT_OF_SIGHT,
   source_changed: 'a change at the source since the last read',
   asked_nothing: "what people ask in Ask, which is kept nowhere, so this counts agents' calls only",
   asked_most: "what people ask in Ask, which is kept nowhere, so this counts agents' calls only",
@@ -138,7 +141,7 @@ const notSeenOf: Record<AuditFacet, string> = {
   conflicts: 'two items that disagree when no owner marked them',
   duplicates: 'two items that say the same thing under different titles',
   overlaps: 'whether the two items disagree: an owner decides that',
-  review: 'a definition your source does not hold, or a word people use that Heed cannot read',
+  review: OUT_OF_SIGHT,
 }
 
 type Part = {

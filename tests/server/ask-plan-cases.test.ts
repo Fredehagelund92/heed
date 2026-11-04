@@ -1,7 +1,11 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { parsePlan } from '../../src/domain/ask-plan.ts'
 import {
   engineDigest,
   gatePasses,
+  plannerDigest,
+  recordedPlansFile,
   planCases,
   planProblems,
   runPlanCases,
@@ -81,7 +85,7 @@ describe('what Ask promises (FR-720), on the scripted planner', async () => {
 describe('with no planner, a limit or a slow provider, every case says what it cannot', async () => {
   for (const [name, planner] of [
     ['no model', null],
-    ['a planner that gave up', async () => 'missed' as const],
+    ['a planner that gave up', () => Promise.resolve('missed' as const)],
   ] as const) {
     const plain = await runPlanCases(stewardCases, planner)
 
@@ -93,4 +97,29 @@ describe('with no planner, a limit or a slow provider, every case says what it c
       expect(got.rendered).not.toMatch(/Finance counts/)
     })
   }
+})
+
+// The last real run's plans: a prompt, a vocabulary format or a model that changed since fails here
+// until someone records again, so a prompt change cannot land unmeasured.
+describe.runIf(existsSync(recordedPlansFile))('the plans of the last real run', async () => {
+  const recorded = JSON.parse(readFileSync(recordedPlansFile, 'utf8')) as {
+    digest: string
+    model: string
+    plans: Record<string, string>
+  }
+  const all = [...planCases, ...stewardCases]
+  const replayed = await runPlanCases(all, (input, check) => {
+    const text = recorded.plans[input.prompt]
+    if (text === undefined) return Promise.resolve(null)
+    const checked = check(parsePlan(text))
+    return Promise.resolve(checked.ok ? checked.plan : 'missed')
+  })
+
+  it('were recorded against these instructions, this vocabulary and this model', () => {
+    expect(recorded.digest).toBe(plannerDigest(recorded.model))
+  })
+
+  it('still read every case as it should be', () => {
+    expect(gatePasses(scoreRun(all, replayed))).toBe(true)
+  })
 })
