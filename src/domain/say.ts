@@ -74,6 +74,13 @@ const onlyThat = 'Only that was checked.'
 /** What a result that read nothing tells the person (`need_more_detail`, `check_failed`). */
 export const notLookedUp = 'Nothing was looked up yet.'
 
+/**
+ * What Ask says to a question its planner read as off topic (FR-719): what it answers, and that
+ * this question is not that. Nothing is looked up, so it has no answer state.
+ */
+export const offTopicSaid =
+  'Ask answers questions about the business, its numbers and what is written about them. This question is outside that, so nothing was looked up.'
+
 type Names = { terms: readonly { key: string; name: string }[] }
 type Groups = Names & { groupsOfMetric: Readonly<Record<string, readonly string[]>> }
 

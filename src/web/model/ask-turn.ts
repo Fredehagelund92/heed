@@ -11,6 +11,8 @@ export type Stage = 'looking' | 'reading' | 'writing' | 'done'
 
 /** What a look-up tells the chat as it runs. */
 export type AskEvent =
+  /** Ask's planner chose what to look up (FR-719): what the working line says while it runs. */
+  | { type: 'plan'; working: string }
   /** The look-up found its context items: how many. */
   | { type: 'found'; items: number }
   /** The engine's answer, with its own words: the state and the sources are final from here. */
@@ -35,6 +37,8 @@ export type Turn = {
   error: string | null
   /** How many context items the look-up found, once it has. */
   found: number | null
+  /** What the planner chose to look up, in the working line's words, once it has. */
+  working: string | null
   /** A model's words so far, a sentence at a time; with none, the answer's own words show. */
   sentences: string[]
 }
@@ -62,6 +66,7 @@ export const askedTurn = (
   stopped: false,
   error: null,
   found: null,
+  working: null,
   sentences: [],
 })
 
@@ -74,6 +79,7 @@ export const doneTurn = (answer: Answer): Turn => ({
   stopped: false,
   error: null,
   found: answer.sources.length,
+  working: null,
   sentences: [],
 })
 
@@ -101,6 +107,8 @@ export function turnReducer(turn: Turn, action: TurnAction): Turn {
   const { id, parts, scope } = turn.answer
   const keep = { id, ...(parts ? { parts } : {}), ...(scope ? { scope } : {}) }
   switch (action.type) {
+    case 'plan':
+      return { ...turn, working: action.working }
     case 'found':
       return { ...turn, stage: 'reading', found: action.items }
     case 'answer':

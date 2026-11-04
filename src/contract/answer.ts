@@ -211,17 +211,43 @@ export const answerSchema = z.object({
    * items first, at most three. Context about a market is mostly about a metric in it.
    */
   valueMetrics: z.optional(z.array(z.string())),
+  /**
+   * In Ask's look-up only, when its planner read the question (FR-719): how it was read, in words,
+   * the names and dates carried from the last question, and where the dates came from. The model
+   * chose the reads; the state, the items and what agents are told are the reads' own.
+   */
+  reading: z.optional(
+    z.object({
+      words: z.string(),
+      carried: z.array(z.string()),
+      period: z.nullable(z.enum(['asked', 'carried', 'today', 'recent', 'any'])),
+    }),
+  ),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 
 /**
+ * The chat's last turn, sent from the browser with a follow-up so Ask can carry what it asked
+ * (FR-713, FR-719): its question, how it was read, as keys, its sources by id, and the question
+ * Ask asked back, when it did. Never stored on the service, like the question (FR-602, FR-717).
+ */
+export const previousTurnSchema = z.strictObject({
+  question: z.string().check(z.minLength(1), z.maxLength(2000)),
+  scope: z.optional(z.nullable(readScopeSchema)),
+  sources: z.array(z.string().check(z.maxLength(64))).check(z.maxLength(10)),
+  asked: z.optional(z.string().check(z.maxLength(300))),
+})
+export type PreviousTurnInput = z.infer<typeof previousTurnSchema>
+
+/**
  * A question for Ask: its words, and the names a person picked beside them (the @ chips), read as
- * get_context reads an agent's. The words are read in memory and never stored or logged (FR-602);
- * sent in a POST body for that reason.
+ * get_context reads an agent's, and the chat's last turn. The words are read in memory and never
+ * stored or logged (FR-602); sent in a POST body for that reason.
  */
 export const lookupInputSchema = z.strictObject({
   question: z.string().check(z.minLength(1), z.maxLength(2000)),
   ...tryItInputSchema.shape,
+  previous: z.optional(previousTurnSchema),
 })
 export type LookupInput = z.infer<typeof lookupInputSchema>
 /**
@@ -235,8 +261,24 @@ export type LookupInput = z.infer<typeof lookupInputSchema>
  * A question about the context's own records ("what was created in the last 24 hours", "who owns
  * Sales") is not looked up: its one event is the records answer (src/domain/records.ts), counted
  * from what the person may see, with no answer state. Agents never read it.
+ *
+ * When Ask's planner reads the question (FR-719), `plan` comes first, saying what is looked up so
+ * the working line can say it; then the reads' steps and answer as above, or one `reply`: a short
+ * question back, or the sentence for a question off topic, with nothing looked up and no state.
  */
 export const lookupEventSchema = z.union([
+  z.object({
+    type: z.literal('plan'),
+    plan: z.object({
+      kind: z.enum(['reads', 'records', 'clarify', 'off_topic']),
+      /** What the working line says while the reads run: "Looking for events and guides…". */
+      working: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal('reply'),
+    reply: z.object({ kind: z.enum(['clarify', 'off_topic']), text: z.string() }),
+  }),
   z.object({ type: z.literal('step'), step: answerStepSchema }),
   z.object({ type: z.literal('answer'), answer: answerSchema }),
   z.object({ type: z.literal('sentence'), text: z.string() }),

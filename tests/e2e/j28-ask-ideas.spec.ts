@@ -174,7 +174,7 @@ test('once a message is sent, nothing in the chat suggests what to ask, whatever
   // Not found keeps its next step, and only that.
   await follow('How did orders in Spain change in October 2026?')
   await expect(log.getByText('Not found', { exact: true }).first()).toBeVisible()
-  await expect(log.getByText(/Write context for|Tell the owner/).first()).toBeVisible()
+  await expect(log.getByText(/Write context for/).first()).toBeVisible()
   await suggestsNothing(page)
   // A question that names nothing to look up says what Ask answers, in words.
   await follow('tell me a joke')
@@ -189,18 +189,15 @@ test('once a message is sent, nothing in the chat suggests what to ask, whatever
   await suggestsNothing(page)
 })
 
-test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({
+test('someone who does not own the domain gets no unfinished control under Not found', async ({
   page,
 }) => {
   await signInAs(page, 'Tomas Eriksen')
   await ask(page, 'How did orders in Spain change in October 2026?')
-  const tell = page.getByRole('button', { name: 'Tell the owner Coming soon' })
-  await expect(tell).toHaveAttribute('aria-disabled', 'true')
-  await expect(tell).toHaveAccessibleDescription('Sending this to the owner from here comes later.')
-  await expect(page.getByText('Sending this to the owner from here comes later.')).toBeVisible()
-  // A press sends nothing, so nothing says it was sent.
-  await tell.click({ force: true })
-  await expect(page.getByText(/^Sent to/)).toHaveCount(0)
+  const log = page.getByRole('log')
+  await expect(log.getByText('Not found', { exact: true }).first()).toBeVisible()
+  await expect(log.getByRole('button', { name: /Tell the owner/ })).toHaveCount(0)
+  await expect(page.getByText(/Coming soon|comes later/)).toHaveCount(0)
 })
 
 test('Asked this week shows no draft to someone who does not own the domain, and a new workspace gets starters', async ({

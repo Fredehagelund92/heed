@@ -19,6 +19,14 @@ export const dateWindowSchema = z
   )
 export type DateWindow = z.infer<typeof dateWindowSchema>
 
+/**
+ * Every date: what Ask reads for an undated question about why something changed (FR-719), so
+ * context about a past period is not hidden by today. Said "at any date".
+ */
+export const anyDate: DateWindow = { start: '1900-01-01', end: '9999-12-31' }
+export const isAnyDate = (window: DateWindow) =>
+  window.start === anyDate.start && window.end === anyDate.end
+
 export function overlaps(a: DateWindow, b: DateWindow): boolean {
   return (b.end === null || a.start < b.end) && (a.end === null || b.start < a.end)
 }

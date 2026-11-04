@@ -1,4 +1,4 @@
-import { checkWords, wordsPrompt, type WordsInput } from '../../../domain/answer-words.ts'
+import { checkWords, type WordsInput } from '../../../domain/answer-words.ts'
 
 /*
   The test cases of Ask's words (FR-710): each gives a question, the engine's state and the items
@@ -131,7 +131,7 @@ export const wordsCases: WordsCase[] = [
 /** What is wrong with a case's words, if anything: the check Ask applies, then the case's own. */
 export function wordsProblems(c: WordsCase, text: string | null): string[] {
   if (text === null) return ['no words']
-  const checked = checkWords(text, c.input.items.length, wordsPrompt(c.input))
+  const checked = checkWords(text, c.input)
   if (!checked.ok) return [`fails the check: ${checked.why}`]
   return [
     ...c.cites.filter((n) => !text.includes(`[${n}]`)).map((n) => `does not cite [${n}]`),
