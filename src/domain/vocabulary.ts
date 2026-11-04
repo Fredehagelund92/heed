@@ -64,6 +64,7 @@ export function normalizeName(name: string): string {
     .replace(/æ/g, 'ae')
     .replace(/ø/g, 'o')
     .replace(/ß/g, 'ss')
+    .replace(/ς/g, 'σ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -90,7 +91,7 @@ export function normalizeWithMap(text: string): { text: string; at: number[] } {
   const at: number[] = []
   for (let i = 0; i < cased.length && i < from.length; i++) {
     const c = cased[i]!
-    const folded = c === 'æ' ? 'ae' : c === 'ø' ? 'o' : c === 'ß' ? 'ss' : c
+    const folded = c === 'æ' ? 'ae' : c === 'ø' ? 'o' : c === 'ß' ? 'ss' : c === 'ς' ? 'σ' : c
     if (/\s/.test(folded)) {
       if (out.length && !out.endsWith(' ')) {
         out += ' '
