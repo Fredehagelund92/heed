@@ -28,6 +28,8 @@ interface Config {
 
 /** The largest file a read takes, as a Git read does. */
 const FILE_BYTES_MAX = 2_000_000
+/** The longest cursor kept: the core's 500, less what it puts in front of it. */
+const CURSOR_MAX = 480
 /** How long before a signed link stops working a check says so. */
 const SOON_MS = 14 * 24 * 60 * 60 * 1000
 
@@ -161,10 +163,8 @@ function markOf(cursor: string | null): Mark | null {
   }
 }
 
-const seconds = (value: string | null) => {
-  const wait = Number(value ?? Number.NaN)
-  return Number.isInteger(wait) && wait >= 0 ? { retryAfter: wait } : {}
-}
+const seconds = (value: string | null) =>
+  value !== null && /^\d{1,6}$/.test(value.trim()) ? { retryAfter: Number(value.trim()) } : {}
 
 /** Why the host would not hand the file over. */
 function refusal(response: Response, host: string): SourceError {
@@ -181,11 +181,17 @@ function refusal(response: Response, host: string): SourceError {
 }
 
 /** The file as bytes the mapping can read: no compression, and UTF-8. */
-async function textOf(response: Response, host: string): Promise<string> {
+async function textOf(response: Response, host: string, signal: AbortSignal): Promise<string> {
   const unreadable = new SourceError({ code: 'unreadable_file', target: host, class: 'source' })
   const encoding = response.headers.get('content-encoding')
   if (encoding && encoding !== 'identity') throw unreadable
-  const bytes = await response.arrayBuffer()
+  let bytes: ArrayBuffer
+  try {
+    bytes = await response.arrayBuffer()
+  } catch (error) {
+    if (error instanceof SourceError || signal.aborted) throw error
+    throw new SourceError({ code: 'unreachable', target: host, class: 'transient' })
+  }
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
@@ -215,7 +221,7 @@ async function fetched(
   const etag = response.headers.get('etag')
   const modified = response.headers.get('last-modified')
   return {
-    text: await textOf(response, host),
+    text: await textOf(response, host, context.signal),
     marks: { ...(etag ? { etag } : {}), ...(modified ? { modified } : {}) },
   }
 }
@@ -257,7 +263,7 @@ function linkSteps(context: RuntimeContext<Config>): CheckStep[] {
           title: 'Check the link',
           status: 'warning',
           detail: `It stops working on ${day}.`,
-          fix: 'Make a new one before then, or use Object storage, which has no end date.',
+          fix: 'Make a new one before then, or use Object storage with a key that does not expire.',
         }
       : { id: 'link', title: 'Check the link', status: 'ok', detail: `It works until ${day}.` },
   ]
@@ -388,5 +394,5 @@ export const runtime = defineRuntime<Config>({
 function remoteCursor(marks: Pick<Mark, 'etag' | 'modified'>, version: string) {
   if (!marks.etag && !marks.modified) return undefined
   const cursor = JSON.stringify({ reader, version, ...marks })
-  return cursor.length <= 500 ? cursor : undefined
+  return cursor.length <= CURSOR_MAX ? cursor : undefined
 }

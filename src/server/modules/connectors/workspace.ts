@@ -198,6 +198,26 @@ export function createWorkspaceSources({
     }
   }
 
+  /**
+   * What is wrong with the secrets given: one the source has no slot for, one the settings do not
+   * use, and an address kept as a secret that Heed may not fetch. Never the value.
+   */
+  const secretProblems = (
+    connector: RegisteredConnector,
+    config: SourceConfig | null,
+    given: Record<string, string>,
+  ): FieldProblem[] => {
+    const keys = secretKeys(connector)
+    const inUse = config === null ? null : secretsInUse(connector.manifest, config)
+    return Object.keys(given).flatMap((key): FieldProblem[] => {
+      if (!keys.includes(key)) return [{ field: key, message: 'This source has no such secret.' }]
+      if (inUse === null) return []
+      if (!inUse.some((secret) => secret.key === key))
+        return [{ field: key, message: 'These settings do not use this secret.' }]
+      return given[key] ? connector.addressProblems(key, given[key]) : []
+    })
+  }
+
   /** The settings checked by the connector, the secrets checked against its slots, the reason. */
   async function checkInput(
     tx: Queryable,
@@ -211,15 +231,11 @@ export function createWorkspaceSources({
     if (!input.name.trim()) problems.push({ field: 'name', message: 'Give the source a name.' })
     const parsed = connector.parse(input.config)
     if ('problems' in parsed) problems.push(...parsed.problems)
-    const keys = secretKeys(connector)
-    for (const key of Object.keys(input.secrets))
-      if (!keys.includes(key))
-        problems.push({ field: key, message: 'This source has no such secret.' })
+    problems.push(
+      ...secretProblems(connector, 'config' in parsed ? parsed.config : null, input.secrets),
+    )
     if ('config' in parsed) {
       const inUse = secretsInUse(connector.manifest, parsed.config)
-      for (const key of Object.keys(input.secrets))
-        if (keys.includes(key) && !inUse.some((secret) => secret.key === key))
-          problems.push({ field: key, message: 'These settings do not use this secret.' })
       for (const secret of inUse)
         if (secret.required && !input.secrets[secret.key] && !keeps(parsed.config)?.[secret.key])
           problems.push({ field: secret.key, message: `Give the ${secret.label.toLowerCase()}.` })
@@ -622,10 +638,12 @@ export function createWorkspaceSources({
       if (!connector) invalid([{ field: 'type', message: "We can't read a source of this type." }])
       const parsed = connector!.parse(input.config)
       if ('problems' in parsed) invalid(parsed.problems)
-      const keys = secretKeys(connector!)
-      const unknown = Object.keys(input.secrets).filter((key) => !keys.includes(key))
-      if (unknown.length)
-        invalid(unknown.map((key) => ({ field: key, message: 'This source has no such secret.' })))
+      const unusable = secretProblems(
+        connector!,
+        (parsed as { config: SourceConfig }).config,
+        input.secrets,
+      )
+      if (unusable.length) invalid(unusable)
       let stored: Readonly<Record<string, string>> | null = {}
       if (input.id !== undefined) {
         const row = await workspaceRow(tx, input.id)

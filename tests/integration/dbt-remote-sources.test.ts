@@ -187,6 +187,36 @@ describe('a semantic manifest at a signed link', () => {
     )
   })
 
+  it('refuses an address Heed may not fetch when it is given, on its own field, without saying it', async () => {
+    const plain = 'http://files.example.com/semantic_manifest.json?sig=topsecretvalue'
+    const body = (path: string) =>
+      call('POST', path, 'admin', {
+        type: 'dbt-metricflow',
+        config: { location: 'address' },
+        secrets: { fileAddress: plain },
+        ...(path === '/sources'
+          ? { name: 'Shop metrics', reason: 'Our pipeline uploads the file' }
+          : {}),
+      })
+    for (const path of ['/sources', '/sources/test']) {
+      const response = await body(path)
+      expect(response.statusCode).toBe(422)
+      expect(response.body).toContain('fileAddress')
+      expect(response.body).toContain('https')
+      expect(response.body).not.toContain('topsecretvalue')
+    }
+  })
+
+  it('refuses a test with a secret the settings do not use', async () => {
+    const response = await call('POST', '/sources/test', 'admin', {
+      type: 'dbt-metricflow',
+      config: { location: 'address' },
+      secrets: { fileAddress: objects.link('/link/shop.json'), token: 'y'.repeat(10) },
+    })
+    expect(response.statusCode).toBe(422)
+    expect(response.body).toContain('These settings do not use this secret.')
+  })
+
   it('keeps the link in the secret store only, and says only that it is set', async () => {
     source = await ok<SourceSettings>(
       call('POST', '/sources', 'admin', {

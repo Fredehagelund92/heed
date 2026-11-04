@@ -17,6 +17,7 @@ import {
   connectFormOf,
   connectionOf,
   connectTestOf,
+  failureOf,
   documentOf,
   durationWords,
   everyWords,
@@ -636,6 +637,41 @@ describe('a tool whose file lives in a place you choose', () => {
       { label: 'Where the file lives', value: 'Address' },
       { label: 'File address', value: 'Set, only used for reading' },
     ])
+  })
+
+  it('says why a test could not read, in the connector’s words or the core’s', () => {
+    const failedWith = (code: string, type = 'dbt-metricflow') =>
+      connectTestOf(
+        {
+          ok: false,
+          steps: [],
+          version: null,
+          complete: false,
+          views: 0,
+          metrics: 0,
+          dimensions: 0,
+          warnings: [{ code, target: 'files.example.com' }],
+        },
+        type,
+      ).failure
+    expect(failedWith('dbt-metricflow.not_a_semantic_manifest')).toBe(
+      'This is not dbt’s semantic manifest. Point the file at target/semantic_manifest.json.',
+    )
+    expect(failedWith('dbt-metricflow.not_read_only')).toBe(
+      'This signature can do more than read. Make a shared access signature with read permission only: sp=r.',
+    )
+    expect(failedWith('timed_out')).toBe("It couldn't be read: it took too long.")
+    expect(failedWith('unreadable_file')).toBe("It couldn't be read: it is too large, or not text.")
+    expect(failedWith('fetch_failed')).toBe("It couldn't be read: the host would not hand it over.")
+    expect(failedWith('something_new')).toBe("It couldn't be read.")
+  })
+
+  it('says why a read failed in history by the same words', () => {
+    const read = (code: string) =>
+      failureOf({ warnings: [{ code, target: 'x' }] } as unknown as Parameters<typeof failureOf>[0])
+    expect(read('timed_out')).toBe('it took too long')
+    expect(read('unauthorized')).toBe('the key was refused')
+    expect(read('something_new')).toBe("it couldn't be read")
   })
 
   it('says what a test’s read found, each warning once, in its own words', () => {

@@ -94,6 +94,9 @@ const FAILURES: Record<string, string> = {
   not_found: "what it reads wasn't found",
   rate_limited: 'it was asked too often',
   timeout: 'it took too long',
+  timed_out: 'it took too long',
+  unreadable_file: 'it is too large, or not text',
+  fetch_failed: 'the host would not hand it over',
   private_address: 'its address is not one it may reach: use https, on a public host',
   redirect_refused: 'it redirects somewhere it may not follow',
 }
@@ -526,6 +529,24 @@ function readWarnings(
   return [...found.values()]
 }
 
+/** Why a test could not read, by the first warning that says so: the connector's own words first. */
+function testFailureOf(
+  warnings: SourceCheck['warnings'],
+  type: string | undefined,
+  own: ConnectorManifest['warnings'] = {},
+): string {
+  for (const { code } of warnings) {
+    const mine =
+      type !== undefined && code.startsWith(`${type}.`)
+        ? own[code.slice(type.length + 1)]
+        : undefined
+    if (mine) return `${mine.title}. ${mine.detail}`
+    const words = FAILURES[code]
+    if (words) return `It couldn't be read: ${words}.`
+  }
+  return "It couldn't be read."
+}
+
 /** What Test connection found, in the flow's words: the check's steps, and what may be read. */
 export function connectTestOf(check: SourceCheck, type?: string): ConnectTest {
   const connector = type === undefined ? undefined : connectorById(type)
@@ -561,7 +582,7 @@ export function connectTestOf(check: SourceCheck, type?: string): ConnectTest {
     scopes: check.ok ? scopes : [],
     ...(check.ok || said
       ? {}
-      : { failure: `It couldn't be read: ${failureWords(check.warnings)}.` }),
+      : { failure: testFailureOf(check.warnings, type, connector?.warnings) }),
     ...(check.ok && connector?.kind === 'definitions'
       ? {
           read: {

@@ -632,11 +632,14 @@ Where the build differs from the decided text above:
   `folder`, `worker`, `signal` (the manifest's `limits.timeoutSeconds`, or for a connector with a
   worker the server gave longer, that long and a minute more), `log` and `now`. `fetch` is a GET
   or a HEAD, with a query if it needs one, to an address Heed may fetch (https to a public host in
-  production), on a host the manifest declares by name or through an address setting, without
-  following a redirect. A POST with a body goes only to a host the manifest declares for signing
+  production, or a host whoever runs the server allows by name), on a host the manifest declares by
+  name, through an address setting (`fromField`) or through an address kept as a secret
+  (`fromSecret`). The host's name is looked up once and the connection pinned to an address that
+  was checked. A redirect is followed to the same host and port only, at most three times; the
+  answer is capped at 20 MB, or at the less a connector asks for. A POST with a body goes only to a host the manifest declares for signing
   in (`signIn: true` on the host), where a connector trades its credential for a short-lived token
-  (Google Drive's service account): nothing is written to the tool. Pinning the checked address,
-  the request rate and `Retry-After` come next. `git` fetches one commit of the
+  (Google Drive's service account): nothing is written to the tool. The request rate comes next;
+  a connector passes on `Retry-After` through `SourceError.retryAfter`. `git` fetches one commit of the
   repository a settings field names, only when the manifest declares `egress.git` and a host from
   that field, with a secret only when it is bound to that field (and the user name the runtime
   gives with it), in the form the address was checked in, and hands the runtime a read-only view

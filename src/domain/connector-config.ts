@@ -79,8 +79,12 @@ function parseValue(
   field: ManifestField,
   raw: unknown,
 ): { value?: ConnectorConfigValue } | { problem: string } {
+  const asked = /^(where|which|what|how|who|when)\b/i.test(field.label) ? '' : 'the '
   const missing = {
-    problem: `Give the ${lower(field.label)}${field.kind === 'address' && !/address$/i.test(field.label) ? ' address' : ''}.`,
+    problem:
+      field.kind === 'radio' || field.kind === 'select'
+        ? `Choose ${asked}${lower(field.label)}.`
+        : `Give the ${lower(field.label)}${field.kind === 'address' && !/address$/i.test(field.label) ? ' address' : ''}.`,
   }
   switch (field.kind) {
     case 'boolean':

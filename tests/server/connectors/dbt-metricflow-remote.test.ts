@@ -247,7 +247,9 @@ describe('a read of a file that has not changed', () => {
     store.put('/public/old.json', JSON.stringify(legacyManifest))
     const old = connector.source(address(store.address('/public/old.json')))
     const first = await old.read({ cursor: null })
-    const earlier = JSON.stringify({ ...JSON.parse(first.cursor!), reader: '0.9.0/1' })
+    const tie = first.cursor!.slice(0, first.cursor!.indexOf(':') + 1)
+    const mark = JSON.parse(first.cursor!.slice(tie.length)) as object
+    const earlier = `${tie}${JSON.stringify({ ...mark, reader: '0.9.0/1' })}`
     expect((await old.read({ cursor: earlier })).definitions.length).toBeGreaterThan(0)
     expect(store.requests.at(-1)).toMatchObject({ ifNoneMatch: null, status: 200 })
   })
@@ -352,6 +354,15 @@ describe('object-storage.ts', () => {
     expect(of('https://s3.eu-west-1.amazonaws.com/b/f', 's3')).toBe('eu-west-1')
     expect(of('https://b.s3.dualstack.us-west-2.amazonaws.com/f', 's3')).toBe('us-west-2')
     expect(of('https://b.s3.amazonaws.com/f', 's3')).toBe('us-east-1')
+    expect(of('https://b.s3.amazonaws.com/f', 's3', 'eu-west-1')).toBe('eu-west-1')
+    expect(of('https://b.s3-accelerate.amazonaws.com/f', 's3')).toBe('us-east-1')
+    expect(of('https://b.s3-accelerate.amazonaws.com/f', 's3', 'ap-south-1')).toBe('ap-south-1')
+    expect(of('https://b.s3.cn-north-1.amazonaws.com.cn/f', 's3')).toBe('cn-north-1')
+    expect(of('https://s3-fips.us-east-2.amazonaws.com/b/f', 's3')).toBe('us-east-2')
+    expect(of('https://b.s3-fips.dualstack.us-gov-west-1.amazonaws.com/f', 's3')).toBe(
+      'us-gov-west-1',
+    )
+    expect(of('https://b.s3-eu-west-1.amazonaws.com/f', 's3', 'us-west-2')).toBe('eu-west-1')
     expect(of('https://storage.googleapis.com/b/f', 'gcs')).toBe('auto')
     expect(of('https://minio.example.test/b/f', 's3-compatible', 'eu-1')).toBe('eu-1')
     expect(of('https://minio.example.test/b/f', 's3-compatible')).toBe('us-east-1')

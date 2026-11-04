@@ -291,7 +291,21 @@ test('moving between places sends only the place chosen', async ({ page }) => {
     await page.getByLabel('Folder', { exact: true }).fill('semantic')
     await page.getByLabel('Read-only token').fill(token)
   }
+  // On the service the request is the evidence; the mock has no request to look at.
+  const sent =
+    mode === 'http'
+      ? page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/sources/test'))
+      : null
   await button(page, 'Test connection').click()
+  if (sent) {
+    const body = (await sent).postDataJSON() as {
+      config: Record<string, unknown>
+      secrets: Record<string, unknown>
+    }
+    expect(body.config).toMatchObject({ location: 'git' })
+    expect(body.secrets).not.toHaveProperty('fileAddress')
+    expect(JSON.stringify(body)).not.toContain('left-behind')
+  }
   await expect(page.getByText('Testing the connection…')).toBeHidden({ timeout: 30_000 })
   await expect(button(page, 'Continue')).toBeEnabled()
 })

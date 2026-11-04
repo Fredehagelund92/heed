@@ -49,7 +49,8 @@ Whoever runs the server may let `ctx.fetch` reach hosts on a private network by 
 (`HEED_EGRESS_PRIVATE_HOSTS`, [Operations](../operations.md)), for an internal artifact server. It
 is a list in the server's own settings, not in the app: an administrator in the app cannot
 open the private network, and Git and figures do not take it. An allowed host is still https only,
-and still has to be one the manifest declares.
+and still has to be one the manifest declares. A settings address on such a host passes when the
+settings are saved, as a private repository does for Git, and Git then refuses it when it reads.
 
 ### Git
 
@@ -94,13 +95,16 @@ allows:
 - public addresses only, with the same block list as Git, the name resolved once and the
   connection pinned to the address that was checked (`pinned-fetch.ts`), or a host whoever runs
   the server allows;
-- redirects checked hop by hop, on the same host only and at most three, and refused otherwise
-  (`redirect_refused`), so a signature or a key never reaches another host;
+- redirects checked hop by hop, on the same host and port only and at most three, and refused otherwise
+  (`redirect_refused`), so a signature or a key never reaches another host or port;
 - answers capped at 20 MB, or at the less a connector asks for (`maxBytes`), by the length the
   host says and by what arrives; over it, the read of the body fails with `unreadable_file`;
 - a timeout from the manifest's limits;
 - no request or address in a log or an error: what the network says of a failure is dropped, and
-  a failure names a host at most (`unreachable`).
+  a failure names a host at most (`unreachable`). A connection that drops while the body arrives
+  is `unreachable` too;
+- an address kept as a secret (`fromSecret`) is checked when it is given, as a settings address
+  is, so a plain http address is refused with the settings rather than at the first read.
 
 There is no rate limit of the core's yet: `limits` in a manifest has none. A connector passes on
 what a host says in `Retry-After` through `SourceError.retryAfter`.

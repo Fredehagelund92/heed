@@ -74,12 +74,16 @@ export async function signedHeaders(
 }
 
 /**
- * The region an object's address signs for: the one in an S3 address, `auto` at Google Cloud
- * Storage, or the one the settings give. A store that has no regions takes `us-east-1`.
+ * The region an object's address signs for: `auto` at Google Cloud Storage, the one an S3 address
+ * names (an accelerate or global address names none), or the one the settings give. A store that
+ * has no regions takes `us-east-1`.
  */
 export function regionOf(address: URL, provider: string, region: string | undefined): string {
   if (provider === 'gcs') return 'auto'
-  const named = /(?:^|\.)s3[.-](?:dualstack\.)?([a-z0-9-]+)\.amazonaws\.com$/.exec(address.hostname)
+  const named =
+    /(?:^|\.)s3(?:-fips)?[.-](?:dualstack\.)?([a-z]{2}(?:-[a-z]+)+-\d+)\.amazonaws\.com(?:\.cn)?$/.exec(
+      address.hostname,
+    )
   return named?.[1] ?? region ?? 'us-east-1'
 }
 

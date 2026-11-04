@@ -52,11 +52,13 @@ function responseOf(message: IncomingMessage, method: string): Response {
   for (const [name, value] of Object.entries(message.headers))
     if (value !== undefined)
       for (const one of Array.isArray(value) ? value : [value]) headers.append(name, one)
-  const status = message.statusCode ?? 502
+  const reported = message.statusCode ?? 502
+  // A status a fetch response cannot hold (1xx, above 599) is a bad gateway.
+  const status = reported < 200 || reported > 599 ? 502 : reported
   // A status without a body takes none.
-  if ([204, 205, 304].includes(status) || status < 200 || method === 'HEAD') {
+  if ([204, 205, 304].includes(status) || status === 502 || method === 'HEAD') {
     message.resume()
-    return new Response(null, { status: status < 200 ? 502 : status, headers })
+    return new Response(null, { status, headers })
   }
   return new Response(Readable.toWeb(message) as ReadableStream<Uint8Array>, { status, headers })
 }
@@ -86,9 +88,14 @@ export async function pinnedRequest(
   }
   const request = url.protocol === 'https:' ? httpsRequest : httpRequest
   return new Promise<Response>((resolve, reject) => {
-    const sent = request(url, { method, headers, signal, lookup: lookupPinned }, (message) =>
-      resolve(responseOf(message, method)),
-    )
+    const sent = request(url, { method, headers, signal, lookup: lookupPinned }, (message) => {
+      try {
+        resolve(responseOf(message, method))
+      } catch (error) {
+        message.destroy()
+        reject(error instanceof Error ? error : new Error('The answer could not be read'))
+      }
+    })
     sent.on('error', reject)
     sent.end(body)
   })

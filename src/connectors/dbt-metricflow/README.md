@@ -39,12 +39,12 @@ that object and nothing else.
 - run: aws s3 cp target/semantic_manifest.json s3://your-bucket/dbt/semantic_manifest.json
 ```
 
-| Service              | File address                                                   | Credential                                                                                  |
-| -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Amazon S3            | `https://your-bucket.s3.eu-west-1.amazonaws.com/dbt/file.json` | An access key whose policy allows only `s3:GetObject` on that object                        |
-| S3-compatible store  | `https://storage.example.com/your-bucket/dbt/file.json`        | A key that reads that object. Region: the one it signs for, or empty                        |
-| Google Cloud Storage | `https://storage.googleapis.com/your-bucket/dbt/file.json`     | An HMAC key of a service account with only Storage Object Viewer on that bucket             |
-| Azure Blob Storage   | `https://youraccount.blob.core.windows.net/dbt/file.json`      | A shared access signature with read permission only (`sp=r`). One that may write is refused |
+| Service              | File address                                                   | Credential                                                                                                                                            |
+| -------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Amazon S3            | `https://your-bucket.s3.eu-west-1.amazonaws.com/dbt/file.json` | An access key whose policy allows only `s3:GetObject` on that object                                                                                  |
+| S3-compatible store  | `https://storage.example.com/your-bucket/dbt/file.json`        | A key that reads that object. Region: the one it signs for, or empty                                                                                  |
+| Google Cloud Storage | `https://storage.googleapis.com/your-bucket/dbt/file.json`     | An HMAC key of a service account with only Storage Object Viewer on that bucket                                                                       |
+| Azure Blob Storage   | `https://youraccount.blob.core.windows.net/dbt/file.json`      | A shared access signature with read permission only (`sp=r`). One that may write is refused; one that names a stored policy (`si=`) cannot be checked |
 
 All but Azure sign each request with Signature Version 4 (`object-storage.ts`): the key stays in the
 secret store and the signature goes to that address alone. Google Cloud Storage takes the same
@@ -113,22 +113,22 @@ HEED_SERVER_FOLDERS='{"dbt-metricflow":"/srv/dbt/target"}'
 
 ## Settings
 
-| Field                   | What it is                                                                                                            |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Where the file lives    | Address, Object storage, Git repository, or Server folder, which is set where the server runs. The rest follows it.   |
-| File address (secret)   | Address: the https address of the file. Kept in the secret store, never in the settings.                              |
-| Storage service         | Object storage: Amazon S3, an S3-compatible store, Google Cloud Storage or Azure Blob Storage.                        |
-| File address            | Object storage: the object's https address, with no signature or query.                                               |
-| Region                  | An S3-compatible store: the region it signs for. Empty means `us-east-1`. S3's address names its own.                 |
-| Access key, Secret key  | S3, S3-compatible stores and Google Cloud Storage: a read-only key, kept in the secret store.                         |
-| Shared access signature | Azure Blob Storage: read permission only, kept in the secret store.                                                   |
-| Repository              | The https address of the Git repository that holds the file.                                                          |
-| Branch, tag or commit   | Where the file is read. The branch your CI commits it to; `main` to start with.                                       |
-| Folder                  | The folder that holds the file; empty for the top.                                                                    |
-| File                    | The file in that folder, `semantic_manifest.json` by default.                                                         |
-| User name               | The user name sent with the token, for hosts that ask for one.                                                        |
-| Domain names            | The domain each `meta.domain` value means, when it is not a domain id (`Customer Care` to `customer_care`).           |
-| Read-only token         | A secret, kept in the server's secret store and sent only to the repository's address. Empty for a public repository. |
+| Field                   | What it is                                                                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where the file lives    | Address, Object storage, Git repository, or Server folder, which is set where the server runs. The rest follows it.                                                          |
+| File address (secret)   | Address: the https address of the file. Kept in the secret store, never in the settings.                                                                                     |
+| Storage service         | Object storage: Amazon S3, an S3-compatible store, Google Cloud Storage or Azure Blob Storage.                                                                               |
+| File address            | Object storage: the object's https address, with no signature or query.                                                                                                      |
+| Region                  | Amazon S3 or an S3-compatible store: the region it signs for. An S3 address that names its region wins; an accelerate or global address names none. Empty means `us-east-1`. |
+| Access key, Secret key  | S3, S3-compatible stores and Google Cloud Storage: a read-only key, kept in the secret store.                                                                                |
+| Shared access signature | Azure Blob Storage: read permission only, kept in the secret store.                                                                                                          |
+| Repository              | The https address of the Git repository that holds the file.                                                                                                                 |
+| Branch, tag or commit   | Where the file is read. The branch your CI commits it to; `main` to start with.                                                                                              |
+| Folder                  | The folder that holds the file; empty for the top.                                                                                                                           |
+| File                    | The file in that folder, `semantic_manifest.json` by default.                                                                                                                |
+| User name               | The user name sent with the token, for hosts that ask for one.                                                                                                               |
+| Domain names            | The domain each `meta.domain` value means, when it is not a domain id (`Customer Care` to `customer_care`).                                                                  |
+| Read-only token         | A secret, kept in the server's secret store and sent only to the repository's address. Empty for a public repository.                                                        |
 
 ## What a read does
 

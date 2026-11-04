@@ -357,6 +357,14 @@ describe("checking a source's settings against its manifest", () => {
 describe('settings that depend on each other', () => {
   const dbt = builtInManifests.find((m) => m.id === 'dbt-metricflow')!
 
+  it('asks to choose where the file lives, as it does not ask to give a choice', () => {
+    const parsed = parseConnectorConfig(dbt, { location: '' })
+    expect('problems' in parsed && parsed.problems).toContainEqual({
+      field: 'location',
+      message: 'Choose where the file lives.',
+    })
+  })
+
   it('keeps only the settings of the place chosen, however the form left the rest', () => {
     expect(
       parseConnectorConfig(dbt, {
