@@ -193,7 +193,7 @@ export type AskScopeKeys = {
 }
 
 /** The question an answer read: the one it repeated, when it was asked again in words. */
-export const askedOf = (a: Answer) => a.again?.question ?? a.question
+export const askedOf = (a: Pick<Answer, 'question' | 'again'>) => a.again?.question ?? a.question
 
 const clipped = (line: string) =>
   line.length > CHAT_LINE ? `${line.slice(0, CHAT_LINE - 1).trimEnd()}…` : line

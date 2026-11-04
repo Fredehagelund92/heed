@@ -423,7 +423,7 @@ function engineRead(
         bundle,
         read.ids,
         c.previous && read.ids.every((id) => c.previous!.sources.includes(id))
-          ? c.previous.scope
+          ? (c.previous.scope ?? null)
           : null,
         c.today,
         now,
