@@ -380,9 +380,10 @@ describe('a host that misbehaves', () => {
     )
   const nextReadAt = async (id: string) =>
     (
-      await client.query<{ at: Date | null }>('select next_read_at as at from connectors where id = $1', [
-        id,
-      ])
+      await client.query<{ at: Date | null }>(
+        'select next_read_at as at from connectors where id = $1',
+        [id],
+      )
     ).rows[0]!.at
   const stillAnswers = async () => {
     const listed = await call('GET', '/sources', 'admin')

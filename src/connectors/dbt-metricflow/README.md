@@ -186,7 +186,7 @@ later cannot take them.
 
 A file over the cap, compressed or not UTF-8 fails with `unreadable_file`, and one that is not there
 with `not_found`. A refused key or an expired link is `unauthorized`; S3 also says this for a file
-that is not there, to a key that may not list the bucket. A redirect to another host, or more than
+that is not there, to a key that may not list the bucket. A redirect to another host or port, or more than
 three, is `redirect_refused`, and a host that is not public `private_address`.
 
 ## Schedule and limits

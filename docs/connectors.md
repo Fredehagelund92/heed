@@ -461,8 +461,9 @@ interface Context<Config> {
 - A definitions read that finds its input as the cursor names it ends with
   `end { unchanged: true }` and sends no definition. The core keeps what the last read found, as a
   new read with the same version, counts and warnings, and every definition stays seen. A cursor
-  goes to a read only after a complete read since the source's settings last changed; put what
-  your mapping depends on in it, so a new version of the mapping does not rest on an old read
+  goes to a read only after a complete read since the source's settings last changed, and for a
+  connector with `incremental: true` only when it was written under the same settings and scopes
+  (the core ties it to a digest of them); put what your mapping depends on in it, so a new version of the mapping does not rest on an old read
   (the dbt connector's `reader`).
 
 ### Warnings, health and schedules
