@@ -276,6 +276,23 @@ describe('one word, one meaning (FR-138)', () => {
     })
   })
 
+  it('compares a word as the reader does: case, spaces and accents aside', async () => {
+    const synonym = await term('owner', { name: fresh('Basket'), sameAs: 'metric:orders' })
+    const accented = synonym.name.replace('a', 'á').toUpperCase()
+    expect(await refusal('stranger', { name: accented, sameAs: 'metric:spend' })).toEqual({
+      code: 'taken',
+      message: `“${synonym.name}” is already another name for Orders, added by owner.`,
+      holder: 'Orders',
+      by: 'owner',
+    })
+    expect(await refusal('owner', { name: 'Órders', meaning: 'x', areaId: 'finance' })).toEqual({
+      code: 'source',
+      message: "“Órders” is Demo's name for Orders.",
+      holder: 'Orders',
+      by: 'Demo',
+    })
+  })
+
   it('refuses a word the metric already has, and a synonym it already has, as said already', async () => {
     expect(await refusal('owner', { name: 'net sales', sameAs: 'metric:revenue' })).toEqual({
       code: 'here',

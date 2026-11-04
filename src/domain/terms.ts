@@ -3,8 +3,11 @@
  * own meaning ("Peak season"); a synonym is another name for a metric, a dimension or a term
  * ("GMV" for Gross sales). One word has one meaning across the workspace, so a word that already
  * means something is refused, and the refusal names who has it. These are the rules the service
- * applies before it writes; the database keeps the same ones (db/migrations/0009_terms.sql).
+ * applies before it writes; the database keeps the same ones (db/migrations/0009_terms.sql,
+ * db/migrations/0039_word_comparison.sql).
  */
+
+import { normalizeName, suggestTerms } from './vocabulary.ts'
 
 /** The longest word a term can be. */
 export const TERM_NAME_MAX = 100
@@ -13,8 +16,12 @@ export const TERM_MEANING_MAX = 4000
 /** The most terms one change takes. */
 export const TERM_BULK_MAX = 200
 
-/** A word as it is compared: trimmed, its spaces folded to one, in lower case. */
-export const termWord = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase()
+/**
+ * A word as it is compared: the reader's own form, with case, spaces and accents set aside. The
+ * write check, the database rule (`cl_term_word`) and the reader all compare this, so a word that
+ * reads as another is the same word everywhere.
+ */
+export const termWord = normalizeName
 
 /** A name as it is kept: trimmed, its spaces folded to one, its casing the writer's. */
 export const termName = (name: string) => name.trim().replace(/\s+/g, ' ')
@@ -117,8 +124,41 @@ export function wordRefusal(
   }
 }
 
-/** Why a term would mislead an agent now: a sync gave its word a second meaning, or what it means is gone. */
-export const termConflictCodes = ['source', 'missing'] as const
+/**
+ * How alike a word must read to a name in use for the editor to warn. Set on the demo's names: it
+ * takes in a typo or a plural (Sale and Sales, Salez, Grossales, Net-revenue) and leaves names that
+ * only share letters apart (Gross margin and Gross sales, Sales and Gross sales).
+ */
+export const LOOK_ALIKE = 0.65
+
+const wordsOf = (name: string) =>
+  normalizeName(name)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+
+/**
+ * The names in use that a word looks like, closest first, by letters alone: no model. Only the
+ * same word stops a write (`wordRefusal`); a look-alike can be a real second thing, so it only
+ * warns. A name that a whole word apart makes longer is another name: "Sales tax" and "Sales".
+ */
+export function lookAlikes(word: string, names: readonly string[]): string[] {
+  const own = wordsOf(word)
+  const addsAWord = (name: string) => {
+    const other = wordsOf(name)
+    const [short, long] = own.length < other.length ? [own, other] : [other, own]
+    return short.length < long.length && short.every((part) => long.includes(part))
+  }
+  const asTerms = names.map((name) => ({ key: name, name, aliases: [], definitionRefs: [] }))
+  return suggestTerms(word, asTerms, LOOK_ALIKE).filter(
+    (name) => normalizeName(name) !== normalizeName(word) && !addsAWord(name),
+  )
+}
+
+/**
+ * Why a term would mislead an agent now: a sync gave its word a second meaning, what it means is
+ * gone, or another term reads as the same word.
+ */
+export const termConflictCodes = ['source', 'missing', 'word'] as const
 export type TermConflictCode = (typeof termConflictCodes)[number]
 
 /** A plain sentence for "these terms": "Deleted “Peak season” and 2 more." */

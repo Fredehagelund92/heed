@@ -22,7 +22,13 @@ import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
 import { plainText } from '@/lib/mentions'
 import { PersonAvatar } from '@/components/heed/bits'
-import { ConflictNote, SynonymTags, TypeGlyph, TypeTile } from '@/components/heed/definition'
+import {
+  ConflictNote,
+  SynonymTags,
+  TypeGlyph,
+  TypeTile,
+  WordNote,
+} from '@/components/heed/definition'
 import { openDock } from '@/lib/dock'
 import { DocFooter, Paper, SideSection } from '@/components/heed/doc'
 import {
@@ -98,7 +104,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
   // What agents get folds away unless there is something to say (a conflict), until the person chooses.
   const [sideChoice, setSideChoice] = useSideChoice()
   usePrimaryKey()
-  const { state: sendState, send, online } = useSend()
+  const { state: sendState, error: sendError, send, online, reset: resetSend } = useSend()
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -134,7 +140,22 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
   const missing = [!title.trim() && 'the word', !synonym && !body.trim() && 'what it means'].filter(
     Boolean,
   ) as string[]
-  const conflict = title.trim() ? glossary.conflictOf(draft) : undefined
+  // The word claims a meaning when it or what it means changes, and only then can it be taken: a
+  // conflict a sync made later stays a conflict, and the term can still be edited.
+  const claims =
+    !original ||
+    !glossary.sameWord(original.name, draft.name) ||
+    (original.sameAs ?? undefined) !== target
+  const check = claims ? glossary.checkWord(draft.name, targetDef, original?.name) : undefined
+  // Why it can't be written, as the service says it: from the list here, or from its refusal, when
+  // the word was taken after the page read the list.
+  const refused = sendState === 'failed' && sendError?.kind === 'conflict' ? sendError.message : ''
+  const taken = refused || (check && !check.ok && check.why !== 'empty' ? check.reason : '')
+  const conflict = title.trim() && !taken ? glossary.conflictOf(draft, original?.name) : undefined
+  const alike =
+    claims && title.trim() && !taken
+      ? glossary.lookAlikeOf(draft.name, original?.name, targetDef?.name)
+      : undefined
   const sideOpen = sideChoice ?? !!conflict
   const words = countWords(`${title} ${synonym ? '' : plainText(body)}`)
   // What a word can be another name for: a metric or a dimension.
@@ -158,9 +179,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
     original.domain === draft.domain
   const blocked = missing.length
     ? `Add ${missing.join(' and ')} first.`
-    : unchanged
-      ? 'Nothing has changed yet.'
-      : ''
+    : taken || (unchanged ? 'Nothing has changed yet.' : '')
 
   const commit = async () => {
     await write('saveTerm', { previous: original?.name, term: draft })
@@ -213,15 +232,21 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
         </div>
       </SideSection>
       <SideSection
-        title={missing.length ? 'Not ready yet' : conflict ? 'Ready, with a conflict' : 'Ready'}
+        title={
+          missing.length || taken ? 'Not ready yet' : conflict ? 'Ready, with a conflict' : 'Ready'
+        }
         description={
           missing.length
             ? `Add ${missing.join(' and ')}.`
-            : conflict
-              ? "It saves, but agents don't use it until the conflict is settled."
-              : synonym
-                ? `It never changes ${targetDef?.name}; it only teaches agents another word for it.`
-                : 'Agents can use it from the next question.'
+            : taken
+              ? 'This word already means something. Try another word.'
+              : conflict
+                ? conflict.kind === 'two-things'
+                  ? 'It saves, and agents ask which one until the conflict is settled.'
+                  : "It saves, but agents don't use it until the conflict is settled."
+                : synonym
+                  ? `It never changes ${targetDef?.name}; it only teaches agents another word for it.`
+                  : 'Agents can use it from the next question.'
         }
         className="border-b-0"
       />
@@ -310,7 +335,14 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
       footer={
         <DocFooter
           status={
-            sendState === 'failed' ? (
+            taken ? (
+              <>
+                <CircleDashedIcon className="size-3.5" aria-hidden />
+                <span>
+                  Not ready<span className="hidden sm:inline">: this word is taken</span>
+                </span>
+              </>
+            ) : sendState === 'failed' ? (
               <span role="alert" className="flex items-center gap-2 text-destructive">
                 <CircleAlertIcon className="size-3.5 shrink-0" aria-hidden />
                 <span>
@@ -364,11 +396,28 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
             className="field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 sm:text-3xl"
             placeholder="The word people use"
             value={title}
-            onChange={(e) => setTitle(e.target.value.replace(/\n/g, ' '))}
+            onChange={(e) => {
+              setTitle(e.target.value.replace(/\n/g, ' '))
+              resetSend()
+            }}
             onPaste={(e) => noteEmoji(e.clipboardData.getData('text/plain'))}
           />
         </div>
-        {conflict && <ConflictNote d={draft} className="mb-5" />}
+        {conflict && <ConflictNote d={draft} self={original?.name} className="mb-5" />}
+        {taken && (
+          <WordNote title="This word is taken." className="mb-5">
+            {taken}
+          </WordNote>
+        )}
+        {alike && (
+          <WordNote title="A similar word is in use." className="mb-5">
+            “{draft.name}” looks like{' '}
+            {alike.name === alike.means
+              ? `${alike.name}.`
+              : `“${alike.name}”, which means ${alike.means}.`}{' '}
+            Agents read them as two different words.
+          </WordNote>
+        )}
         <PropertyList label="Properties">
           <PropertyGroup>
             <PropertyRow id={fieldId('same')} label="Another name for" icon={<EqualIcon />}>
@@ -376,7 +425,10 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
                 labelId={fieldId('same')}
                 label="Another name for"
                 value={target}
-                onChange={setTarget}
+                onChange={(next) => {
+                  setTarget(next)
+                  resetSend()
+                }}
                 onClear={clearTarget}
                 clearLabel="Not another name: give it its own meaning"
                 placeholder="Add a definition"

@@ -44,6 +44,11 @@ export type PlanReading = {
   standalone?: string
   /** Where the dates came from, for the answer to say when it took some. */
   period: PlanPeriod | null
+  /**
+   * The person said which meaning of a word they meant, and the fixed rules read it, with no
+   * model. `also` names the meanings left, so the other one stays in sight.
+   */
+  settled?: { also: string | null }
 }
 
 /** A bundle the planned reads run on: what the engine reads, with the domains a search names. */
@@ -502,6 +507,7 @@ export function plannedAnswer(
     /** The chat, oldest first: what the read may have carried. */
     turns?: readonly ChatTurn[]
     standalone?: string
+    settled?: PlanReading['settled']
     now?: () => number
   },
 ): PlannedAnswer {
@@ -522,6 +528,7 @@ export function plannedAnswer(
       ),
       period: dated?.period ?? null,
       ...(c.standalone ? { standalone: c.standalone } : {}),
+      ...(c.settled ? { settled: c.settled } : {}),
     },
     defines: [...new Set(ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])))],
   }

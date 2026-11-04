@@ -1,5 +1,6 @@
 import type { AnswerState } from './answer.ts'
-import type { ResolvedScope } from './scope.ts'
+import type { HeldScope, ResolvedScope } from './scope.ts'
+import type { WordMeaning } from './vocabulary.ts'
 
 /*
   What Ask's planner remembers of a chat (FR-719): the last turns, each a compact record of how it
@@ -18,8 +19,20 @@ export const CHAT_SOURCES = 10
 export const EARLIER_SOURCES = 3
 /** The longest a turn's line of what it was read as, or of what it answered, may be. */
 export const CHAT_LINE = 200
+/** The most meanings a word Ask asks about names: one sentence can say no more. */
+export const HELD_MEANINGS = 8
+/** The most metrics, or values of one dimension, or other words, a held reading keeps. */
+export const CHAT_HELD_KEYS = 20
 /** The most characters a chat's turns may hold together; one turn at its largest always fits. */
 export const CHAT_CHARS = 4_000
+
+/** A word to ask about: how a person writes it, and its meanings in the order the question says them. */
+export type HeldWord = { word: string; meanings: WordMeaning[] }
+/**
+ * What the turn that asks which meaning keeps of its question: the word and its meanings, the rest
+ * of its reading, and any other contested word it has yet to ask about. Never stored.
+ */
+export type HeldReading = HeldWord & HeldScope & { more?: HeldWord[] | undefined }
 
 /** One turn of a chat, as the browser sends it with the next question. Never stored. */
 export type ChatTurn = {
@@ -31,6 +44,8 @@ export type ChatTurn = {
   sources: string[]
   /** The question Ask asked back, when the turn was one. */
   asked?: string | undefined
+  /** What it holds while it waits for the answer, when it asked which meaning of a word. */
+  held?: HeldReading | undefined
   /** How it was read, in words: its Understood as line. */
   understood?: string | null | undefined
   /** The domain a records question was about, by id. */

@@ -264,6 +264,7 @@ export const turnIsDated = (turn: ChatTurn, today: string) =>
 
 /** The last question's days, when it was read for dates and not for today. */
 const datedWindow = ({ previous, today }: PlanContext) => {
+  if (previous?.held?.window) return previous.held.window
   if (!previous || !turnIsDated(previous, today)) return null
   if (previous.scope) return previous.scope.window
   const read = readDates(normalizeName(previous.question), today)
@@ -381,7 +382,7 @@ const OVER_EVERYTHING = /\b(?:all|every|overall|everywhere)\b/
  * month?", "and the owner?", "and in Sweden?"), and then every part of the scope its own words do
  * not change. A question with its own subject ("what events happened in August?") keeps nothing.
  */
-function leftOpen(ctx: PlanContext): LeftOpen | null {
+export function leftOpen(ctx: PlanContext): LeftOpen | null {
   const last = ctx.previous
   if (!last) return null
   const own = readQuestion(ctx.question, ctx.terms, ctx.today)
@@ -389,10 +390,11 @@ function leftOpen(ctx: PlanContext): LeftOpen | null {
   const namedDimensions = new Set(
     own.terms.flatMap((t) => (t.kind === 'dimension_value' ? [t.parentKey!] : [])),
   )
-  if (!leansOnLast(ctx.question, namedMetric || namedDimensions.size > 0)) return null
-  const before = last.scope
-    ? last.scope
-    : { metrics: lastMetricsInWords(last, ctx), filters: {}, window: null }
+  // An answer to a question back finishes that question, so all of it carries.
+  if (!last.asked && !leansOnLast(ctx.question, namedMetric || namedDimensions.size > 0))
+    return null
+  const before = last.scope ??
+    last.held ?? { metrics: lastMetricsInWords(last, ctx), filters: {}, window: null }
   const everything = OVER_EVERYTHING.test(normalizeName(ctx.question))
   const dated = own.window !== null
   return {

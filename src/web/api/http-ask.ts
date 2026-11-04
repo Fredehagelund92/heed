@@ -237,6 +237,7 @@ function engineAnswerOf(
             carried: a.reading.carried,
             period: a.reading.period,
             ...(a.reading.standalone ? { standalone: a.reading.standalone } : {}),
+            ...(a.reading.settled ? { settled: a.reading.settled } : {}),
           },
         }
       : {}),

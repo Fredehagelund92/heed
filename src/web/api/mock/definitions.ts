@@ -1,9 +1,12 @@
+import { termWord } from '@domain/terms'
 import { DEMO_DEFINITIONS, demoTool } from './data/integrations'
 import { dimensions, metrics } from './data/world'
 import { term, TERMS } from './data/terms'
+import { ApiError } from '@/api/errors'
 import type { DomainId } from '@/model/items'
 import {
   checkSynonym,
+  checkWord,
   goesWith,
   meaningOf,
   type Definition,
@@ -40,7 +43,7 @@ const seed: Definition[] = [
   ...TERMS,
 ]
 
-const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+const same = (a: string, b: string) => termWord(a) === termWord(b)
 
 export { seed as definitionSeed }
 
@@ -54,6 +57,13 @@ export function createDefinitions() {
     saveTerm(previous: string | undefined, next: Definition) {
       if (next.synced) return
       const index = previous ? all.findIndex((d) => d.name === previous) : -1
+      // As the service: a word claims a meaning again only when it or what it means changes.
+      const was = all[index]
+      if (!was || !same(was.name, next.name) || was.sameAs !== next.sameAs) {
+        const target = all.find((d) => next.sameAs && same(d.name, next.sameAs))
+        const check = checkWord(all, next.name, target, previous)
+        if (!check.ok) throw new ApiError('conflict', check.reason, { status: 409 })
+      }
       all = index === -1 ? [...all, next] : all.map((d, i) => (i === index ? next : d))
     },
 

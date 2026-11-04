@@ -87,6 +87,36 @@ test('a question that could mean two things gets one question back, in prose', a
   ).toBeVisible()
 })
 
+test('a word with two meanings gets one plain question, and the answer keeps the period', async ({
+  page,
+}) => {
+  test.skip(
+    mode === 'http',
+    'The demo week has no source that gives a word a second meaning: tests/integration/terms-agents.test.ts makes one.',
+  )
+  await go(page, '/ask?n=j43')
+  await ask(page, 'sales last month')
+  const turn = newest(page)
+  await expect(
+    turn.getByText(
+      /^Sales can mean (Net revenue|Gross sales) or (Net revenue|Gross sales)\. Which do you mean\?$/,
+    ),
+  ).toBeVisible()
+  await expect(turn.getByText('Nothing was looked up')).toBeVisible()
+  await expect(turn.getByText(/^(Checked|Partial|Not found|Conflict|Outdated)$/)).toHaveCount(0)
+  await expect(turn.getByRole('button', { name: /Net revenue|Gross sales/ })).toHaveCount(0)
+  await suggestsNothing(page)
+  // Fixed rules read the answer: no model, the period kept, and the other meaning stays in sight.
+  await expect(page.getByRole('status').filter({ hasText: 'Answer written.' })).toBeVisible()
+  await ask(page, 'gross')
+  await expect(
+    newest(page).getByText(
+      /^Understood as Gross sales, in September 2026\. Sales can also mean Net revenue\.$/,
+    ),
+  ).toBeVisible()
+  await expect(newest(page).getByText(/^Read by the model/)).toHaveCount(0)
+})
+
 test('a question off topic gets its own sentence, not the one about names', async ({ page }) => {
   await go(page, '/ask?n=j43')
   await ask(page, "what's the weather in Oslo?")

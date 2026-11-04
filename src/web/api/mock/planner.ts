@@ -3,9 +3,10 @@ import { nothingAskedSaid } from '@domain/ask-again'
 import { checkPlan, readsAsFollowUp } from '@domain/ask-plan'
 import { fixturePlan } from '@domain/ask-plan-fixture'
 import type { ChatTurn } from '@domain/ask-chat'
-import { chatOf, planContextOf, type RouteBundle } from '@domain/ask-route'
+import { chatOf, planContextOf, routeHeld, type RouteBundle } from '@domain/ask-route'
 import type { AnswerSource } from '@domain/answer'
-import { plannedAnswer, workingWords } from '@domain/planned-answer'
+import { plannedAnswer, workingWords, type PlannedAnswer } from '@domain/planned-answer'
+import type { RecordsRecognition } from '@domain/records'
 import { offTopicSaid } from '@domain/say'
 import type { Term } from '@domain/vocabulary'
 import { answerOf, type Names } from '@/api/http-ask'
@@ -108,6 +109,32 @@ export function followsOn(
 }
 
 /**
+ * A word with more than one meaning, by the same fixed rules as the service: the question about
+ * it, or the answer to that question. Null when the question has no such word.
+ */
+export function heldFor(
+  question: string,
+  given: readonly ChatTurn[] | undefined,
+  world: PlannerWorld,
+  records: RecordsRecognition | null,
+): Answer | null {
+  const { bundle, turns } = turnOf(world, given)
+  const routed = routeHeld(
+    { bundle, ask: { question }, turns, records, today: TODAY, now: RECORDS_NOW },
+    false,
+  )
+  if (!routed) return null
+  if (routed.kind === 'reply') return replyAnswer(question, routed.reply)
+  return { ...answerOf(resultOf(routed.planned), question, namesOf(bundle.terms)) }
+}
+
+/** A planned answer as the service sends it. */
+function resultOf({ answer, reading }: PlannedAnswer): AnswerResult {
+  const { overlay: _overlay, ...answered } = answer
+  return { ...answered, target: { kind: 'live' }, reading }
+}
+
+/**
  * The scripted planner's answer to a question, as the service gives it: its reads, run on the
  * demo world, with how it was read; a short question back; or the sentence for a question off
  * topic. Null when it holds no plan for the question, or the plan fails the check.
@@ -144,13 +171,7 @@ export function plannedFor(
     turns,
     ...(plan.standalone ? { standalone: plan.standalone } : {}),
   })
-  const { overlay: _overlay, ...answered } = planned.answer
-  const result: AnswerResult = {
-    ...answered,
-    target: { kind: 'live' },
-    reading: planned.reading,
-  }
-  const answer = answerOf(result, question, namesOf(bundle.terms))
+  const answer = answerOf(resultOf(planned), question, namesOf(bundle.terms))
   return answer.reading
     ? { ...answer, reading: { ...answer.reading, working: workingWords(bundle, plan.reads) } }
     : answer

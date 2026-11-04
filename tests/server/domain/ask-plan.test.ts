@@ -586,6 +586,41 @@ describe('a follow-up keeps what it does not change', () => {
   })
 })
 
+describe('the answer to a question Ask asked back', () => {
+  // A model asked it, so no meanings are held: the rest of the question still carries.
+  const asked: ChatTurn = {
+    question: 'how did Sweden do last month?',
+    scope: null,
+    sources: [],
+    asked: 'Do you mean Orders or Net revenue in Sweden?',
+  }
+  const reply = (question: string, raw: unknown) => {
+    const checked = checkPlan(raw, ctx({ question, previous: asked }))
+    if (!checked.ok || checked.plan.kind !== 'reads') throw new Error('not reads')
+    return checked.plan.reads[0]
+  }
+
+  it('keeps the period and the market, however short it is', () => {
+    expect(
+      reply('net', { reads: [{ kind: 'lookup', metrics: ['metric:net_revenue'], dates: null }] }),
+    ).toMatchObject({
+      period: 'carried',
+      scope: {
+        metrics: ['metric:net_revenue'],
+        window: { start: '2026-09-01', end: '2026-10-01' },
+      },
+    })
+  })
+
+  it('keeps the words of its own period', () => {
+    expect(
+      reply('orders in August', {
+        reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'in August' }],
+      }),
+    ).toMatchObject({ period: 'asked' })
+  })
+})
+
 describe('what a follow-up leans on', () => {
   const lookup = [
     { kind: 'lookup', values: [], metrics: ['metric:net_revenue'], dates: null, why: false },

@@ -959,6 +959,10 @@ export function createToolService(
                 context: entries(false),
                 ...(terms.length ? { terms } : {}),
                 ...(definitions.length ? { definitions } : {}),
+                // Which one a word means is the person's to say: the agent needs what to pass back.
+                ...(resolution.issues.some((issue) => issue.meanings)
+                  ? { options: resolution.issues }
+                  : {}),
                 reply_id: delivery,
                 ...common,
               })
