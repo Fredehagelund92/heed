@@ -13,7 +13,7 @@ import {
   recentWindow,
   type PlanContext,
 } from '../../../src/domain/ask-plan.ts'
-import { plannerInputOf } from '../../../src/domain/ask-route.ts'
+import { plannerInputOf, routeQuestion } from '../../../src/domain/ask-route.ts'
 import { combined, explore, plannedAnswer } from '../../../src/domain/planned-answer.ts'
 import { anyDate } from '../../../src/domain/validity.ts'
 import type { Term } from '../../../src/domain/vocabulary.ts'
@@ -712,5 +712,36 @@ describe('the chat the planner reads', () => {
     expect(prompt).toContain(
       'Last question answered: Not found: 0 context items about Orders in Norway.',
     )
+  })
+})
+
+describe('a message that names a term spelled like a word that says nothing', () => {
+  const nice: Term = {
+    key: 'val:market/nice',
+    kind: 'dimension_value',
+    name: 'Nice',
+    aliases: [],
+    parentKey: 'dim:market',
+    areaId: null,
+    definitionRefs: [],
+  }
+  const route = (terms: Term[]) =>
+    routeQuestion({
+      bundle: { ...planBundle, terms, areas: planBundle.areas ?? [] },
+      ask: { question: 'Nice' },
+      turns: [],
+      records: null,
+      today: PLAN_TODAY,
+      now: PLAN_NOW,
+    })
+
+  it('is read, not told it asks nothing', async () => {
+    const routed = await route([...planBundle.terms, nice])
+    expect(routed.kind).toBe('rules')
+  })
+
+  it('is told it asks nothing when the edition has no such term', async () => {
+    const routed = await route(planBundle.terms.filter((t) => t.key !== nice.key))
+    expect(routed).toMatchObject({ kind: 'reply', reply: { kind: 'nothing_asked' } })
   })
 })
