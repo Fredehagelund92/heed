@@ -228,18 +228,22 @@ describe('the index for agents', () => {
     expect(index.match(/^- \[/gm)).toHaveLength(DOC_PAGES.length + 2)
   })
 
-  it('opens pages where another site puts them', () => {
+  it("lists a site of its own by that site's groups and addresses", () => {
     const index = llmsIndex(
       {
-        pages: [
-          { slug: 'privacy', title: 'Privacy', line: 'What is kept.', group: 'How it works' },
-        ],
+        pages: [{ slug: 'operations', title: 'Operate it', line: 'How.', group: 'Run it' }],
         changelog: { title: 'Changes', line: 'What changed.' },
       },
       'https://docs.example.com/v0.1',
-      (base, slug) => `${base}/${slug}/`,
+      {
+        summary: 'Everything about it.',
+        groups: ['Run it'],
+        path: (base, slug) => `${base}/${slug}/`,
+      },
     )
-    expect(index).toContain('- [Privacy](https://docs.example.com/v0.1/privacy/): What is kept.')
+    expect(index).toContain('> Everything about it.')
+    expect(index).toContain('## Run it')
+    expect(index).toContain('- [Operate it](https://docs.example.com/v0.1/operations/): How.')
     expect(index).toContain('- [Changes](https://docs.example.com/v0.1/changelog/): What changed.')
   })
 

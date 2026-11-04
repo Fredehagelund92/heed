@@ -19,7 +19,7 @@ In this folder, `npm run typecheck`, `npm run lint` and `npm test` check its own
 
 The site publishes only pages written for the people who read it. `publishedPages` in `lib/pages.ts` is the list: today, the 13 help pages and What's new. Every help page has to be on it.
 
-Everything else in `docs/` stays in the repository until it is rewritten for readers, including the MCP and API reference, AI sign-in, the connector pages, Where to run Heed, the Vercel demo, and running and operating the service. A page that is not on the list is out of the sidebar, the search, `llms.txt`, `llms-full.txt` and the sitemap. A published page that links to one opens it on GitHub.
+Every operator page (Where to run Heed, the Vercel demo, running and operating the service, security, the MCP and API reference, AI sign-in and the connector pages) has its front matter and is held back until it passes the reader check below. The rest of `docs/` stays in the repository. A page that is not on the list is out of the sidebar, the search, `llms.txt`, `llms-full.txt` and the sitemap, and a published page that links to it opens it on GitHub. A group with no published page is left out of the sidebar, the landing page and `llms.txt`.
 
 ## Ready for readers
 
@@ -27,16 +27,12 @@ Everything else in `docs/` stays in the repository until it is rewritten for rea
 
 - a requirement id: `FR-`, `NFR-`, `CON-` or `R-` and a number;
 - a path to a repository file, such as `src/domain/words.ts`;
-- dated history, such as a day of a month, or "since 0.1". What's new is the one page exempt from this rule, because dated change is its job;
+- dated history, such as a day of a month, or "since 0.1.0" or "v0.1". What's new is the one page exempt from this rule, because dated change is its job;
 - a paragraph over 70 words, or more than four pieces of code in one paragraph.
 
 It reads what a reader sees, so the address of a link does not count, but the words of a link do.
 
-To publish another page, rewrite it until it passes, then:
-
-1. Give it front matter in place of its `#` heading, as the help pages have, with `title`, `line`, `group`, `order` and `reviewed`.
-2. Add it to `publishedPages`.
-3. If it needs a sidebar group of its own, add the group.
+To publish a held page, make it pass, then add it to `publishedPages`. Its group shows up on its own.
 
 ## Links
 

@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
-import { docGroups, type DocGroup } from '../../../src/domain/docs.ts'
 
 /*
   Which of the repository's Markdown files are pages of the site, and where they sit in its
@@ -15,6 +14,18 @@ import { docGroups, type DocGroup } from '../../../src/domain/docs.ts'
 
 /** The folder `npm run build` runs in is apps/docs, whichever way it is started. */
 export const repoRoot = resolve(process.cwd(), '../..')
+
+/** The sidebar's groups, in order: docs/help's, then the operators' and integrators' pages. */
+export const siteGroups = [
+  'Start',
+  'Write and review',
+  'Set up',
+  'How it works',
+  'Run the service',
+  'Connectors',
+  'Reference',
+] as const
+export type SiteGroup = (typeof siteGroups)[number]
 
 /** The published pages, by their path under docs/. */
 export const publishedPages = [
@@ -46,7 +57,7 @@ export type SitePage = {
   file: string
   title: string
   line: string
-  group?: DocGroup
+  group?: SiteGroup
   order: number
 }
 
@@ -69,7 +80,7 @@ export function unlistedHelpPages(root = repoRoot): string[] {
 /** Every page of the site: by group and order, and What's new, which has no group, last. */
 export function sitePages(root = repoRoot): SitePage[] {
   const place = (page: SitePage) => {
-    const at = page.group ? docGroups.indexOf(page.group) : docGroups.length
+    const at = page.group ? siteGroups.indexOf(page.group) : siteGroups.length
     if (at === -1) throw new Error(`${page.file}: no group "${page.group}"`)
     return at
   }
@@ -78,10 +89,14 @@ export function sitePages(root = repoRoot): SitePage[] {
     .sort((a, b) => place(a) - place(b) || a.order - b.order)
 }
 
+/** The groups that have a published page, in order. */
+export const shownGroups = (pages: readonly SitePage[]) =>
+  siteGroups.filter((group) => pages.some((page) => page.group === group))
+
 /** Starlight's sidebar, from each page's front matter. */
 export function sidebar(pages: readonly SitePage[]) {
   return [
-    ...docGroups.map((label) => ({
+    ...shownGroups(pages).map((label) => ({
       label,
       items: pages.filter((page) => page.group === label).map(({ slug }) => ({ slug })),
     })),

@@ -1,4 +1,10 @@
-# MCP and API reference
+---
+title: MCP and API reference
+line: 'How agents connect over MCP and what they get, and the HTTP API.'
+group: Reference
+order: 2
+reviewed: 2026-11-03
+---
 
 How agents connect over MCP and what they get, and the HTTP API for definition sources, proposals, review and release, and the inbox. The API is described once in `src/contract` and published as [OpenAPI](api/openapi.json).
 

@@ -1,4 +1,10 @@
-# Self-host Heed on one computer
+---
+title: Self-host Heed on one computer
+line: 'Run it with docker compose on one computer, back it up, restore it, upgrade it and roll an upgrade back.'
+group: Run the service
+order: 2
+reviewed: 2026-11-03
+---
 
 How to run Heed with `docker compose` on one computer, back it up, restore it, upgrade it and roll
 an upgrade back. To run it anywhere else, see [Where to run Heed](where-to-run.md).

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { docGroups } from '../../../src/domain/docs.ts'
 import { linkContext, resolveLink } from '../lib/links.ts'
-import { publishedPages, sidebar, sitePages, slugOf, unlistedHelpPages } from '../lib/pages.ts'
+import {
+  publishedPages,
+  shownGroups,
+  sidebar,
+  siteGroups,
+  sitePages,
+  slugOf,
+  unlistedHelpPages,
+} from '../lib/pages.ts'
 
 describe('the pages of the site', () => {
   const pages = sitePages()
@@ -20,14 +27,28 @@ describe('the pages of the site', () => {
 
   it('sit in the sidebar by group and order, with What is new last', () => {
     const groups = sidebar(pages)
-    expect(
-      groups.slice(0, docGroups.length).map((group) => 'label' in group && group.label),
-    ).toEqual([...docGroups])
+    expect(groups.slice(0, -1).map((group) => 'label' in group && group.label)).toEqual(
+      shownGroups(pages),
+    )
     for (const group of groups) if ('items' in group) expect(group.items.length).toBeGreaterThan(0)
     expect(groups[0]).toMatchObject({
       items: [{ slug: 'get-started' }, { slug: 'connect-an-agent' }],
     })
     expect(groups.at(-1)).toEqual({ slug: 'changelog' })
+  })
+
+  it('skip a group that has no published page', () => {
+    expect(siteGroups).toContain('Run the service')
+    expect(shownGroups(pages)).toEqual([
+      'Start',
+      'Write and review',
+      'Set up',
+      'How it works',
+      'Reference',
+    ])
+    const labels = sidebar(pages).map((group) => 'label' in group && group.label)
+    expect(labels).not.toContain('Run the service')
+    expect(labels).not.toContain('Connectors')
   })
 
   it('open a page that is not published on GitHub, at the build reference', () => {

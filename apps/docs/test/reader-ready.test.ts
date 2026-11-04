@@ -37,7 +37,9 @@ describe('a page ready for readers', () => {
     ['3 November 2026', 'Moved on 3 November 2026.'],
     ['November 3, 2026', 'Moved on November 3, 2026.'],
     ['2026-10-23', 'Changed on 2026-10-23.'],
-    ['before 0.1', 'Settings named this way before 0.1.0 still work.'],
+    ['before 0.1.0', 'Settings named this way before 0.1.0 still work.'],
+    ['as of v0.2.1', 'It is on as of v0.2.1.'],
+    ['v0.1', 'Added in v0.1.'],
   ])('has no dated history such as %s', (day, body) => {
     expect(problems(body)[0]).toContain(`"${day}"`)
   })
@@ -72,6 +74,8 @@ describe('a page ready for readers', () => {
     expect(
       problems('Connect Claude, in CLAUDE.md or AGENTS.md, over the last 7 days, on 14 pages.'),
     ).toEqual([])
+    expect(problems('It took in 2.5 seconds, from 1.5 times the load.')).toEqual([])
+    expect(problems('Press R2 or take R12 from the rack.')).toEqual([])
     expect(problems('A count under 5 reads "Fewer than 5". Try /settings/agents.')).toEqual([])
   })
 })

@@ -18,11 +18,11 @@ import { repoRoot, type SitePage } from './pages.ts'
 const months =
   '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
 
-const requirementId = /\b(?:N?FR|CON|R)-?\d+[a-z]?\b/
+const requirementId = /\b(?:(?:N?FR|CON)-?|R-)\d+[a-z]?\b/
 const sourcePath =
   /(?:^|[\s`'"(])(?:\.\/)?(?:src|db|scripts|tests|apps|docs|docker|\.github)\/[\w.-]|\b[\w.-]+\.(?:ts|tsx|mjs|sql|sh)\b/
 const datedHistory = new RegExp(
-  `\\b\\d{1,2} ${months} \\d{4}\\b|\\b${months} \\d{1,2}, \\d{4}\\b|\\b\\d{4}-\\d{2}-\\d{2}\\b|\\b(?:since|before|until|as of|from|in) v?\\d+\\.\\d+\\b`,
+  `\\b\\d{1,2} ${months} \\d{4}\\b|\\b${months} \\d{1,2}, \\d{4}\\b|\\b\\d{4}-\\d{2}-\\d{2}\\b|\\b(?:since|before|until|as of) v?\\d+\\.\\d+\\.\\d+\\b|\\bv\\d+\\.\\d+(?:\\.\\d+)?\\b`,
 )
 
 /** Past these a paragraph reads as a wall. */

@@ -1,4 +1,10 @@
-# The Cube connector
+---
+title: The Cube connector
+line: 'Reading definitions from Cube model files, in a folder of the server or a Git repository.'
+group: Connectors
+order: 2
+reviewed: 2026-11-03
+---
 
 The Cube connector is the first definition source (CON-501). It reads Cube model files, from the
 server's own folder or from a Git repository an administrator adds, and gives Heed the public
