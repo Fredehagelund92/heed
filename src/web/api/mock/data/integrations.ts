@@ -1,5 +1,5 @@
 import { SERVICE_ACCOUNT } from '@/lib/brand'
-import { connectorById } from '@/model/catalogue'
+import { builtInManifests } from '../../../../connectors/manifests'
 import {
   type Activity,
   type ConnectChoice,
@@ -28,7 +28,7 @@ const DEMO_HANDBOOK = 'git-markdown'
 export const demoConnected = [DEMO_DEFINITIONS, DEMO_CONTEXT]
 
 /** A tool of the demo world, as people say it: its manifest's name for it. */
-export const demoTool = (id: string) => connectorById(id)?.name ?? id
+export const demoTool = (id: string) => builtInManifests.find((m) => m.id === id)?.tool ?? id
 
 /** Where the demo's definitions tool is, for a figure read there while figures are off. */
 export const demoToolHome: Record<string, string> = {
