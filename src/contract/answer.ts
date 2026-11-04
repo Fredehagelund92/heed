@@ -272,6 +272,8 @@ export const heldReadingSchema = z.strictObject({
   ),
   window: z.nullable(windowSchema),
   more: z.optional(z.array(heldWordSchema).check(z.maxLength(CHAT_HELD_KEYS))),
+  why: z.optional(z.boolean()),
+  defines: z.optional(z.boolean()),
 })
 
 /**
@@ -285,7 +287,7 @@ export const chatTurnSchema = z.strictObject({
   question: z.string().check(z.minLength(1), z.maxLength(2000)),
   scope: z.optional(z.nullable(readScopeSchema)),
   sources: z.array(z.string().check(z.maxLength(64))).check(z.maxLength(CHAT_SOURCES)),
-  asked: z.optional(z.string().check(z.maxLength(300))),
+  asked: z.optional(z.string().check(z.maxLength(2000))),
   held: z.optional(heldReadingSchema),
   understood: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
   domain: z.optional(z.nullable(z.string().check(z.maxLength(64)))),

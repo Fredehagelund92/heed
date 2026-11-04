@@ -3,6 +3,7 @@ import { asksNothing, nothingAskedSaid } from './ask-again.ts'
 import { chatSources, fitChat, type ChatTurn, type HeldReading, type HeldWord } from './ask-chat.ts'
 import { chosenMeanings, heldOf, settled } from './ask-held.ts'
 import {
+  asksWhy,
   checkPlan,
   leftOpen,
   plannerPrompt,
@@ -31,7 +32,7 @@ import {
   scopeWords,
   termChosenSaid,
 } from './say.ts'
-import { readQuestion } from './scope.ts'
+import { asksDefinition, readQuestion } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
 import { namesOf, normalizeName } from './vocabulary.ts'
 
@@ -276,6 +277,8 @@ export function routeHeld(
   const open = scoped ? null : leftOpen(context)
   return askedWhich({
     ...held,
+    ...(asksWhy(ask.question) ? { why: true } : {}),
+    ...(asksDefinition(ask.question) ? { defines: true } : {}),
     filters: { ...open?.filters, ...held.filters },
     window: held.window ?? open?.window ?? null,
   })

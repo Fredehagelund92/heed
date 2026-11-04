@@ -22,7 +22,7 @@ export const CHAT_LINE = 200
 /** The most meanings a word Ask asks about names: one sentence can say no more. */
 export const HELD_MEANINGS = 8
 /** The most metrics, or values of one dimension, or other words, a held reading keeps. */
-export const CHAT_HELD_KEYS = 20
+export const CHAT_HELD_KEYS = 100
 /** The most characters a chat's turns may hold together; one turn at its largest always fits. */
 export const CHAT_CHARS = 4_000
 
@@ -32,7 +32,14 @@ export type HeldWord = { word: string; meanings: WordMeaning[] }
  * What the turn that asks which meaning keeps of its question: the word and its meanings, the rest
  * of its reading, and any other contested word it has yet to ask about. Never stored.
  */
-export type HeldReading = HeldWord & HeldScope & { more?: HeldWord[] | undefined }
+export type HeldReading = HeldWord &
+  HeldScope & {
+    more?: HeldWord[] | undefined
+    /** The question asked why. */
+    why?: boolean | undefined
+    /** The question asked what the metrics mean. */
+    defines?: boolean | undefined
+  }
 
 /** One turn of a chat, as the browser sends it with the next question. Never stored. */
 export type ChatTurn = {

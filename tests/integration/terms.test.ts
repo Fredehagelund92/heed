@@ -640,6 +640,26 @@ describe('what the database keeps', () => {
   })
 })
 
+describe('two terms with their own meanings that read as one word', () => {
+  it('shows each as a conflict with the other, as it does for two that point at different things', async () => {
+    const first = await own(fresh('Ledger'))
+    const second = await own(fresh('Journal'))
+    // Written before accents were set aside (db/migrations/0039_word_comparison.sql): the later one is marked.
+    await client.query('alter table terms disable trigger user')
+    try {
+      await client.query('update terms set name = $1, word_clash = true where id = $2::uuid', [
+        first.name.replace('e', 'é').toUpperCase(),
+        second.id,
+      ])
+    } finally {
+      await client.query('alter table terms enable trigger user')
+    }
+    const now = await listed(second.id)
+    expect(now!.conflict).toMatchObject({ code: 'word', holder: first.name })
+    expect((await listed(first.id))!.conflict).toMatchObject({ code: 'word', holder: now!.name })
+  })
+})
+
 describe('when what a synonym means leaves the definitions', () => {
   it('shows it as missing, keeps it out of a restore, and lets its owner point it elsewhere', async () => {
     const s = await term('owner', { name: fresh('Old name'), sameAs: 'metric:gone' })

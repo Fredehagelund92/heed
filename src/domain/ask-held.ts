@@ -1,7 +1,7 @@
 import { HELD_MEANINGS, type HeldReading } from './ask-chat.ts'
 import type { PlannedRead, PlanPeriod } from './ask-plan.ts'
 import { readQuestion, type ScopeIssue, type ScopeResult } from './scope.ts'
-import { shiftDate, type DateWindow } from './validity.ts'
+import { anyDate, shiftDate, type DateWindow } from './validity.ts'
 import { normalizeName, type Term, type WordMeaning } from './vocabulary.ts'
 
 /*
@@ -13,12 +13,15 @@ import { normalizeName, type Term, type WordMeaning } from './vocabulary.ts'
 */
 
 /** The contested words of a read question, each one to ask about in turn. */
-const contestedOf = (issues: readonly ScopeIssue[]) =>
-  issues.flatMap((issue) =>
-    issue.meanings
-      ? [{ word: issue.word ?? issue.input, meanings: issue.meanings.slice(0, HELD_MEANINGS) }]
-      : [],
-  )
+const contestedOf = (issues: readonly ScopeIssue[]) => {
+  const seen = new Set<string>()
+  return issues.flatMap((issue) => {
+    const word = issue.word ?? issue.input
+    if (!issue.meanings || seen.has(normalizeName(word))) return []
+    seen.add(normalizeName(word))
+    return [{ word, meanings: issue.meanings.slice(0, HELD_MEANINGS) }]
+  })
+}
 
 /** What a question that stopped at a word holds on to, or null when it stopped for another reason. */
 export function heldOf(read: ScopeResult): HeldReading | null {
@@ -30,7 +33,7 @@ export function heldOf(read: ScopeResult): HeldReading | null {
 
 /** Words that say nothing about which meaning: "the second one, please". */
 const PASSING = new Set(
-  "a an and at i in it its is it's just me mean meant of ok okay on one ones or please pls prefer the thanks that want we with yes".split(
+  "a an and at by for i in it its is it's just me mean meant of ok okay on one ones or please pls prefer the thanks that to want we with yes".split(
     ' ',
   ),
 )
@@ -59,7 +62,7 @@ const PLACES: Record<string, number | 'last'> = {
 const EVERY = new Set(['both', 'all', 'each'])
 
 const wordsOf = (text: string) =>
-  normalizeName(text)
+  normalizeName(text.replaceAll('\u2019', "'"))
     .split(/[^\p{L}\p{N}']+/u)
     .filter(Boolean)
 
@@ -76,8 +79,9 @@ function meaningOfWords(words: readonly string[], meanings: readonly WordMeaning
 /**
  * Which meanings a message chooses, read by fixed rules, or null when it does not say. A message
  * that names something else as well keeps it: "net, in Spain last week" is Net revenue with those
- * filters and dates. A metric that is no meaning of the word is another question, and a word with
- * more than one meaning of its own is read as its own question.
+ * filters and dates. A metric that is no meaning of the word, or a dimension named with no value,
+ * is another question, and a word with more than one meaning of its own is read as its own
+ * question.
  */
 export function chosenMeanings(
   message: string,
@@ -85,12 +89,19 @@ export function chosenMeanings(
   terms: readonly Term[],
   today: string,
 ) {
+  const termWords = wordsOf(message).filter((word) => !PASSING.has(word))
+  if (termWords.length > 1 && termWords.includes('term')) {
+    const termMeanings = held.meanings.filter((m) => m.key.startsWith('term:'))
+    const [term] = meaningOfWords(termWords, termMeanings)
+    if (term) return { picked: [term], others: [] as Term[], window: null }
+  }
   const own = readQuestion(message, terms, today)
   if (own.issues.some((issue) => issue.meanings)) return null
   const keys = new Set(own.terms.map((term) => term.key))
   const named = held.meanings.filter((m) => keys.has(m.key))
   const others = own.terms.filter((term) => !named.some((m) => m.key === term.key))
-  if (others.some((term) => term.kind === 'metric' || term.kind === 'metric_group')) return null
+  const another = ['metric', 'metric_group', 'dimension']
+  if (others.some((t) => another.includes(t.kind))) return null
   // Only the words nothing else read: names and dates are taken out where they stand.
   const spans = [...own.spans].sort((a, b) => b.start - a.start)
   const rest = spans.reduce((t, s) => `${t.slice(0, s.start)} ${t.slice(s.end)}`, message)
@@ -161,19 +172,33 @@ export function settled(
   if (next)
     return {
       kind: 'ask',
-      held: { ...next, metrics, filters, window, ...(more.length ? { more } : {}) },
+      held: {
+        ...next,
+        metrics,
+        filters,
+        window,
+        ...(held.why ? { why: true } : {}),
+        ...(held.defines ? { defines: true } : {}),
+        ...(more.length ? { more } : {}),
+      },
     }
   if (!metrics.length && !Object.keys(filters).length) return { kind: 'nothing', word: held.word }
-  const period: PlanPeriod = chosen.window ? 'asked' : held.window ? 'carried' : 'today'
-  const days: DateWindow = window ?? { start: today, end: shiftDate(today, 1) }
+  const why = !!held.why
+  const period: PlanPeriod = chosen.window
+    ? 'asked'
+    : held.window
+      ? 'carried'
+      : why
+        ? 'any'
+        : 'today'
+  const days: DateWindow = window ?? (why ? anyDate : { start: today, end: shiftDate(today, 1) })
+  const read: PlannedRead =
+    held.defines && metrics.length
+      ? { kind: 'definition', metrics }
+      : { kind: 'lookup', scope: { metrics, filters, window: days }, period, why }
   return {
     kind: 'read',
-    read: {
-      kind: 'lookup',
-      scope: { metrics, filters, window: days },
-      period,
-      why: false,
-    },
+    read,
     others: held.meanings.filter((m) => !chosen.picked.includes(m)),
     word: held.word,
   }

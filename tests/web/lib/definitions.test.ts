@@ -60,6 +60,44 @@ describe('a word as it is typed', () => {
   })
 })
 
+describe('two terms that read as one word', () => {
+  const own = (name: string) => ({
+    name,
+    type: 'term' as const,
+    definition: `What ${name} means.`,
+    sameAs: undefined,
+    synced: false,
+    sourceNames: [],
+    updated: '23 Oct 2026',
+  })
+
+  it('opens each by its own name, and the folded one only when no term has that name', () => {
+    const all = [own('Sales'), own('Salés')]
+    expect(glossary(all).find('Salés')?.name).toBe('Salés')
+    expect(glossary(all).find('Sales')?.name).toBe('Sales')
+    expect(glossary(all).find('SALES')?.name).toBe('Sales')
+    expect(glossary([own('Salés')]).find('sales')?.name).toBe('Salés')
+  })
+
+  it('say agents do not use the word when neither means a synced item', () => {
+    const all = [own('Sales'), own('Salés')]
+    expect(glossary(all).conflictOf(all[1]!)).toMatchObject({ kind: 'two-things', asks: false })
+  })
+
+  it('say agents ask which one when one of them means a synced item', () => {
+    const all = [
+      ...createDefinitions().list(),
+      { ...own('Púrchases'), definition: '', sameAs: 'Net revenue' },
+    ]
+    expect(glossary(all).conflictOf(all.at(-1)!)).toMatchObject({ kind: 'two-things', asks: true })
+  })
+
+  it('say agents do not use a word that points nowhere', () => {
+    const all = [{ ...own('Sales'), definition: '', sameAs: 'Gone' }]
+    expect(glossary(all).conflictOf(all[0]!)).toMatchObject({ kind: 'missing', asks: false })
+  })
+})
+
 describe('a term sent to the mock, as to the service', () => {
   it('is refused when its word is taken, and saved when only its meaning changes', () => {
     const definitions = createDefinitions()
@@ -68,6 +106,17 @@ describe('a term sent to the mock, as to the service', () => {
       definitions.saveTerm(undefined, { ...sales, name: 'púrchases', sameAs: 'Net revenue' }),
     ).toThrow('“Purchases” is already another name for Orders, added by Sofia Brandt.')
     expect(() => definitions.saveTerm('Purchases', { ...sales, domain: 'marketing' })).not.toThrow()
+  })
+
+  it('says a taken word is a refusal, as the service does', () => {
+    const definitions = createDefinitions()
+    const sales = definitions.list().find((d) => d.name === 'Purchases')!
+    try {
+      definitions.saveTerm(undefined, { ...sales, name: 'púrchases', sameAs: 'Net revenue' })
+      expect.unreachable()
+    } catch (error) {
+      expect(error).toMatchObject({ kind: 'conflict', status: 409, refusal: true })
+    }
   })
 })
 

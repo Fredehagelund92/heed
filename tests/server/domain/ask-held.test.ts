@@ -294,3 +294,166 @@ describe('a term with its own meaning that shares a word with a metric', () => {
     })
   })
 })
+
+describe('what the question asked is kept through the answer', () => {
+  const settle = async (question: string, reply: string) => {
+    const routed = await route(reply, [await asked(question)])
+    if (routed.kind !== 'reads') throw new Error(`read as ${routed.kind}`)
+    return routed.planned.reads[0]
+  }
+
+  it('answers with the definition of the chosen metric when it asked what the word means', async () => {
+    expect(await settle('what does sales mean?', 'net')).toMatchObject({
+      kind: 'definition',
+      metrics: ['metric:net_revenue'],
+    })
+    expect(await settle('what does sales mean?', 'both')).toMatchObject({
+      kind: 'definition',
+      metrics: ['metric:gross_sales', 'metric:net_revenue'],
+    })
+  })
+
+  it('answers why over every date when it asked why and named none', async () => {
+    expect(await settle('why did sales drop?', 'net')).toMatchObject({
+      kind: 'lookup',
+      why: true,
+      period: 'any',
+      scope: {
+        metrics: ['metric:net_revenue'],
+        window: { start: '1900-01-01', end: '9999-12-31' },
+      },
+    })
+  })
+
+  it('keeps the period it asked why for', async () => {
+    expect(await settle('why did sales drop last month?', 'net')).toMatchObject({
+      kind: 'lookup',
+      why: true,
+      period: 'carried',
+      scope: { window: september },
+    })
+  })
+
+  it('holds what it asked, and nothing for a plain question', async () => {
+    expect((await asked('what does sales mean?')).held).toMatchObject({ defines: true })
+    expect((await asked('why did sales drop?')).held).toMatchObject({ why: true })
+    expect((await asked('sales last month')).held).not.toHaveProperty('why')
+    expect((await asked('sales last month')).held).not.toHaveProperty('defines')
+  })
+
+  it('keeps it across a second word to ask about', async () => {
+    const both = words([
+      sales,
+      {
+        ...sales,
+        id: '0190f3a2-0000-7000-8000-000000000002',
+        name: 'Takings',
+        sameAs: 'metric:orders',
+      },
+    ])
+    const first = await routeQuestion({
+      bundle: both,
+      ask: { question: 'why did sales and takings drop?' },
+      turns: [],
+      records: null,
+      today: PLAN_TODAY,
+      now: PLAN_NOW,
+    })
+    if (first.kind !== 'reply') throw new Error('Ask did not ask')
+    const turn: ChatTurn = {
+      question: 'why did sales and takings drop?',
+      scope: null,
+      sources: [],
+      asked: first.reply.text,
+      held: first.reply.held!,
+    }
+    const second = await routeQuestion({
+      bundle: both,
+      ask: { question: 'net' },
+      turns: chatOf(both, [turn], PLAN_TODAY),
+      records: null,
+      today: PLAN_TODAY,
+      now: PLAN_NOW,
+    })
+    if (second.kind !== 'reply') throw new Error('Ask did not ask again')
+    expect(second.reply.held).toMatchObject({ why: true })
+  })
+})
+
+describe('a word named twice in one question', () => {
+  it('asks about it once', async () => {
+    const turn = await asked('compare sales this month with sales last month')
+    expect(turn.held!.more).toBeUndefined()
+    const routed = await route('gross', [turn])
+    if (routed.kind !== 'reads') throw new Error(`read as ${routed.kind}`)
+    expect(routed.planned.reads[0]).toMatchObject({ scope: { metrics: ['metric:gross_sales'] } })
+  })
+
+  it('does not say the other meaning is also one when both were read', async () => {
+    const turn = await asked('compare sales this month with sales last month')
+    const routed = await route('both', [turn])
+    if (routed.kind !== 'reads') throw new Error(`read as ${routed.kind}`)
+    expect(routed.planned.reading.settled).toEqual({ also: null })
+  })
+})
+
+describe('replies the fixed rules read, and replies they leave alone', () => {
+  const outcome = async (reply: string) => {
+    const planner = vi.fn<Planner>(() => Promise.resolve(null))
+    const routed = await route(reply, [await asked('sales last month')], planner)
+    return { routed, planner }
+  }
+
+  it.each([
+    ['net revenue for Sweden', ['metric:net_revenue']],
+    ['gross for Sweden', ['metric:gross_sales']],
+    ['by gross', ['metric:gross_sales']],
+    ['it\u2019s net', ['metric:net_revenue']],
+    ["it's net", ['metric:net_revenue']],
+  ])('reads "%s"', async (reply, metrics) => {
+    const { routed } = await outcome(reply)
+    if (routed.kind !== 'reads') throw new Error(`read as ${routed.kind}`)
+    expect(routed.planned.reads[0]).toMatchObject({ scope: { metrics } })
+  })
+
+  it.each(['each market', 'the first market', 'no gross', 'not gross', 'not the first'])(
+    'does not take "%s" for a choice',
+    async (reply) => {
+      const { routed } = await outcome(reply)
+      expect(routed.kind).not.toBe('reads')
+    },
+  )
+
+  it('chooses a term meaning by its name, with the word term, as Ask words it', async () => {
+    const own: WrittenTerm = {
+      ...sales,
+      name: 'Takings',
+      meaning: 'What the shop sells in a day.',
+      sameAs: null,
+      alsoMeans: ['metric:gross_sales'],
+    }
+    const withTerm = words([own])
+    const ask = (question: string, turns: ChatTurn[] = []) =>
+      routeQuestion({
+        bundle: withTerm,
+        ask: { question },
+        turns: chatOf(withTerm, turns, PLAN_TODAY),
+        records: null,
+        today: PLAN_TODAY,
+        now: PLAN_NOW,
+      })
+    const first = await ask('takings last month')
+    if (first.kind !== 'reply') throw new Error('Ask did not ask')
+    const turn: ChatTurn = {
+      question: 'takings last month',
+      scope: null,
+      sources: [],
+      asked: first.reply.text,
+      held: first.reply.held!,
+    }
+    expect(await ask('the term Takings', [turn])).toMatchObject({
+      kind: 'reply',
+      reply: { kind: 'nothing_asked' },
+    })
+  })
+})

@@ -62,7 +62,7 @@ export function createDefinitions() {
       if (!was || !same(was.name, next.name) || was.sameAs !== next.sameAs) {
         const target = all.find((d) => next.sameAs && same(d.name, next.sameAs))
         const check = checkWord(all, next.name, target, previous)
-        if (!check.ok) throw new ApiError('conflict', check.reason, { status: 409 })
+        if (!check.ok) throw new ApiError('conflict', check.reason, { status: 409, refusal: true })
       }
       all = index === -1 ? [...all, next] : all.map((d, i) => (i === index ? next : d))
     },

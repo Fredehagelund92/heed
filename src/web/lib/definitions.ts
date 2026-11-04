@@ -65,7 +65,7 @@ export function toolOf(defs: readonly Pick<Definition, 'synced' | 'tool'>[]): st
 // Words are compared as the service compares them: case, spaces and accents aside.
 const same = (a: string, b: string) => termWord(a) === termWord(b)
 export const findDefinition = (all: Definition[], name: string | undefined) =>
-  name ? all.find((d) => same(d.name, name)) : undefined
+  name ? (all.find((d) => d.name === name) ?? all.find((d) => same(d.name, name))) : undefined
 
 /** The terms that mean the same as this definition: its "Also called in Heed". */
 export const synonymsOf = (all: Definition[], name: string) =>
@@ -97,6 +97,8 @@ export type Conflict = {
   message: string
   short: string
   other?: string
+  /** Whether agents ask which meaning: one of the meanings is a synced item. Else they get nothing. */
+  asks: boolean
 }
 
 /**
@@ -112,6 +114,7 @@ export function conflictOf(all: Definition[], d: Definition, self?: string): Con
       kind: 'missing',
       message: `${d.sameAs} isn't in Definitions any more. Point ${d.name} at something else.`,
       short: `${d.sameAs} isn't in Definitions any more.`,
+      asks: false,
     }
   // A term never conflicts with itself (a draft of it is a different object with the same name).
   const other = all
@@ -128,6 +131,7 @@ export function conflictOf(all: Definition[], d: Definition, self?: string): Con
       message: `“${d.name}” already means ${other.name}${other.synced ? ` in ${other.tool}` : ' here'}${target ? `, and this term says it means ${target.name}` : ''}. An agent can't tell which one a person means. Rename this term or point it at ${other.name}.`,
       short: `“${d.name}” already means ${other.name}.`,
       other: other.name,
+      asks: !!other.synced || !!target?.synced,
     }
   if (target?.sameAs) {
     const to = meaningOf(all, target)
@@ -135,6 +139,7 @@ export function conflictOf(all: Definition[], d: Definition, self?: string): Con
       kind: 'chain',
       message: `${target.name} is itself a synonym of ${to.name}. Point ${d.name} at ${to.name} directly.`,
       short: `${target.name} is itself a synonym of ${to.name}.`,
+      asks: false,
     }
   }
   return undefined

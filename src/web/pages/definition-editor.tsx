@@ -149,7 +149,12 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
   const check = claims ? glossary.checkWord(draft.name, targetDef, original?.name) : undefined
   // Why it can't be written, as the service says it: from the list here, or from its refusal, when
   // the word was taken after the page read the list.
-  const refused = sendState === 'failed' && sendError?.kind === 'conflict' ? sendError.message : ''
+  const refused = sendState === 'failed' && sendError?.refusal ? sendError.message : ''
+  // Any other conflict (someone changed the word first) is not a taken word: it says what it says.
+  const changed =
+    sendState === 'failed' && sendError?.kind === 'conflict' && !sendError.refusal
+      ? sendError.message
+      : ''
   const taken = refused || (check && !check.ok && check.why !== 'empty' ? check.reason : '')
   const conflict = title.trim() && !taken ? glossary.conflictOf(draft, original?.name) : undefined
   const alike =
@@ -241,7 +246,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
             : taken
               ? 'This word already means something. Try another word.'
               : conflict
-                ? conflict.kind === 'two-things'
+                ? conflict.asks
                   ? 'It saves, and agents ask which one until the conflict is settled.'
                   : "It saves, but agents don't use it until the conflict is settled."
                 : synonym
@@ -342,6 +347,11 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
                   Not ready<span className="hidden sm:inline">: this word is taken</span>
                 </span>
               </>
+            ) : changed ? (
+              <span role="alert" className="flex items-center gap-2 text-destructive">
+                <CircleAlertIcon className="size-3.5 shrink-0" aria-hidden />
+                <span>{changed}</span>
+              </span>
             ) : sendState === 'failed' ? (
               <span role="alert" className="flex items-center gap-2 text-destructive">
                 <CircleAlertIcon className="size-3.5 shrink-0" aria-hidden />

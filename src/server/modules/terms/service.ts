@@ -300,7 +300,10 @@ export function createTermsService(tx: Queryable) {
       }
       const other = holders.find((h) => h.word === row.word && h.key !== row.sameAsKey)
       const twin = sameWord.find(
-        (t) => t.word === row.word && t.id !== row.id && termRefOf(t) !== termRefOf(row),
+        (t) =>
+          t.word === row.word &&
+          t.id !== row.id &&
+          (termRefOf(t) ?? t.id) !== (termRefOf(row) ?? row.id),
       )
       if (!other && twin) {
         const holder = twin.targetName ?? twin.name

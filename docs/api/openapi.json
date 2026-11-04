@@ -90099,7 +90099,7 @@
                         },
                         "asked": {
                           "type": "string",
-                          "maxLength": 300
+                          "maxLength": 2000
                         },
                         "held": {
                           "type": "object",
@@ -90134,7 +90134,7 @@
                             },
                             "metrics": {
                               "type": "array",
-                              "maxItems": 20,
+                              "maxItems": 100,
                               "items": {
                                 "type": "string",
                                 "maxLength": 200
@@ -90148,7 +90148,7 @@
                               },
                               "additionalProperties": {
                                 "type": "array",
-                                "maxItems": 20,
+                                "maxItems": 100,
                                 "items": {
                                   "type": "string",
                                   "maxLength": 200
@@ -90186,7 +90186,7 @@
                             },
                             "more": {
                               "type": "array",
-                              "maxItems": 20,
+                              "maxItems": 100,
                               "items": {
                                 "type": "object",
                                 "properties": {
@@ -90225,6 +90225,12 @@
                                 ],
                                 "additionalProperties": false
                               }
+                            },
+                            "why": {
+                              "type": "boolean"
+                            },
+                            "defines": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -90419,7 +90425,7 @@
                                         },
                                         "metrics": {
                                           "type": "array",
-                                          "maxItems": 20,
+                                          "maxItems": 100,
                                           "items": {
                                             "type": "string",
                                             "maxLength": 200
@@ -90433,7 +90439,7 @@
                                           },
                                           "additionalProperties": {
                                             "type": "array",
-                                            "maxItems": 20,
+                                            "maxItems": 100,
                                             "items": {
                                               "type": "string",
                                               "maxLength": 200
@@ -90471,7 +90477,7 @@
                                         },
                                         "more": {
                                           "type": "array",
-                                          "maxItems": 20,
+                                          "maxItems": 100,
                                           "items": {
                                             "type": "object",
                                             "properties": {
@@ -90510,6 +90516,12 @@
                                             ],
                                             "additionalProperties": false
                                           }
+                                        },
+                                        "why": {
+                                          "type": "boolean"
+                                        },
+                                        "defines": {
+                                          "type": "boolean"
                                         }
                                       },
                                       "required": [

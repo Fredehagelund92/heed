@@ -3,6 +3,7 @@ import type { ChatTurn } from '../../../src/domain/ask-chat.ts'
 import {
   checkPlan,
   checkedQuestionBack,
+  leftOpen,
   parsePlan,
   plannerPrompt,
   plannerReason,
@@ -778,5 +779,56 @@ describe('a message that names a term spelled like a word that says nothing', ()
   it('is told it asks nothing when the edition has no such term', async () => {
     const routed = await route(planBundle.terms.filter((t) => t.key !== nice.key))
     expect(routed).toMatchObject({ kind: 'reply', reply: { kind: 'nothing_asked' } })
+  })
+})
+
+describe('what a question back leaves open', () => {
+  const back: ChatTurn = {
+    question: 'sales in Sweden last month',
+    scope: null,
+    sources: [],
+    asked: 'Sales can mean Net revenue or Gross sales. Which do you mean?',
+    held: {
+      word: 'Sales',
+      meanings: [
+        { key: 'metric:net_revenue', name: 'Net revenue' },
+        { key: 'metric:gross_sales', name: 'Gross sales' },
+      ],
+      metrics: [],
+      filters: { 'dim:market': ['val:market/sweden'] },
+      window: { start: '2026-09-01', end: '2026-10-01' },
+    },
+  }
+  const open = (question: string, previous: ChatTurn = back) => leftOpen(ctx({ question, previous }))
+
+  it.each(['net', 'orders', 'last month', 'the second one'])(
+    'carries all of it to the answer "%s"',
+    (answer) => {
+      expect(open(answer)).toMatchObject({ filters: { 'dim:market': ['val:market/sweden'] } })
+    },
+  )
+
+  it('carries the period too, when the answer names none', () => {
+    expect(open('net')).toMatchObject({ window: { start: '2026-09-01', end: '2026-10-01' } })
+  })
+
+  it.each(['what campaigns ran?', 'orders?', 'list the rules', 'show me the events'])(
+    'carries nothing to a question of its own: "%s"',
+    (question) => {
+      expect(open(question)).toBeNull()
+    },
+  )
+
+  it('does the same after a question back the planner asked', () => {
+    const planner: ChatTurn = {
+      question: back.question,
+      sources: [],
+      asked: 'Do you mean Orders or Net revenue?',
+      scope: { metrics: [], filters: back.held!.filters, window: back.held!.window! },
+    }
+    expect(open('what campaigns ran?', planner)).toBeNull()
+    expect(open('net', planner)).toMatchObject({
+      filters: { 'dim:market': ['val:market/sweden'] },
+    })
   })
 })

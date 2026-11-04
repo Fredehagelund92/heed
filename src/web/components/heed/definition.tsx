@@ -10,6 +10,7 @@ import {
   WholeWordIcon,
   type LucideIcon,
 } from '@/components/icons'
+import { termWord } from '@domain/terms'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TagChip } from '@/components/heed/tag-chip'
@@ -145,7 +146,7 @@ export function ConflictNote({
               : 'Points nowhere. '}
         </span>
         {conflict.message}{' '}
-        {conflict.kind === 'two-things'
+        {conflict.asks
           ? "Agents ask which one until it's settled."
           : "Agents don't use it until it's settled."}
       </span>
@@ -213,7 +214,7 @@ export function SynonymTags({
   const [flash, setFlash] = React.useState<string | null>(null)
   const input = React.useRef<HTMLInputElement>(null)
   const id = React.useId()
-  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const same = (a: string, b: string) => termWord(a) === termWord(b)
 
   const commit = async (words: string[]) => {
     const added: string[] = []
