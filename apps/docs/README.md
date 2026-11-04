@@ -10,35 +10,36 @@ From the repository root, `npm --prefix apps/docs ci` once, then:
 
 ```sh
 npm run site:dev     # http://localhost:4321
-npm run site:build   # the site in apps/docs/dist, then the check of every link
+npm run site:build   # the site in apps/docs/dist, then the checks of its pages and links
 ```
 
 In this folder, `npm run typecheck`, `npm run lint` and `npm test` check its own code. CI runs all of them whenever the docs or this folder change.
 
 ## What is on the site
 
-`lib/pages.ts` lists the pages: every page of `docs/help`, and the operator and integrator pages by name. Everything else in `docs/` stays in the repository ([docs/README.md](../../docs/README.md) is the full index).
+The site publishes only pages written for the people who read it. `publishedPages` in `lib/pages.ts` is the list: today, the 13 help pages and What's new. Every help page has to be on it.
 
-A page outside `docs/help` starts with front matter, and its title comes from there, so the body has no `#` heading:
+Every operator page (Where to run Heed, the Vercel demo, running and operating the service, security, the MCP and API reference, AI sign-in and the connector pages) has its front matter and is held back until it passes the reader check below. The rest of `docs/` stays in the repository. A page that is not on the list is out of the sidebar, the search, `llms.txt`, `llms-full.txt` and the sitemap, and a published page that links to it opens it on GitHub. A group with no published page is left out of the sidebar, the landing page and `llms.txt`.
 
-```yaml
----
-title: Run and operate the service
-line: One line on what the page holds, at most 120 characters.
-group: Run the service # a group in lib/pages.ts
-order: 2 # its place in the group
-reviewed: 2026-11-03 # the day someone last checked it
----
-```
+## Ready for readers
 
-The sidebar is built from `group` and `order`. The strict rules in [docs/help/README.md](../../docs/help/README.md) hold for the help pages. Other pages only need their front matter and links that go somewhere.
+`lib/reader-ready.ts` reads the Markdown of every published page in `npm run build`, so CI runs it too. A page fails when it holds:
+
+- a requirement id: `FR-`, `NFR-`, `CON-` or `R-` and a number;
+- a path to a repository file, such as `src/domain/words.ts`;
+- dated history, such as a day of a month, or "since 0.1.0" or "v0.1". What's new is the one page exempt from this rule, because dated change is its job;
+- a paragraph over 70 words, or more than four pieces of code in one paragraph.
+
+It reads what a reader sees, so the address of a link does not count, but the words of a link do.
+
+To publish a held page, make it pass, then add it to `publishedPages`. Its group shows up on its own.
 
 ## Links
 
 Pages keep the relative links that work on GitHub, and the build resolves them (`lib/links.ts`):
 
 - a link to another page of the site opens on the site;
-- a link to any other file of the repository opens on GitHub at the build's reference, so a release's pages open the files of that release;
+- a link to any other file of the repository, a page that is not published among them, opens on GitHub at the build's reference, so a release's pages open the files of that release;
 - a link to a screen of the app keeps its words without a link, because the site knows no instance of the app. The `open:` button of a help page is left out for the same reason;
 - a link to a file that does not exist stops the build.
 

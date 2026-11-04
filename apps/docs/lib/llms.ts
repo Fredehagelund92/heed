@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CHANGELOG, llmsFullTxt, llmsTxt } from '../../../src/domain/docs.ts'
 import { linkContext, withResolvedLinks } from './links.ts'
-import { repoRoot, siteGroups, sitePages } from './pages.ts'
+import { repoRoot, shownGroups, sitePages } from './pages.ts'
 import { basePath, type Settings } from './settings.ts'
 
 /*
@@ -22,9 +22,8 @@ export function llmsFiles(settings: Settings) {
   const index = { pages: pages.filter((page) => page.group), changelog }
   return {
     index: llmsTxt(index, base, {
-      summary:
-        'Guides for writing context, connecting agents and running the service, and the API.',
-      groups: siteGroups,
+      summary: 'Guides for writing context, connecting agents and reviewing suggestions.',
+      groups: shownGroups(pages),
       path: (at, slug) => `${at}/${slug}/`,
     }),
     full: llmsFullTxt(index, files, base),

@@ -14,7 +14,11 @@ Two context items are in a conflict when an owner said they disagree, in the rev
 
 ## Find them
 
-Every item in a conflict carries a **Conflict** chip in Context. To see only those, pick Conflicts above the list, or In a conflict in Filter: it is the same list, with its search, sort and selection, showing only the items in a conflict, and the number next to Conflicts says how many there are. The chip, or Compare and decide in the row's menu, opens the two side by side. When nothing disagrees, the list says No conflicts.
+Every item in a conflict carries a **Conflict** chip in Context.
+
+To see only those, pick Conflicts above the list, or In a conflict in Filter. It is the same list, with its search, sort and selection, showing only the items in a conflict. The number next to Conflicts says how many there are.
+
+The chip, or Compare and decide in the row's menu, opens the two side by side. When nothing disagrees, the list says No conflicts.
 
 ## Compare
 

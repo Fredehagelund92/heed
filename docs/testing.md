@@ -37,7 +37,8 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   `tests/e2e/docs-controls.ts`; `tests/e2e/docs-controls.spec.ts` draws each row's screen
   in the browser and finds the control on it. `npm run docs:sync` mends an include that is out of date.
 - **Docs site (Vitest, and the build).** `apps/docs/test` tests the public docs site's own code. Its
-  build then reads the built pages and fails on a link or heading that goes nowhere
+  build fails on a published page that is not ready for readers, then reads the built pages and
+  fails on a link or heading that goes nowhere
   ([apps/docs](../apps/docs/README.md)).
 - **Module boundaries (Vitest).** `tests/lint/boundaries.test.ts` lints a fixture tree that breaks
   each boundary and expects each break to be reported.

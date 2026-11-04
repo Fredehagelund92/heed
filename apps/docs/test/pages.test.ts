@@ -1,31 +1,62 @@
 import { describe, expect, it } from 'vitest'
-import { operatorPages, sidebar, siteGroups, sitePages, slugOf } from '../lib/pages.ts'
+import { linkContext, resolveLink } from '../lib/links.ts'
+import {
+  publishedPages,
+  shownGroups,
+  sidebar,
+  siteGroups,
+  sitePages,
+  slugOf,
+  unlistedHelpPages,
+} from '../lib/pages.ts'
 
 describe('the pages of the site', () => {
   const pages = sitePages()
 
-  it('are the help pages, the operator pages and What is new', () => {
-    const slugs = pages.map((page) => page.slug)
-    expect(slugs).toEqual(expect.arrayContaining([...operatorPages, 'privacy', 'changelog']))
-    expect(pages).toHaveLength(14 + operatorPages.length)
+  it('are the published list and no other', () => {
+    expect(pages.map((page) => `help/${page.slug}`).sort()).toEqual([...publishedPages].sort())
   })
 
-  it('leave out what stays in the repository', () => {
-    const slugs = pages.map((page) => page.slug)
-    for (const slug of ['README', 'evaluations', 'development', 'connectors/packaging'])
-      expect(slugs).not.toContain(slug)
+  it('leave no help page off the list', () => {
+    expect(unlistedHelpPages()).toEqual([])
+  })
+
+  it('leave out the README of the help pages', () => {
+    expect(pages.map((page) => page.slug)).not.toContain('README')
   })
 
   it('sit in the sidebar by group and order, with What is new last', () => {
     const groups = sidebar(pages)
-    expect(
-      groups.slice(0, siteGroups.length).map((group) => 'label' in group && group.label),
-    ).toEqual([...siteGroups])
+    expect(groups.slice(0, -1).map((group) => 'label' in group && group.label)).toEqual(
+      shownGroups(pages),
+    )
     for (const group of groups) if ('items' in group) expect(group.items.length).toBeGreaterThan(0)
     expect(groups[0]).toMatchObject({
       items: [{ slug: 'get-started' }, { slug: 'connect-an-agent' }],
     })
     expect(groups.at(-1)).toEqual({ slug: 'changelog' })
+  })
+
+  it('skip a group that has no published page', () => {
+    expect(siteGroups).toContain('Run the service')
+    expect(shownGroups(pages)).toEqual([
+      'Start',
+      'Write and review',
+      'Set up',
+      'How it works',
+      'Reference',
+    ])
+    const labels = sidebar(pages).map((group) => 'label' in group && group.label)
+    expect(labels).not.toContain('Run the service')
+    expect(labels).not.toContain('Connectors')
+  })
+
+  it('open a page that is not published on GitHub, at the build reference', () => {
+    const context = linkContext(pages, '/v0.1', 'v0.1.1')
+    expect(resolveLink('../reference.md#alerts', 'docs/help/tools.md', context)).toBe(
+      'https://github.com/Fredehagelund92/heed/blob/v0.1.1/docs/reference.md#alerts',
+    )
+    expect(resolveLink('privacy.md', 'docs/help/tools.md', context)).toBe('/v0.1/privacy/')
   })
 
   it('keep their address from their file', () => {

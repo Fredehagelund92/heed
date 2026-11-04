@@ -92,6 +92,7 @@ The words follow [Copy](../design/copy.md), the same rules as the screens:
 4. Never name the product in a sentence: write "it", "agents" or "your workspace". Commands and addresses keep their names.
 5. Never promise what is not built, and never write "soon".
 6. Plain hyphens, never an em dash, and British spelling.
+7. Write for the reader, as the public docs site requires of every page it publishes ([apps/docs](../../apps/docs/README.md#ready-for-readers)): no requirement ids, no paths to repository files, no dated history outside What's new, no paragraph over 70 words and no paragraph that is mostly code. Its build fails on any of them.
 
 ## The docs check
 
