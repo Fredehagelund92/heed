@@ -243,6 +243,44 @@ h1#_top {
   vertical-align: top;
 }
 
+/* On a phone a table stands as one block per row, so a long cell keeps the width of the page. */
+@media (max-width: 40em) {
+  .sl-markdown-content table,
+  .sl-markdown-content tbody,
+  .sl-markdown-content tr,
+  .sl-markdown-content td {
+    display: block;
+  }
+
+  .sl-markdown-content thead {
+    display: none;
+  }
+
+  .sl-markdown-content tr {
+    padding: 0.75rem 1rem;
+  }
+
+  .sl-markdown-content tr + tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .sl-markdown-content td,
+  .sl-markdown-content td:first-child,
+  .sl-markdown-content tr td {
+    border: 0;
+    padding: 0;
+  }
+
+  .sl-markdown-content td:first-child {
+    color: var(--foreground);
+    font-weight: 500;
+  }
+
+  .sl-markdown-content td + td {
+    margin-top: 0.25rem;
+  }
+}
+
 /* A note: a quote whose first words are its title in bold (lib/remark-heed-docs.ts). */
 .heed-note {
   border: 1px solid var(--border);
@@ -254,6 +292,17 @@ h1#_top {
 
 .heed-note > * + * {
   margin-top: 0.5rem;
+}
+
+/* Previous and next: flat hairline frames, like every other container. */
+.pagination-links a {
+  border-radius: var(--radius-frame);
+  box-shadow: none;
+}
+
+.pagination-links .link-title {
+  font-size: var(--sl-text-sm);
+  font-weight: 500;
 }
 
 /* The landing page: each group's pages with their one line. */

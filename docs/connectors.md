@@ -1,10 +1,4 @@
----
-title: 'Connectors: the contract'
-line: 'What a connector declares, what it returns and what the core does with it.'
-group: Connectors
-order: 1
-reviewed: 2026-11-03
----
+# Connectors: the contract
 
 > **What applies now.** To build a connector, follow [Writing a connector](connectors/authoring.md):
 > it stands on its own, with the template to copy (`src/connectors/_template/`), the mapping rules

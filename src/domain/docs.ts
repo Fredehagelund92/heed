@@ -170,37 +170,24 @@ export type DocIndex = {
   changelog: { title: string; line: string }
 }
 
-/** How llms.txt lists a site's pages: its one line, its groups, and where a page opens. */
-export type DocListing = {
-  summary: string
-  groups: readonly string[]
-  path: (base: string, slug: string) => string
-}
-
-const appListing: DocListing = {
-  summary: 'Guides for writing context, connecting agents and reviewing suggestions.',
-  groups: docGroups,
-  path: docPath,
-}
-
 /** The plain-text index an agent reads at llms.txt: every page with its one line. */
-export function llmsTxt(docs: DocIndex, base: string, listing = appListing): string {
+export function llmsTxt(docs: DocIndex, base: string, path: typeof docPath = docPath): string {
   return [
     '# Documentation',
     '',
-    `> ${listing.summary}`,
+    '> Guides for writing context, connecting agents and reviewing suggestions.',
     '',
-    ...listing.groups.flatMap((group) => [
+    ...docGroups.flatMap((group) => [
       `## ${group}`,
       '',
       ...docs.pages
         .filter((p) => p.group === group)
-        .map((p) => `- [${p.title}](${listing.path(base, p.slug)}): ${p.line}`),
+        .map((p) => `- [${p.title}](${path(base, p.slug)}): ${p.line}`),
       '',
     ]),
     '## Optional',
     '',
-    `- [${docs.changelog.title}](${listing.path(base, CHANGELOG)}): ${docs.changelog.line}`,
+    `- [${docs.changelog.title}](${path(base, CHANGELOG)}): ${docs.changelog.line}`,
     `- [Every page in one file](${base}/llms-full.txt): the pages above as Markdown, in order.`,
     '',
   ].join('\n')

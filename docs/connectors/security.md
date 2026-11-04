@@ -1,10 +1,4 @@
----
-title: 'Connectors: security and egress'
-line: 'The rules every connector follows to reach a tool, keep its credentials and hand over its output.'
-group: Connectors
-order: 4
-reviewed: 2026-11-03
----
+# Connectors: security and egress
 
 The rules every connector follows to reach a tool, keep its credentials and hand its output to
 the core. They hold in every interface version (the [invariants](../connectors.md#invariants)),

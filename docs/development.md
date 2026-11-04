@@ -227,7 +227,7 @@ docs/help/            the documentation, Markdown, shown at /docs and as the sta
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
 apps/mockup/      the clickable mockup the app was built from, now a reference: its own package (apps/mockup/README.md)
-apps/docs/        the public docs site, built from docs/: its own package (apps/docs/README.md)
+apps/docs/        the public docs site, built from the pages in docs/ that are ready for readers: its own package (apps/docs/README.md)
 ```
 
 ### Why this layout

@@ -9,6 +9,8 @@ reviewed: 2026-11-03
 
 The six tools an agent can call. All read, apart from the two that send something to an owner after the person says yes. A suggestion waits for the owner, unless the owner lets that agent [publish without review](publish-without-review.md).
 
+## The six tools
+
 <!-- include tools -->
 
 ### get_context

@@ -3,7 +3,8 @@ import { i18nLoader } from '@astrojs/starlight/loaders'
 import { defineCollection } from 'astro:content'
 import { glob } from 'astro/loaders'
 import { z } from 'astro/zod'
-import { pagePatterns, siteGroups, slugOf } from '../lib/pages.ts'
+import { docGroups } from '../../../src/domain/docs.ts'
+import { pagePatterns, slugOf } from '../lib/pages.ts'
 import { readSettings } from '../lib/settings.ts'
 
 const isNext = readSettings(process.env).version === 'next'
@@ -25,7 +26,7 @@ export const collections = {
         extend: z.object({
           /** One line on what the page holds: the landing page, search and llms.txt show it. */
           line: z.string().min(1).max(120),
-          group: z.enum(siteGroups).optional(),
+          group: z.enum(docGroups).optional(),
           order: z.number().int().min(1).optional(),
           minutes: z.number().int().min(1).optional(),
           /** The day someone last checked the page. */

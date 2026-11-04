@@ -1,49 +1,41 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
+import { docGroups, type DocGroup } from '../../../src/domain/docs.ts'
 
 /*
   Which of the repository's Markdown files are pages of the site, and where they sit in its
-  sidebar. Nothing moves on disk: every page stays in docs/, and its front matter says its place.
-  What stays in the repository (docs/README.md, evaluations, design, development) is not listed.
+  sidebar. Nothing moves on disk: a page stays in docs/, and its front matter says its place.
+
+  The site publishes only what is written for its readers. A page outside this list stays in the
+  repository: it is out of the sidebar, the search, llms.txt and the sitemap, and a published page
+  that links to it opens it on GitHub. A page joins the list once it passes the reader check
+  (lib/reader-ready.ts).
 */
 
 /** The folder `npm run build` runs in is apps/docs, whichever way it is started. */
 export const repoRoot = resolve(process.cwd(), '../..')
 
-/** The sidebar's groups, in order: docs/help's, then the operators' and integrators' pages. */
-export const siteGroups = [
-  'Start',
-  'Write and review',
-  'Set up',
-  'How it works',
-  'Run the service',
-  'Connectors',
-  'Reference',
-] as const
-export type SiteGroup = (typeof siteGroups)[number]
-
-/** The pages outside docs/help, by their path under docs/. */
-export const operatorPages = [
-  'where-to-run',
-  'self-hosting',
-  'operations',
-  'vercel',
-  'security',
-  'connectors',
-  'connectors/cube',
-  'connectors/authoring',
-  'connectors/security',
-  'reference',
-  'ai-sign-in',
+/** The published pages, by their path under docs/. */
+export const publishedPages = [
+  'help/get-started',
+  'help/connect-an-agent',
+  'help/write-context',
+  'help/review-a-suggestion',
+  'help/settle-a-conflict',
+  'help/definitions-and-synonyms',
+  'help/publish-without-review',
+  'help/domains-and-owners',
+  'help/integrations',
+  'help/how-agents-use-it',
+  'help/answer-lines',
+  'help/privacy',
+  'help/tools',
+  'help/changelog',
 ]
 
 /** The files of the site for the content loader, as paths under docs/. */
-export const pagePatterns = [
-  'help/*.md',
-  '!help/README.md',
-  ...operatorPages.map((page) => `${page}.md`),
-]
+export const pagePatterns = publishedPages.map((page) => `${page}.md`)
 
 /** A file under docs/ to its address under the site: help/privacy.md is privacy. */
 export const slugOf = (entry: string) => entry.replace(/^help\//, '').replace(/\.md$/, '')
@@ -54,7 +46,7 @@ export type SitePage = {
   file: string
   title: string
   line: string
-  group?: SiteGroup
+  group?: DocGroup
   order: number
 }
 
@@ -66,17 +58,22 @@ function readPage(root: string, entry: string): SitePage {
   return { slug: slugOf(entry), file, title, line, group, order: order ?? 0 }
 }
 
+/** Every help page that is not on the list, so that a new one is never left out by accident. */
+export function unlistedHelpPages(root = repoRoot): string[] {
+  return readdirSync(join(root, 'docs/help'))
+    .filter((name) => name.endsWith('.md') && name !== 'README.md')
+    .map((name) => `help/${name.replace(/\.md$/, '')}`)
+    .filter((page) => !publishedPages.includes(page))
+}
+
 /** Every page of the site: by group and order, and What's new, which has no group, last. */
 export function sitePages(root = repoRoot): SitePage[] {
-  const help = readdirSync(join(root, 'docs/help'))
-    .filter((name) => name.endsWith('.md') && name !== 'README.md')
-    .map((name) => `help/${name}`)
   const place = (page: SitePage) => {
-    const at = page.group ? siteGroups.indexOf(page.group) : siteGroups.length
+    const at = page.group ? docGroups.indexOf(page.group) : docGroups.length
     if (at === -1) throw new Error(`${page.file}: no group "${page.group}"`)
     return at
   }
-  return [...help, ...operatorPages.map((page) => `${page}.md`)]
+  return pagePatterns
     .map((entry) => readPage(root, entry))
     .sort((a, b) => place(a) - place(b) || a.order - b.order)
 }
@@ -84,7 +81,7 @@ export function sitePages(root = repoRoot): SitePage[] {
 /** Starlight's sidebar, from each page's front matter. */
 export function sidebar(pages: readonly SitePage[]) {
   return [
-    ...siteGroups.map((label) => ({
+    ...docGroups.map((label) => ({
       label,
       items: pages.filter((page) => page.group === label).map(({ slug }) => ({ slug })),
     })),

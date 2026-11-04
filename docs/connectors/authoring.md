@@ -1,10 +1,4 @@
----
-title: Writing a connector
-line: 'What interface 3.0 asks of whoever writes a connector, step by step.'
-group: Connectors
-order: 3
-reviewed: 2026-10-28
----
+# Writing a connector
 
 ## Read this first
 

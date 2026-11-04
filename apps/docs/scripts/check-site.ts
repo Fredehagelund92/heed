@@ -1,13 +1,14 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { sitePages, type SitePage } from '../lib/pages.ts'
+import { sitePages, unlistedHelpPages, type SitePage } from '../lib/pages.ts'
+import { checkPages } from '../lib/reader-ready.ts'
 import { basePath, readSettings } from '../lib/settings.ts'
 
 /*
-  The last step of `npm run build`, on the pages as they were built: every link and every heading a
+  The last step of `npm run build`. On the pages as they were built: every link and every heading a
   link names goes somewhere, nothing loads from another host, the page body holds no tag that came
-  through as raw HTML, and every page is there and in llms.txt. It reads only the built files, so an
-  upgrade of the framework cannot change what it checks.
+  through as raw HTML, and every page is there and in llms.txt. On their Markdown: every published
+  page is written for its readers (lib/reader-ready.ts), and no help page was left off the list.
 */
 
 const htmlFiles = (folder: string): string[] =>
@@ -86,11 +87,15 @@ export function checkSite(dist: string, base: string, pages: readonly SitePage[]
 
 if (import.meta.main) {
   const pages = sitePages()
-  const problems = checkSite('dist', basePath(readSettings(process.env)), pages)
+  const problems = [
+    ...checkPages(pages),
+    ...unlistedHelpPages().map((page) => `${page}: add it to publishedPages in lib/pages.ts`),
+    ...checkSite('dist', basePath(readSettings(process.env)), pages),
+  ]
   for (const problem of problems) console.error(problem)
   if (problems.length) {
     console.error(`The docs site has ${problems.length} problems.`)
     process.exit(1)
   }
-  console.log(`The docs site: ${pages.length} pages, every link goes somewhere.`)
+  console.log(`The docs site: ${pages.length} pages, ready for readers, every link goes somewhere.`)
 }
