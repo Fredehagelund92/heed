@@ -51,13 +51,16 @@ so in its notes.
       app), each tagged `0.1.0`, `0.1` and `latest`;
    4. it signs the build provenance of both images with GitHub's artifact attestations, and checks
       that each platform has its SBOM and provenance and that the signature verifies;
-   5. it builds the docs site at the tag ([The docs site](#the-docs-site));
+   5. it builds the docs site at the tag ([The docs site](#the-docs-site)), in parallel and apart
+      from the release, so a failed docs build never stops it;
    6. it creates the GitHub Release `Heed 0.1.0`: its notes are the version's section of
-      `CHANGELOG.md` (`scripts/release-notes.ts`) and the two images with their digests, and it
-      attaches the docs as `heed-docs-0.1.0.tar.gz`;
+      `CHANGELOG.md` (`scripts/release-notes.ts`) and the two images with their digests;
    7. it moves the release pull request's label from `autorelease: pending` to
       `autorelease: tagged`. release-please opens no new release pull request while a merged one
-      is still pending.
+      is still pending;
+   8. a last job attaches the docs as `heed-docs-0.1.0.tar.gz` to the release, only if the docs
+      build succeeded. If it failed, the run shows the failed docs job and a warning that the
+      tarball was not attached; the release and images are intact.
 
 The workflows use only the workflow's own token, with the least each job needs. No secret is
 stored.
@@ -102,7 +105,7 @@ that it is current before you merge a release pull request.
 - **Every push to `main`** that changes the docs builds `/next/`, which tells search engines to leave it alone.
 - **The root** holds `versions.json`, which the version switcher reads, and a page that opens the newest release.
 
-Building changes nothing outside the run. Publishing pushes the folder to the `gh-pages` branch, which collects the versions (`.github/scripts/publish-docs.sh`), and it only runs when the repository variable `DOCS_PUBLISH` is `on`. Until then the workflow builds and stops, and each release still gets its tarball.
+Building changes nothing outside the run. Publishing pushes the folder to the `gh-pages` branch, which collects the versions (`.github/scripts/publish-docs.sh`), and it only runs when the repository variable `DOCS_PUBLISH` is `on`. Until then the workflow builds and stops, and each release still gets its tarball when the docs build succeeds. A failed docs build never stops the release: the tarball is skipped with a warning.
 
 To publish for the first time, a maintainer decides, then:
 
