@@ -1,4 +1,10 @@
-# Writing a connector
+---
+title: Writing a connector
+line: 'What interface 3.0 asks of whoever writes a connector, step by step.'
+group: Connectors
+order: 3
+reviewed: 2026-10-28
+---
 
 A guide for whoever writes a connector, inside this repository or, later, as a package. The
 steps below name what interface 3.0 asks for; [what is built](../connectors.md#what-is-built)

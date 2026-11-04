@@ -1,0 +1,26 @@
+---
+import Default from '@astrojs/starlight/components/Search.astro'
+---
+
+<Default />
+
+<script>
+  // The button's name holds the words it shows, shortcut included, as a spoken name has to. On a
+  // phone it shows only an icon and keeps Starlight's name.
+  const button = document.querySelector<HTMLButtonElement>('button[data-open-modal]')
+  const shown = button?.innerText.replace(/\s+/g, ' ').trim()
+  if (shown) button?.setAttribute('aria-label', shown)
+
+  // An address with ?q=words opens the search on those words: the app links to the docs this way.
+  const words = new URLSearchParams(location.search).get('q')
+  if (words) {
+    button?.click()
+    const fill = () => {
+      const input = document.querySelector<HTMLInputElement>('.pagefind-ui__search-input')
+      if (!input) return void requestAnimationFrame(fill)
+      input.value = words
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    fill()
+  }
+</script>

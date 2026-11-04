@@ -130,6 +130,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/docs/package-lock.json
       - run: npm ci
       - name: Unit, service and guard rail tests
         run: npm test
@@ -137,12 +140,15 @@ jobs:
       # sizes, the budget and the margin also go to the job's summary page.
       - name: Build the web app as it ships (http mode) and check the first load budget
         run: npm run size
-      - name: Build the docs site (docs/help) and check its pages and index
+      # apps/docs is its own package, so the docs framework stays out of the app's packages.
+      - name: The public docs site (apps/docs), built, with every link checked
+        working-directory: apps/docs
         run: |
-          npm run docs:build
-          for f in index get-started tools changelog; do test -s "dist/docs/$f.html"; done
-          grep -q '^- \[Privacy\](/docs/privacy): ' dist/docs/llms.txt
-          test -s dist/docs/llms-full.txt
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+          npm run build
 
   seal:
     # FR-525: a pull request may not change the sealed held-out cases together with src/, nor open

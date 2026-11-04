@@ -4,7 +4,8 @@ name: Release
 # that merged the release pull request (release-please.yml), whose CI passed. Then both images in
 # the Dockerfile, the service and the web app, are built natively for linux/amd64 and linux/arm64,
 # pushed to ghcr.io with an SBOM and the build provenance, and signed with GitHub's build
-# provenance. Last, the GitHub Release gets the notes release-please wrote into CHANGELOG.md.
+# provenance. The docs site is built at the tag (docs-site.yml). Last, the GitHub Release gets the
+# notes release-please wrote into CHANGELOG.md and the docs as a tarball.
 # Only the workflow's own token is used, each job with the least it needs.
 on:
   push:
@@ -250,9 +251,19 @@ jobs:
           REF: ${{ steps.name.outputs.image }}@${{ steps.push.outputs.digest }}
         run: echo "$ROLE=$ROLE=$REF" >> "$GITHUB_OUTPUT"
 
+  docs:
+    # Its publish job, which needs the write, only runs once a maintainer has turned it on.
+    name: Docs site
+    needs: check
+    permissions:
+      contents: write # the gh-pages branch
+    uses: ./.github/workflows/docs-site.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+
   release:
     name: GitHub Release
-    needs: [check, publish]
+    needs: [check, publish, docs]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -282,6 +293,17 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
               --title "Heed $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
           fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: docs-tarball
+          path: ${{ runner.temp }}/docs
+      - name: Attach the docs, for a team without internet access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/docs/heed-docs-$VERSION.tar.gz" \
+            --repo "$GITHUB_REPOSITORY" --clobber
       # release-please opens no new release pull request while a merged one is still pending.
       - name: Mark the release pull request as tagged
         env:

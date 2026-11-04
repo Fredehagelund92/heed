@@ -1,4 +1,10 @@
-# Run and operate the service
+---
+title: Run and operate the service
+line: 'Run the service, set it up, and use its health checks, scheduled jobs, metrics and administration API.'
+group: Run the service
+order: 2
+reviewed: 2026-11-03
+---
 
 Running the Heed service on your own computer, its configuration, health checks, scheduled jobs and metrics, and the administration API, import and export. The [Quick start](../README.md#quick-start) runs all of it in containers with `docker compose up`, and [Self-host Heed on one computer](self-hosting.md) says how to back that up, restore, upgrade and roll back. [Where to run Heed](where-to-run.md) compares the ways to run it.
 

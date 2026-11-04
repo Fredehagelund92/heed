@@ -1,8 +1,8 @@
 # Releasing Heed
 
 How a version of Heed is made: one version number, a release pull request that writes the
-changelog, and a tag that builds the images and the GitHub Release. Only a maintainer merges the
-release pull request and pushes the tag; nothing is released by a merge alone.
+changelog, and a tag that builds the images, the docs site and the GitHub Release. Only a
+maintainer merges the release pull request and pushes the tag; nothing is released by a merge alone.
 
 ## One version number
 
@@ -51,9 +51,11 @@ so in its notes.
       app), each tagged `0.1.0`, `0.1` and `latest`;
    4. it signs the build provenance of both images with GitHub's artifact attestations, and checks
       that each platform has its SBOM and provenance and that the signature verifies;
-   5. it creates the GitHub Release `Heed 0.1.0`: its notes are the version's section of
-      `CHANGELOG.md` (`scripts/release-notes.ts`) and the two images with their digests;
-   6. it moves the release pull request's label from `autorelease: pending` to
+   5. it builds the docs site at the tag ([The docs site](#the-docs-site));
+   6. it creates the GitHub Release `Heed 0.1.0`: its notes are the version's section of
+      `CHANGELOG.md` (`scripts/release-notes.ts`) and the two images with their digests, and it
+      attaches the docs as `heed-docs-0.1.0.tar.gz`;
+   7. it moves the release pull request's label from `autorelease: pending` to
       `autorelease: tagged`. release-please opens no new release pull request while a merged one
       is still pending.
 
@@ -91,6 +93,26 @@ To choose the next number yourself, end the message of the squash commit with th
 **What's new** in the app (`docs/help/changelog.md`) is a different page: a few changes people
 notice, in the app's words, written by hand ([the help pages](help/README.md#whats-new)). Check
 that it is current before you merge a release pull request.
+
+## The docs site
+
+`.github/workflows/docs-site.yml` builds the public docs site ([apps/docs](../apps/docs/README.md)):
+
+- **A release** builds at its tag into `/vMAJOR.MINOR/`, and its links to repository files open at that tag. A patch release overwrites its minor's folder. Older folders are never built again, so an upgrade of the framework cannot break them.
+- **Every push to `main`** that changes the docs builds `/next/`, which tells search engines to leave it alone.
+- **The root** holds `versions.json`, which the version switcher reads, and a page that opens the newest release.
+
+Building changes nothing outside the run. Publishing pushes the folder to the `gh-pages` branch, which collects the versions (`.github/scripts/publish-docs.sh`), and it only runs when the repository variable `DOCS_PUBLISH` is `on`. Until then the workflow builds and stops, and each release still gets its tarball.
+
+To publish for the first time, a maintainer decides, then:
+
+1. In **Settings, Secrets and variables, Actions, Variables**, adds `DOCS_PUBLISH` with the value `on`.
+2. Runs **Actions, Docs site, Run workflow** on `main`. This creates the `gh-pages` branch with `/next/`.
+3. In **Settings, Pages**, chooses **Deploy from a branch**, then `gh-pages` and `/ (root)`.
+
+Release 0.1.0 came before the site, so `/v0.1/` first appears with the next 0.1 release. Until then the root opens `/next/`.
+
+The host and path are the two `env` lines at the top of the workflow. A custom domain changes those. To stop publishing, turn the variable off.
 
 ## Set up once
 
@@ -142,6 +164,8 @@ its own version where these say `0.2.0`:
    gh attestation verify oci://ghcr.io/fredehagelund92/heed:0.2.0 --repo Fredehagelund92/heed
    gh attestation verify oci://ghcr.io/fredehagelund92/heed-web:0.2.0 --repo Fredehagelund92/heed
    ```
+
+7. Check that the release has `heed-docs-0.2.0.tar.gz` among its files.
 
 ## When something goes wrong
 

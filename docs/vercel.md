@@ -1,4 +1,10 @@
-# Run the demo on Vercel and Neon
+---
+title: Run the demo on Vercel and Neon
+line: 'The web app as static files, the service as one function, and PostgreSQL 18 on Neon.'
+group: Run the service
+order: 3
+reviewed: 2026-11-03
+---
 
 > **For the demo only.** This page is how Heed's demo runs. It is not a way to run Heed for your
 > own team: for that, see [Where to run Heed](where-to-run.md).

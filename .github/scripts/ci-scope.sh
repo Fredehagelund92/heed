@@ -5,7 +5,8 @@
 #
 #   sensitive  db, the service, sign-in, MCP, security files, workflows, packages: everything runs
 #   mockup     apps/mockup: only the mockup job
-#   docs       prose nothing in the app reads: only the checks (type check, lint, unit tests, build)
+#   docs       prose nothing in the app reads, and the docs site (apps/docs): only the checks (type
+#              check, lint, unit tests, build), which build the site and check its links
 #   code       anything else: every job that runs the code
 #
 # A path that matches no rule counts as code, and an empty list runs everything, so a mistake here
@@ -29,6 +30,8 @@ while IFS= read -r path; do
       sensitive=true ;;
     apps/mockup/*)
       mockup=true ;;
+    apps/docs/*)
+      docs=true ;;
     # The help pages, the templates and the API description are read by the app and its tests.
     docs/help/* | docs/templates/* | docs/api/*)
       code=true ;;

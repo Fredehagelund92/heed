@@ -1,4 +1,10 @@
-# AI sign-in: connect your own agent to Heed
+---
+title: 'AI sign-in: connect your own agent'
+line: How a person adds the MCP address to their own agent and signs in as themselves.
+group: Reference
+order: 3
+reviewed: 2026-11-03
+---
 
 A person adds the Heed MCP address to their own agent (Claude, ChatGPT, Cursor and others). The
 app finds out how to sign in, the person signs in to Heed as themselves, approves a short consent

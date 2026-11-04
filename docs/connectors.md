@@ -1,4 +1,10 @@
-# Connectors: the contract
+---
+title: 'Connectors: the contract'
+line: 'What a connector declares, what it returns and what the core does with it.'
+group: Connectors
+order: 1
+reviewed: 2026-11-03
+---
 
 A connector is how Heed reads a tool it does not own. It is the contract between the core and
 every connector: what a connector declares, what it returns and what the core does with it.
