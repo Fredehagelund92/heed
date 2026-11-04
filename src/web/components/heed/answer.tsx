@@ -3,7 +3,6 @@ import {
   ArrowLeftRightIcon,
   BookmarkIcon,
   CheckIcon,
-  ChevronDownIcon,
   CircleAlertIcon,
   CircleStopIcon,
   EllipsisIcon,
@@ -36,7 +35,8 @@ import {
 } from '@/lib/ask-motion'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -342,13 +342,7 @@ function LookupCard({
       {/* On a touch screen the rows sit a finger apart: 24 px chips 20 px apart. */}
       <div className="flex flex-wrap items-center gap-1.5 pointer-coarse:gap-y-5">
         {children}
-        <CollapsibleTrigger className="group/lookup inline-flex h-6 items-center gap-1 rounded-sm px-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-          {line}
-          <ChevronDownIcon
-            className="size-3.5 shrink-0 transition-transform group-aria-expanded/lookup:rotate-180"
-            aria-hidden
-          />
-        </CollapsibleTrigger>
+        <FoldTrigger variant="inline" label={line} className="px-1 text-xs text-muted-foreground" />
       </div>
       <CollapsibleContent>
         <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-muted-foreground">
@@ -405,13 +399,11 @@ function LookupCard({
             </div>
           )}
           <Collapsible>
-            <CollapsibleTrigger className="group/dev mt-1 inline-flex items-center gap-1 rounded text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-              Developer details
-              <ChevronDownIcon
-                className="size-3 transition-transform group-aria-expanded/dev:rotate-180"
-                aria-hidden
-              />
-            </CollapsibleTrigger>
+            <FoldTrigger
+              variant="inline"
+              label="Developer details"
+              className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
+            />
             <CollapsibleContent>
               <p className="mt-2 text-xs">
                 Tool <span className="font-mono text-foreground">get_context</span>

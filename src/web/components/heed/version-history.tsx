@@ -3,7 +3,6 @@ import {
   ArchiveIcon,
   CalendarIcon,
   CheckIcon,
-  ChevronRightIcon,
   CornerUpLeftIcon,
   FolderInputIcon,
   GitMergeIcon,
@@ -19,7 +18,8 @@ import {
 import { toast } from 'sonner'
 import { FieldDiff, PersonAvatar } from '@/components/heed/bits'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import {
   Sheet,
   SheetContent,
@@ -143,22 +143,22 @@ export function VersionHistory({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} render={<div className="flex flex-col" />}>
-      <CollapsibleTrigger className="group/history -mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
-        <ChevronRightIcon
-          aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/history:rotate-90"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="font-medium tabular-nums">
-            {versions.length} {versions.length === 1 ? 'change' : 'changes'}
-          </span>
-          <span className="text-muted-foreground">
-            {' '}
-            - last {latest.kind === 'checked' ? 'checked' : 'edited'} by {latest.who},{' '}
-            {relativeDate(latest.on)}
-          </span>
-        </span>
-      </CollapsibleTrigger>
+      {/* The line says who changed it last and when, so it wraps rather than cut the date. */}
+      <FoldTrigger
+        label={
+          <>
+            <span className="tabular-nums">
+              {versions.length} {versions.length === 1 ? 'change' : 'changes'}
+            </span>
+            <span className="font-normal text-muted-foreground">
+              {' '}
+              - last {latest.kind === 'checked' ? 'checked' : 'edited'} by {latest.who},{' '}
+              {relativeDate(latest.on)}
+            </span>
+          </>
+        }
+        className="-mx-2 w-auto rounded-md px-2"
+      />
       <CollapsibleContent>
         <div className="mt-1 flex flex-col">
           {months.map((m) => (

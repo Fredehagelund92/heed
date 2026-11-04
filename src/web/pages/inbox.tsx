@@ -29,6 +29,7 @@ import {
   AskedAbout,
   cardIcon,
   Fold,
+  ItemFold,
   PaneFoot,
   PaneHead,
   PrimaryAction,
@@ -98,7 +99,6 @@ import {
 import { suggestionIcon } from '@/components/heed/change-icons'
 import type { Subject } from '@/model/comments'
 import { TruncatedText } from '@/components/heed/truncated'
-import { plainText } from '@/lib/mentions'
 import { ListSkeleton, Loadable } from '@/components/heed/load-state'
 import { BulkBar, BulkButton } from '@/components/heed/bulk-bar'
 import { useOnline } from '@/lib/send'
@@ -725,10 +725,11 @@ function CardDetail({
                 </Fold>
               )}
               {fact && card.type !== 'suggestion' && (
-                <Fold title="The context item">
-                  <p className="font-medium">{fact.title}</p>
-                  <p className="text-muted-foreground">{plainText(fact.summary)}</p>
-                </Fold>
+                // The way to the item's page shows here unless the card's decision is that way.
+                <ItemFold
+                  fact={fact}
+                  link={primaryLabel(card, review) !== 'Open the context item'}
+                />
               )}
             </div>
           </div>

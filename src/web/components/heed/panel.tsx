@@ -1,8 +1,9 @@
 import * as React from 'react'
-import { ChevronRightIcon, PanelRightOpenIcon, XIcon } from '@/components/icons'
+import { PanelRightOpenIcon, XIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Every right-hand panel has one anatomy: a title bar (the bar's height, its title, its own actions
@@ -73,7 +74,7 @@ export function Panel({
 
 /**
  * A group inside a panel body that folds to its heading, so a long block (a preview) can step
- * aside and the next one (the decisions) comes into view. One row: chevron, title, a muted count.
+ * aside and the next one (the decisions) comes into view. One row: title, a muted count, chevron.
  */
 export function PanelGroup({
   title,
@@ -96,16 +97,20 @@ export function PanelGroup({
       render={<section className={cn('border-b last:border-b-0', className)} />}
     >
       <h3>
-        <CollapsibleTrigger className="group/pg flex min-h-11 w-full items-center gap-1.5 px-4 text-left text-sm font-medium outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-          <ChevronRightIcon
-            aria-hidden
-            className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/pg:rotate-90"
-          />
-          {title}
-          {count !== undefined && (
-            <span className="font-normal text-muted-foreground tabular-nums">{count}</span>
-          )}
-        </CollapsibleTrigger>
+        <FoldTrigger
+          label={
+            <>
+              {title}
+              {count !== undefined && (
+                <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">
+                  {count}
+                </span>
+              )}
+            </>
+          }
+          // The chevron sits under the bar's close button.
+          className="px-4 md:pr-6"
+        />
       </h3>
       <CollapsibleContent keepMounted>
         <div className="px-4 pb-4">

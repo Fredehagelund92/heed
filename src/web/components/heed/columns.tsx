@@ -29,31 +29,33 @@ import {
 // and a short date, and freshness as a dot (filled fresh, half ageing, hollow overdue). The only
 // words beside the title are dates; the exact value is one hover away.
 
-/** A small tooltip on any mark: the name first, then a quiet line of detail. */
+/**
+ * A small tooltip on any mark: the name first, then a quiet line of detail. `plain` draws the mark
+ * alone, for a row that is itself one button (the Inbox pane's context item), where its words are
+ * read another way.
+ */
 function Tip({
   label,
   detail,
+  plain,
   children,
   className,
 }: {
   label: string
   detail?: string
+  plain?: boolean
   children: React.ReactNode
   className?: string
 }) {
+  const mark = {
+    role: 'img',
+    'aria-label': detail ? `${label}. ${detail}` : label,
+    className: cn('inline-flex align-middle', className),
+  }
+  if (plain) return <span {...mark}>{children}</span>
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            role="img"
-            aria-label={detail ? `${label}. ${detail}` : label}
-            className={cn('inline-flex align-middle', className)}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
+      <TooltipTrigger render={<span {...mark} />}>{children}</TooltipTrigger>
       <TooltipContent className="max-w-64 flex-col items-start gap-0.5 text-left">
         <span className="font-medium">{label}</span>
         {detail && <span className="block opacity-80">{detail}</span>}
@@ -103,10 +105,18 @@ const statusLook = {
 } as const
 
 /** The status as one of four circle icons: check, alert, dashed, minus. */
-export function StatusIcon({ status, className }: { status: Fact['status']; className?: string }) {
+export function StatusIcon({
+  status,
+  plain,
+  className,
+}: {
+  status: Fact['status']
+  plain?: boolean
+  className?: string
+}) {
   const s = statusLook[status]
   return (
-    <Tip label={status} detail={s.hint} className={cn(s.tone, className)}>
+    <Tip label={status} detail={s.hint} plain={plain} className={cn(s.tone, className)}>
       <s.icon aria-hidden className="size-4" strokeWidth={1.75} />
     </Tip>
   )
@@ -121,12 +131,13 @@ const timeGlyphs = {
 }
 
 /** The time frame as a glyph (always, ongoing, since, until, a range) and only the date as text. */
-export function TimeGlyph({ time }: { time: TimeFrame }) {
+export function TimeGlyph({ time, plain }: { time: TimeFrame; plain?: boolean }) {
   const Icon = timeGlyphs[time.t]
   return (
     <Tip
       label={timeLong(time)}
       detail={timeNow(time)}
+      plain={plain}
       className="items-center gap-1.5 text-dense whitespace-nowrap"
     >
       <Icon aria-hidden className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
@@ -144,7 +155,7 @@ const freshLabel: Record<Trust, string> = {
 }
 
 /** Freshness as a dot: filled fresh (to 30 days), half ageing (to 90), hollow overdue, a dash when it doesn't apply. */
-export function FreshDot({ fact }: { fact: Fact }) {
+export function FreshDot({ fact, plain }: { fact: Fact; plain?: boolean }) {
   const trust = trustOf(fact)
   const tone =
     trust === 'fresh'
@@ -153,7 +164,7 @@ export function FreshDot({ fact }: { fact: Fact }) {
         ? 'text-[var(--warn)]'
         : 'text-[var(--idle)]'
   return (
-    <Tip label={freshLabel[trust]} detail={checkedTip(fact)} className={tone}>
+    <Tip label={freshLabel[trust]} detail={checkedTip(fact)} plain={plain} className={tone}>
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
         {trust === 'fresh' && <circle cx="6" cy="6" r="4.2" fill="currentColor" />}
         {trust === 'ageing' && (

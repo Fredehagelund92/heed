@@ -6,7 +6,7 @@ import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { lookOf } from '@/model/integrations'
-import { careLine, type Review } from '@/model/review'
+import { careLine, countWord, type Review } from '@/model/review'
 import { Mark } from '@/components/heed/mark'
 import { navigate } from '@/lib/router'
 import { useInbox, useReviews } from '@/api/queries'
@@ -209,7 +209,11 @@ export function QuickReview({ r, asked }: { r: Review; asked?: React.ReactNode }
         </p>
       )}
       <div className="border-b">
-        <Fold title="What changes" defaultOpen={!answers}>
+        <Fold
+          title="What changes"
+          summary={r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(', ')}
+          defaultOpen={!answers}
+        >
           {r.formattingOnly && (
             <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2">
               <span className="font-medium">Formatting only. The words are the same.</span>

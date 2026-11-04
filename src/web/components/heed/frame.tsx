@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { ArrowLeftRightIcon, ChevronDownIcon } from '@/components/icons'
+import { ArrowLeftRightIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 
 // Efferd's square hairline frames, as dashboard 2 draws them: a frame is a rectangle with a
 // hairline border and no radius; its sections share hairlines; tables, key-value bands and cells
@@ -115,7 +116,10 @@ export function FrameSection({
       >
         <div
           data-slot="frame-section-header"
-          className={cn(headerRow, 'relative flex-nowrap transition-colors hover:bg-band-soft')}
+          className={cn(
+            headerRow,
+            'relative flex-nowrap transition-colors duration-(--dur-1) hover:bg-band-soft',
+          )}
         >
           <SectionHeader
             title={title}
@@ -123,15 +127,10 @@ export function FrameSection({
             level={level}
             action={action}
             trail={
-              <CollapsibleTrigger className="group/fold flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none after:absolute after:inset-0 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-                <ChevronDownIcon
-                  className="size-4 transition-transform group-aria-expanded/fold:rotate-180"
-                  aria-hidden
-                />
-                <span className="sr-only">
-                  Show or hide {typeof title === 'string' ? title : 'this section'}
-                </span>
-              </CollapsibleTrigger>
+              <FoldTrigger
+                variant="header"
+                label={`Show or hide ${typeof title === 'string' ? title : 'this section'}`}
+              />
             }
           />
         </div>
