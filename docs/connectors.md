@@ -655,14 +655,14 @@ Where the build differs from the decided text above:
   for the server's own model folder (`CUBE_MODEL_DIR`), which its runtime reads as `ctx.folder`;
   the core applies the server's domain names (`HEED_DOMAIN_OVERRIDES`) and renames
   (`CUBE_RENAMES_FILE`) to that folder's reads (`server-source.ts`), and `npm run
-connectors:sync` reads each of the server's own sources.
+connectors:sync` reads each of the server's own sources. Its settings, its refs and the sources
+  administrators added on interface 2 are as they were. Its warnings are the core's codes it
+  always had (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
 - **A folder on the server**, for any other definitions connector that declares
   `capabilities.serverFolder` (CON-119): `HEED_SERVER_FOLDERS` maps connector ids to folders, each
   read as `ctx.folder` by a source of the server's own, with the server's domain names. The core
   hands no folder to a connector that does not declare it, and a name it cannot honour stops the
-  server. With a folder named and no `CUBE_MODEL_DIR`, the demo is not read. Its settings, its refs and the sources administrators added on
-  interface 2 are as they were. Its warnings are the core's codes it always had
-  (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
+  server. With a folder named and no `CUBE_MODEL_DIR`, the demo is not read.
 - **What is stored**: a source's `connectors.type` is its connector's id and `interface_version`
   is the interface the connector was written to (3, or 2 for the demo; migration 0020 moved the
   Cube sources added on interface 2 to 3). The history log's `source.added`

@@ -261,6 +261,20 @@ describe('a semantic manifest in Git', () => {
     expect(await activeFlags()).toEqual([])
   }, 180_000)
 
+  it('keeps the id of a connector the server can read a folder for', async () => {
+    const added = await ok<SourceSettings>(
+      call('POST', '/sources', 'admin', {
+        type: 'dbt-metricflow',
+        name: 'dbt MetricFlow',
+        config: config(),
+        secrets: { token: TOKEN },
+        reason: 'Read the shop metrics from Git',
+      }),
+      201,
+    )
+    expect(added.id).not.toBe('dbt-metricflow')
+  })
+
   it('flags nothing when the project moves to dbt’s latest YAML spec', async () => {
     const before = await stored(sourceId)
     await commitFile(latestManifest)

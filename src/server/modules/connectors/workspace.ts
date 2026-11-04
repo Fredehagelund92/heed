@@ -10,6 +10,7 @@ import type {
   TestSourceInput,
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
+import { builtInManifests } from '../../../connectors/manifests.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
 import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
 import { durationText } from '../../../domain/source-schedule.ts'
@@ -406,6 +407,9 @@ export function createWorkspaceSources({
         input.name.trim(),
         new Set([
           ...reservedSourceIds,
+          ...builtInManifests
+            .filter((manifest) => manifest.capabilities.serverFolder)
+            .map((manifest) => manifest.id),
           ...registry.list().map((source) => source.id),
           ...existing.map((row) => row.id),
         ]),

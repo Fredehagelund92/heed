@@ -111,8 +111,12 @@ on, or none. A missing domain is never guessed: an administrator maps it.
 built from, the type, the label and the description. A metric's mark moves when anything it is
 built on is worked out differently, and never for an input's label. It never sees the domain, the
 other names, or the database and schema the project was built for. The same meaning gives the same
-mark under both YAML specs, so running `dbt-autofix` flags nothing. `modelFile` is null: the file
-does not say where a definition was written.
+mark under both YAML specs. The two fixture projects were written by hand: `dbt-autofix` itself has
+not been run on them. `modelFile` is null: the file does not say where a definition was written.
+
+**Moving from a folder to Git.** Moving a project from a server folder to a Git source of the same
+refs is not supported yet: a server source that is taken out of the configuration keeps its refs,
+so a Git source added later cannot take them.
 
 **Warnings.**
 

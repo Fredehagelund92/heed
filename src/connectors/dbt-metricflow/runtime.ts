@@ -33,12 +33,14 @@ async function semanticManifest(
   tree: FolderTree,
   path: string,
 ): Promise<{ file: SemanticManifest; text: string }> {
-  const listed = await tree.files()
-  if (!listed.some((file) => file.path === path))
-    throw new SourceError({ code: 'not_found', target: path, class: 'config' })
   const text = await tree.text(path)
-  if (text === null)
+  if (text === null) {
+    // The listing stops at 10,000 entries, so it only tells which failure this is.
+    const listed = await tree.files()
+    if (!listed.some((file) => file.path === path))
+      throw new SourceError({ code: 'not_found', target: path, class: 'config' })
     throw new SourceError({ code: 'unreadable_file', target: path, class: 'source' })
+  }
   const file = parseSemanticManifest(text)
   if (file === null)
     throw new SourceError({

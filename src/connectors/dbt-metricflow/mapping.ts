@@ -73,7 +73,7 @@ const semanticModelSchema = z.object({
   dimensions: z.optional(z.nullable(z.array(dimensionSchema))),
   measures: z.optional(z.nullable(z.array(measureSchema))),
 })
-const typeParamsSchema = z.object({
+const typeParamsSchema = z.looseObject({
   measure: z.optional(z.nullable(inputSchema)),
   numerator: z.optional(z.nullable(inputSchema)),
   denominator: z.optional(z.nullable(inputSchema)),
@@ -189,7 +189,7 @@ const titleOf = (entry: { name: string; label?: string | null | undefined }) => 
 function simpleCalculation(
   model: SemanticModel,
   source: Omit<Measure, 'name'> & { name: string },
-): unknown {
+): { type: 'simple'; calculation: unknown } {
   return {
     type: 'simple',
     calculation: {
@@ -254,8 +254,6 @@ async function resolveMetrics(
   measures: ReadonlyMap<string, { model: SemanticModel; measure: Measure }>,
 ): Promise<Map<string, Resolved>> {
   const resolved = new Map<string, Resolved>()
-  const byName = new Map<string, Metric>()
-  for (const metric of metrics) if (!byName.has(metric.name)) byName.set(metric.name, metric)
 
   const measureDigests = new Map<string, Promise<string>>()
   const measureDigest = (name: string) => {
@@ -275,8 +273,17 @@ async function resolveMetrics(
         for (const model of known.models) owners.add(model)
         return inputMeaning(input, known.calculation)
       }
-      owners.add(measures.get(input.name)!.model)
-      return inputMeaning(input, await measureDigest(input.name))
+      const owned = measures.get(input.name)!
+      owners.add(owned.model)
+      const carried = {
+        joinToTimespine: input.join_to_timespine || undefined,
+        fillNullsWith: input.fill_nulls_with ?? undefined,
+      }
+      const digest =
+        carried.joinToTimespine || carried.fillNullsWith !== undefined
+          ? await meaningMark({ ...simpleCalculation(owned.model, owned.measure), ...carried })
+          : await measureDigest(input.name)
+      return inputMeaning(withoutCarried(input), digest)
     }
     const measureInputsKnown = measureInputs(metric).every((input) => measures.has(input.name))
     if (!measureInputsKnown) return null
@@ -312,7 +319,7 @@ async function resolveMetrics(
       const source = aggregated
         ? { ...aggregated, name: metric.name, expr: params.expr }
         : legacy!.measure
-      const simple = simpleCalculation(model, source) as { calculation: unknown }
+      const simple = simpleCalculation(model, source)
       meaning = {
         ...shared,
         filter: [...shared.filter, ...filtersOf(named?.filter)].sort(),
@@ -365,8 +372,10 @@ async function resolveMetrics(
       }
     } else {
       // A type a newer dbt added: it exists, so it is kept, hashed as dbt writes it.
-      for (const input of metricInputs(metric)) await refer(input, true)
-      for (const input of measureInputs(metric)) await refer(input, false)
+      const inputs = [
+        ...(await Promise.all(metricInputs(metric).map((input) => refer(input, true)))),
+        ...(await Promise.all(measureInputs(metric).map((input) => refer(input, false)))),
+      ]
       const own = params.metric_aggregation_params?.semantic_model
       if (own !== undefined) {
         const model = models.get(own)
@@ -374,7 +383,7 @@ async function resolveMetrics(
         owners.add(model)
       }
       if (!owners.size) return null
-      meaning = { ...shared, params }
+      meaning = { ...shared, params, inputs }
       known = false
     }
     if (metricTypes.has(metric.type)) valueType = metric.type
@@ -385,7 +394,7 @@ async function resolveMetrics(
   const waiting = new Map<Metric, Set<string>>()
   const dependents = new Map<string, Metric[]>()
   const ready: Metric[] = []
-  for (const metric of byName.values()) {
+  for (const metric of metrics) {
     const needs = new Set(metricInputs(metric).map((input) => input.name))
     if (!needs.size) ready.push(metric)
     waiting.set(metric, needs)
@@ -470,14 +479,19 @@ export async function mapDefinitions(
     })
   }
 
-  const resolved = await resolveMetrics(file.metrics, models, measures)
-  for (const metric of file.metrics) {
+  // A name is read once: the first entry holds it, as it does for the metrics built on it.
+  const seen = new Set<string>()
+  const metrics = file.metrics.filter((metric) => !seen.has(metric.name) && seen.add(metric.name))
+  const resolved = await resolveMetrics(metrics, models, measures)
+  const unresolved = new Set<string>()
+  for (const metric of metrics) {
     const known = resolved.get(metric.name)
     const hidden = metric.type_params.is_private === true
     if (!known) {
       // Its group cannot be told, so it is named alone. A hidden one was never a definition.
       if (!hidden) {
         warn(`${manifest.id}.unresolved_metric`, metric.name)
+        unresolved.add(metric.name)
         complete = false
       }
       continue
@@ -504,6 +518,7 @@ export async function mapDefinitions(
     const modelDomain = domains.get(model.name)!
     for (const dimension of model.dimensions ?? []) {
       const name = `${model.name}.${dimension.name}`
+      if (unresolved.has(dimension.name)) continue
       if (definitions.has(`${manifest.refPrefix}:${name}`)) {
         warn(`${manifest.id}.same_name`, name)
         continue

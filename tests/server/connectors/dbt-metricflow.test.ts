@@ -244,6 +244,55 @@ describe.each([
     })
   })
 
+  it('leaves out a dimension that a metric not resolved has the name of', async () => {
+    const clash = withMissingInput(file)
+    clash.semantic_models[0]!.dimensions.push({ name: 'average_order_value', type: 'categorical' })
+    const read = await mapped(clash)
+    expect(read.complete).toBe(false)
+    expect(read.definitions.map((d) => d.ref)).not.toContain('dbt:orders.average_order_value')
+
+    const hidden = withMetric(clash, 'average_order_value', (metric) => {
+      ;(metric.type_params as { is_private?: boolean }).is_private = true
+    })
+    const kept = await mapped(hidden)
+    expect(kept.definitions.find((d) => d.ref === 'dbt:orders.average_order_value')?.kind).toBe(
+      'dimension',
+    )
+  })
+
+  it('reads a name once, from its first entry', async () => {
+    const twice = structuredClone(file)
+    const first = metricOf(twice, 'revenue')
+    twice.metrics.push({
+      ...structuredClone(first),
+      label: 'Another revenue',
+      description: 'Another way.',
+      type_params: { ...structuredClone(first.type_params), expr: 'amount * 2' },
+    })
+    expect(await marks(twice)).toEqual(await marks(file))
+    expect(
+      (await mapped(twice)).definitions.find((d) => d.ref === 'dbt:orders.revenue'),
+    ).toMatchObject({ title: 'Revenue' })
+  })
+
+  it('moves a metric of a type it does not know with what it is built on and its own params', async () => {
+    const future = withMetric(file, 'average_order_value', (metric) => {
+      metric.type = 'forecast'
+    })
+    expect(await moved(future, withChangedRevenue(future))).toContain(
+      'dbt:orders.average_order_value',
+    )
+    const other = withMetric(future, 'average_order_value', (metric) => {
+      ;(metric.type_params as Record<string, unknown>).horizon = 7
+    })
+    expect(await moved(future, other)).toEqual(['dbt:orders.average_order_value'])
+
+    const known = withMetric(file, 'revenue', (metric) => {
+      ;(metric.type_params as Record<string, unknown>).horizon = 7
+    })
+    expect(await moved(file, known)).toEqual([])
+  })
+
   it('gives a shared metric the one domain its semantic models agree on', async () => {
     const agreed = structuredClone(file)
     agreed.semantic_models[1]!.config.meta = { domain: 'sales' }
@@ -289,6 +338,34 @@ describe('the two specs', () => {
     metricOf(measure, 'revenue').type_params.measure!.name = 'amount'
     metricOf(measure, 'revenue_to_date').type_params.measure!.name = 'amount'
     expect(await moved(legacyManifest, measure)).toEqual([])
+  })
+})
+
+describe('a conversion on the legacy spec', () => {
+  const carried = (join: boolean) => {
+    const legacy = withMetric(legacyManifest, 'ordering_rate', (metric) => {
+      const conversion = (
+        metric.type_params as unknown as {
+          conversion_type_params: { base_measure: Record<string, unknown> }
+        }
+      ).conversion_type_params
+      conversion.base_measure.join_to_timespine = join
+    })
+    const latest = withMetric(latestManifest, 'customers', (metric) => {
+      ;(metric.type_params as Record<string, unknown>).join_to_timespine = join
+    })
+    return { legacy, latest }
+  }
+
+  it('moves with the timespine join of its measure, as the latest spec’s metric does', async () => {
+    const { legacy, latest } = carried(true)
+    const [before, after, migrated] = [
+      await marks(legacyManifest),
+      await marks(legacy),
+      await marks(latest),
+    ]
+    expect(after['dbt:_shared.ordering_rate']).not.toBe(before['dbt:_shared.ordering_rate'])
+    expect(after['dbt:_shared.ordering_rate']).toBe(migrated['dbt:_shared.ordering_rate'])
   })
 })
 
@@ -374,6 +451,14 @@ describe('the runtime on the server’s folder', () => {
       code: 'unreadable_file',
       errorClass: 'source',
     })
+  })
+
+  it('reads a file the listing, cut short on a large tree, does not hold', async () => {
+    const cut: FolderTree = {
+      ...tree({ 'semantic_manifest.json': JSON.stringify(legacyManifest) }),
+      files: () => Promise.resolve([{ path: 'compiled/a.sql', size: 1 }]),
+    }
+    expect((await read(cut)).at(-1)).toMatchObject({ type: 'end', complete: true })
   })
 })
 

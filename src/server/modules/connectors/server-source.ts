@@ -89,7 +89,10 @@ export function withOverrides(
       ...new Map(
         [
           ...snapshot.warnings.filter(
-            (warning) => warning.code !== 'missing_domain' || mapped(warning.target) === null,
+            (warning) =>
+              warning.code !== 'missing_domain' ||
+              mapped(warning.target.includes('.') ? viewOf(warning.target) : warning.target) ===
+                null,
           ),
           ...warnings,
         ].map((warning) => [`${warning.code}:${warning.target}`, warning]),
