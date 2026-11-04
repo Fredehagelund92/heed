@@ -260,6 +260,16 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   }
   if ('cannot' in raw) {
     const { metrics, filters } = scopeParts(ctx, raw.metrics ?? [], raw.values ?? [])
+    // A question about a figure that names what it is about has something written: read it.
+    const named = metrics.length > 0 || Object.keys(filters).length > 0
+    if (raw.cannot === 'numbers' && named)
+      return planOf(
+        {
+          reads: [{ kind: 'explore', metrics: raw.metrics ?? [], values: raw.values ?? [] }],
+          limit: 'numbers',
+        },
+        ctx,
+      )
     return { kind: 'cannot', reason: raw.cannot, metrics, filters }
   }
   const standalone = checkedStandalone(raw.standalone, ctx)
@@ -283,7 +293,15 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     if (!fits(ask, ctx.question)) throw new Miss('does not fit')
     return { kind: 'records', ask, carried, ...restated }
   }
-  const reads = raw.reads.map((read) => carryIntoRead(readOf(read, ctx), open))
+  // Under a limit, a market alone is a search of what is written about it: a look-up of a value
+  // with no metric finds nothing on its own.
+  const reads = raw.reads
+    .map((read) =>
+      raw.limit && read.kind === 'lookup' && !read.metrics?.length
+        ? { kind: 'explore' as const, values: read.values, dates: read.dates }
+        : read,
+    )
+    .map((read) => carryIntoRead(readOf(read, ctx), open))
   const left = checkedStandalone(raw.left, ctx)
   return {
     kind: 'reads',
@@ -403,9 +421,14 @@ function windowOf(
     const carried = datedWindow(ctx)
     return carried ? { window: carried, period: 'carried' } : undated
   }
-  const read = readDates(normalizeName(words), ctx.today)
+  // "Before 19 January 2026" is every date up to that day.
+  const before = /^(?:before|until|up to|prior to) (.+)$/i.exec(words)
+  const read = readDates(normalizeName(before?.[1] ?? words), ctx.today)
   if (read.status !== 'read') throw new Miss('dates not read')
-  return { window: read.window, period: 'asked' }
+  return {
+    window: before ? { start: anyDate.start, end: read.window.start } : read.window,
+    period: 'asked',
+  }
 }
 
 /** The questions of a chat, oldest first, with the one asked now. */
@@ -465,6 +488,15 @@ function readOf(read: RawRead, ctx: PlanContext): PlannedRead {
     }
     case 'about_previous': {
       const sources = chatSources([...(ctx.earlier ?? []), ...(ctx.previous ? [ctx.previous] : [])])
+      // An analysis lists terms, not sources: "the first one" is the first of its rows.
+      const rows = ctx.previous?.rows ?? []
+      if (ctx.previous?.audit && rows.length) {
+        const metrics = read.sources.flatMap((n) => rows[n - 1] ?? [])
+        const known = metrics.filter((key) =>
+          ctx.terms.some((t) => t.key === key && t.kind === 'metric'),
+        )
+        if (known.length) return { kind: 'definition', metrics: [...new Set(known)] }
+      }
       if (!sources.length || !read.sources.length) throw new Miss('no last answer')
       const ids = read.sources.map((n) => {
         const id = Number.isInteger(n) ? sources[n - 1] : undefined
@@ -544,6 +576,12 @@ function carryIntoRead(read: PlannedRead, open: LeftOpen | null): PlannedRead {
   const metrics = read.scope.metrics.length ? read.scope.metrics : open.metrics
   const filters = { ...open.filters, ...read.scope.filters }
   const keepsDays = read.period === 'asked' || read.period === 'carried' || !open.window
+  // The same days the last question named, written out again, are still carried.
+  const sameDays =
+    read.period === 'asked' &&
+    !!open.window &&
+    read.scope.window.start === open.window.start &&
+    read.scope.window.end === open.window.end
   return {
     ...read,
     scope: {
@@ -552,7 +590,7 @@ function carryIntoRead(read: PlannedRead, open: LeftOpen | null): PlannedRead {
       filters: Object.fromEntries(Object.entries(filters).sort(([a], [b]) => (a < b ? -1 : 1))),
       window: keepsDays ? read.scope.window : open.window!,
     },
-    period: keepsDays ? read.period : 'carried',
+    period: keepsDays && !sameDays ? read.period : 'carried',
   }
 }
 
@@ -758,16 +796,16 @@ export const plannerSystem = [
   'Those four are the only kinds inside reads.',
   '',
   'The other shapes:',
-  '- records: one plain question about the written context itself: what was created or changed in it, what is due for a check, archived, who owns something, how many items there are, what agents asked that found nothing, which items conflict, which metrics, dimensions or values exist.',
-  '- audit: an analysis of the records, when the answer must join, compare or rank them: what is missing, covered, complete, weakest, first or next. Ask computes it from facets: no_context (nothing written), no_words (the source gives no words), no_domain (no domain, so no owner), unlinked (in the source, not in Definitions), source_changed, asked_nothing (agents found nothing), asked_most, due (oldest first), conflicts, duplicates (written twice), overlaps, review (all of these for a domain, or a line a domain). Also: domain; kind (metric, dimension, or definition to compare definitions); of (event, warning, rule or guide, for what has none of that kind); value (a dimension value key, for what agents asked about it).',
-  '- queue: what waits for the person asking, in their own Inbox: what is waiting on them, what they should work on. Add audit for what else they should see.',
+  '- records: one plain question about the written context itself: what was created or changed in it, what is due for a check, archived, who owns something or who to talk to about it, how many items there are, what agents asked that found nothing, which items conflict, which metrics, dimensions or values exist.',
+  '- audit: an analysis of the records, when the answer must join, compare or rank them: what is missing, covered, complete, weakest, first or next. Ask computes it from facets: no_context (nothing written), no_words (the source gives no words), no_domain (no domain, so no owner), unlinked (in the source, not in Definitions), source_changed, asked_nothing (what found nothing, what has no answer, Not found cards), asked_most (what agents asked, also about one value), due (oldest first), conflicts, duplicates (written twice), overlaps, review (all of these for a domain, or a line a domain). Also: domain; kind (metric, dimension, or definition to compare definitions); of (event, warning, rule or guide, for what has none of that kind); value (a dimension value key, for what agents asked about it).',
+  '- queue: what waits for the person asking, in their own Inbox: what is waiting on them, what they should work on. Add audit for what else they should see. What is due for a check is records due, also as "what do I need to go through".',
   '- clarify: one short question back, with no colon, only when the question could mean two different things and the last question does not settle it.',
   '- off_topic: the question is not about the business, its numbers or what is written about them.',
   '- nothing_asked: the message has no subject of its own and nothing in the chat fits it, such as a word of thanks or "do the thing". Never search for it and never ask back. A request for something else, such as a poem, is off_topic.',
   '',
   'When the question reaches beyond what is written, which needs a judgement, a figure or outside knowledge:',
   '- If it names something the context can be about, read what is written and add limit to reads or audit: advice (what to do, should we, which is biggest), forecast (what happens next), outside (what others do, the industry), numbers (an amount or a comparison of figures). A limit needs a read: choose lookup, explore or definition from the names in the question.',
-  "- If it names nothing to read, or asks Ask to act, write cannot: numbers (needs figures), source (change or write a definition; give its metrics), write (write or draft context; give its metrics and values), person (blame or one person's work), not_yet (words used but not defined, or an analysis no facet gives).",
+  "- If it names nothing to read, or asks Ask to act, write cannot: numbers (needs figures), source (change or write a definition; give its metrics), write (write or draft context; give its metrics and values), person (blame or one person's work), not_yet (only for words used in the context but not defined).",
   '- limit is one of those four words, cannot one of those five. Never clarify instead.',
   '',
   'Rules:',
@@ -812,10 +850,12 @@ export const plannerSystem = [
   'how does Gross margin compare with rivals? {"reads":[{"kind":"lookup","metrics":["metric:gross_margin"]}],"limit":"outside"}',
   'how much did the France outage cost? {"reads":[{"kind":"lookup","values":["val:market/france"]}],"limit":"numbers"}',
   'which channel grew most? {"cannot":"numbers"}',
+  'are we ahead of budget? {"cannot":"numbers"}',
   'rewrite the definition of Returns {"cannot":"source","metrics":["metric:returns"]}',
   'write up context for Returns in France {"cannot":"write","metrics":["metric:returns"],"values":["val:market/france"]}',
   'whose fault was the outage? {"cannot":"person"}',
-  'which words have no meaning written down? {"cannot":"not_yet"}',
+  'which terms have no meaning written down? {"cannot":"not_yet"}',
+  'what did agents ask about France? {"audit":{"facets":["asked_most"],"value":"val:market/france"}}',
 ].join('\n')
 
 /** The most values of one dimension the planner is shown; a larger one is named by its size. */

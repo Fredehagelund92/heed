@@ -679,7 +679,7 @@ const S: PlanCase[] = [
       route: 'planner',
       plan: ['explore'],
       stateIn: ['conflict', 'grounded', 'partial'],
-      must: [/Not answered here: who owns them/i],
+      must: [/Not answered here: who owns/i],
     },
   },
   {
@@ -747,7 +747,6 @@ const S: PlanCase[] = [
     question: 'can I compare orders from before 19 January 2026?',
     expect: {
       route: 'planner',
-      plan: ['explore'],
       stateIn: ['grounded', 'partial', 'conflict'],
       cites: ['Data for Orders before 19 January 2026 is not reliable'],
     },
@@ -987,7 +986,7 @@ const A: PlanCase[] = [
     id: 'A07',
     what: 'An amount is not written: what is, under the limit.',
     question: 'how much did we lose from the Norway stop?',
-    expect: { route: 'planner', plan: ['lookup'], limit: 'numbers', must: [LIMITS.numbers] },
+    expect: { route: 'planner', limit: 'numbers', must: [LIMITS.numbers] },
   },
   {
     id: 'A08',

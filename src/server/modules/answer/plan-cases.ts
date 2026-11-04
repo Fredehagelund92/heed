@@ -1003,7 +1003,8 @@ export function planProblems(c: PlanCase, got: PlanOutcome): string[] {
     // One facet is the same read as the records question of that name (FR-720, section 7.2).
     const same = records && e.audit.length === 1 && records.intent === e.audit[0]
     const facets = records?.audit?.facets ?? []
-    if (!same && [...facets].sort().join(',') !== [...e.audit].sort().join(','))
+    // More facets are more sections, not another question: all the asked ones must be read.
+    if (!same && !e.audit.every((facet) => facets.includes(facet)))
       problems.push(`read facets ${facets.join(',') || 'none'}, not ${e.audit.join(',')}`)
   }
   if (e.limit) {
