@@ -107,7 +107,8 @@ allows:
   is, so a plain http address is refused with the settings rather than at the first read.
 
 There is no rate limit of the core's yet: `limits` in a manifest has none. A connector passes on
-what a host says in `Retry-After` through `SourceError.retryAfter`.
+what a host says in `Retry-After` through `SourceError.retryAfter`; the schedule ignores a wait over
+999999 seconds. An answer with a status outside 200 to 599 is treated as a 502, not a crash.
 
 A connector never calls the platform's `fetch`, opens a socket or starts a program itself.
 
