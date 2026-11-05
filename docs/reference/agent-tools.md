@@ -10,14 +10,14 @@ What each tool takes and gives back, for anyone building on them. For a shorter 
 
 ## The six tools
 
-| Tool              | What it does                                 | Takes                                                                       | Gives back                                              |
-| ----------------- | -------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Tool              | What it does                                 | Takes                                                                        | Gives back                                              |
+| ----------------- | -------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
 | `get_context`     | Finds the context that applies to a question | `question`, and `metrics`, `dimension_filters` and `window` if you have them | `status`, `say`, `context` and `reply_id`               |
-| `find_context`    | Searches names, titles, summaries and text   | `query`, and `domain`, `kind`, `window` and `limit` if you want them        | Titles and summaries under `context`, and definitions   |
-| `read_context`    | Reads one context item in full               | `id`, the item's id                                                         | Its text, every source, who checked it and its links    |
-| `report`          | Tells the owner something is off             | `kind`, the `reply_id`, a `context_id` for one item, and a short note       | That it was sent, and who sees it (`to`)                |
-| `suggest_context` | Sends a suggestion to the owner              | `text`, at most 2,000 characters, and hints such as `title`, `kind`, `area` | One of the statuses below, with a link                  |
-| `get_related`     | Follows links, one step at a time            | `id`: an item id, `metric:orders`, `term:<id>` or `area:finance`            | Neighbours with titles and summaries, and `next_cursor` |
+| `find_context`    | Searches names, titles, summaries and text   | `query`, and `domain`, `kind`, `window` and `limit` if you want them         | Titles and summaries under `context`, and definitions   |
+| `read_context`    | Reads one context item in full               | `id`, the item's id                                                          | Its text, every source, who checked it and its links    |
+| `report`          | Tells the owner something is off             | `kind`, the `reply_id`, a `context_id` for one item, and a short note        | That it was sent, and who sees it (`to`)                |
+| `suggest_context` | Sends a suggestion to the owner              | `text`, at most 2,000 characters, and hints such as `title`, `kind`, `area`  | One of the statuses below, with a link                  |
+| `get_related`     | Follows links, one step at a time            | `id`: an item id, `metric:orders`, `term:<id>` or `area:finance`             | Neighbours with titles and summaries, and `next_cursor` |
 
 `report` and `suggest_context` run only after the person says yes. An admin can [switch any tool off](../help/tools.md).
 

@@ -25,7 +25,7 @@ The service reads its settings from the environment, once, when it starts. If on
 | ------------------------ | ------------------------------------------------------------------------------------------ |
 | `DATABASE_URL`           | The service's own role. Required                                                           |
 | `DATABASE_URL_SERVE`     | The restricted role that serves agents. Unset, it is `DATABASE_URL` with the user changed  |
-| `DATABASE_URL_MIGRATE`   | The owner, for migrations and backups. The service image needs it                                                    |
+| `DATABASE_URL_MIGRATE`   | The owner, for migrations and backups. The service image needs it                          |
 | `DATABASE_URL_BOOTSTRAP` | A superuser, to create the roles and the database when they are missing, and load the demo |
 | `SEED_DEMO`              | `on` loads the demo into an empty database. Refused in production                          |
 

@@ -28,11 +28,11 @@ On a computer running the demo, sign-in means choosing a person from the demo's 
 
 ## What a sign-in lasts
 
-| What              | Lasts                                     | Setting                         |
-| ----------------- | ----------------------------------------- | ------------------------------- |
-| An access token   | 10 minutes, renewed by the agent          | None                            |
-| A refresh token   | Until 7 days unused. Each use replaces it | `HEED_OAUTH_REFRESH_IDLE_HOURS` |
-| A connection      | 30 days after sign-in                     | `HEED_OAUTH_CONNECTION_DAYS`    |
+| What              | Lasts                                     | Setting                                               |
+| ----------------- | ----------------------------------------- | ----------------------------------------------------- |
+| An access token   | 10 minutes, renewed by the agent          | None                                                  |
+| A refresh token   | Until 7 days unused. Each use replaces it | `HEED_OAUTH_REFRESH_IDLE_HOURS`                       |
+| A connection      | 30 days after sign-in                     | `HEED_OAUTH_CONNECTION_DAYS`                          |
 | A browser session | 12 hours unused, or 7 days after sign-in  | `HEED_SESSION_IDLE_HOURS` and `HEED_SESSION_MAX_DAYS` |
 
 When a connection ends, the agent asks you to sign in again.
@@ -63,19 +63,19 @@ An agent always reads what is published now, never drafts or comments. It publis
 
 The service runs its own login server for agents. These are the settings, for whoever runs the service:
 
-| Setting                           | Default                                      | What it does                                                                                     |
-| --------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `HEED_LOGIN_SERVER`               | `builtin`                                    | `builtin` runs it here, `external` trusts another login server, and `off` leaves only dev tokens |
-| `HEED_OAUTH_ISSUER`               | The origin of `MCP_RESOURCE_URL`             | The issuer of its tokens. It must be that origin                                                 |
+| Setting                           | Default                                                         | What it does                                                                                     |
+| --------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `HEED_LOGIN_SERVER`               | `builtin`                                                       | `builtin` runs it here, `external` trusts another login server, and `off` leaves only dev tokens |
+| `HEED_OAUTH_ISSUER`               | The origin of `MCP_RESOURCE_URL`                                | The issuer of its tokens. It must be that origin                                                 |
 | `HEED_OAUTH_CONSENT_URL`          | `/connect/approve` on the first web origin on the issuer's host | The consent page. It must be on an allowed web origin, on the issuer's host                      |
-| `HEED_OAUTH_SIGNING_KEY_FILE`     | `.heed-oauth-key.pem`                        | The key that signs tokens. Made for you outside production, and required in production           |
-| `HEED_OAUTH_PREVIOUS_KEY_FILES`   | None                                         | Earlier keys, comma-separated, that still verify after a rotation                                |
-| `HEED_OAUTH_DYNAMIC_REGISTRATION` | `on` outside production, `off` in production | Allows dynamic client registration, which Claude Code uses                                       |
-| `HEED_OAUTH_REFRESH_IDLE_HOURS`   | `168`                                        | A refresh token unused this long expires                                                         |
-| `HEED_OAUTH_CONNECTION_DAYS`      | `30`                                         | A connection ends this many days after sign-in                                                   |
-| `MCP_AUTH_ISSUER`                 | None                                         | With `external`: whose tokens the MCP server accepts                                             |
-| `MCP_AUTH_JWKS_URL`               | None                                         | With `external`: where their keys are                                                            |
-| `HEED_MCP_STATE_KEY_FILE`         | `.heed-mcp-state.key`                        | The key that seals the questions `suggest_context` asks in the agent                             |
+| `HEED_OAUTH_SIGNING_KEY_FILE`     | `.heed-oauth-key.pem`                                           | The key that signs tokens. Made for you outside production, and required in production           |
+| `HEED_OAUTH_PREVIOUS_KEY_FILES`   | None                                                            | Earlier keys, comma-separated, that still verify after a rotation                                |
+| `HEED_OAUTH_DYNAMIC_REGISTRATION` | `on` outside production, `off` in production                    | Allows dynamic client registration, which Claude Code uses                                       |
+| `HEED_OAUTH_REFRESH_IDLE_HOURS`   | `168`                                                           | A refresh token unused this long expires                                                         |
+| `HEED_OAUTH_CONNECTION_DAYS`      | `30`                                                            | A connection ends this many days after sign-in                                                   |
+| `MCP_AUTH_ISSUER`                 | None                                                            | With `external`: whose tokens the MCP server accepts                                             |
+| `MCP_AUTH_JWKS_URL`               | None                                                            | With `external`: where their keys are                                                            |
+| `HEED_MCP_STATE_KEY_FILE`         | `.heed-mcp-state.key`                                           | The key that seals the questions `suggest_context` asks in the agent                             |
 
 Addresses must be https, or http on the same computer only.
 
