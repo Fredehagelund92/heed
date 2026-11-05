@@ -457,3 +457,32 @@ describe('replies the fixed rules read, and replies they leave alone', () => {
     })
   })
 })
+
+describe('a follow-up of an analysis that names a domain', () => {
+  const analysis: ChatTurn = {
+    question: 'which metrics have no context written?',
+    scope: null,
+    sources: [],
+    audit: { facets: ['no_context'], of: 'metric', kind: null, value: null },
+  }
+  const planner: Planner = (_input, check) => {
+    const checked = check({ audit: { facets: ['no_context'], domain: 'area_sales' } })
+    return Promise.resolve(checked.ok ? checked.plan : 'missed')
+  }
+
+  // The Sales domain is an exact name, as a records question that names it reads it (FR-720).
+  it('reads the domain, and never asks which meaning of the word', async () => {
+    const routed = await route('and in Sales?', [analysis], planner)
+    expect(routed).toMatchObject({
+      kind: 'records',
+      found: { ask: { intent: 'audit', domain: 'area_sales' } },
+    })
+  })
+
+  it('still asks when the follow-up names no domain', async () => {
+    const routed = await route('and sales last month?', [
+      { question: 'what is orders?', scope: null, sources: [] },
+    ])
+    expect(routed).toMatchObject({ kind: 'reply', reply: { kind: 'clarify' } })
+  })
+})

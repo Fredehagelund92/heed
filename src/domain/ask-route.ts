@@ -306,7 +306,13 @@ export function routeHeld(
       asked: false,
     }
   }
-  const firm = c.records && (c.records.type === 'refused' || !c.records.loose)
+  // After an analysis, a domain's name is that domain, as in a records question that names it.
+  const wordsOf = (text: string) => ` ${normalizeName(text).replace(/[^\p{L}\p{N}]+/gu, ' ')} `
+  const domainAfterAnalysis =
+    !!previous?.audit &&
+    bundle.areas.some((area) => wordsOf(ask.question).includes(wordsOf(area.name)))
+  const firm =
+    domainAfterAnalysis || (c.records && (c.records.type === 'refused' || !c.records.loose))
   const held = firm ? null : heldOf(readAsk(ask, bundle.terms, today))
   if (!held) return null
   const context = planContextOf(bundle, ask.question, turns, { today, now: c.now })
