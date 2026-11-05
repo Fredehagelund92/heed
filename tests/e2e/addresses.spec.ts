@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { go } from './go.ts'
 
-// The app's addresses are paths (/inbox), one to one with the mockup's #/ addresses, each with its
-// search params checked. An old #/ link and the mockup's renamed places still land where they live
+// The app's addresses are paths (/inbox), one to one with the old #/ addresses, each with its
+// search params checked. An old #/ link and a renamed place still land where they live
 // now, and a link inside the app moves without loading the page again.
 
 test('an old #/ link lands on its path, with its query', async ({ page }) => {

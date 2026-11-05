@@ -42,8 +42,8 @@ import { useShowMore } from '@/hooks/use-show-more'
 import { ShowMoreButton } from '@/components/heed/show-more'
 
 // The marks of a definition, as the Heed app draws a catalogue term's type: a lucide glyph in a
-// neutral tile (sigma for a metric, split for a dimension). The Heed app has no terms; the mockup
-// adds whole-word for a term with its own meaning and equals for a synonym, from the same set.
+// neutral tile (sigma for a metric, split for a dimension). A term with its own meaning takes whole-word and
+// a synonym takes equals, from the same set.
 
 const glyphs: Record<DefinitionType | 'synonym', LucideIcon> = {
   metric: SigmaIcon,

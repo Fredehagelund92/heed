@@ -37,7 +37,7 @@ import { takeDemoSnapshots } from './demo-snapshots.ts'
 import { seedSavedQuestions } from './demo-saved.ts'
 
 /*
-  The mockup's demo week on the real service, for the golden journeys in http mode: Larchwood
+  The demo week on the real service, for the golden journeys in http mode: Larchwood
   Outdoor's context items (src/web/api/mock/data/world.ts) as a library, and the suggestions that
   wait for Jon Abara, owner of Sales (data/review.ts), sent through the service's own API by the
   people who send them in the mock. The texts are the mock's, so the review shows the same change;
@@ -1044,7 +1044,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
     await dateComments(after, comments)
     await after.query('select cl_ensure_delivery_partitions(2), cl_ensure_request_partitions(2)')
     // Maria asked Ask about Orders in Germany, got "Orders lags by one day in the source tool",
-    // and reported it with her name, as the mockup's Observability lists it ("Maria Lindqvist,
+    // and reported it with her name, as Observability lists it ("Maria Lindqvist,
     // from Ask"). Sent after every seeded decision, so nothing an owner did answers it yet.
     const [report] = (
       await after.query<{ id: string }>(

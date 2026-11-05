@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     projects: [
       {
-        // The web app's own units (src/web), moved with its code from the mockup.
+        // The web app's own units (src/web).
         extends: true,
         test: {
           name: 'web',

@@ -2,8 +2,8 @@ import { stateLabel, type AnswerState } from '@/model/ask'
 import type { DomainId } from '@/model/items'
 
 // The mock binding's Observability engine: the demo world's fixtures (data/observability.ts) counted
-// for a view, every range, domain and kind of agent scaled from the one week the board draws, the
-// way the mockup counts them. It holds every count, small ones too; obs-page.ts runs what it counts
+// for a view, every range, domain and kind of agent scaled from the one week the board draws. It
+// holds every count, small ones too; obs-page.ts runs what it counts
 // through the same disclosure as the service before any page sees it.
 //
 // What Observability counts: what agents asked and how it was answered, as scopes and counts only.

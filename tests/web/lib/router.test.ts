@@ -12,7 +12,7 @@ describe('old addresses', () => {
     expect(redirectFrom(at('/context', '', '/help'))).toBe('/help')
   })
 
-  it("follow the mockup's own renames", () => {
+  it('follow the renamed places', () => {
     expect(redirectFrom(at('/library'))).toBe('/context')
     expect(redirectFrom(at('/library/fact/itm_1'))).toBe('/context/itm_1')
     expect(redirectFrom(at('/library/metrics'))).toBe('/definitions')

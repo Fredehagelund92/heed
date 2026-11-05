@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest'
 /**
  * The guard rails of the web app (src/web), run through the repository's own eslint.config.js
  * on sample components placed at src/web paths: the class rules, the Tailwind classes the new
- * tokens define, the motion rules, the import rules, the product name and the words. The mockup's
- * copy and motion checks become these lint rules (design contract v2, section 9).
+ * tokens define, the motion rules, the import rules, the product name and the words
+ * (design contract v2, section 9).
  */
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -61,7 +61,7 @@ describe('ESLint guard rails of the web app', () => {
     expect(messages.every((message) => message.severity === 2)).toBe(true)
   })
 
-  it('accepts a component built from the mockup scales and the new tokens', async () => {
+  it('accepts a component built from the allowed scales and the new tokens', async () => {
     const messages = await lintAs('src/web/pages/good.tsx', fixture('good-component.tsx'))
     expect(messages.map((message) => `${message.ruleId}: ${message.message}`)).toEqual([])
   })

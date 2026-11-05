@@ -36,7 +36,7 @@ export const errorMessageFiles = ['src/server/**/*.ts']
 export const webWordsFiles = ['src/web/**/*.{ts,tsx}']
 /**
  * Code in the app that is not its own copy: the shadcn and editor parts as they ship and the
- * generated route tree, which the mockup's copy check leaves out too.
+ * generated route tree.
  */
 export const webNotProductFiles = [
   'src/web/components/ui/**',
@@ -47,8 +47,8 @@ export const webNotProductFiles = [
 
 /**
  * The places of the app a word of glossary v2 is allowed on, or banned on only (`allowedOn`
- * and `onlyOn` in src/domain/words.ts), each with the files that make it. The paths are the
- * mockup's, under src/web; the pull request that brings a file in keeps its path here in step.
+ * and `onlyOn` in src/domain/words.ts), each with the files that make it. The paths are
+ * under src/web; the pull request that brings a file in keeps its path here in step.
  */
 export const webSurfaces = [
   {

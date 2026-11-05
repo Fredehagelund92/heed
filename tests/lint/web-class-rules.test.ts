@@ -4,7 +4,7 @@ import { webClassRules } from '../../eslint.class-rules.js'
 /**
  * The class rules of the web app (eslint.class-rules.js, `webClassRules`), against samples:
  * every class in the first list must be flagged by its rule, and no rule may flag a class in the
- * second. The second list is the mockup's scales, which design contract v2 allows: half steps,
+ * second. The second list is the scales design contract v2 allows: half steps,
  * margins, Tailwind's text sizes, weights 400 to 700, and the tokens by name.
  */
 

@@ -15,8 +15,8 @@ import {
 } from './src/domain/renamed-settings.ts'
 
 /*
-  The web app in src/web: the approved mockup (apps/mockup) on the repository's router, icon
-  module and class merge. `npm run dev` serves it and `npm run build` builds it to dist/web. Its
+  The web app in src/web, on the repository's router, icon module and class merge.
+  `npm run dev` serves it and `npm run build` builds it to dist/web. Its
   pages read their data through one typed API (src/web/api): the mock binding by default, the Heed
   service with VITE_API_MODE=http.
 */

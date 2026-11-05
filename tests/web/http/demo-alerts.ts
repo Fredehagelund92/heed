@@ -7,7 +7,7 @@ import { relayOutbox } from '../../../src/server/modules/notifications/index.ts'
 /*
   What the alert rules raise on the demo week (FR-621), raised by the alert job itself once the
   week is seeded, at 08:00 on its day, so a check that is due has sent its reminder, and delivered
-  to the Inbox by the outbox relay: the mockup's Raised lately, with the service's own words.
+  to the Inbox by the outbox relay: Raised lately, with the service's own words.
 */
 
 export async function raiseDemoAlerts(databaseUrl: string, today: string) {

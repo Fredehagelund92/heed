@@ -49,7 +49,7 @@ export type AnswerLine = {
   todo: string
 }
 
-/** The answer lines, in the order Help lists them (the mockup's ANSWER_LINES). */
+/** The answer lines, in the order Help lists them. */
 export const ANSWER_LINES: readonly AnswerLine[] = [
   {
     state: 'grounded',
@@ -135,7 +135,7 @@ export type StateInput = {
  * written for it (a market of two asked that no item applies to, or every item applies to only
  * part of the question, or the question gave no dates and was read at today) it is Partial; an item whose check date passed or whose source changed
  * makes it Outdated; otherwise it is Checked. An item that covers part of the question beside one
- * that covers all of it adds to a Checked answer. The order is the mockup's (data/ask.ts), so the
+ * that covers all of it adds to a Checked answer. The order is deliberate, so the
  * label names what an owner must do first.
  */
 export function replyStatus(input: StateInput): ReplyStatus {

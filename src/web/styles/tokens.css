@@ -1,6 +1,6 @@
 /*
   The design tokens of the web app (design contract v2, section 2, and docs/design/motion.md).
-  The values are the approved mockup's (mockup/src/index.css at the reference commit), with one
+  The values are the approved mockup's (in git history, under the tag mockup-archive), with one
   contrast fix: the dark --mark-fmt-line. A component depends on a name here, never on a value.
   This is the one file in src/web that may write a raw colour, length or time.
 
@@ -94,7 +94,7 @@
   /* Radius: containers square, conversational surfaces soft, small controls round. */
   --radius: 0.625rem;
 
-  /* Notices and states the mockup draws in its own tones: an amber caution (a figure, a missing
+  /* Notices and states drawn in their own tones: an amber caution (a figure, a missing
      key, a skipped row) with its soft fill behind a Conflict answer in the quick view (design
      contract 2.1), a green good (healthy, published, live), the status dots, a destructive ghost
      button's text, and the word diff's fills. A token with a dark value below changes with the
@@ -341,7 +341,7 @@
     --mark-del-word: oklch(0.42 0.15 25);
     --mark-fmt: oklch(0.33 0.07 300);
 
-    /* Lifted from the mockup's oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
+    /* Lifted from oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
        fix, not a design change (design contract 2.1). */
     --mark-fmt-line: oklch(0.72 0.14 295);
     --mark-link: oklch(0.36 0.07 80);
@@ -412,8 +412,8 @@
 
 /* Type: written as variables too, so a stylesheet of the app's own reads the same sizes. */
 @theme {
-  /* Tailwind's scale, and the in-between sizes the mockup draws. A size here sets no line
-     height, so the line keeps the one it inherits, as the mockup's did. */
+  /* Tailwind's scale, and the in-between sizes the app draws. A size here sets no line
+     height, so the line keeps the one it inherits. */
   --text-5xs: 0.4375rem; /* 7 px: a 16 px avatar's initials */
   --text-4xs: 0.5625rem; /* 9 px: a 20 px avatar's initials */
   --text-3xs: 0.625rem; /* 10 px: chart labels, a format note */
@@ -601,8 +601,7 @@
   --spacing-sidebar-rail-edge: calc(var(--sidebar-width-icon) + 1rem + 2px);
 }
 
-/* Layers, lowest first. A class names its layer, never a number (design contract 2.5). The
-   values are the mockup's, so a page stacks exactly as it does there. */
+/* Layers, lowest first. A class names its layer, never a number (design contract 2.5). */
 @utility z-base {
   z-index: 0;
 }

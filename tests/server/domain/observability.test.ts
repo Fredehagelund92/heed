@@ -36,7 +36,7 @@ const row = (id: string, domain: string | null, subject: string, c: number[]): T
   counts: counts(c),
 })
 
-/** The mockup's demo week: sixteen topics, Germany asked about two months. */
+/** The demo week: sixteen topics, Germany asked about two months. */
 const week = [
   row('orders-norway', 'sales', 'orders|norway', [20, 1, 0, 2, 1]),
   row('orders-norway-sep', 'sales', 'orders|norway', [6, 1, 0, 0, 0]),
@@ -253,7 +253,7 @@ describe('disclose', () => {
 })
 
 describe('topicView', () => {
-  it('counts the demo week as the mockup draws it, without giving a small count away', () => {
+  it('counts the demo week without giving a small count away', () => {
     const view = topicView(week, min)
     const topic = (id: string) => view.topics.find((t) => t.id === id)!
     const subject = (key: string) => view.subjects.find((s) => s.key === key)!

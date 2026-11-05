@@ -21,7 +21,7 @@ import {
   Glossary v2's own consistency (src/domain/words.ts, docs/design/copy.md, docs/product.md): one
   concept per name, one name per internal word, every banned word with something to write instead
   and a concept that exists, no name, definition, phrase or replacement that uses a banned word,
-  and the vocabularies in the words and lengths the approved mockup checks.
+  and the vocabularies in the words and lengths the copy rules set.
 */
 
 const entries = Object.entries(concepts) as [ConceptKey, Concept][]
@@ -201,7 +201,7 @@ describe('wordsToChange', () => {
     ])
   })
 
-  it('leaves "fact" in its everyday sense, and the words the mockup uses', () => {
+  it('leaves "fact" in its everyday sense, and the words the app uses', () => {
     expect(
       found('A change after the fact shows. Every name, fact and number is mock data.'),
     ).toEqual([])

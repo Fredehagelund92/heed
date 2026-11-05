@@ -1,6 +1,6 @@
 /**
  * The class merge helper's extension, teaching it the app's named tokens (styles/tokens.css) that
- * stand where the mockup wrote a number or an arbitrary value, so a named value gives way to
+ * stand for a number or an arbitrary value, so a named value gives way to
  * another of its kind exactly as that value did: `cn('z-raised', 'z-overlay')` keeps `z-overlay`,
  * and `cn('text-muted-foreground', 'text-dense')` keeps both, a colour and a size.
  * `npm run cn:generate` compiles it into cn-tables.gen.ts, so the app ships the compiled tables

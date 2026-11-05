@@ -16,8 +16,8 @@ import { LCS_CELLS, sequenceDiff } from '../../../src/domain/sequence-diff.ts'
 import { sourceDiff } from '../../../src/domain/source-diff.ts'
 
 /*
-  The review's difference of a suggestion (FR-224), read against the mockup's own review
-  examples (apps/mockup/src/data/review.ts): each change told apart by kind, the same way every
+  The review's difference of a suggestion (FR-224), read against the demo's review
+  examples: each change told apart by kind, the same way every
   time, and the Source view's line diff (J19).
 */
 
@@ -335,7 +335,7 @@ describe('reading the Markdown the editor writes', () => {
 })
 
 describe('the Source view (J19)', () => {
-  // The mockup's own stored Markdown for this change (apps/mockup/src/data/review.ts, sug-ines).
+  // The demo's stored Markdown for this change (sug-ines).
   const before =
     'Units sold in Norway leaves out the 312 accounts our teams use to test the webshop. From 29 May 2026 the test accounts of the new app are left out too.\n\nSource: [Units sold definition](https://wiki.example/data/definitions/units-sold)'
   const after =

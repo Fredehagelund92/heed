@@ -301,8 +301,8 @@ export type BannedWord = {
 }
 
 /**
- * Banned in the words people read in the web app (docs/design/copy.md, section 4, and the checks
- * of the approved mockup). The product's name is checked by its own rule (brand/no-product-name).
+ * Banned in the words people read in the web app (docs/design/copy.md, section 4). The product's
+ * name is checked by its own rule (brand/no-product-name).
  */
 export const bannedWords: readonly BannedWord[] = [
   // "fact" for one entry; the word in its everyday sense ("after the fact") is a different word.

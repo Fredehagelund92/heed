@@ -6,7 +6,7 @@ export { expect }
 
 /*
   The journeys run in two modes (golden plan, section 8.2): on the mock binding, and in http mode
-  on the real service with the mockup's demo week (playwright.golden-http.config.ts). One spec text
+  on the real service with the demo week (playwright.golden-http.config.ts). One spec text
   serves both. The mock's card ids, the review queue and its counts, and the mock's address flags
   are read through the helpers below, which give each mode's own; a step that needs a later pull
   request's server work is skipped in http mode only, naming that pull request (decided 27 October
@@ -193,7 +193,7 @@ export const test = base.extend<{ demoWeek: void }>({
 /* ---------- addresses ---------- */
 
 /**
-  Open an address of the app. The mockup kept its addresses after the hash, so only a journey's
+  Open an address of the app. The first build kept its addresses after the hash, so only a journey's
   first visit loaded the page and every later one moved inside the running app, keeping what the
   journey had done so far. go does the same. In http mode a mock card's id becomes the service's,
   and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags

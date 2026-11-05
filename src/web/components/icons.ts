@@ -1,7 +1,7 @@
 /**
  * The only module in the app that imports the icon library. Everything else imports icons from
  * here, so the app uses one icon set at one version and ESLint can hold that rule. To add an icon,
- * add its name below. Icons draw at the library's default stroke, as the mockup does.
+ * add its name below. Icons draw at the library's default stroke.
  */
 export {
   ActivityIcon,

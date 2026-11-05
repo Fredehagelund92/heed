@@ -16,7 +16,7 @@ import { demoCube, inventedToken, seedDemoFigures } from '../../web/http/demo-fi
 import { emptyName, workName } from './harness.ts'
 
 /*
-  Once per run of the http journeys: a migrated database with the mockup's demo week, as the
+  Once per run of the http journeys: a migrated database with the demo week, as the
   template each journey copies (harness.ts), a migrated empty one for a new install, and the world file the journeys read to find the
   service's ids for the mock's cards (go.ts).
 */
