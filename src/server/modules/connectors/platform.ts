@@ -5,6 +5,7 @@ import {
   type ConnectorManifest,
   type ManifestProblem,
 } from '../../../domain/connector-manifest.ts'
+import { contentDigest } from '../../../domain/canonical.ts'
 import { connectorIdPattern } from '../../../domain/connector-id.ts'
 import { connectorConfigDomains, parseConnectorConfig } from '../../../domain/connector-config.ts'
 import {
@@ -32,8 +33,8 @@ import {
 import type { SourceConfig } from '../../../contract/sources.ts'
 import { sourceWarningCodes } from '../../../contract/operations.ts'
 import { folderTree, guardedGit } from './egress-git.ts'
-import { isFetchableAddress } from './git.ts'
-import { pinnedGet } from './pinned-fetch.ts'
+import { egressPrivateHosts, isFetchableAddress } from './git.ts'
+import { pinnedRequest } from './pinned-fetch.ts'
 import {
   SourceReadError,
   type ConnectorType,
@@ -122,6 +123,8 @@ export interface RegisteredConnector {
   readonly writtenTo: WrittenTo
   /** The settings as stored, or what is wrong with them, by field. Never sees a secret. */
   parse(config: SourceConfig): { config: SourceConfig } | { problems: FieldProblem[] }
+  /** Why a secret kept as an address may not be fetched; none for any other secret. */
+  addressProblems(key: string, value: string): FieldProblem[]
   /** The domains the settings name, which must exist. */
   domains(config: SourceConfig): readonly string[]
   /** The settings its secrets are bound to. */
@@ -197,7 +200,7 @@ export function figureFetch(endpoint: string, signal: AbortSignal): GuardedFetch
       })
     if ((init.method ?? 'GET') !== 'GET' || init.body !== undefined)
       throw new SourceError({ code: 'invalid_output', target: 'fetch', class: 'source' })
-    return pinnedGet(url, { ...(init.headers ? { headers: init.headers } : {}), signal })
+    return pinnedRequest(url, { ...(init.headers ? { headers: init.headers } : {}), signal })
   }
 }
 
@@ -273,42 +276,81 @@ function knownWarning(manifest: ConnectorManifest, code: string): boolean {
   return code.startsWith(prefix) && code.slice(prefix.length) in manifest.warnings
 }
 
+/** The most an answer to `ctx.fetch` may hold, whatever a connector asks for. */
+export const FETCH_BYTES_MAX = 20_000_000
+/** The most redirects one request to `ctx.fetch` follows. */
+const FETCH_REDIRECTS_MAX = 3
+
+/** An answer that fails with `unreadable_file` once it holds more than the cap. */
+function capped(response: Response, maxBytes: number, target: string): Response {
+  const tooLarge = () => new SourceError({ code: 'unreadable_file', target, class: 'source' })
+  if (!response.body) return response
+  if (Number(response.headers.get('content-length')) > maxBytes) {
+    void response.body.cancel()
+    throw tooLarge()
+  }
+  let held = 0
+  const body = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        held += chunk.byteLength
+        if (held > maxBytes) controller.error(tooLarge())
+        else controller.enqueue(chunk)
+      },
+    }),
+  )
+  return new Response(body, { status: response.status, headers: response.headers })
+}
+
 /**
- * The fetch a runtime gets (CON-113): GET or HEAD, to an address Heed may fetch (https to a
- * public host, with a query if it needs one), on a host the manifest declares, by name or from an address setting, with no
- * redirect followed and the read's time limit. A POST, with its body, goes only to a host the
- * manifest declares for signing in: a connector trades its credential for a short-lived token
- * there, and writes nothing to the tool (CON-102).
+ * Whether Heed may fetch an address that carries a query (an API's parameters, a signed link's
+ * signature): it is checked as a settings address is, without the query.
+ */
+function fetchableWithQuery(url: URL, privateHosts: ReadonlySet<string>): boolean {
+  return (
+    !url.username &&
+    !url.password &&
+    !url.hash &&
+    isFetchableAddress(`${url.origin}${url.pathname}`, privateHosts)
+  )
+}
+
+/**
+ * The fetch a runtime gets (CON-113): GET or HEAD, to an address Heed may fetch (https to a public
+ * host or one whoever runs the server allows, with a query if it needs one), on a host the
+ * manifest declares, by name, from an address setting or from an address kept as a secret. The
+ * host's name is looked up once and the connection pinned to the answer. A redirect is followed
+ * to the same host and port only, at most three times; the answer is capped, and has the read's time
+ * limit. A POST, with its body, goes only to a host the manifest declares for signing in: a
+ * connector trades its credential for a short-lived token there, and writes nothing to the tool
+ * (CON-102).
  */
 export function guardedFetch(
   manifest: ConnectorManifest,
   config: SourceConfig,
   signal: AbortSignal,
+  secrets: Readonly<Record<string, string>> | null = null,
 ): GuardedFetch {
   const hosts = new Set<string>()
   const signIn = new Set<string>()
+  const hostOf = (value: unknown) =>
+    (typeof value === 'string' ? URL.parse(value) : null)?.hostname.toLowerCase()
   for (const host of manifest.egress.hosts) {
-    let name: string | undefined
-    if ('host' in host) name = host.host
-    else {
-      const value = config[host.fromField]
-      name = (typeof value === 'string' ? URL.parse(value) : null)?.hostname.toLowerCase()
-    }
+    const name =
+      'host' in host
+        ? host.host
+        : 'fromField' in host
+          ? hostOf(config[host.fromField])
+          : hostOf(secrets?.[host.fromSecret])
     if (name === undefined) continue
     hosts.add(name)
-    if (host.signIn) signIn.add(name)
+    if ('signIn' in host && host.signIn) signIn.add(name)
   }
+  const privateHosts = egressPrivateHosts()
+  const fetchable = (url: URL) => fetchableWithQuery(url, privateHosts)
   return async (address, init = {}) => {
     const url = URL.parse(address)
-    // A request may carry a query (an API's parameters); the address it goes to is checked as a
-    // settings address is, without it.
-    const fetchable =
-      url !== null &&
-      !url.username &&
-      !url.password &&
-      !url.hash &&
-      isFetchableAddress(`${url.origin}${url.pathname}`)
-    if (!url || !fetchable || !hosts.has(url.hostname.toLowerCase()))
+    if (!url || !fetchable(url) || !hosts.has(url.hostname.toLowerCase()))
       throw new SourceError({
         code: 'private_address',
         target: url?.host ?? 'address',
@@ -316,15 +358,36 @@ export function guardedFetch(
       })
     const method = init.method ?? 'GET'
     const post = method === 'POST'
-    if ((post && !signIn.has(url.hostname.toLowerCase())) || (!post && init.body !== undefined))
+    if (
+      !['GET', 'HEAD', 'POST'].includes(method) ||
+      (post && !signIn.has(url.hostname.toLowerCase())) ||
+      (!post && init.body !== undefined)
+    )
       throw new SourceError({ code: 'invalid_output', target: 'fetch', class: 'source' })
-    return fetch(url, {
-      method,
-      headers: init.headers,
-      ...(post ? { body: init.body ?? '' } : {}),
-      redirect: 'error',
-      signal,
-    })
+    const maxBytes = Math.min(init.maxBytes ?? FETCH_BYTES_MAX, FETCH_BYTES_MAX)
+    try {
+      let at = url
+      for (let hops = 0; ; hops++) {
+        const response = await pinnedRequest(at, {
+          method,
+          ...(init.headers ? { headers: init.headers } : {}),
+          ...(post ? { body: init.body ?? '' } : {}),
+          signal,
+          privateHosts,
+        })
+        if (post || ![301, 302, 303, 307, 308].includes(response.status))
+          return capped(response, maxBytes, url.host)
+        void response.body?.cancel()
+        const next = URL.parse(response.headers.get('location') ?? '', at)
+        if (hops === FETCH_REDIRECTS_MAX || !next || !fetchable(next) || next.host !== url.host)
+          throw new SourceError({ code: 'redirect_refused', target: url.host, class: 'config' })
+        at = next
+      }
+    } catch (error) {
+      if (error instanceof SourceError || signal.aborted) throw error
+      // What the network said may hold the address: only that it failed goes on.
+      throw new SourceError({ code: 'unreachable', target: url.host, class: 'transient' })
+    }
   }
 }
 
@@ -367,7 +430,7 @@ function contextFor(
       manifest.secrets.some((secret) => secret.key === key)
         ? (stored.secrets?.[key] ?? null)
         : null,
-    fetch: guardedFetch(manifest, stored.config, signal),
+    fetch: guardedFetch(manifest, stored.config, signal, stored.secrets),
     git: guardedGit(manifest, stored.config, stored.secrets),
     // Only a connector that declares it gets a folder on the server, whatever a source says.
     folder:
@@ -447,6 +510,32 @@ export function withChosenGroups(
   return { ...snapshot, definitions, warnings: [...warnings, ...mapped] }
 }
 
+/** The most a stored cursor holds (the snapshot's own limit). */
+const CURSOR_MAX = 500
+/** The room the settings digest and its separator take in front of a runtime's cursor. */
+const CURSOR_TIE_LENGTH = 17
+
+/**
+ * A short digest of the settings a read runs under: the config and the chosen scopes, never a
+ * secret. A cursor is trusted only by a read under the same settings.
+ */
+async function settingsDigest(stored: StoredSource): Promise<string> {
+  const digest = await contentDigest({ config: stored.config, scopes: stored.scopes ?? [] })
+  return digest.slice(0, CURSOR_TIE_LENGTH - 1)
+}
+
+/** The cursor a runtime left, with the settings it was left under in front. */
+function tied(cursor: string, tie: string | null): string | undefined {
+  if (tie === null) return cursor
+  const kept = `${tie}:${cursor}`
+  return kept.length <= CURSOR_MAX ? kept : undefined
+}
+
+/** The runtime's cursor from a stored one: none when it was left under other settings. */
+function untied(cursor: string | null, tie: string): string | null {
+  return cursor !== null && cursor.startsWith(`${tie}:`) ? cursor.slice(tie.length + 1) : null
+}
+
 /** A stored definition source of a runtime's: a read gathers its messages into a snapshot. */
 function runtimeSource(running: Running, stored: StoredSource): DefinitionSource {
   const { manifest, runtime } = running
@@ -465,8 +554,10 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
       const refs = new Set<string>()
       const invalid = () => new SourceReadError([{ code: 'invalid_output', target: manifest.id }])
       let capped = false
+      const tie = manifest.capabilities.incremental ? await settingsDigest(stored) : null
+      const cursor = tie === null ? (context?.cursor ?? null) : untied(context?.cursor ?? null, tie)
       try {
-        const messages = runtime.read(contextFor(running, stored, context?.cursor ?? null, signal))
+        const messages = runtime.read(contextFor(running, stored, cursor, signal))
         for await (const raw of messages) {
           if (signal.aborted) throw signal.reason
           const parsed = runtimeMessageSchema.safeParse(raw)
@@ -480,13 +571,17 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
             continue
           }
           if (message.type === 'end') {
+            // Nothing read can only say what the read before it found stands.
+            if (message.unchanged && (!cursor || definitions.length)) throw invalid()
+            const kept = message.cursor === undefined ? undefined : tied(message.cursor, tie)
             return withChosenGroups(
               {
                 sourceVersion: message.version,
                 complete: message.complete && !capped,
                 definitions,
                 warnings,
-                ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+                ...(kept === undefined ? {} : { cursor: kept }),
+                ...(message.unchanged ? { unchanged: true as const } : {}),
               },
               stored.scopes ?? [],
             )
@@ -568,6 +663,7 @@ function runtimeContent(running: Running, stored: StoredSource): ContentSource {
             if (unreadDocumentCodes.includes(message.code)) unread.push(message.target)
             continue
           }
+          if (message.type === 'end' && message.unchanged) throw invalid()
           if (message.type === 'end')
             return {
               version: message.version,
@@ -642,7 +738,7 @@ function unreachable(manifest: ConnectorManifest, config: SourceConfig): FieldPr
   return manifest.egress.hosts.flatMap((host) => {
     if (!('fromField' in host)) return []
     const value = config[host.fromField]
-    return typeof value === 'string' && !isFetchableAddress(value)
+    return typeof value === 'string' && !isFetchableAddress(value, egressPrivateHosts())
       ? [
           {
             field: host.fromField,
@@ -677,6 +773,20 @@ export function fromModule(
         ...(runtime.parse?.(parsed.config) ?? []),
       ]
       return problems.length ? { problems } : { config: parsed.config }
+    },
+    addressProblems(key, value) {
+      const kept = manifest.egress.hosts.some(
+        (host) => 'fromSecret' in host && host.fromSecret === key,
+      )
+      const url = kept ? URL.parse(value) : null
+      if (!kept || (url !== null && fetchableWithQuery(url, egressPrivateHosts()))) return []
+      return [
+        {
+          field: key,
+          message:
+            'Use an https address on a public host, without a user name, password or fragment.',
+        },
+      ]
     },
     domains: (config) => connectorConfigDomains(manifest, config),
     secretsBoundTo: secretsBoundTo(manifest),

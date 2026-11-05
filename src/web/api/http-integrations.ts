@@ -3,6 +3,7 @@
  * activity (`sources.activity`) and its settings (`sources.get`), in the words the integrations'
  * pages use. Pure, so it is unit tested (tests/web/api/http-integrations.test.ts).
  */
+import { secretsInUse } from '@domain/connector-config'
 import type { ConnectorManifest } from '@domain/connector-manifest'
 import type {
   SourceActivity,
@@ -17,6 +18,7 @@ import type {
   ConnectChoice,
   ConnectField,
   ConnectForm,
+  ConnectRead,
   ConnectTest,
   DocState,
   DriveDocument,
@@ -92,7 +94,11 @@ const FAILURES: Record<string, string> = {
   not_found: "what it reads wasn't found",
   rate_limited: 'it was asked too often',
   timeout: 'it took too long',
-  private_address: 'its address is not one it may reach',
+  timed_out: 'it took too long',
+  unreadable_file: 'it is too large, or not text',
+  fetch_failed: 'the host would not hand it over',
+  private_address: 'its address is not one it may reach: use https, on a public host',
+  redirect_refused: 'it redirects somewhere it may not follow',
 }
 
 /** Why a read failed, by the first of its warnings that says so. */
@@ -349,17 +355,18 @@ export function connectionOf(
   const fields = manifest.config.fields.flatMap((field) => {
     const value = settings.config[field.key]
     if (value === undefined || value === '' || typeof value === 'object') return []
+    const chosen = field.options?.find((option) => option.value === value)?.label
     return [
       {
         label: field.label,
-        value: field.kind === 'json' ? jsonWords(String(value)) : String(value),
+        value: chosen ?? (field.kind === 'json' ? jsonWords(String(value)) : String(value)),
         ...(field.kind === 'address' || field.kind === 'ref' || field.kind === 'path'
           ? { code: true }
           : {}),
       },
     ]
   })
-  const secrets = manifest.secrets.map((secret) => ({
+  const secrets = secretsInUse(manifest, settings.config).map((secret) => ({
     label: secret.label,
     value: settings.secrets.find((s) => s.key === secret.key)?.set
       ? 'Set, only used for reading'
@@ -410,8 +417,8 @@ export function sourcePageOf(
 
 /* ---------- the connect flow and Change settings ---------- */
 
-/** The kinds of setting the connect form draws: words, an address, a branch, a folder, JSON. */
-const formKinds: readonly string[] = ['text', 'address', 'path', 'ref', 'json']
+/** The kinds of setting the connect form draws: words, an address, a choice, a branch, JSON. */
+const formKinds: readonly string[] = ['text', 'address', 'path', 'ref', 'json', 'radio', 'select']
 
 /**
  * Whether the connect form can take a connector's settings: every one it needs is of a kind the
@@ -438,11 +445,12 @@ export function connectFormOf(
   const fields = manifest.config.fields.flatMap((field): ConnectField[] => {
     if (!formKinds.includes(field.kind)) return []
     const set = settings?.config[field.key]
-    // A new connection starts from the manifest's default; a source's form from what it has.
+    // A new connection starts from the manifest's default; a source's form from what it has, and
+    // a default for what it needs and has none of, such as the settings of a route it is not on.
     const value =
       typeof set === 'string' || typeof set === 'number'
         ? String(set)
-        : !settings && typeof field.default === 'string'
+        : (!settings || field.required) && typeof field.default === 'string'
           ? field.default
           : ''
     return [
@@ -453,6 +461,8 @@ export function connectFormOf(
         description: field.description,
         ...(field.placeholder ? { placeholder: field.placeholder } : {}),
         ...(field.maxLength ? { maxLength: field.maxLength } : {}),
+        ...(field.options ? { options: field.options } : {}),
+        ...(field.visibleIf ? { visibleIf: field.visibleIf } : {}),
         required: field.required ?? false,
         advanced: field.advanced ?? false,
         value,
@@ -468,6 +478,7 @@ export function connectFormOf(
       label: secret.label,
       description: secret.description,
       required: secret.required ?? false,
+      ...(secret.visibleIf ? { visibleIf: secret.visibleIf } : {}),
       set: settings?.secrets.find((s) => s.key === secret.key)?.set ?? false,
     })),
     every: everyWords(settings?.schedule ?? manifest.schedule.default),
@@ -481,8 +492,64 @@ export function connectFormOf(
   }
 }
 
+/** A read's warnings the core words, as a test's result says them. */
+const READ_WARNINGS: Record<string, { title: string; detail: string }> = {
+  missing_domain: {
+    title: 'No domain named',
+    detail: 'Map it to a domain in the next steps, or name its domain in the tool.',
+  },
+  invalid_domain: {
+    title: 'A domain we do not have',
+    detail: 'The tool names a domain that is not one of yours. Map it in the next steps.',
+  },
+  taken: {
+    title: 'Read by another source',
+    detail: 'It stays with that source, and this one leaves it out.',
+  },
+  too_many_records: { title: 'More than a read can hold', detail: 'The rest is left out.' },
+}
+
+/** A read's warnings, each kind once with how many there are, in the words of who says them. */
+function readWarnings(
+  warnings: SourceCheck['warnings'],
+  own: ConnectorManifest['warnings'] = {},
+): ConnectRead['warnings'] {
+  const found = new Map<string, ConnectRead['warnings'][number]>()
+  for (const { code } of warnings) {
+    const name = code.slice(code.lastIndexOf('.') + 1)
+    const seen = found.get(code)
+    if (seen) seen.count += 1
+    else
+      found.set(code, {
+        title: name.replaceAll('_', ' '),
+        ...(own[name] ?? READ_WARNINGS[code]),
+        count: 1,
+      })
+  }
+  return [...found.values()]
+}
+
+/** Why a test could not read, by the first warning that says so: the connector's own words first. */
+function testFailureOf(
+  warnings: SourceCheck['warnings'],
+  type: string | undefined,
+  own: ConnectorManifest['warnings'] = {},
+): string {
+  for (const { code } of warnings) {
+    const mine =
+      type !== undefined && code.startsWith(`${type}.`)
+        ? own[code.slice(type.length + 1)]
+        : undefined
+    if (mine) return `${mine.title}. ${mine.detail}`
+    const words = FAILURES[code]
+    if (words) return `It couldn't be read: ${words}.`
+  }
+  return "It couldn't be read."
+}
+
 /** What Test connection found, in the flow's words: the check's steps, and what may be read. */
-export function connectTestOf(check: SourceCheck): ConnectTest {
+export function connectTestOf(check: SourceCheck, type?: string): ConnectTest {
+  const connector = type === undefined ? undefined : connectorById(type)
   const scopes = (check.scopes ?? []).map((scope) => {
     const holds =
       scope.metrics === undefined && scope.dimensions === undefined
@@ -515,7 +582,16 @@ export function connectTestOf(check: SourceCheck): ConnectTest {
     scopes: check.ok ? scopes : [],
     ...(check.ok || said
       ? {}
-      : { failure: `It couldn't be read: ${failureWords(check.warnings)}.` }),
+      : { failure: testFailureOf(check.warnings, type, connector?.warnings) }),
+    ...(check.ok && connector?.kind === 'definitions'
+      ? {
+          read: {
+            metrics: check.metrics,
+            dimensions: check.dimensions,
+            warnings: readWarnings(check.warnings, connector.warnings),
+          },
+        }
+      : {}),
   }
 }
 

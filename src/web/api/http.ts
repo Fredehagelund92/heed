@@ -1846,7 +1846,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         secrets: secretsOf(secrets),
       }
       try {
-        return connectTestOf(await readPosted((o) => client.sources.test(input, o)))
+        return connectTestOf(await readPosted((o) => client.sources.test(input, o)), type)
       } catch (error) {
         // Settings the service refuses (an address that is not https, a folder outside the
         // repository) fail the test, in its words.

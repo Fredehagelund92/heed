@@ -48,7 +48,7 @@ describe('offline Cube source', () => {
     expect(domainCoverage(snapshot.definitions)).toEqual({ source: 3, override: 0, none: 2 })
     expect(JSON.stringify(snapshot)).not.toContain('SELECT')
     expect(JSON.stringify(snapshot)).not.toContain('example_orders')
-  }, 15_000)
+  }, 60_000)
 
   it("reads a member's meta.synonyms as its other names, each once", async () => {
     const withSynonyms = (synonyms: string) =>

@@ -13,7 +13,7 @@ import { connectorIdPattern } from './connector-id.ts'
 */
 
 /** The connector interface this build speaks (CON-109). A minor version only adds. */
-export const CONNECTOR_INTERFACE_VERSION = '3.2.0'
+export const CONNECTOR_INTERFACE_VERSION = '3.3.0'
 
 const CONNECTOR_ID_MAX = 64
 
@@ -59,6 +59,12 @@ const count = (min: number, max: number) =>
   z.number().check(z.int(), z.minimum(min), z.maximum(max))
 const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?$/
 
+/** While another field, itself shown, has this value or one of these values. */
+const visibleIf = z.strictObject({
+  field: settingKey,
+  equals: z.union([z.string(), z.boolean(), z.array(z.string())]),
+})
+
 export const manifestFieldSchema = z.strictObject({
   key: settingKey,
   kind: z.enum(manifestFieldKinds),
@@ -78,6 +84,13 @@ export const manifestFieldSchema = z.strictObject({
           value: words(200),
           label: words(80),
           description: z.optional(words(300)),
+          /** What to do outside Heed for this choice: a line, and the commands to run. */
+          recipe: z.optional(z.strictObject({ lead: words(300), code: words(2_000) })),
+          /**
+           * Whoever runs the server sets this choice up, not this form (`HEED_SERVER_FOLDERS`): it
+           * explains itself, and a source cannot be added with it.
+           */
+          serverOnly: z.optional(z.boolean()),
         }),
       )
       .check(z.minLength(1), z.maxLength(50)),
@@ -87,9 +100,7 @@ export const manifestFieldSchema = z.strictObject({
   /** Folded under More settings until opened: what most people leave as it is. */
   advanced: z.optional(z.boolean()),
   /** Shown, checked and kept only while another field has this value. */
-  visibleIf: z.optional(
-    z.strictObject({ field: settingKey, equals: z.union([z.string(), z.boolean()]) }),
-  ),
+  visibleIf: z.optional(visibleIf),
   /** A pattern each text value must match, with what to write when it does not. */
   pattern: z.optional(words(500)),
   patternMessage: z.optional(words(200)),
@@ -117,6 +128,8 @@ export const manifestSecretSchema = z.strictObject({
    * unless a new one comes with the change.
    */
   boundTo: z.array(settingKey),
+  /** Asked for, needed and kept only while a field has this value. */
+  visibleIf: z.optional(visibleIf),
 })
 export type ManifestSecret = z.infer<typeof manifestSecretSchema>
 
@@ -153,14 +166,16 @@ export const connectorManifestSchema = z.strictObject({
   /** The least access it needs, said before anything is given (CON-106). */
   access: z.array(words(300)).check(z.minLength(1), z.maxLength(6)),
   /**
-   * Every host it may reach (CON-113): a host by name, or the host of an address setting. A host
-   * for signing in takes a POST too, so a connector may trade its credential for a short-lived
-   * token (an OAuth token endpoint); every other request is a GET or a HEAD.
+   * Every host it may reach (CON-113): a host by name, the host of an address setting, or the
+   * host of an address kept as a secret (a signed link is a credential, so it is no setting). A
+   * host for signing in takes a POST too, so a connector may trade its credential for a
+   * short-lived token (an OAuth token endpoint); every other request is a GET or a HEAD.
    */
   egress: z.strictObject({
     hosts: z.array(
       z.union([
         z.strictObject({ fromField: settingKey, signIn: z.optional(z.boolean()) }),
+        z.strictObject({ fromSecret: settingKey }),
         z.strictObject({
           host: z
             .string()
@@ -403,8 +418,12 @@ export function checkManifest(
         problem(`${at}.boundTo`, `${bound} is not a setting, so the secret cannot be bound to it.`)
     if (secret.boundTo.length === 0)
       problem(`${at}.boundTo`, 'Name the setting that says where the secret is sent.')
+    if (secret.visibleIf && !seen.has(secret.visibleIf.field))
+      problem(`${at}.visibleIf`, `${secret.visibleIf.field} is not a setting.`)
   })
   manifest.egress.hosts.forEach((host, index) => {
+    if ('fromSecret' in host && !secretKeys.has(host.fromSecret))
+      problem(`egress.hosts[${index}].fromSecret`, `${host.fromSecret} is not a secret.`)
     if (!('fromField' in host)) return
     const field = fields.find((candidate) => candidate.key === host.fromField)
     if (field?.kind !== 'address')

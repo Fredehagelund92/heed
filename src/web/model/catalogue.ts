@@ -22,7 +22,7 @@ const words: Record<
     endpointExample: 'https://cube.example.com/cubejs-api/v1/load',
   },
   'dbt-metricflow': {
-    lead: 'Reads the semantic manifest dbt writes, kept in Git. Read-only, and it keeps no calculation and no value.',
+    lead: 'Reads the semantic manifest your dbt pipeline writes, from where you keep it. Read-only, and it keeps no calculation and no value.',
     domainField: 'meta.domain',
     noFileLinks: true,
   },
@@ -38,6 +38,10 @@ const words: Record<
 export function connectorOf(manifest: ConnectorManifest): Connector {
   const key = manifest.secrets.find((secret) => secret.file)
   const logo = logos[manifest.id]
+  // A choice the server alone can make is a choice of where the file lives, Git among the places.
+  const places = manifest.config.fields.some((field) =>
+    field.options?.some((option) => option.serverOnly),
+  )
   return {
     id: manifest.id,
     name: manifest.tool,
@@ -47,9 +51,10 @@ export function connectorOf(manifest: ConnectorManifest): Connector {
     blurb: manifest.summary,
     ...(manifest.capabilities.figures ? { figures: true as const } : {}),
     ...(key ? { keyFile: key.key } : {}),
-    ...(manifest.egress.git ? { git: true as const } : {}),
+    ...(places ? { places: true as const } : manifest.egress.git ? { git: true as const } : {}),
     ...(manifest.capabilities.discover ? { discovers: true as const } : {}),
     access: [...manifest.access],
+    warnings: manifest.warnings,
     ...words[manifest.id],
   }
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -116,6 +116,7 @@ const commitFile = (file: unknown) =>
   host.commit('shop-metrics', { 'semantic/semantic_manifest.json': JSON.stringify(file) })
 
 const config = () => ({
+  location: 'git',
   repository: host.address('shop-metrics'),
   ref: 'main',
   folder: 'semantic',
@@ -179,6 +180,7 @@ afterAll(async () => {
 
 describe('a semantic manifest in Git', () => {
   let sourceId = ''
+  let takenOver = ''
   const items = { revenue: '', margin: '' }
 
   it('is tested step by step, with its semantic models to choose from, and kept nowhere', async () => {
@@ -350,5 +352,21 @@ describe('a semantic manifest in Git', () => {
       201,
     )
     expect(await read(again.id)).toMatchObject({ status: 'ok', definitionsSeen: 18 })
+    takenOver = again.id
+  }, 120_000)
+
+  it('keeps a source saved before it said where its file lives, with its token', async () => {
+    const id = takenOver
+    await client.query(`update connectors set config = config - 'location' where id = $1`, [id])
+    await client.query(
+      await readFile(
+        new URL('../../db/migrations/0040_dbt_file_location.sql', import.meta.url),
+        'utf8',
+      ),
+    )
+    const source = await ok<SourceSettings>(call('GET', `/sources/${id}`, 'admin'))
+    expect(source.config).toMatchObject({ location: 'git', ref: 'main' })
+    expect(source.secrets).toContainEqual({ key: 'token', set: true })
+    expect(await read(id)).toMatchObject({ status: 'ok', definitionsSeen: 18 })
   }, 120_000)
 })

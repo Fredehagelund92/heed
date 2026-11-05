@@ -29,7 +29,9 @@ import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
+import { fieldVisible } from '@domain/connector-config'
 import { Badge } from '@/components/ui/badge'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -68,6 +70,8 @@ import {
   kindName,
   type Activity,
   type ConnectField,
+  type ConnectOption,
+  type ConnectRead,
   type ConnectForm,
   type Connector,
   type ConnectScope,
@@ -1879,6 +1883,41 @@ const stepLook: Record<ConnectStep['status'], React.ReactNode> = {
   skipped: <span aria-hidden className="size-4 shrink-0 rounded-full border" />,
 }
 
+/** What a test's read found: what it would hold and what it warns of. Nothing of it is kept. */
+function ReadFound({ read }: { read: ConnectRead }) {
+  return (
+    <li className="mt-1 flex flex-col gap-2 border-t pt-3">
+      <p>
+        <span className="font-medium">
+          A read would hold {plural(read.metrics, 'metric')} and{' '}
+          {plural(read.dimensions, 'dimension')}.
+        </span>{' '}
+        <span className="text-muted-foreground">Nothing is saved until you finish.</span>
+      </p>
+      {read.warnings.map((warning) => (
+        <p key={warning.title} className="flex items-start gap-2">
+          <span className="mt-0.5 flex">
+            {warning.level === 'info' ? (
+              <InfoIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+            ) : (
+              stepLook.warning
+            )}
+          </span>
+          <span className="min-w-0">
+            {warning.title}
+            {warning.count > 1 && (
+              <span className="text-muted-foreground tabular-nums"> ({warning.count})</span>
+            )}
+            {warning.detail && (
+              <span className="block text-muted-foreground">{warning.detail}</span>
+            )}
+          </span>
+        </p>
+      ))}
+    </li>
+  )
+}
+
 /** What Test connection says: its checks while they run, then each step in the tool's words. */
 function Checks({ test }: { test: Testing }) {
   return (
@@ -1911,6 +1950,7 @@ function Checks({ test }: { test: Testing }) {
               {test.result.failure}
             </li>
           )}
+          {test.result?.read && <ReadFound read={test.result.read} />}
         </>
       )}
     </ul>
@@ -1990,6 +2030,44 @@ function accountOf(text: string): string | null {
   }
 }
 
+/** What the form sends: only the settings and secrets that show with these settings. */
+function inUse(form: ConnectForm, values: ConnectValues): ConnectValues {
+  const shown = (item: { key: string; visibleIf?: ConnectField['visibleIf'] } | undefined) =>
+    !item || fieldVisible(item, values.config, form.fields)
+  const kept = (from: Record<string, string>, items: ConnectForm['fields' | 'secrets']) =>
+    Object.fromEntries(
+      Object.entries(from).filter(([key]) => shown(items.find((item) => item.key === key))),
+    )
+  return { config: kept(values.config, form.fields), secrets: kept(values.secrets, form.secrets) }
+}
+
+/** What to do outside the app for a choice: a line, and the commands to copy. */
+function Recipe({ recipe }: { recipe: NonNullable<ConnectOption['recipe']> }) {
+  const [copied, copy] = useCopied()
+  return (
+    <figure className="overflow-hidden rounded-frame border">
+      <figcaption className="flex items-start justify-between gap-3 border-b bg-band px-4 py-2.5 text-sm">
+        <span className="min-w-0">{recipe.lead}</span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Copy the commands"
+          className="-my-1 -mr-1.5 shrink-0"
+          onClick={() => {
+            copy(recipe.code)
+            toast('Commands copied')
+          }}
+        >
+          <CopiedIcon copied={copied} />
+        </Button>
+      </figcaption>
+      <pre className="px-4 py-3 font-mono text-dense leading-6 break-words whitespace-pre-wrap">
+        {recipe.code}
+      </pre>
+    </figure>
+  )
+}
+
 /** Settings › Integrations › a tool › Connect: five steps on a full page, and Change settings. */
 export function ConnectFlow({ id }: { id: string }) {
   const load = useQuery(connectFormQuery(id))
@@ -2035,25 +2113,28 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   >(() => Object.fromEntries(form.secrets.flatMap((s) => (s.file ? [[s.key, s.file]] : []))))
   const [more, setMore] = React.useState(false)
   const [test, setTest] = React.useState<Testing>(untested)
-  const tested = !!test.result?.ok && test.of === settingsKey(values)
+  const sent = inUse(form, values)
+  const sentKey = settingsKey(sent)
+  const tested = !!test.result?.ok && test.of === sentKey
 
   const go = (n: number) => setQuery({ step: String(n) })
   const cancel = () =>
     navigate(form.source ? `/settings/integrations/${form.source.id}` : '/settings/integrations')
   const runTest = React.useCallback(async () => {
-    const of = settingsKey(values)
+    const settings = inUse(form, values)
+    const of = settingsKey(settings)
     setTest((t) => ({ ...untested, run: t.run + 1, of, running: true }))
     try {
       const result = await api.testIntegration({
         connector: c.id,
         ...(form.source ? { source: form.source.id } : {}),
-        ...values,
+        ...settings,
       })
       setTest((t) => ({ ...t, running: false, result }))
     } catch (e: unknown) {
       setTest((t) => ({ ...t, running: false, error: toApiError(e).message }))
     }
-  }, [values, c.id, form.source])
+  }, [values, c.id, form])
   // Choose, Map or Schedule opened by its address: the settings are tested first, as they are.
   const needsTest = at >= 3 && !test.running && test.run === 0
   React.useEffect(() => {
@@ -2070,54 +2151,122 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
       setFiles((f) => ({ ...f, [key]: { name: file.name, account: accountOf(text) } }))
     })
 
-  if (at >= 3 && test.result?.ok && test.of === settingsKey(values))
+  if (at >= 3 && test.result?.ok && test.of === sentKey)
     return (
       <ChoiceSteps
         key={test.run}
         form={form}
         c={c}
         at={at}
-        values={values}
+        values={sent}
         scopes={test.result.scopes}
         go={go}
         cancel={cancel}
       />
     )
 
-  const main = form.fields.filter((f) => !f.advanced)
-  const advanced = form.fields.filter((f) => f.advanced)
-  const typed = form.secrets.filter((s) => s.key !== c.keyFile)
+  const showing = form.fields.filter((f) => fieldVisible(f, values.config, form.fields))
+  const main = showing.filter((f) => !f.advanced)
+  const advanced = showing.filter((f) => f.advanced)
+  const typed = form.secrets.filter(
+    (s) => s.key !== c.keyFile && fieldVisible(s, values.config, form.fields),
+  )
+  const chosenOf = (f: ConnectField) => f.options?.find((o) => o.value === values.config[f.key])
+  // A choice only the server can make explains itself: there is nothing to fill in or test.
+  const serverOnly = showing.some((f) => chosenOf(f)?.serverOnly)
   const keyFile = form.secrets.find((s) => s.key === c.keyFile)
   const account = keyFile ? (files[keyFile.key]?.account ?? null) : null
-  const input = (f: ConnectField) => (
-    <Field key={f.key}>
-      <FieldLabel htmlFor={`field-${f.key}`}>{f.label}</FieldLabel>
-      {/* A list written as JSON takes lines of its own, in the letters code is read in. */}
-      {f.kind === 'json' ? (
-        <Textarea
-          id={`field-${f.key}`}
-          value={values.config[f.key] ?? ''}
-          onChange={(e) => setField(f.key, e.target.value)}
-          placeholder={f.placeholder}
-          required={f.required}
-          maxLength={f.maxLength}
-          spellCheck={false}
-          className="max-h-96 min-h-40 font-mono text-dense"
-        />
-      ) : (
-        <Input
-          id={`field-${f.key}`}
-          value={values.config[f.key] ?? ''}
-          onChange={(e) => setField(f.key, e.target.value)}
-          placeholder={f.placeholder}
-          required={f.required}
-          maxLength={f.maxLength}
-          className={cn(f.kind !== 'text' && 'font-mono text-dense')}
-        />
-      )}
-      {(f.advanced || f.kind === 'json') && <FieldDescription>{f.description}</FieldDescription>}
-    </Field>
-  )
+  const input = (f: ConnectField) => {
+    const chosen = chosenOf(f)
+    if (f.kind === 'radio')
+      return (
+        <React.Fragment key={f.key}>
+          <Field>
+            <FieldLabel id={`field-${f.key}`}>{f.label}</FieldLabel>
+            <FieldDescription>{f.description}</FieldDescription>
+            <RadioGroup
+              aria-labelledby={`field-${f.key}`}
+              value={values.config[f.key] ?? ''}
+              onValueChange={(value) => setField(f.key, value as string)}
+              className="sm:grid-cols-2"
+            >
+              {f.options?.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer gap-3 rounded-frame border p-3 text-sm has-data-checked:border-primary has-data-checked:bg-primary/5"
+                >
+                  <RadioGroupItem value={option.value} className="mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block font-medium">{option.label}</span>
+                    <span className="block text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              ))}
+            </RadioGroup>
+          </Field>
+          {chosen?.recipe && <Recipe recipe={chosen.recipe} />}
+        </React.Fragment>
+      )
+    if (f.kind === 'select')
+      return (
+        <React.Fragment key={f.key}>
+          <Field>
+            <FieldLabel htmlFor={`field-${f.key}`}>{f.label}</FieldLabel>
+            <Select
+              items={f.options ?? []}
+              value={values.config[f.key] ?? ''}
+              onValueChange={(value) => setField(f.key, value as string)}
+            >
+              <SelectTrigger id={`field-${f.key}`} className="w-full sm:w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {f.options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription>{chosen?.description ?? f.description}</FieldDescription>
+          </Field>
+          {chosen?.recipe && <Recipe recipe={chosen.recipe} />}
+        </React.Fragment>
+      )
+    return (
+      <Field key={f.key}>
+        <FieldLabel htmlFor={`field-${f.key}`}>{f.label}</FieldLabel>
+        {/* A list written as JSON takes lines of its own, in the letters code is read in. */}
+        {f.kind === 'json' ? (
+          <Textarea
+            id={`field-${f.key}`}
+            value={values.config[f.key] ?? ''}
+            onChange={(e) => setField(f.key, e.target.value)}
+            placeholder={f.placeholder}
+            required={f.required}
+            maxLength={f.maxLength}
+            spellCheck={false}
+            className="max-h-96 min-h-40 font-mono text-dense"
+          />
+        ) : (
+          <Input
+            id={`field-${f.key}`}
+            value={values.config[f.key] ?? ''}
+            onChange={(e) => setField(f.key, e.target.value)}
+            placeholder={f.placeholder}
+            required={f.required}
+            maxLength={f.maxLength}
+            className={cn(f.kind !== 'text' && 'font-mono text-dense')}
+          />
+        )}
+        {(f.advanced || f.kind === 'json' || c.places) && (
+          <FieldDescription>{f.description}</FieldDescription>
+        )}
+      </Field>
+    )
+  }
   // A branch and a folder sit side by side, as the repository's own two parts.
   const rows: ConnectField[][] = []
   for (const f of main) {
@@ -2136,16 +2285,18 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
               <h2 className="text-xl font-semibold tracking-tight">
                 {keyed
                   ? 'Share folders with the service account'
-                  : c.git
+                  : c.git || c.places
                     ? `Connect to your ${c.kind === 'definitions' ? `${c.name} files` : 'repository'}`
                     : `Set up ${c.name}`}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {keyed
                   ? 'Google Docs are read by a service account that can only view.'
-                  : c.git
-                    ? `It reads them from Git, ${onceWords(form.every)}.`
-                    : `It reads what you write here, ${onceWords(form.every)}.`}
+                  : c.places
+                    ? `It reads one file, ${onceWords(form.every)}, and never writes to it.`
+                    : c.git
+                      ? `It reads them from Git, ${onceWords(form.every)}.`
+                      : `It reads what you write here, ${onceWords(form.every)}.`}
               </p>
             </div>
             <FieldGroup>
@@ -2232,7 +2383,9 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                     onChange={(e) => setSecret(secret.key, e.target.value)}
                     placeholder={secret.set ? 'Set. Leave it empty to keep it' : undefined}
                   />
-                  <FieldDescription>Stored where only this source can use it.</FieldDescription>
+                  <FieldDescription>
+                    {c.places ? secret.description : 'Stored where only this source can use it.'}
+                  </FieldDescription>
                 </Field>
               ))}
               {advanced.length > 0 && (
@@ -2254,25 +2407,27 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                 </div>
               )}
             </FieldGroup>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  variant="outline"
-                  className="w-fit"
-                  onClick={() => void runTest()}
-                  disabled={test.running}
-                >
-                  <PlugIcon data-icon="inline-start" />
-                  Test connection
-                </Button>
-                {!tested && !test.running && (
-                  <span className="text-sm text-muted-foreground">
-                    Test it before you continue.
-                  </span>
-                )}
+            {!serverOnly && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="w-fit"
+                    onClick={() => void runTest()}
+                    disabled={test.running}
+                  >
+                    <PlugIcon data-icon="inline-start" />
+                    Test connection
+                  </Button>
+                  {!tested && !test.running && (
+                    <span className="text-sm text-muted-foreground">
+                      Test it before you continue.
+                    </span>
+                  )}
+                </div>
+                {test.run > 0 && <Checks test={test} />}
               </div>
-              {test.run > 0 && <Checks test={test} />}
-            </div>
+            )}
           </>
         )}
         {at >= 3 && (
@@ -2395,9 +2550,11 @@ function PickStep({ c }: { c: Connector }) {
         <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
         {keyed
           ? 'You need a Google Cloud project to create a service account key, and the folders to share with it. Only admins can connect a source.'
-          : c.git
-            ? `You need a read-only token for the ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'repository'}. Only admins can connect a source.`
-            : `${c.access.join(' ')} Only admins can connect a source.`}
+          : c.places
+            ? `You need a place your ${c.name} pipeline puts its file, and a way to read it there. Only admins can connect a source.`
+            : c.git
+              ? `You need a read-only token for the ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'repository'}. Only admins can connect a source.`
+              : `${c.access.join(' ')} Only admins can connect a source.`}
       </p>
     </>
   )
@@ -2453,7 +2610,9 @@ function ChoiceSteps({
   )
   // A tool that keeps the definitions elsewhere is why they are added, most often.
   const [why, setWhy] = React.useState(
-    isDefinitions && c.git && !form.source ? `Our metric definitions live in ${c.name}` : '',
+    isDefinitions && (c.git || c.places) && !form.source
+      ? `Our metric definitions live in ${c.name}`
+      : '',
   )
   const [saving, setSaving] = React.useState(false)
   const mapped = chosen.filter((s) => map[s.id]).length

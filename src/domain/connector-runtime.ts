@@ -76,6 +76,11 @@ export const runtimeMessageSchema = z.discriminatedUnion('type', [
     version: z.string().check(z.minLength(1), z.maxLength(200)),
     complete: z.boolean(),
     cursor: z.optional(z.string().check(z.minLength(1), z.maxLength(500))),
+    /**
+     * Definitions: what the read's cursor names is as it was, so nothing was read. The core keeps
+     * what the last read found, and a read that sends this sends no definition.
+     */
+    unchanged: z.optional(z.literal(true)),
   }),
 ])
 export type RuntimeMessage = z.infer<typeof runtimeMessageSchema>
@@ -149,11 +154,17 @@ export class SourceError extends Error {
 /**
  * A request a connector may make: GET or HEAD, https, to a host its manifest declares; and a POST
  * with a body only to a host it declares for signing in, to trade its credential for a
- * short-lived token. Nothing is ever written to the tool (CON-102).
+ * short-lived token. Nothing is ever written to the tool (CON-102). `maxBytes` lowers the core's
+ * cap on what the answer may hold; over it, the read of the body fails with `unreadable_file`.
  */
 export type GuardedFetch = (
   url: string,
-  init?: { method?: 'GET' | 'HEAD' | 'POST'; headers?: Record<string, string>; body?: string },
+  init?: {
+    method?: 'GET' | 'HEAD' | 'POST'
+    headers?: Record<string, string>
+    body?: string
+    maxBytes?: number
+  },
 ) => Promise<Response>
 
 /**

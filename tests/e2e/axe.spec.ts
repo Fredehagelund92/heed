@@ -80,6 +80,7 @@ const places = [
   '/settings/integrations',
   '/settings/integrations/cube',
   '/settings/integrations/cube/connect',
+  '/settings/integrations/dbt-metricflow/connect?step=2',
   '/settings/advanced',
   '/help',
   '/nowhere',
@@ -175,6 +176,40 @@ for (const { name, width, height } of widths) {
         await page.getByRole('button', { name: 'Details', exact: true }).click()
         await expect(page.getByRole('list', { name: 'Links to' })).toBeVisible()
         expect(await violations(page)).toEqual([])
+      })
+
+      // Where dbt's file lives (CON-701): each place with its fields and recipe, each storage
+      // service, and what a test's read found; none of it wider than the screen.
+      test('where a file lives: every place, every service, and a test read', async ({ page }) => {
+        const fits = () =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+          )
+        await page.goto(withTheme('/settings/integrations/dbt-metricflow/connect?step=2', theme))
+        for (const place of ['Server folder', 'Git repository', 'Address', 'Object storage']) {
+          await page.getByRole('radio', { name: new RegExp(`^${place}`) }).click()
+          expect(await violations(page)).toEqual([])
+          expect(await fits()).toBe(true)
+        }
+        for (const service of [
+          'S3-compatible store',
+          'Google Cloud Storage',
+          'Azure Blob Storage',
+          'Amazon S3',
+        ]) {
+          await page.getByLabel('Storage service').click()
+          await expect(page.getByRole('listbox')).toBeVisible()
+          expect(await violations(page)).toEqual([])
+          await page.getByRole('option', { name: service }).click()
+          await expect(page.getByRole('listbox')).toBeHidden()
+          expect(await violations(page)).toEqual([])
+          expect(await fits()).toBe(true)
+        }
+        await page.getByLabel('File address').fill('https://b.s3.amazonaws.com/f.json')
+        await page.getByRole('button', { name: 'Test connection' }).click()
+        await expect(page.getByText('A read would hold', { exact: false })).toBeVisible()
+        expect(await violations(page)).toEqual([])
+        expect(await fits()).toBe(true)
       })
 
       // Publishing without review (FR-421): the dialog that sets a policy, the policy on the domain
