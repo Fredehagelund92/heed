@@ -22,7 +22,7 @@ and agents read it over MCP before they answer, with its source and its owner.
 
 <br>
 
-<img alt="Heed's Ask page on the demo. Asked how orders in Norway changed in October 2026, it answers Checked: a new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing, then the other context items that apply, each with its number." src="docs/images/hero.png" width="760">
+<img alt="Heed's Ask page on the demo. Asked how orders in Norway changed in October 2026, it answers Checked: a new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing, then the other context items that apply. Each sentence carries the number of the source it came from." src="docs/images/hero.png" width="760">
 
 </div>
 
@@ -141,16 +141,20 @@ this checkout, which is ahead of the latest release.
 
 ## What you get
 
+<p align="center">
+  <img alt="A short recording on the demo. Someone asks how orders in Norway changed in October 2026, and Ask answers Checked with four numbered sources. Then the Inbox of the owner of Sales opens on a conflict agents met about United Kingdom orders, both items side by side." src="docs/images/ask-and-inbox.gif" width="760">
+</p>
+
 <table>
   <tr>
-    <td width="33%"><img alt="The Inbox of the owner of Sales: what agents asked this week and what needs them, by kind, with a conflict agents met about United Kingdom orders open beside it, both items side by side" src="docs/images/inbox.png"></td>
+    <td width="33%"><img alt="The Inbox of the owner of Sales: what agents asked this week and what needs them, by kind, with a conflict agents met about United Kingdom orders open beside it: both items side by side, and Compare and decide" src="docs/images/inbox.png"></td>
     <td width="33%"><img alt="A review: a suggestion to change a context item, what it changes, how it relates to the live items it overlaps, and what agents will say after it is published" src="docs/images/review.png"></td>
-    <td width="33%"><img alt="Observability: what agents asked this week and how it was answered, in counts only, with the top topics" src="docs/images/observability.png"></td>
+    <td width="33%"><img alt="Observability's Overview for the owner of Sales: views for all topics and what needs a look, a filter bar and facets, this week's numbers (113 questions asked, 27% checked, 15 not found), questions per day by answer, and the topics agents asked about. Counts only." src="docs/images/observability.png"></td>
   </tr>
   <tr>
     <td align="center"><sub>One Inbox for owners</sub></td>
     <td align="center"><sub>Review with what agents will say</sub></td>
-    <td align="center"><sub>Observability, counts only</sub></td>
+    <td align="center"><sub>What agents asked, day by day, counts only</sub></td>
   </tr>
 </table>
 
@@ -167,6 +171,8 @@ this checkout, which is ahead of the latest release.
   [Agent tools](docs/help/tools.md).
 - **No AI picks the context.** Rules choose what applies from the question's metrics, markets and dates, so the
   same question gets the same items until an owner publishes a change. Ask shows exactly that.
+- **Ask about the context itself.** Ask what is missing, stale, conflicting or unowned, and Heed counts it from its own
+  records, says out of how many, and says what it can't see.
 - **Gaps and saved questions.** Questions that found nothing are counted by topic, so people write what's
   missing. Saved questions are answered again after every change, so a publish that makes an answer worse is
   seen at once. Heed never records who asked.
