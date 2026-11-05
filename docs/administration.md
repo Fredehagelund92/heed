@@ -96,7 +96,7 @@ An item the reader may not see is listed by id and digest only, so the edition's
 
 ## The heed command
 
-`heed` talks to the service and signs in as a person from the dev people file.
+`heed` talks to the service and signs in as a person from the dev people file, so it works with the dev or demo sign-in and not with company sign-in.
 
 ```sh
 npm run heed -- validate lessons.yaml                                     # no service needed

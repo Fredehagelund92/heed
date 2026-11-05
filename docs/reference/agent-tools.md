@@ -12,7 +12,7 @@ What each tool takes and gives back, for anyone building on them. For a shorter 
 
 | Tool              | What it does                                 | Takes                                                                       | Gives back                                              |
 | ----------------- | -------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `get_context`     | Finds the context that applies to a question | `question`, or `metrics`, `dimension_filters` and `window`                  | `status`, `say`, `context` and `reply_id`               |
+| `get_context`     | Finds the context that applies to a question | `question`, and `metrics`, `dimension_filters` and `window` if you have them | `status`, `say`, `context` and `reply_id`               |
 | `find_context`    | Searches names, titles, summaries and text   | `query`, and `domain`, `kind`, `window` and `limit` if you want them        | Titles and summaries under `context`, and definitions   |
 | `read_context`    | Reads one context item in full               | `id`, the item's id                                                         | Its text, every source, who checked it and its links    |
 | `report`          | Tells the owner something is off             | `kind`, the `reply_id`, a `context_id` for one item, and a short note       | That it was sent, and who sees it (`to`)                |
@@ -86,7 +86,7 @@ What else you send depends on what the report is about:
 
 - About a `get_context` reply, send its `reply_id`.
 - About one item, add `context_id`.
-- Something missing with no reply takes `question`, `metrics`, `dimension_filters` and `window`.
+- Something missing with no reply takes `question`, and `metrics`, `dimension_filters` and `window` if you have them.
 
 The note is checked for sensitive text, and the report never keeps who asked.
 

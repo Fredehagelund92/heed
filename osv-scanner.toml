@@ -5,7 +5,7 @@
 [[IgnoredVulns]]
 id = "GHSA-jmr9-qjv8-65gv"
 ignoreUntil = 2027-01-08
-reason = "extract-zip: symlink path traversal in a hostile archive. @cubejs-backend/shared 1.7.39 loads it but the offline compiler never extracts anything; Cube's post-installer uses it at install time on Cube's own release archive, and the compile worker runs with file writes denied. No version has a fix. Cube 1.8 drops it, but upgrading the compiler changes every change mark (docs/connectors/cube.md), so it waits for a stable mark."
+reason = "extract-zip: symlink path traversal in a hostile archive. @cubejs-backend/shared 1.7.39 loads it but the offline compiler never extracts anything; Cube's post-installer uses it at install time on Cube's own release archive, and the compile worker runs with file writes denied. No version has a fix. Cube 1.8 drops it, but upgrading the compiler changes every change mark (docs/contributing/cube-connector.md), so it waits for a stable mark."
 
 [[IgnoredVulns]]
 id = "GHSA-7pqw-9j4j-h8q3"

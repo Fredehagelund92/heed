@@ -104,6 +104,8 @@ Set these as the project's environment variables in Vercel. A key or password go
 
 The function sets `HEED_TRUSTED_PROXIES=vercel` and `HEED_LOGIN_SERVER=off` unless you do.
 
+A preview address needs its own `HEED_WEB_ORIGINS`, because a change from any other address is refused.
+
 ## Callers' addresses and request limits
 
 Every request reaches the function through Vercel's edge. `HEED_TRUSTED_PROXIES=vercel` believes that one hop and counts by the address the edge writes in `X-Forwarded-For`. So each visitor has a count of their own, and nobody can lock out sign-in for everyone else.

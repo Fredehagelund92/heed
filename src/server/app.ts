@@ -33,7 +33,7 @@ import { registerLoginRoutes, type LoginServer } from './modules/oauth/index.ts'
 import type { PageReader } from './modules/web/index.ts'
 import { createMetrics, operationOf, type Metrics } from './observability/metrics.ts'
 
-/** The security headers on every answer that does not set its own (docs/self-hosting.md). */
+/** The security headers on every answer that does not set its own (docs/contributing/internals.md). */
 export const SECURITY_HEADERS: readonly (readonly [string, string])[] = [
   ['content-security-policy', "default-src 'none'; frame-ancestors 'none'"],
   ['x-content-type-options', 'nosniff'],

@@ -83,11 +83,13 @@ Settings, Integrations, lists every source with how it is:
 | Needs a new key | Its last read failed because its key was refused or is missing |
 | Failed          | Its last read failed for another reason                        |
 
-**Read again** reads one source at the job's next turn, and a change to its settings does the same. To read every source from the command line:
+**Read again** reads one source at the job's next turn, and a change to its settings does the same. To read the server's own sources from the command line, the ones its settings name or the demo when they name none, run the command below. It never reads a source an admin added.
 
 ```sh
 npm run connectors:sync
 ```
+
+To read every source, an admin sends `POST /api/v1/operations/jobs/connectors.sync/run`.
 
 The job looks for due sources every five minutes. After a failure that clears by itself, such as a timeout, a source tries again after one minute, then two, four and so on. It waits at most half of its out-of-date time, and never less than the tool asked.
 

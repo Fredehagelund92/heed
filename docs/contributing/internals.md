@@ -53,6 +53,9 @@ The rules in the guide's contract section are the invariants I-1 to I-8 ([the ta
 - `settingSchemas` in `src/contract/admin.ts` says what each setting accepts.
 - The CI job "Docker images: build, and boot the service in production mode" does the production steps against a stand-in provider (`tests/image/production-boot.sh`): it signs a person in through the web image, makes an access key and calls the MCP server with it.
 - The site's commands avoid source paths: `npm run keys:create`, `npm run db:migrate` and `npm run db:restore-drill` are `src/server/create-keys.ts`, `db/prepare.ts` and `src/server/run-restore-drill.ts`, and the service image has npm and `package.json`.
+- The service makes its own request ids and ignores one a client sends. `heed audit --request <id>` finds history entries by request id, and an entry a scheduled job wrote has none.
+- A session never opens `/metrics`. It also reports request durations and the live edition's age. The people picker logs a warning at start.
+- The service sets its own security headers (`SECURITY_HEADERS` in `src/server/app.ts`) on what it answers, on port 3000 too, not only behind the web image's nginx.
 
 ## Settings named CL_ before 0.1.0
 
@@ -68,6 +71,9 @@ The old names: `CL_AUTH`, `CL_DEV_PEOPLE_FILE`, `CL_DOMAIN_OVERRIDES`, `CL_FIXED
 - `GET /schema/item` is FR-124, from the same definition that checks items.
 - CSV exports prefix a cell starting with `=`, `+`, `-` or `@` with `'`. The audit search takes `limit` up to 200 and `before`, and the export takes `after`.
 - For writes, see [Run the web app on the service](../development.md#run-the-web-app-on-the-service).
+- `/audit` and `/audit/export` both report the hash chain. The history event names include `tool.switched_on`, `tool.switched_off`, `area.created` and `area.changed`.
+- Import level 1 checks format, vocabulary, sensitive text, the owner, and mentions (syntax, live targets, the limit). An import item with an id need not repeat unchanged fields, and unchanged entries do not count toward the limit of 500.
+- The signing key is PKCS #8 PEM.
 
 ## Self-hosting
 
@@ -99,3 +105,12 @@ The old names: `CL_AUTH`, `CL_DEV_PEOPLE_FILE`, `CL_DOMAIN_OVERRIDES`, `CL_FIXED
 - `take` makes the roles when they are missing, and relays the demo's outbox so the inbox items are in the file. `restore` refuses a schema other than `public`, or a table, sequence, function or type in `public`, not counting what an extension made. Migrations take a session lock, which is why they need the direct address.
 - The function opens no serving pool today, as it serves no MCP server. The default for `DATABASE_URL_SERVE` is `DATABASE_URL` with the user changed and the password dropped. Every statement runs inside a transaction, and every setting is local to its transaction, which the pooler supports. The pool is handed to Vercel with `attachDatabasePool`.
 - Ask's words as server-sent events still have to be seen on a real deployment.
+- `npm run db:snapshot` refuses a runtime role that is a superuser, bypasses row security, may create roles or databases, or belongs to another role. `neon_superuser` may create roles and databases and bypass row security. `take` drops its scratch database when done, and `restore` applies the grants.
+- Without the bundle, Vercel would trace every package into the function, over the 250 MB limit.
+
+## Connector authoring details
+
+- For every definitions connector, whatever the hooks, every name has a group. A definition without a hint says `none`, one with a hint says `source` or `override`, and every warning code is worded.
+- The third argument of `describeConnector` names a route. A null title is worded from the name, and environment names become `example_db` and `example_schema`.
+- A member with an invalid domain value takes its group's domain, if any. A required `visibleIf` field needs a migration to give stored sources a value.
+- `meaningMark` drops null, false, empty text, lists and objects.

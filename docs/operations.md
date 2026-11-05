@@ -51,15 +51,16 @@ To run the image in production mode, beside a PostgreSQL 18 database:
    docker run --rm -v heed-keys:/var/lib/heed <image> npm run keys:create
    ```
 
-3. **Set the addresses.** The login server for agents needs https in production:
+3. **Set the database addresses.** `DATABASE_URL` is the service's own role and `DATABASE_URL_MIGRATE` is the owner, which the image needs to apply the schema at start. When the roles do not exist yet, also set `DATABASE_URL_BOOTSTRAP` to a superuser. See the [database guide](../db/README.md).
+4. **Set the addresses.** The login server for agents needs https in production:
 
    ```sh
    MCP_RESOURCE_URL=https://heed.example.com/mcp
    HEED_WEB_ORIGINS=https://heed.example.com
    ```
 
-4. **Put a TLS proxy in front.** It sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly, and only the rest to the web image, with the public host.
-5. **Name that proxy** in `HEED_TRUSTED_PROXIES`: see [The proxy in front](where-to-run.md#the-proxy-in-front).
+5. **Put a TLS proxy in front.** It sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly, and only the rest to the web image, with the public host.
+6. **Name that proxy** in `HEED_TRUSTED_PROXIES`: see [The proxy in front](where-to-run.md#the-proxy-in-front).
 
 See [Service settings](configuration.md) for every other setting, and the [database guide](../db/README.md) for the roles.
 
@@ -106,11 +107,10 @@ Problems are error log lines with an `alert` field: `job_failed` after the last 
 
 ## Metrics
 
-`GET /metrics` serves the service's numbers in the Prometheus text format. Turn it on with a token of at least 32 characters. Without one, the address answers 404.
+`GET /metrics` serves the service's numbers in the Prometheus text format. Turn it on by setting `HEED_METRICS_TOKEN`, a token of at least 32 characters, in the service's environment and restarting it. Without one, the address answers 404. Make a token with `openssl rand -hex 32`, then read the numbers:
 
 ```sh
-HEED_METRICS_TOKEN=$(openssl rand -hex 32)
-curl -H "Authorization: Bearer $HEED_METRICS_TOKEN" localhost:3000/metrics
+curl -H "Authorization: Bearer <the token>" localhost:3000/metrics
 ```
 
 It counts HTTP requests by route, MCP requests by tool, status and agent family, and what the operations view shows: jobs, queues, source age, model spending and the database pool.

@@ -33,7 +33,7 @@ On a computer running the demo, sign-in means choosing a person from the demo's 
 | An access token   | 10 minutes, renewed by the agent          | None                            |
 | A refresh token   | Until 7 days unused. Each use replaces it | `HEED_OAUTH_REFRESH_IDLE_HOURS` |
 | A connection      | 30 days after sign-in                     | `HEED_OAUTH_CONNECTION_DAYS`    |
-| A browser session | 12 hours unused, or 7 days after sign-in  | `HEED_SESSION_IDLE_HOURS`       |
+| A browser session | 12 hours unused, or 7 days after sign-in  | `HEED_SESSION_IDLE_HOURS` and `HEED_SESSION_MAX_DAYS` |
 
 When a connection ends, the agent asks you to sign in again.
 
@@ -67,7 +67,7 @@ The service runs its own login server for agents. These are the settings, for wh
 | --------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `HEED_LOGIN_SERVER`               | `builtin`                                    | `builtin` runs it here, `external` trusts another login server, and `off` leaves only dev tokens |
 | `HEED_OAUTH_ISSUER`               | The origin of `MCP_RESOURCE_URL`             | The issuer of its tokens. It must be that origin                                                 |
-| `HEED_OAUTH_CONSENT_URL`          | `/connect/approve` on the first web origin   | The consent page. It must be on an allowed web origin, on the issuer's host                      |
+| `HEED_OAUTH_CONSENT_URL`          | `/connect/approve` on the first web origin on the issuer's host | The consent page. It must be on an allowed web origin, on the issuer's host                      |
 | `HEED_OAUTH_SIGNING_KEY_FILE`     | `.heed-oauth-key.pem`                        | The key that signs tokens. Made for you outside production, and required in production           |
 | `HEED_OAUTH_PREVIOUS_KEY_FILES`   | None                                         | Earlier keys, comma-separated, that still verify after a rotation                                |
 | `HEED_OAUTH_DYNAMIC_REGISTRATION` | `on` outside production, `off` in production | Allows dynamic client registration, which Claude Code uses                                       |
@@ -104,7 +104,12 @@ openssl rand -hex 32 > heed-mcp-state.key && chmod 600 heed-mcp-state.key
 ## Rotate the signing key
 
 1. Create a new key, and point `HEED_OAUTH_SIGNING_KEY_FILE` at it.
-2. List the old file, or its public key, in `HEED_OAUTH_PREVIOUS_KEY_FILES`.
+2. List the old file, or its public key, in `HEED_OAUTH_PREVIOUS_KEY_FILES`. Make the public key with the command below.
+
+   ```sh
+   openssl pkey -in old.pem -pubout
+   ```
+
 3. Restart the service. New tokens use the new key, and tokens signed by the old one work until they expire, ten minutes at most.
 4. Take the old key off the list.
 

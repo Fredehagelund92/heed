@@ -25,7 +25,7 @@ The service reads its settings from the environment, once, when it starts. If on
 | ------------------------ | ------------------------------------------------------------------------------------------ |
 | `DATABASE_URL`           | The service's own role. Required                                                           |
 | `DATABASE_URL_SERVE`     | The restricted role that serves agents. Unset, it is `DATABASE_URL` with the user changed  |
-| `DATABASE_URL_MIGRATE`   | The owner, for migrations and backups                                                      |
+| `DATABASE_URL_MIGRATE`   | The owner, for migrations and backups. The service image needs it                                                    |
 | `DATABASE_URL_BOOTSTRAP` | A superuser, to create the roles and the database when they are missing, and load the demo |
 | `SEED_DEMO`              | `on` loads the demo into an empty database. Refused in production                          |
 
@@ -50,7 +50,7 @@ The login server's own settings are on [Sign in your own agent](ai-sign-in.md#th
 | `ANTHROPIC_API_KEY`         | None    | The key for the `anthropic` provider                          |
 | `VERCEL_AI_GATEWAY_API_KEY` | None    | The key for the `vercel-gateway` provider                     |
 
-With `live`, each role's provider and model come from the `models.*` settings, and the service refuses to start when a provider or its key is missing.
+With `live`, each role's provider and model come from the `models.*` settings, and the service refuses to start when a provider, a model or a key is missing, or the provider does not list the model.
 
 > **Before you go live.** Questions and answers then leave your company to the named provider and the model's vendor. Real company data needs company approval of them first.
 

@@ -18,7 +18,7 @@ The API uses the web app's session. Sign in as a person, then send with each cha
 | `Origin`      | One of the allowed web origins, `HEED_WEB_ORIGINS` |
 | `x-heed-csrf` | The session's token, on every change               |
 
-To script against it, use the [`heed` command](../administration.md#the-heed-command), which handles all three.
+To script against it with the dev or demo sign-in, use the [`heed` command](../administration.md#the-heed-command), which handles all three. It cannot sign in through company sign-in.
 
 `GET /api/v1/auth/methods` says how this install signs people in.
 
@@ -34,7 +34,7 @@ Changes that take an `Idempotency-Key` header can be sent twice. The key is 8 to
 
 ## Stale writes
 
-Reads give a `revision`, and changes send it back. If someone changed the record in between, the answer is 409 with the current record. Read it again, then retry.
+Reads give a `revision`, and changes send it back. If someone changed the record in between, the answer is 409, and for a suggestion it carries the current record. Read it again, then retry.
 
 ## Undo
 

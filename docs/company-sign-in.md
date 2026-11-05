@@ -36,10 +36,10 @@ SAML providers work through an OIDC broker, such as Keycloak, Dex or the provide
    HEED_OIDC_CLIENT_SECRET_FILE=oidc-secret
    ```
 
-4. Invite the first admin. This prints a link that works for a week:
+4. Invite the first admin, after the service has started once and applied the schema. This prints a link that works for a week:
 
    ```sh
-   DATABASE_URL_MIGRATE=<the owner's address> npm run heed -- invite you@company.example --admin
+   HEED_WEB_ORIGINS=<your public origin> DATABASE_URL_MIGRATE=<the owner's address> npm run heed -- invite you@company.example --admin
    ```
 
    Or name an admin group in `HEED_OIDC_ADMIN_GROUPS`. After that, admins invite everyone else in Settings, People.
