@@ -1,9 +1,12 @@
-import { answer, type Answer, type AnswerAsk, type AnswerState } from './answer.ts'
+import { answer, readAsk, type Answer, type AnswerAsk, type AnswerState } from './answer.ts'
 import { asksNothing, nothingAskedSaid } from './ask-again.ts'
-import { chatSources, fitChat, type ChatTurn } from './ask-chat.ts'
+import { chatSources, fitChat, type ChatTurn, type HeldReading, type HeldWord } from './ask-chat.ts'
+import { chosenMeanings, heldOf, settled } from './ask-held.ts'
 import {
   asksUndefinedWords,
+  asksWhy,
   checkPlan,
+  leftOpen,
   limitOf,
   plannerPrompt,
   plannerReason,
@@ -25,9 +28,17 @@ import {
 } from './planned-answer.ts'
 import { limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
 import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
-import { cannotSaid, offTopicSaid, scopeWords } from './say.ts'
-import { readQuestion } from './scope.ts'
+import {
+  cannotSaid,
+  contestedAlso,
+  contestedQuestion,
+  offTopicSaid,
+  scopeWords,
+  termChosenSaid,
+} from './say.ts'
+import { asksDefinition, readQuestion } from './scope.ts'
 import { dateWindowSchema } from './validity.ts'
+import { namesOf, normalizeName } from './vocabulary.ts'
 
 /*
   How Ask reads one question (FR-701, FR-718, FR-719), the same on the service, in the planner
@@ -63,21 +74,50 @@ export function chatOf(
 ): ChatTurn[] {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
   const keys = new Set(bundle.terms.map((t) => t.key))
+  const known = ({ metrics, filters }: Pick<HeldReading, 'metrics' | 'filters'>) => ({
+    metrics: metrics.filter((key) => keys.has(key)),
+    filters: Object.fromEntries(
+      Object.entries(filters)
+        .filter(([dimension]) => keys.has(dimension))
+        .map(([dimension, values]) => [dimension, values.filter((key) => keys.has(key))]),
+    ),
+  })
+  // Heed's own names, so a turn from the browser can only say what the edition holds.
+  const meanings = new Map(
+    bundle.terms.flatMap((term) => [
+      [term.key, term.name] as const,
+      ...(term.contested ?? []).flatMap((c) => c.meanings.map((m) => [m.key, m.name] as const)),
+    ]),
+  )
+  const namedWord = ({ word, meanings: given }: HeldWord): HeldWord | undefined => {
+    const said = bundle.terms.some(
+      (term) =>
+        given.some((m) => m.key === term.key) && namesOf(term).includes(normalizeName(word)),
+    )
+    const known = given.flatMap((m) => {
+      const name = meanings.get(m.key)
+      return name === undefined ? [] : [{ key: m.key, name }]
+    })
+    return said && known.length === given.length ? { word, meanings: known } : undefined
+  }
+  // A held reading that no longer fits the edition or the calendar holds nothing.
+  const heldIn = (held: HeldReading): HeldReading | undefined => {
+    const first = namedWord(held)
+    const more = held.more?.map(namedWord)
+    if (!first || more?.some((word) => !word)) return undefined
+    if (held.window && !dateWindowSchema.safeParse(held.window).success) return undefined
+    return { ...held, ...first, ...known(held), ...(more ? { more: more as HeldWord[] } : {}) }
+  }
   return fitChat(given ?? []).map((turn) => {
     const scope =
       turn.scope && dateWindowSchema.safeParse(turn.scope.window).success
-        ? {
-            metrics: turn.scope.metrics.filter((key) => keys.has(key)),
-            filters: Object.fromEntries(
-              Object.entries(turn.scope.filters)
-                .filter(([dimension]) => keys.has(dimension))
-                .map(([dimension, values]) => [dimension, values.filter((key) => keys.has(key))]),
-            ),
-            window: turn.scope.window,
-          }
+        ? { ...known(turn.scope), window: turn.scope.window }
         : null
+    const { held: given, ...rest } = turn
+    const held = given && heldIn(given)
     return {
-      ...turn,
+      ...rest,
+      ...(held ? { held } : {}),
       scope,
       ...(turn.rows ? { rows: turn.rows.filter((key) => keys.has(key)) } : {}),
       domain: bundle.areas.some((a) => a.id === turn.domain) ? turn.domain : null,
@@ -165,13 +205,19 @@ export function planContextOf(
  * definitions it shows and what a draft would start from.
  */
 export type RoutedReply =
-  | { kind: 'clarify' | 'off_topic' | 'nothing_asked'; text: string }
+  | {
+      kind: 'clarify' | 'off_topic' | 'nothing_asked'
+      text: string
+      /** What Ask holds while it waits to hear which meaning of a word the person means. */
+      held?: HeldReading
+    }
   | {
       kind: 'cannot'
       reason: CannotReason
       text: string
       metrics: string[]
       filters: Record<string, string[]>
+      held?: undefined
     }
 
 const cannot = (
@@ -210,10 +256,76 @@ export type Routed =
   | { kind: 'reply'; reply: RoutedReply }
 
 /**
- * Reads a question: a message that asks nothing is told so, with no model call; then the rules'
- * answer and records question, then, when the planner is to read it (`plannerReason`) and there is
- * one, its checked plan. `reason` says why the planner read it, and `asked` whether it was asked
- * (a call the planner made, whatever came of it).
+ * A word with more than one meaning, by the fixed rules and with no model, or null when the
+ * question has none: the answer to the question Ask just asked, read with what that turn held; or
+ * the question itself, which the person settles, before a model could choose. A question the
+ * records answer in full keeps that answer: it reads no metric.
+ */
+export function routeHeld(
+  c: {
+    bundle: RouteBundle
+    ask: Extract<AnswerAsk, { question: string }>
+    turns: readonly ChatTurn[]
+    records?: RecordsRecognition | null
+    today: string
+    now: string
+    clock?: () => number
+  },
+  scoped: boolean,
+) {
+  const { bundle, ask, turns, today } = c
+  const previous = turns.at(-1) ?? null
+  const chosen =
+    previous?.held && !scoped
+      ? chosenMeanings(ask.question, previous.held, bundle.terms, today)
+      : null
+  if (previous?.held && chosen) {
+    const next = settled(previous.held, chosen, bundle.terms, today)
+    if (next.kind === 'ask') return askedWhich(next.held)
+    if (next.kind === 'nothing')
+      return {
+        kind: 'reply' as const,
+        reply: { kind: 'nothing_asked' as const, text: termChosenSaid(next.word) },
+        reason: null,
+        asked: false,
+      }
+    const planned = plannedAnswer(bundle, [next.read], {
+      question: ask.question,
+      today,
+      previous,
+      turns,
+      settled: { also: contestedAlso(next.word, next.others) },
+      ...(c.clock ? { now: c.clock } : {}),
+    })
+    return {
+      kind: 'reads' as const,
+      planned,
+      working: workingWords(bundle, planned.reads),
+      limit: null,
+      reason: null,
+      asked: false,
+    }
+  }
+  const firm = c.records && (c.records.type === 'refused' || !c.records.loose)
+  const held = firm ? null : heldOf(readAsk(ask, bundle.terms, today))
+  if (!held) return null
+  const context = planContextOf(bundle, ask.question, turns, { today, now: c.now })
+  const open = scoped ? null : leftOpen(context)
+  return askedWhich({
+    ...held,
+    ...(asksWhy(ask.question) ? { why: true } : {}),
+    ...(asksDefinition(ask.question) ? { defines: true } : {}),
+    filters: { ...open?.filters, ...held.filters },
+    window: held.window ?? open?.window ?? null,
+  })
+}
+
+/**
+ * Reads a question: a word with more than one meaning is asked about (`routeHeld`), a message that
+ * asks nothing is told so, with no model call; then the rules' answer and records question, then,
+ * when the planner is to read it (`plannerReason`) and there is one, its checked plan. `reason`
+ * says why the planner read it, and `asked` whether it was asked (a call the planner made,
+ * whatever came of it).
  */
 export async function routeQuestion(c: {
   bundle: RouteBundle
@@ -230,6 +342,8 @@ export async function routeQuestion(c: {
   const { bundle, ask, turns, today } = c
   const previous = turns.at(-1) ?? null
   const scoped = !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window)
+  const held = routeHeld(c, scoped)
+  if (held) return held
   const names = readQuestion(ask.question, bundle.terms, today).terms.length > 0
   if (!scoped && !names && asksNothing(ask.question, turns))
     return nothingAsked(ask.question, turns)
@@ -312,6 +426,14 @@ function withRulesFacets(ask: RecordsAsk, rules: RecordsRecognition | null): Rec
     audit: { ...ask.audit, facets, of: floor.of, kind: floor.kind ?? ask.audit.kind },
   }
 }
+
+/** One plain question about a word's meanings, from the fixed rules: nothing looked up, no model. */
+const askedWhich = (held: HeldReading) => ({
+  kind: 'reply' as const,
+  reply: { kind: 'clarify' as const, text: contestedQuestion(held), held },
+  reason: null,
+  asked: false,
+})
 
 /** What a message that asks nothing gets: one sentence, nothing looked up and no model called. */
 export const nothingAsked = (question: string, turns: readonly ChatTurn[]) => ({

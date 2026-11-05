@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { lookAlikes, termWord, wordRefusal, type WordHolder } from '@domain/terms'
 import { useDefinitions as useDefinitionList } from '@/api/queries'
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 
@@ -61,9 +62,10 @@ export function toolOf(defs: readonly Pick<Definition, 'synced' | 'tool'>[]): st
   return tools.size === 1 ? [...tools][0] : undefined
 }
 
-const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+// Words are compared as the service compares them: case, spaces and accents aside.
+const same = (a: string, b: string) => termWord(a) === termWord(b)
 export const findDefinition = (all: Definition[], name: string | undefined) =>
-  name ? all.find((d) => same(d.name, name)) : undefined
+  name ? (all.find((d) => d.name === name) ?? all.find((d) => same(d.name, name))) : undefined
 
 /** The terms that mean the same as this definition: its "Also called in Heed". */
 export const synonymsOf = (all: Definition[], name: string) =>
@@ -95,13 +97,16 @@ export type Conflict = {
   message: string
   short: string
   other?: string
+  /** Whether agents ask which meaning: one of the meanings is a synced item. Else they get nothing. */
+  asks: boolean
 }
 
 /**
  * Why a term can mislead an agent: its word already means something else (another definition's
- * name, or a name Cube gives another item), or it is a synonym of a synonym.
+ * name, a name Cube gives another item, or another term that reads as the same word), or it is a
+ * synonym of a synonym. `self` is the term a draft was opened from: its old word is no conflict.
  */
-export function conflictOf(all: Definition[], d: Definition): Conflict | undefined {
+export function conflictOf(all: Definition[], d: Definition, self?: string): Conflict | undefined {
   if (d.type !== 'term') return undefined
   const target = d.sameAs ? findDefinition(all, d.sameAs) : undefined
   if (d.sameAs && !target)
@@ -109,20 +114,24 @@ export function conflictOf(all: Definition[], d: Definition): Conflict | undefin
       kind: 'missing',
       message: `${d.sameAs} isn't in Definitions any more. Point ${d.name} at something else.`,
       short: `${d.sameAs} isn't in Definitions any more.`,
+      asks: false,
     }
   // A term never conflicts with itself (a draft of it is a different object with the same name).
-  const other = all.find(
-    (x) =>
-      !(x.type === 'term' && same(x.name, d.name)) &&
-      x !== target &&
-      (same(x.name, d.name) || x.sourceNames.some((n) => same(n, d.name))),
-  )
+  const other = all
+    .filter(
+      (x) =>
+        !(x.type === 'term' && (x.name === d.name || x.name === self)) &&
+        (same(x.name, d.name) || x.sourceNames.some((n) => same(n, d.name))),
+    )
+    .map((x) => meaningOf(all, x))
+    .find((x) => x !== target)
   if (other)
     return {
       kind: 'two-things',
       message: `“${d.name}” already means ${other.name}${other.synced ? ` in ${other.tool}` : ' here'}${target ? `, and this term says it means ${target.name}` : ''}. An agent can't tell which one a person means. Rename this term or point it at ${other.name}.`,
       short: `“${d.name}” already means ${other.name}.`,
       other: other.name,
+      asks: !!other.synced || !!target?.synced,
     }
   if (target?.sameAs) {
     const to = meaningOf(all, target)
@@ -130,6 +139,7 @@ export function conflictOf(all: Definition[], d: Definition): Conflict | undefin
       kind: 'chain',
       message: `${target.name} is itself a synonym of ${to.name}. Point ${d.name} at ${to.name} directly.`,
       short: `${target.name} is itself a synonym of ${to.name}.`,
+      asks: false,
     }
   }
   return undefined
@@ -200,47 +210,88 @@ export type SynonymCheck =
       by?: string
     }
 
-/** Checks a word before it becomes a synonym: never a second entry for a word, never a word that means something else. */
-export function checkSynonym(all: Definition[], target: Definition, word: string): SynonymCheck {
+/** Everything that has a word, as the service finds it: `self` is the term being edited. */
+function holdersOf(
+  all: Definition[],
+  word: string,
+  point: Definition | undefined,
+  self: string | undefined,
+): WordHolder[] {
+  return all.flatMap((d): WordHolder[] => {
+    if (d.synced)
+      return same(d.name, word) || d.sourceNames.some((n) => same(n, word))
+        ? [{ origin: 'source', ref: d.name, name: d.name, tool: d.tool ?? null }]
+        : []
+    if (d.type !== 'term' || d.name === self || !same(d.name, word)) return []
+    const means = d.sameAs ? meaningOf(all, d) : d === point ? d : undefined
+    return [
+      {
+        origin: 'term',
+        id: d.name,
+        name: d.name,
+        sameAs: means ? { ref: means.name, name: means.name } : null,
+        by: d.by ?? 'someone',
+      },
+    ]
+  })
+}
+
+/**
+ * Checks a word as the service will, with the same sentence (`wordRefusal`): never a second entry
+ * for a word, never a word that means something else. `target` is what it would be another name
+ * for, and `self` the term being edited, when there is one.
+ */
+export function checkWord(
+  all: Definition[],
+  word: string,
+  target?: Definition,
+  self?: string,
+): SynonymCheck {
   const name = word.trim()
   if (!name) return { ok: false, why: 'empty', reason: 'Type a word.' }
-  const point = target.sameAs ? meaningOf(all, target) : target
-  if (namesOf(all, point).some((n) => same(n, name)))
-    return {
-      ok: false,
-      why: 'here',
-      reason: `${point.name} is already called “${name}”.`,
-      holder: point.name,
-    }
-  const taken = all.find(
-    (d) => d.synced && (same(d.name, name) || d.sourceNames.some((n) => same(n, name))),
+  const point = target && meaningOf(all, target)
+  const refusal = wordRefusal(
+    name,
+    holdersOf(all, name, point, self),
+    point ? { ref: point.name, name: point.name } : null,
   )
-  if (taken)
-    return {
-      ok: false,
-      why: 'source',
-      reason: `“${name}” is ${taken.tool}'s name for ${taken.name}.`,
-      holder: taken.name,
-      by: taken.tool,
-    }
-  const existing = all.find((d) => d.type === 'term' && same(d.name, name))
-  if (existing?.sameAs)
-    return {
-      ok: false,
-      why: 'taken',
-      reason: `“${existing.name}” is already another name for ${existing.sameAs}, added by ${existing.by}.`,
-      holder: existing.sameAs,
-      by: existing.by,
-    }
-  if (existing)
-    return {
-      ok: false,
-      why: 'term',
-      reason: `“${existing.name}” is a term with its own meaning, written by ${existing.by}.`,
-      holder: existing.name,
-      by: existing.by,
-    }
-  return { ok: true }
+  if (!refusal) return { ok: true }
+  return {
+    ok: false,
+    why: refusal.code,
+    reason: refusal.message,
+    holder: refusal.holder,
+    ...(refusal.by ? { by: refusal.by } : {}),
+  }
+}
+
+/** Checks a word before it becomes a synonym. */
+export const checkSynonym = (all: Definition[], target: Definition, word: string) =>
+  checkWord(all, word, target)
+
+/** A name in use that a new word looks like, and what that name means. */
+export type LookAlike = { name: string; means: string }
+
+/**
+ * The name in use a word most looks like, unless it means what the word would mean: a warning for
+ * the editor, never a stop. `self` is the term being edited, and `means` what the word would mean.
+ */
+export function lookAlikeOf(
+  all: Definition[],
+  word: string,
+  self?: string,
+  means?: string,
+): LookAlike | undefined {
+  const names = new Map(
+    all
+      .filter((d) => d.name !== self)
+      .flatMap((d) => {
+        const meaning = meaningOf(all, d).name
+        return [d.name, ...d.sourceNames].map((n) => [n, meaning] as const)
+      }),
+  )
+  const name = lookAlikes(word, [...names.keys()]).find((n) => names.get(n) !== means)
+  return name ? { name, means: names.get(name)! } : undefined
 }
 
 /** The other names that go with a term when it is deleted: the synonyms that point at it. */
@@ -257,12 +308,17 @@ export function glossary(all: Definition[]) {
     synonymsOf: (name: string) => synonymsOf(all, name),
     meaningOf: (d: Definition) => meaningOf(all, d),
     namesOf: (d: Definition) => namesOf(all, d),
-    conflictOf: (d: Definition) => conflictOf(all, d),
+    sameWord: same,
+    conflictOf: (d: Definition, self?: string) => conflictOf(all, d, self),
     contextAbout: (d: Definition, facts: Fact[]) => contextAbout(all, d, facts),
     synonymIn: (question: string) => synonymIn(all, question),
     foldsInto: (d: Definition) => foldsInto(all, d),
     alsoCalled: (d: Definition) => alsoCalled(all, d),
     checkSynonym: (target: Definition, word: string) => checkSynonym(all, target, word),
+    checkWord: (word: string, target?: Definition, self?: string) =>
+      checkWord(all, word, target, self),
+    lookAlikeOf: (word: string, self?: string, means?: string) =>
+      lookAlikeOf(all, word, self, means),
     goesWith: (names: string[]) => goesWith(all, names),
   }
 }

@@ -48869,7 +48869,8 @@
                                   "code": {
                                     "enum": [
                                       "source",
-                                      "missing"
+                                      "missing",
+                                      "word"
                                     ],
                                     "type": "string"
                                   },
@@ -49315,7 +49316,8 @@
                             "code": {
                               "enum": [
                                 "source",
-                                "missing"
+                                "missing",
+                                "word"
                               ],
                               "type": "string"
                             },
@@ -49813,7 +49815,8 @@
                             "code": {
                               "enum": [
                                 "source",
-                                "missing"
+                                "missing",
+                                "word"
                               ],
                               "type": "string"
                             },
@@ -90096,7 +90099,148 @@
                         },
                         "asked": {
                           "type": "string",
-                          "maxLength": 300
+                          "maxLength": 2000
+                        },
+                        "held": {
+                          "type": "object",
+                          "properties": {
+                            "word": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "meanings": {
+                              "type": "array",
+                              "minItems": 2,
+                              "maxItems": 8,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "key": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "metrics": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "type": "string",
+                                "maxLength": 200
+                              }
+                            },
+                            "filters": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              "additionalProperties": {
+                                "type": "array",
+                                "maxItems": 100,
+                                "items": {
+                                  "type": "string",
+                                  "maxLength": 200
+                                }
+                              }
+                            },
+                            "window": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "start": {
+                                      "type": "string"
+                                    },
+                                    "end": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "start",
+                                    "end"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "more": {
+                              "type": "array",
+                              "maxItems": 100,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "word": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "meanings": {
+                                    "type": "array",
+                                    "minItems": 2,
+                                    "maxItems": 8,
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string",
+                                          "maxLength": 200
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "maxLength": 200
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "name"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "word",
+                                  "meanings"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "why": {
+                              "type": "boolean"
+                            },
+                            "defines": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "word",
+                            "meanings",
+                            "metrics",
+                            "filters",
+                            "window"
+                          ],
+                          "additionalProperties": false
                         },
                         "understood": {
                           "anyOf": [
@@ -90421,6 +90565,147 @@
                                         "metric",
                                         "market"
                                       ]
+                                    },
+                                    "held": {
+                                      "type": "object",
+                                      "properties": {
+                                        "word": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "meanings": {
+                                          "type": "array",
+                                          "minItems": 2,
+                                          "maxItems": 8,
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "key": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "name"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "metrics": {
+                                          "type": "array",
+                                          "maxItems": 100,
+                                          "items": {
+                                            "type": "string",
+                                            "maxLength": 200
+                                          }
+                                        },
+                                        "filters": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string",
+                                            "maxLength": 200
+                                          },
+                                          "additionalProperties": {
+                                            "type": "array",
+                                            "maxItems": 100,
+                                            "items": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            }
+                                          }
+                                        },
+                                        "window": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "start": {
+                                                  "type": "string"
+                                                },
+                                                "end": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "start",
+                                                "end"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "more": {
+                                          "type": "array",
+                                          "maxItems": 100,
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "word": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 200
+                                              },
+                                              "meanings": {
+                                                "type": "array",
+                                                "minItems": 2,
+                                                "maxItems": 8,
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "name": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "key",
+                                                    "name"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "word",
+                                              "meanings"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "why": {
+                                          "type": "boolean"
+                                        },
+                                        "defines": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "word",
+                                        "meanings",
+                                        "metrics",
+                                        "filters",
+                                        "window"
+                                      ],
+                                      "additionalProperties": false
                                     }
                                   },
                                   "required": [
@@ -90571,6 +90856,27 @@
                                                 "type": "array",
                                                 "items": {
                                                   "type": "string"
+                                                }
+                                              },
+                                              "word": {
+                                                "type": "string"
+                                              },
+                                              "meanings": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string"
+                                                    },
+                                                    "name": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "key",
+                                                    "name"
+                                                  ]
                                                 }
                                               },
                                               "message": {
@@ -91129,6 +91435,27 @@
                                               "type": "string"
                                             }
                                           },
+                                          "word": {
+                                            "type": "string"
+                                          },
+                                          "meanings": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "key": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "key",
+                                                "name"
+                                              ]
+                                            }
+                                          },
                                           "message": {
                                             "type": "string"
                                           }
@@ -91510,6 +91837,27 @@
                                                       "type": "array",
                                                       "items": {
                                                         "type": "string"
+                                                      }
+                                                    },
+                                                    "word": {
+                                                      "type": "string"
+                                                    },
+                                                    "meanings": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "key": {
+                                                            "type": "string"
+                                                          },
+                                                          "name": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "key",
+                                                          "name"
+                                                        ]
                                                       }
                                                     },
                                                     "message": {
@@ -92100,6 +92448,24 @@
                                         },
                                         "left": {
                                           "type": "string"
+                                        },
+                                        "settled": {
+                                          "type": "object",
+                                          "properties": {
+                                            "also": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "also"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -100312,6 +100678,27 @@
                                   "type": "string"
                                 }
                               },
+                              "word": {
+                                "type": "string"
+                              },
+                              "meanings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "name"
+                                  ]
+                                }
+                              },
                               "message": {
                                 "type": "string"
                               }
@@ -100693,6 +101080,27 @@
                                           "type": "array",
                                           "items": {
                                             "type": "string"
+                                          }
+                                        },
+                                        "word": {
+                                          "type": "string"
+                                        },
+                                        "meanings": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "key": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "name"
+                                            ]
                                           }
                                         },
                                         "message": {
@@ -101278,6 +101686,24 @@
                             },
                             "left": {
                               "type": "string"
+                            },
+                            "settled": {
+                              "type": "object",
+                              "properties": {
+                                "also": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "also"
+                              ]
                             }
                           },
                           "required": [

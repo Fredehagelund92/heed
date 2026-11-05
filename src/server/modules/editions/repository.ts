@@ -56,6 +56,7 @@ type WrittenRow = {
   written_on: string
   written_as: WrittenTerm['writtenAs']
   conflict: boolean
+  also_means: string[]
 }
 type ReviewRow = {
   item_id: string
@@ -259,6 +260,7 @@ export async function loadServingBundle(
     writtenOn: row.written_on,
     writtenAs: row.written_as,
     conflict: row.conflict,
+    alsoMeans: row.also_means,
   }))
   const vocabulary = vocab.map((v) => ({
     key: v.key,

@@ -269,7 +269,8 @@ export function createTermsService(tx: Queryable) {
 
   /**
    * Why each written term misleads agents now: a sync gave its word to a metric or a dimension it
-   * does not mean, or what it means is no longer in the definitions.
+   * does not mean, what it means is no longer in the definitions, or another live term reads as
+   * the same word (two written before accents were set aside; db/migrations/0039_word_comparison.sql).
    */
   async function conflictsOf(terms: readonly Row[]): Promise<Map<string, Term['conflict']>> {
     const holders = await tx.query<{
@@ -284,6 +285,9 @@ export function createTermsService(tx: Queryable) {
         where w.word = any ($1::text[]) order by w.origin, w.key`,
       [[...new Set(terms.map((t) => t.word))]],
     )
+    const sameWord = await rows('t.word = any($1::text[]) and t.deleted_at is null', [
+      [...new Set(terms.map((t) => t.word))],
+    ])
     const conflicts = new Map<string, Term['conflict']>()
     for (const row of terms) {
       if (!row.targetLive) {
@@ -295,6 +299,21 @@ export function createTermsService(tx: Queryable) {
         continue
       }
       const other = holders.find((h) => h.word === row.word && h.key !== row.sameAsKey)
+      const twin = sameWord.find(
+        (t) =>
+          t.word === row.word &&
+          t.id !== row.id &&
+          (termRefOf(t) ?? t.id) !== (termRefOf(row) ?? row.id),
+      )
+      if (!other && twin) {
+        const holder = twin.targetName ?? twin.name
+        conflicts.set(row.id, {
+          code: 'word',
+          holder,
+          message: `“${row.name}” reads as “${twin.name}”, which means ${holder}. An agent can't tell which one a person means. Rename one of them.`,
+        })
+        continue
+      }
       if (!other) continue
       const tool = other.type ? connectorType(other.type, other.connector ?? '').tool : null
       conflicts.set(row.id, {

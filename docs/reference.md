@@ -104,8 +104,15 @@ says to read the words by them and never to give a term as a checked source. A t
 neither the items that apply nor the answer state: a question that only names a term ("What does
 peak season mean?") is still `need_more_detail`. Agents get the live terms whatever the edition, as
 they get the overlay, and from the next call after a person writes one: never a deleted term, a
-word a sync gave a second meaning (the conflict Definitions shows), a word the vocabulary already
-has, or a term of a stopped domain.
+word the vocabulary already has, or a term of a stopped domain.
+
+A word with two meanings is never settled for the person. When a sync gives a written word a second
+meaning (the conflict Definitions shows), or two metrics share a name, a question in that word looks
+nothing up: `status` is `need_more_detail`, `say` names each meaning in one question ("Sales can mean
+Net revenue or Gross sales. Which do you mean?"), `next` says to ask the person, and `options` holds
+the word, as `word`, and its `meanings`, each with its `key` and `name`. A metric passed in `metrics`
+still wins. Ask says the same sentence, from the fixed rules and not from a model, and the turn that
+asks keeps its reading, so "net", "the second one" or "both" settles it with the period kept.
 
 With `response_format: "full"` (FR-342) the reply keeps the same fields and adds what it always
 carried: each item's version, body, validity, claim level, every source, owner, review stamp and
@@ -657,7 +664,7 @@ synonym means what that one means.
   the `revision` the person read; an edit that leaves out `areaId` keeps the term's domain, and only
   an explicit null clears it. An owner of the term's domain or an admin writes it (403
   otherwise); a word with no domain is an admin's. One word has one meaning across the workspace:
-  a word, compared trimmed, its spaces folded and case aside, that the vocabulary, the definitions
+  a word, compared with case, spaces and accents aside as the reader compares it, that the vocabulary, the definitions
   source or another term already uses is refused with 409, `data.refusal` `{ code, holder, by }`
   and a sentence that names who has it. `here`: what it would mean is already called that;
   `source`: a metric's or a dimension's name, other name, or the source's name for one; `taken`:

@@ -276,6 +276,23 @@ describe('one word, one meaning (FR-138)', () => {
     })
   })
 
+  it('compares a word as the reader does: case, spaces and accents aside', async () => {
+    const synonym = await term('owner', { name: fresh('Basket'), sameAs: 'metric:orders' })
+    const accented = synonym.name.replace('a', 'á').toUpperCase()
+    expect(await refusal('stranger', { name: accented, sameAs: 'metric:spend' })).toEqual({
+      code: 'taken',
+      message: `“${synonym.name}” is already another name for Orders, added by owner.`,
+      holder: 'Orders',
+      by: 'owner',
+    })
+    expect(await refusal('owner', { name: 'Órders', meaning: 'x', areaId: 'finance' })).toEqual({
+      code: 'source',
+      message: "“Órders” is Demo's name for Orders.",
+      holder: 'Orders',
+      by: 'Demo',
+    })
+  })
+
   it('refuses a word the metric already has, and a synonym it already has, as said already', async () => {
     expect(await refusal('owner', { name: 'net sales', sameAs: 'metric:revenue' })).toEqual({
       code: 'here',
@@ -620,6 +637,26 @@ describe('what the database keeps', () => {
     await expect(
       as('admin', "update term_versions set name = 'x' where term_id = $1::uuid", [t.id]),
     ).rejects.toMatchObject({ code: '42501' })
+  })
+})
+
+describe('two terms with their own meanings that read as one word', () => {
+  it('shows each as a conflict with the other, as it does for two that point at different things', async () => {
+    const first = await own(fresh('Ledger'))
+    const second = await own(fresh('Journal'))
+    // Written before accents were set aside (db/migrations/0039_word_comparison.sql): the later one is marked.
+    await client.query('alter table terms disable trigger user')
+    try {
+      await client.query('update terms set name = $1, word_clash = true where id = $2::uuid', [
+        first.name.replace('e', 'é').toUpperCase(),
+        second.id,
+      ])
+    } finally {
+      await client.query('alter table terms enable trigger user')
+    }
+    const now = await listed(second.id)
+    expect(now!.conflict).toMatchObject({ code: 'word', holder: first.name })
+    expect((await listed(first.id))!.conflict).toMatchObject({ code: 'word', holder: now!.name })
   })
 })
 

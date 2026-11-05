@@ -3,6 +3,7 @@ import type { ChatTurn } from '../../../src/domain/ask-chat.ts'
 import {
   checkPlan,
   checkedQuestionBack,
+  leftOpen,
   parsePlan,
   plannerPrompt,
   plannerReason,
@@ -596,6 +597,41 @@ describe('a follow-up keeps what it does not change', () => {
   })
 })
 
+describe('the answer to a question Ask asked back', () => {
+  // A model asked it, so no meanings are held: the rest of the question still carries.
+  const asked: ChatTurn = {
+    question: 'how did Sweden do last month?',
+    scope: null,
+    sources: [],
+    asked: 'Do you mean Orders or Net revenue in Sweden?',
+  }
+  const reply = (question: string, raw: unknown) => {
+    const checked = checkPlan(raw, ctx({ question, previous: asked }))
+    if (!checked.ok || checked.plan.kind !== 'reads') throw new Error('not reads')
+    return checked.plan.reads[0]
+  }
+
+  it('keeps the period and the market, however short it is', () => {
+    expect(
+      reply('net', { reads: [{ kind: 'lookup', metrics: ['metric:net_revenue'], dates: null }] }),
+    ).toMatchObject({
+      period: 'carried',
+      scope: {
+        metrics: ['metric:net_revenue'],
+        window: { start: '2026-09-01', end: '2026-10-01' },
+      },
+    })
+  })
+
+  it('keeps the words of its own period', () => {
+    expect(
+      reply('orders in August', {
+        reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'in August' }],
+      }),
+    ).toMatchObject({ period: 'asked' })
+  })
+})
+
 describe('what a follow-up leans on', () => {
   const lookup = [
     { kind: 'lookup', values: [], metrics: ['metric:net_revenue'], dates: null, why: false },
@@ -753,5 +789,57 @@ describe('a message that names a term spelled like a word that says nothing', ()
   it('is told it asks nothing when the edition has no such term', async () => {
     const routed = await route(planBundle.terms.filter((t) => t.key !== nice.key))
     expect(routed).toMatchObject({ kind: 'reply', reply: { kind: 'nothing_asked' } })
+  })
+})
+
+describe('what a question back leaves open', () => {
+  const back: ChatTurn = {
+    question: 'sales in Sweden last month',
+    scope: null,
+    sources: [],
+    asked: 'Sales can mean Net revenue or Gross sales. Which do you mean?',
+    held: {
+      word: 'Sales',
+      meanings: [
+        { key: 'metric:net_revenue', name: 'Net revenue' },
+        { key: 'metric:gross_sales', name: 'Gross sales' },
+      ],
+      metrics: [],
+      filters: { 'dim:market': ['val:market/sweden'] },
+      window: { start: '2026-09-01', end: '2026-10-01' },
+    },
+  }
+  const open = (question: string, previous: ChatTurn = back) =>
+    leftOpen(ctx({ question, previous }))
+
+  it.each(['net', 'orders', 'last month', 'the second one'])(
+    'carries all of it to the answer "%s"',
+    (answer) => {
+      expect(open(answer)).toMatchObject({ filters: { 'dim:market': ['val:market/sweden'] } })
+    },
+  )
+
+  it('carries the period too, when the answer names none', () => {
+    expect(open('net')).toMatchObject({ window: { start: '2026-09-01', end: '2026-10-01' } })
+  })
+
+  it.each(['what campaigns ran?', 'orders?', 'list the rules', 'show me the events'])(
+    'carries nothing to a question of its own: "%s"',
+    (question) => {
+      expect(open(question)).toBeNull()
+    },
+  )
+
+  it('does the same after a question back the planner asked', () => {
+    const planner: ChatTurn = {
+      question: back.question,
+      sources: [],
+      asked: 'Do you mean Orders or Net revenue?',
+      scope: { metrics: [], filters: back.held!.filters, window: back.held!.window! },
+    }
+    expect(open('what campaigns ran?', planner)).toBeNull()
+    expect(open('net', planner)).toMatchObject({
+      filters: { 'dim:market': ['val:market/sweden'] },
+    })
   })
 })

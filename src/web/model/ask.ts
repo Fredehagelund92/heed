@@ -1,4 +1,4 @@
-import { CHAT_LINE, CHAT_SOURCES, type ChatTurn } from '@domain/ask-chat'
+import { CHAT_LINE, CHAT_SOURCES, type ChatTurn, type HeldReading } from '@domain/ask-chat'
 import { notLookedUp } from '@domain/say'
 import type { AnswerLimit, RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
@@ -52,10 +52,13 @@ export const NAMES_NOTHING = "The question doesn't name a metric or a market."
 
 /** Whether the engine read nothing because the question named no name at all. */
 export const namesNothing = (
-  issues: readonly { field: string; input: string }[],
+  issues: readonly { field: string; input: string; meanings?: unknown }[],
   question: string,
 ) =>
-  issues.length === 1 && issues[0]!.field === 'scope' && issues[0]!.input.trim() === question.trim()
+  issues.length === 1 &&
+  issues[0]!.field === 'scope' &&
+  !issues[0]!.meanings &&
+  issues[0]!.input.trim() === question.trim()
 
 /**
  * The metrics and markets whose names are closest to a question's words, at most two, closest
@@ -171,6 +174,8 @@ export type Answer = {
     period?: 'asked' | 'carried' | 'today' | 'recent' | 'any' | null
     /** The part of the question these reads do not answer, as a short question (FR-720). */
     left?: string
+    /** The person said which meaning of a word they meant: read by the rules, with no model. */
+    settled?: { also: string | null }
     /** On the mock binding, what the working line said while the reads ran (the service sends it). */
     working?: string
   }
@@ -180,6 +185,8 @@ export type Answer = {
    * looked up, so there is no state; `text` says it.
    */
   reply?: 'clarify' | 'off_topic' | 'nothing_asked' | 'cannot'
+  /** A question back about a word's meanings: what the next question sends back with its answer. */
+  held?: HeldReading
   /** What a draft would start from, for a question that asks Ask to write context. */
   write?: { metric: string | null; market: string | null }
   /** The fixed sentence it leads with when the question reaches beyond what is written (FR-720). */
@@ -263,6 +270,7 @@ export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
             }
           : {}),
         ...(a.reply === 'clarify' ? { asked: a.text } : {}),
+        ...(a.held ? { held: a.held, ...(a.held.window ? { dated: true } : {}) } : {}),
       }
     : undefined
 
@@ -295,6 +303,7 @@ export const replyAnswer = (
   reply: {
     kind: NonNullable<Answer['reply']>
     text: string
+    held?: HeldReading | undefined
     definitions?: readonly { name: string; words: string | null; tool: string }[]
     write?: Answer['write']
   },
@@ -314,6 +323,7 @@ export const replyAnswer = (
       }
     : {}),
   ...(reply.write ? { write: reply.write } : {}),
+  ...(reply.held ? { held: reply.held } : {}),
 })
 
 /** A metric's definition, as the definition source gives it. */

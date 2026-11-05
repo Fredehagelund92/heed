@@ -1,5 +1,14 @@
 import * as z from 'zod/mini'
 
+/** One meaning of a word with several: a vocabulary key, or `term:<id>` for a term of its own. */
+export type WordMeaning = { key: string; name: string }
+/**
+ * A word with more than one meaning: a read gave a person's word to another metric, or two
+ * sources share a name. `word` is its normalised form and `said` how a person writes it; the
+ * meanings come in the order they are asked about, what people wrote first.
+ */
+export type ContestedWord = { word: string; said: string; meanings: WordMeaning[] }
+
 export const termSchema = z
   .object({
     key: z.string(),
@@ -30,7 +39,10 @@ export const termSchema = z
       return term.parentKey === null
     }, 'Invalid vocabulary key or parent'),
   )
-export type Term = z.infer<typeof termSchema>
+export type Term = z.infer<typeof termSchema> & {
+  /** The words of this term that have another meaning too (`servedWords`). */
+  contested?: readonly ContestedWord[]
+}
 export const governedVocabularySchema = z.array(termSchema).check(
   z.refine(
     (terms) => new Set(terms.map((term) => term.key)).size === terms.length,
@@ -52,6 +64,7 @@ export function normalizeName(name: string): string {
     .replace(/æ/g, 'ae')
     .replace(/ø/g, 'o')
     .replace(/ß/g, 'ss')
+    .replace(/ς/g, 'σ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -78,7 +91,7 @@ export function normalizeWithMap(text: string): { text: string; at: number[] } {
   const at: number[] = []
   for (let i = 0; i < cased.length && i < from.length; i++) {
     const c = cased[i]!
-    const folded = c === 'æ' ? 'ae' : c === 'ø' ? 'o' : c === 'ß' ? 'ss' : c
+    const folded = c === 'æ' ? 'ae' : c === 'ø' ? 'o' : c === 'ß' ? 'ss' : c === 'ς' ? 'σ' : c
     if (/\s/.test(folded)) {
       if (out.length && !out.endsWith(' ')) {
         out += ' '
@@ -224,8 +237,10 @@ export function memberTokens(
   })
 }
 
+/** `named` says the input is a name of each option: a word with more than one meaning. */
 export type TermResolution =
-  { status: 'resolved'; key: string } | { status: 'need_more_detail'; options: string[] }
+  | { status: 'resolved'; key: string }
+  | { status: 'need_more_detail'; options: string[]; named?: true }
 /**
  * A term by its key, its name or another name, or the source member its definition points at
  * (`orders.returns` or `cube:orders.returns`), so an agent that just queried the data tool
@@ -249,8 +264,8 @@ export function resolveTerm(
   const exact = named.filter((term) => !memberNames(term).includes(name))
   const found = exact.length ? exact : named
   if (found.length === 1) return { status: 'resolved', key: found[0]!.key }
-  const options = found.length ? found : candidates
-  return { status: 'need_more_detail', options: options.map((term) => term.key).sort() }
+  const options = (found.length ? found : candidates).map((term) => term.key).sort()
+  return { status: 'need_more_detail', options, ...(found.length ? { named: true } : {}) }
 }
 
 const trigrams = (value: string) => {
@@ -279,7 +294,11 @@ const memberWords = (member: string) =>
  * needs a closer match than a typo: a member's name is a whole other name, and letters it shares
  * by chance ("sessions" and "Operations") suggest the wrong metric.
  */
-export function suggestTerms(input: string, terms: readonly Term[]): string[] {
+export function suggestTerms(
+  input: string,
+  terms: readonly Pick<Term, 'key' | 'name' | 'aliases' | 'definitionRefs'>[],
+  closeEnough = 0.3,
+): string[] {
   const member = isMemberName(input)
   const wanted = member ? memberWords(input) : input
   return terms
@@ -293,7 +312,7 @@ export function suggestTerms(input: string, terms: readonly Term[]): string[] {
         ].map((alias) => nameSimilarity(wanted, alias)),
       ),
     }))
-    .filter((term) => term.score >= (member ? 0.45 : 0.3))
+    .filter((term) => term.score >= (member ? 0.45 : closeEnough))
     .sort((a, b) => b.score - a.score || (a.key < b.key ? -1 : 1))
     .map((term) => term.key)
 }

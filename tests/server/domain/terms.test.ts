@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  lookAlikes,
   parseTermRef,
   termName,
   termNamePattern,
@@ -10,6 +11,49 @@ import {
   wordRefusal,
   type WordHolder,
 } from '../../../src/domain/terms.ts'
+import { normalizeName, normalizeWithMap } from '../../../src/domain/vocabulary.ts'
+
+describe('how a word is compared', () => {
+  it('sets aside case, spaces and accents, as the reader does', () => {
+    for (const word of ['sales', ' SALES ', 'Salés', 'SÁLES', 'Sa\u0301les'])
+      expect(termWord(word)).toBe('sales')
+    expect(termWord('Peak   season')).toBe('peak season')
+    expect(termWord('Net-revenue')).not.toBe(termWord('Net revenue'))
+  })
+
+  it('reads every sigma as one letter, wherever it stands', () => {
+    for (const word of ['ΑΣ', 'ασ', 'ας']) {
+      expect(termWord(word)).toBe('ασ')
+      expect(normalizeWithMap(word).text).toBe(normalizeName(word))
+    }
+    expect(normalizeWithMap('.Σ').text).toBe(normalizeName('.Σ'))
+  })
+})
+
+describe('a word that looks like one in use', () => {
+  const names = ['Sales', 'Gross sales', 'Gross margin', 'Net revenue', 'Orders', 'Customers']
+
+  it.each([
+    ['Sale', 'Sales'],
+    ['Salez', 'Sales'],
+    ['Grossales', 'Gross sales'],
+    ['Net-revenue', 'Net revenue'],
+    ['Order', 'Orders'],
+  ])('warns of %s, which looks like %s', (word, name) => {
+    expect(lookAlikes(word, names)[0]).toBe(name)
+  })
+
+  it.each(['Bookings', 'Omsætning', 'Sales tax', 'Store sales', 'New customers', 'Gross profit'])(
+    'says nothing about %s',
+    (word) => {
+      expect(lookAlikes(word, names)).toEqual([])
+    },
+  )
+
+  it('leaves the same word to the check that stops it', () => {
+    expect(lookAlikes('Salés', ['Sales'])).toEqual([])
+  })
+})
 
 // FR-138: one word, one meaning. What a refused word says, in the order the synonym box says it.
 

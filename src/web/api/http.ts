@@ -34,6 +34,7 @@ import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
 import { thresholdOfWords } from '@domain/alerts'
 import type { ChatTurn } from '@domain/ask-chat'
 import { canonicalJson } from '@domain/canonical'
+import { termWord } from '@domain/terms'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import { recordsAnswer, replyAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
@@ -324,8 +325,8 @@ const topicNameOf = (
       ? `${t.metric} in ${t.where}`
       : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
 
-/** Two names for the same word: case aside. */
-const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+/** Two names for the same word: case, spaces and accents aside, as the service compares them. */
+const same = (a: string, b: string) => termWord(a) === termWord(b)
 
 /** The service's longest excerpt of a domain: one line. */
 const SUMMARY_MAX = 160

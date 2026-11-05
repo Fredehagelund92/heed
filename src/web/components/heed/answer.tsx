@@ -199,11 +199,18 @@ export function Question({
       )}
       {reading && (
         <p className="flex max-w-22/25 flex-wrap items-center justify-end gap-x-2 text-right text-xs text-muted-foreground @lg:max-w-4/5">
-          <span>
-            Read by the model{reading.words && ` as ${midSentence(reading.words)}`}
-            {reading.carried.length > 0 &&
-              `, with ${listOf(reading.carried)} carried from your last question`}
-          </span>
+          {reading.settled ? (
+            <span>
+              Understood as {midSentence(reading.words)}.
+              {reading.settled.also && ` ${reading.settled.also}`}
+            </span>
+          ) : (
+            <span>
+              Read by the model{reading.words && ` as ${midSentence(reading.words)}`}
+              {reading.carried.length > 0 &&
+                `, with ${listOf(reading.carried)} carried from your last question`}
+            </span>
+          )}
           {onRescope && scopeText(answer) && (
             <button
               type="button"

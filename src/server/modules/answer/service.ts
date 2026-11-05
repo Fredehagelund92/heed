@@ -33,8 +33,11 @@ import { quoted } from '../../mcp/outcomes.ts'
 import { draftBundle } from '../proposals/index.ts'
 import { answerRecordsOf, recogniseRecordsOf, type RecordsReads } from './records.ts'
 
-/** An edition to answer on: its sequence, its label and the overlay of stops and flags now. */
-type Head = { seq: string; label: string; overlay: string }
+/**
+ * An edition to answer on: its sequence, its label, the overlay of stops and flags now, and, for
+ * the live edition, the mark of the terms people write, which are read as they are now.
+ */
+type Head = { seq: string; label: string; overlay: string; terms?: string }
 type Target = AnswerResult['target']
 
 const nothingLive = () =>
@@ -48,7 +51,8 @@ const clockMs = () => performance.now()
 const overlayOf = `coalesce((select seq::text from serving_overlay),'0') as overlay`
 async function liveHead(tx: Queryable): Promise<Head | null> {
   const [head] = await tx.query<Head>(
-    `select e.seq::text,e.label,${overlayOf} from editions e join live_edition l on l.seq=e.seq`,
+    `select e.seq::text,e.label,${overlayOf},serving_terms_mark() as terms
+       from editions e join live_edition l on l.seq=e.seq`,
   )
   return head ?? null
 }
@@ -66,13 +70,14 @@ async function headBefore(tx: Queryable): Promise<Head | null> {
  * The bundles answers are read from, by edition and overlay, kept for 15 seconds like the agents'
  * edition source keeps them, so a look-up does not read the whole edition each time. A bundle is
  * what agents get, the same for every person (its reads are the security definer serving
- * functions), so one bundle serves everyone. A new publish or stop switch is a new key.
+ * functions), so one bundle serves everyone. A new publish, a stop switch, a term written or a
+ * sync is a new key, so Ask reads a word as agents do from the next question.
  */
 export function createBundleCache(capacity = 4, ttl = 15_000, now = () => Date.now()) {
   const cache = new Map<string, { bundle: Promise<ServingBundle>; expires: number }>()
   return {
     bundle(tx: Queryable, head: Head): Promise<ServingBundle> {
-      const key = `${head.seq}:${head.overlay}`
+      const key = `${head.seq}:${head.overlay}:${head.terms ?? ''}`
       const cached = cache.get(key)
       if (cached && cached.expires > now()) return cached.bundle
       const bundle = loadServingBundle(tx, head)

@@ -419,6 +419,7 @@ export const turnIsDated = (turn: ChatTurn, today: string) =>
 
 /** The last question's days, when it was read for dates and not for today. */
 const datedWindow = ({ previous, today }: PlanContext) => {
+  if (previous?.held?.window) return previous.held.window
   if (!previous || !turnIsDated(previous, today)) return null
   if (previous.scope) return previous.scope.window
   const read = readDates(normalizeName(previous.question), today)
@@ -553,7 +554,7 @@ const OVER_EVERYTHING = /\b(?:all|every|overall|everywhere)\b/
  * month?", "and the owner?", "and in Sweden?"), and then every part of the scope its own words do
  * not change. A question with its own subject ("what events happened in August?") keeps nothing.
  */
-function leftOpen(ctx: PlanContext): LeftOpen | null {
+export function leftOpen(ctx: PlanContext): LeftOpen | null {
   const last = ctx.previous
   if (!last) return null
   const own = readQuestion(ctx.question, ctx.terms, ctx.today)
@@ -561,10 +562,13 @@ function leftOpen(ctx: PlanContext): LeftOpen | null {
   const namedDimensions = new Set(
     own.terms.flatMap((t) => (t.kind === 'dimension_value' ? [t.parentKey!] : [])),
   )
-  if (!leansOnLast(ctx.question, namedMetric || namedDimensions.size > 0)) return null
-  const before = last.scope
-    ? last.scope
-    : { metrics: lastMetricsInWords(last, ctx), filters: {}, window: null }
+  // An answer to a question back finishes that question, so all of it carries; a question of
+  // its own does not.
+  const answersBack = !!last.asked && !asksOwnQuestion(ctx.question)
+  if (!answersBack && !leansOnLast(ctx.question, namedMetric || namedDimensions.size > 0))
+    return null
+  const before = last.scope ??
+    last.held ?? { metrics: lastMetricsInWords(last, ctx), filters: {}, window: null }
   const everything = OVER_EVERYTHING.test(normalizeName(ctx.question))
   const dated = own.window !== null
   return {
@@ -577,9 +581,12 @@ function leftOpen(ctx: PlanContext): LeftOpen | null {
     window: dated ? null : datedWindow(ctx),
     domain: last.domain ?? null,
     period: dated ? null : (last.period ?? null),
-    why: /^(?:why|how come)\b/.test(followUpWords(last.question)),
+    why: asksWhy(last.question),
   }
 }
+
+/** Whether a question asks why: "why did sales drop?", "how come...". */
+export const asksWhy = (question: string) => /^(?:why|how come)\b/.test(followUpWords(question))
 
 /** The metrics a records question named: it keeps no scope, so its words say. */
 const lastMetricsInWords = (last: ChatTurn, ctx: PlanContext) =>
@@ -761,6 +768,12 @@ const FOLLOW_ON =
   /^(?:and|but|also|then|so|or|what about|how about|what of|same|why|how come|how so|tell me more|more about|more on|explain)\b/
 const POINTS_BACK =
   /\b(?:(?:that|this|these|those)(?!\s+(?:week|month|year|quarter|day|days|time|morning|season|summer|winter|spring|autumn))|it|its|they|them|their|(?:first|second|third|last|other|same) ones?|the (?:first|second|third|other|former|latter)(?!\s+(?:week|month|year|quarter|day|time)))\b/
+
+const ASKS_OWN = /^(?:what|why|how|who|when|which|list|show)\b/
+
+/** Whether a message is a question of its own, not an answer to the one Ask asked back. */
+const asksOwnQuestion = (question: string) =>
+  question.trim().endsWith('?') || ASKS_OWN.test(followUpWords(question))
 
 /** A question's words for the follow-up patterns. */
 const followUpWords = (question: string) =>
