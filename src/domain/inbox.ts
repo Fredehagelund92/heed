@@ -1,5 +1,5 @@
 /*
-  The Inbox's rules (docs/product.md, section 5): cards grouped by need, in order,
+  The Inbox's rules (docs/product.md, section 5): cards grouped by need,
   what each card's one decision is, and the steps of a new workspace's setup checklist. Pure:
   the service reads the records, this says how they line up.
 */

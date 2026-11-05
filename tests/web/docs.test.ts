@@ -22,11 +22,10 @@ import { includeMarkdown } from '@/lib/docs-includes'
 import { CHANGES, DOC_PAGES, llmsTxt, searchDocs } from '@/lib/docs'
 import { docTitle } from '@/lib/doc-links'
 import { docControls } from '../e2e/docs-controls.ts'
-import { publishedPages, slugOf } from '../../apps/docs/lib/pages.ts'
 
 /*
   The docs check (docs/help/README.md): mechanical, no model. Wrong docs are worse than none, so
-  every page must read, keep to the pages the docs site publishes (apps/docs/lib/pages.ts), name the app's controls in
+  every page must read, keep to the thirteen Help pages and What's new, name the app's controls in
   the app's own words (each bold one has a row in tests/e2e/docs-controls.ts, drawn by its spec), link only to pages, headings and screens that exist, and hold the app's own
   lists as they are now. `npm run docs:sync` writes the lists into the pages when they changed.
 */
@@ -107,8 +106,22 @@ async function filled(path: string, source: string) {
 }
 
 describe('the docs check', () => {
-  it("has the pages the docs site publishes, in its order, with What's new last", () => {
-    expect([...DOC_PAGES.map((p) => p.slug), CHANGELOG]).toEqual(publishedPages.map(slugOf))
+  it("has the thirteen Help pages, in their order, and What's new", () => {
+    expect(DOC_PAGES.map((p) => p.slug)).toEqual([
+      'get-started',
+      'connect-an-agent',
+      'write-context',
+      'review-a-suggestion',
+      'settle-a-conflict',
+      'definitions-and-synonyms',
+      'publish-without-review',
+      'domains-and-owners',
+      'integrations',
+      'how-agents-use-it',
+      'answer-lines',
+      'privacy',
+      'tools',
+    ])
     expect(CHANGES.changes.length).toBeGreaterThan(0)
     expect(files.map((f) => f.slug).sort()).toEqual(
       [...DOC_PAGES.map((p) => p.slug), CHANGELOG].sort(),

@@ -11,7 +11,7 @@ import { LIVE_PHASES } from '@/lib/connect'
 import { ANSWER_LINES } from '@/lib/help-content'
 import { cardTypeLabel } from '@/model/inbox'
 
-// The rules for the words people read, as checks rather than conventions (the real app has them as
+// The rules for the words people read, as checks rather than conventions (also
 // lint rules: eslint.product-name.js and eslint.plain-words.js). Only text a person reads is
 // checked: string literals, template text and JSX text. Comments and code names are not.
 

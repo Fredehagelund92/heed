@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
 /*
-  The golden journeys of the web app (src/web): the job specs (J1 to J41), on a production
+  The golden journeys of the web app (src/web): the job specs, on a production
   build of the app with the mock binding, with axe on every place at 390 and 1440 in light and
   dark (axe.spec.ts). The motion journey runs twice: as most people see it, and with reduced motion, where nothing may move and every result must still
   arrive. PW_WEB_PORT lets two checkouts run them side by side.

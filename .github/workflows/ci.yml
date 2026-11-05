@@ -334,7 +334,7 @@ jobs:
         run: docker compose logs --no-color | tail -n 300
 
   web:
-    # The web app on its mock binding (tests/e2e): the golden job specs J1 to J30, with the
+    # The web app on its mock binding (tests/e2e): the golden job specs, with the
     # motion journey a second time under reduced motion, and axe on every place at 390 and 1440 in
     # light and dark. Split into parts that each take a share.
     name: 'Web app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 3)'

@@ -193,9 +193,9 @@ export const test = base.extend<{ demoWeek: void }>({
 /* ---------- addresses ---------- */
 
 /**
-  Open an address of the app. The first build kept its addresses after the hash, so only a journey's
-  first visit loaded the page and every later one moved inside the running app, keeping what the
-  journey had done so far. go does the same. In http mode a mock card's id becomes the service's,
+  Open an address of the app. The old hash addresses meant only a journey's first visit loaded the
+  page and every later one moved inside the running app, keeping what the journey had done so
+  far. go does the same. In http mode a mock card's id becomes the service's,
   and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags
   become what they stand for: `?state=offline` takes the browser offline, `?state=failed` makes
   the first try of a decision fail, `?bulk=fail` makes the last row of the first change to many

@@ -27,7 +27,7 @@ const cardBase = {
 }
 
 /**
- * One card, by what happened (its groups: Not found, Reported, Saved questions, Alerts,
+ * One card, by what happened (the Inbox's groups: Not found, Reported, Saved questions, Alerts,
  * Mentioned you, Due for a check, Suggestions).
  */
 export const cardSchema = z.union([
