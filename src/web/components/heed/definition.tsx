@@ -10,6 +10,7 @@ import {
   WholeWordIcon,
   type LucideIcon,
 } from '@/components/icons'
+import { termWord } from '@domain/terms'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TagChip } from '@/components/heed/tag-chip'
@@ -114,9 +115,18 @@ export function AnotherNameFor({ target, className }: { target: Definition; clas
 }
 
 /** Why a term can mislead an agent, said once, in the warning tone. */
-export function ConflictNote({ d, className }: { d: Definition; className?: string }) {
+export function ConflictNote({
+  d,
+  self,
+  className,
+}: {
+  d: Definition
+  /** The term a draft was opened from. */
+  self?: string | undefined
+  className?: string
+}) {
   const glossary = useGlossary()
-  const conflict = glossary.conflictOf(d)
+  const conflict = glossary.conflictOf(d, self)
   if (!conflict) return null
   return (
     <p
@@ -135,7 +145,37 @@ export function ConflictNote({ d, className }: { d: Definition; className?: stri
               ? 'Used for two things. '
               : 'Points nowhere. '}
         </span>
-        {conflict.message} Agents don't use it until it's settled.
+        {conflict.message}{' '}
+        {conflict.asks
+          ? "Agents ask which one until it's settled."
+          : "Agents don't use it until it's settled."}
+      </span>
+    </p>
+  )
+}
+
+/** A note on a word as it is typed: the word is taken, or it looks like one in use. */
+export function WordNote({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <p
+      role="note"
+      className={cn(
+        'flex gap-2 rounded-frame border border-caution/40 bg-caution/8 px-3 py-2 text-sm',
+        className,
+      )}
+    >
+      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
+      <span>
+        <span className="font-medium">{title} </span>
+        {children}
       </span>
     </p>
   )
@@ -174,7 +214,7 @@ export function SynonymTags({
   const [flash, setFlash] = React.useState<string | null>(null)
   const input = React.useRef<HTMLInputElement>(null)
   const id = React.useId()
-  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const same = (a: string, b: string) => termWord(a) === termWord(b)
 
   const commit = async (words: string[]) => {
     const added: string[] = []

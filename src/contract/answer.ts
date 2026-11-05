@@ -8,7 +8,13 @@
  */
 import * as z from 'zod/mini'
 import { answerStates, leftOutReasons } from '../domain/answer.ts'
-import { CHAT_LINE, CHAT_SOURCES, CHAT_TURNS } from '../domain/ask-chat.ts'
+import {
+  CHAT_HELD_KEYS,
+  CHAT_LINE,
+  CHAT_SOURCES,
+  CHAT_TURNS,
+  HELD_MEANINGS,
+} from '../domain/ask-chat.ts'
 import { itemKinds } from '../domain/item.ts'
 import { recordsAnswerSchema } from '../domain/records-answer.ts'
 import { tryItInputSchema } from './connect.ts'
@@ -26,6 +32,10 @@ const issueSchema = z.object({
   field: z.string(),
   input: z.string(),
   options: z.array(z.string()),
+  /** A word with more than one meaning: how a person writes it. */
+  word: z.optional(z.string()),
+  /** Each meaning, in the order the question says them. */
+  meanings: z.optional(z.array(z.object({ key: z.string(), name: z.string() }))),
   message: z.optional(z.string()),
 })
 const datesSchema = z.object({ words: z.string(), reads_as: z.string() })
@@ -224,10 +234,47 @@ export const answerSchema = z.object({
       period: z.nullable(z.enum(['asked', 'carried', 'today', 'recent', 'any'])),
       /** The question as it reads alone, as the model restated it, when the chat matters. */
       standalone: z.optional(z.string()),
+      /**
+       * The person said which meaning of a word they meant and the fixed rules read it, with no
+       * model; `also` names the meanings left ("Sales can also mean Gross sales.").
+       */
+      settled: z.optional(z.object({ also: z.nullable(z.string()) })),
     }),
   ),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
+
+/** A word Ask asks about, and its meanings in the order the question says them. */
+const heldWordSchema = z.strictObject({
+  word: z.string().check(z.minLength(1), z.maxLength(200)),
+  meanings: z
+    .array(
+      z.strictObject({
+        key: z.string().check(z.maxLength(200)),
+        name: z.string().check(z.maxLength(200)),
+      }),
+    )
+    .check(z.minLength(2), z.maxLength(HELD_MEANINGS)),
+})
+
+/**
+ * What the turn that asks which meaning of a word keeps of its question: the word, its meanings,
+ * the rest of the reading as keys, the days it named (null when it named none) and any other word
+ * still to ask about. Heed's own question comes from these, so the service checks them against
+ * the edition. Never stored.
+ */
+export const heldReadingSchema = z.strictObject({
+  ...heldWordSchema.shape,
+  metrics: z.array(z.string().check(z.maxLength(200))).check(z.maxLength(CHAT_HELD_KEYS)),
+  filters: z.record(
+    z.string().check(z.maxLength(200)),
+    z.array(z.string().check(z.maxLength(200))).check(z.maxLength(CHAT_HELD_KEYS)),
+  ),
+  window: z.nullable(windowSchema),
+  more: z.optional(z.array(heldWordSchema).check(z.maxLength(CHAT_HELD_KEYS))),
+  why: z.optional(z.boolean()),
+  defines: z.optional(z.boolean()),
+})
 
 /**
  * One turn of the chat, sent from the browser with each question so Ask can carry what it asked
@@ -240,7 +287,8 @@ export const chatTurnSchema = z.strictObject({
   question: z.string().check(z.minLength(1), z.maxLength(2000)),
   scope: z.optional(z.nullable(readScopeSchema)),
   sources: z.array(z.string().check(z.maxLength(64))).check(z.maxLength(CHAT_SOURCES)),
-  asked: z.optional(z.string().check(z.maxLength(300))),
+  asked: z.optional(z.string().check(z.maxLength(2000))),
+  held: z.optional(heldReadingSchema),
   understood: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
   domain: z.optional(z.nullable(z.string().check(z.maxLength(64)))),
   period: z.optional(z.nullable(z.string().check(z.maxLength(64)))),
@@ -292,6 +340,8 @@ export const lookupEventSchema = z.union([
     reply: z.object({
       kind: z.enum(['clarify', 'off_topic', 'nothing_asked']),
       text: z.string(),
+      /** Ask asked which meaning of a word: what the next turn sends back with the answer. */
+      held: z.optional(heldReadingSchema),
     }),
   }),
   z.object({ type: z.literal('step'), step: answerStepSchema }),

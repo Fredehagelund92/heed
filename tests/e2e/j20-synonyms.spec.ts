@@ -1,9 +1,73 @@
-import { expect, go, test } from './go.ts'
+import { expect, go, mode, test } from './go.ts'
 
 // J20, synonyms as tags: a comma or Enter makes a tag at once, a word that means something else
 // says who has it and is never saved, Backspace selects then removes, Escape keeps what was made.
 // The list folds synonyms into their definition's row; a term's editor has one optional
 // Another name for, and clearing it brings the meaning back.
+
+test('the term editor stops a taken word with who has it, and only warns of a look-alike', async ({
+  page,
+}) => {
+  await go(page, '/definitions/new?sameAs=Gross%20sales')
+  const word = page.getByRole('textbox', { name: 'The word' })
+  const publish = page.getByRole('button', { name: 'Publish' })
+  // Turnover already means Net revenue: an accent makes no other word of it.
+  await word.fill('Túrnover')
+  await expect(
+    page.getByRole('note').filter({
+      hasText:
+        'This word is taken. “Turnover” is already another name for Net revenue, added by Sofia Brandt.',
+    }),
+  ).toBeVisible()
+  await expect(page.getByText('Not ready: this word is taken')).toBeVisible()
+  await expect(page.getByText('Ready', { exact: true })).toHaveCount(0)
+  await expect(publish).toHaveAttribute('aria-disabled', 'true')
+  // A look-alike can be a real second thing: it warns, and Publish stays open.
+  await word.fill('Turnovers')
+  await expect(
+    page.getByRole('note').filter({
+      hasText:
+        'A similar word is in use. “Turnovers” looks like “Turnover”, which means Net revenue.',
+    }),
+  ).toBeVisible()
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible()
+  await expect(publish).toHaveAttribute('aria-disabled', 'false')
+  // A word nothing has says nothing.
+  await word.fill('Bookings')
+  await expect(page.getByRole('note')).toHaveCount(0)
+})
+
+test('a word taken after the page opened shows the refusal, and offers no Retry', async ({
+  page,
+}) => {
+  test.skip(mode === 'mock', 'The refusal is the service answering 409 to a write.')
+  await go(page, '/definitions/new?sameAs=Gross%20sales')
+  await page.getByRole('textbox', { name: 'The word' }).fill('Bookings')
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible()
+  // Someone else takes the word while this page is open.
+  await page.evaluate(async () => {
+    const session = (await (await fetch('/api/v1/auth/session')).json()) as { csrfToken: string }
+    const made = await fetch('/api/v1/terms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Heed-CSRF': session.csrfToken,
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: JSON.stringify({ name: 'Bookings', sameAs: 'metric:net_revenue' }),
+    })
+    if (!made.ok) throw new Error(`The word was not written: ${made.status}`)
+  })
+  await page.getByRole('button', { name: 'Publish' }).click()
+  await expect(
+    page
+      .getByRole('note')
+      .filter({ hasText: /“Bookings” is already another name for Net revenue/ }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0)
+  await expect(page.getByText(/^Couldn't publish/)).toHaveCount(0)
+  await expect(page.getByText('Ready', { exact: true })).toHaveCount(0)
+})
 
 test('typing words and commas makes tags; a taken word says who has it', async ({ page }) => {
   await go(page, '/definitions/Gross%20sales')

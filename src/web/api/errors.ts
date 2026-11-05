@@ -31,17 +31,20 @@ export class ApiError extends Error {
   readonly status: number | undefined
   /** For a publish refused until it says how it relates to these live items. */
   readonly clashes: Clash[]
+  /** For a 409 that is a word's refusal (FR-138): the word is taken. */
+  readonly refusal: boolean
 
   constructor(
     kind: ApiErrorKind,
     message: string,
-    details: { status?: number; clashes?: Clash[] } = {},
+    details: { status?: number; clashes?: Clash[]; refusal?: boolean } = {},
   ) {
     super(message)
     this.name = 'ApiError'
     this.kind = kind
     this.status = details.status
     this.clashes = details.clashes ?? []
+    this.refusal = details.refusal ?? false
   }
 
   /**
@@ -77,6 +80,8 @@ const clashesOf = (data: unknown): Clash[] =>
       )
     : []
 
+const refusalOf = (data: unknown) => isRecord(data) && isRecord(data.refusal)
+
 /**
  * Reads an error from either binding: an `ApiError` passes through; an answer with a status is
  * mapped by it; anything else (a failed fetch, a thrown string) means no answer, said in a
@@ -88,6 +93,7 @@ export function toApiError(error: unknown): ApiError {
     return new ApiError(kindOfStatus(error.status), error.message, {
       status: error.status,
       clashes: clashesOf(error.data),
+      refusal: refusalOf(error.data),
     })
   return new ApiError('unanswered', "The service didn't reply.")
 }

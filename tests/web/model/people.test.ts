@@ -78,3 +78,22 @@ describe('a request that got no reply', () => {
     )
   })
 })
+
+describe('a conflict', () => {
+  it('is a refusal only when the service sent one, so a changed word is not a taken word', () => {
+    const taken = toApiError({
+      status: 409,
+      message: '“Sales” is already another name for Net revenue, added by Ines Duarte.',
+      data: { refusal: { code: 'taken', holder: 'Net revenue', by: 'Ines Duarte' } },
+    })
+    expect(taken.kind).toBe('conflict')
+    expect(taken.refusal).toBe(true)
+    const changed = toApiError({ status: 409, message: 'Someone changed this word first.' })
+    expect(changed.kind).toBe('conflict')
+    expect(changed.refusal).toBe(false)
+    const other = toApiError({ status: 409, message: 'No.', data: { refusal: 'x' } })
+    expect(other.refusal).toBe(false)
+    expect(new ApiError('conflict', 'Taken.', { refusal: true }).refusal).toBe(true)
+    expect(new ApiError('failed', 'No answer.').refusal).toBe(false)
+  })
+})

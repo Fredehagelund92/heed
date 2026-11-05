@@ -66,7 +66,7 @@ describe('the words agents get', () => {
     expect(terms.find((t) => t.key === 'metric:orders')!.aliases).toEqual(['Order amount'])
   })
 
-  it('leaves out a word in conflict, one the vocabulary has, and one two terms share', () => {
+  it('serves no word in conflict, one the vocabulary has, or one two terms share', () => {
     const served = servedWords(
       terms,
       [
@@ -81,7 +81,19 @@ describe('the words agents get', () => {
       open,
     )
     expect(served.written.map((t) => t.id)).toEqual(['f'])
-    expect(served.vocabulary).toEqual(terms)
+  })
+
+  it('serves one word once when two terms only now read as one and mean one thing', () => {
+    const served = servedWords(
+      terms,
+      [
+        written({ id: 'a', name: 'Sales', sameAs: 'metric:orders' }),
+        written({ id: 'b', name: 'Salés', sameAs: 'metric:orders' }),
+      ],
+      open,
+    )
+    expect(served.written.map((t) => t.id)).toEqual(['a'])
+    expect(served.vocabulary.find((t) => t.key === 'metric:orders')!.contested).toBeUndefined()
   })
 
   it('serves a synonym only while what it means is served', () => {
@@ -329,5 +341,100 @@ describe('properties', () => {
         },
       ),
     )
+  })
+})
+
+describe('a word with more than one meaning', () => {
+  const today = '2026-10-23'
+  const taken = written({ id: 'sales', name: 'Sales', sameAs: 'metric:revenue', conflict: true })
+  const rival = (word: string) =>
+    terms.map((t) => (t.key === 'metric:orders' ? { ...t, aliases: [...t.aliases, word] } : t))
+
+  it('stays on both meanings, what people wrote first, so a question in it reads neither', () => {
+    const served = servedWords(rival('Sales'), [taken], open)
+    expect(served.written).toEqual([])
+    const read = extractScope('sales last month', served.vocabulary, today)
+    expect(read).toEqual({
+      status: 'need_more_detail',
+      issues: [
+        {
+          field: 'scope',
+          input: 'sales',
+          options: ['metric:orders', 'metric:revenue'],
+          word: 'Sales',
+          meanings: [
+            { key: 'metric:revenue', name: 'Revenue' },
+            { key: 'metric:orders', name: 'Orders' },
+          ],
+        },
+      ],
+      held: {
+        metrics: [],
+        filters: {},
+        window: { start: '2026-09-01', end: '2026-10-01' },
+      },
+    })
+  })
+
+  it('takes the second meaning from the source when the vocabulary has not got the word', () => {
+    const served = servedWords(terms, [{ ...taken, alsoMeans: ['metric:orders'] }], open)
+    const read = extractScope('sales', served.vocabulary, today)
+    expect(read).toMatchObject({
+      status: 'need_more_detail',
+      issues: [{ input: 'sales', meanings: [{ name: 'Revenue' }, { name: 'Orders' }] }],
+    })
+  })
+
+  it('asks when one word only reads as another, accents aside, and each means something else', () => {
+    const served = servedWords(
+      terms,
+      [
+        written({ id: 'a', name: 'Sales', sameAs: 'metric:revenue' }),
+        written({ id: 'b', name: 'Salés', sameAs: 'metric:orders' }),
+      ],
+      open,
+    )
+    expect(extractScope('sales last month', served.vocabulary, today)).toMatchObject({
+      status: 'need_more_detail',
+      issues: [{ word: 'Sales', meanings: [{ name: 'Revenue' }, { name: 'Orders' }] }],
+    })
+  })
+
+  it('names a term with its own meaning beside the metric that shares its word', () => {
+    const served = servedWords(
+      rival('Peak season'),
+      [written({ id: peak, name: 'Peak season', meaning: 'The weeks.', conflict: true })],
+      open,
+    )
+    expect(extractScope('peak season', served.vocabulary, today)).toMatchObject({
+      status: 'need_more_detail',
+      issues: [
+        {
+          meanings: [
+            { key: `term:${peak}`, name: 'Peak season' },
+            { key: 'metric:orders', name: 'Orders' },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('leaves the metric a caller names to win over the word', () => {
+    const served = servedWords(rival('Sales'), [taken], open)
+    expect(
+      extractScope('sales last month', served.vocabulary, today, { metrics: ['metric:revenue'] }),
+    ).toMatchObject({ status: 'resolved', scope: { metrics: ['metric:revenue'] } })
+  })
+
+  it('never settles a synonym of something gone: it has one meaning left', () => {
+    const gone = written({ id: 'g', name: 'Old', sameAs: 'metric:gone', conflict: true })
+    const served = servedWords(terms, [gone], open)
+    expect(served.vocabulary).toEqual(terms)
+    expect(served.written).toEqual([])
+  })
+
+  it('says nothing about a word a stopped domain wrote', () => {
+    const served = servedWords(rival('Sales'), [taken], { all: false, areas: ['finance'] })
+    expect(extractScope('sales', served.vocabulary, today)).toMatchObject({ status: 'resolved' })
   })
 })

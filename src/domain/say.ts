@@ -3,6 +3,7 @@ import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
 import { concepts as peopleConcepts } from './words.ts'
+import type { WordMeaning } from './vocabulary.ts'
 import { concepts } from './words-v1.ts'
 
 /*
@@ -221,7 +222,7 @@ const some = (names: readonly string[]) =>
  * What could not be read, for the AI agent: each issue's own message with the closest names and
  * their keys, and the choices when no name is close enough.
  */
-export function issueWords(bundle: Names, issues: readonly ScopeIssue[], question?: string) {
+export function issueWords(bundle: Names, issues: readonly ScopeIssue[]) {
   const words = issues.slice(0, 3).map((issue) => {
     if (issue.message)
       return issue.options.length && !issue.message.includes('Did you mean')
@@ -229,8 +230,6 @@ export function issueWords(bundle: Names, issues: readonly ScopeIssue[], questio
         : issue.message
     if (issue.field === 'dates')
       return 'The window given is not a period that can be read: pass window with from and to.'
-    if (issue.field === 'scope' && issue.input !== question && issue.options.length)
-      return `'${issue.input}' names more than one thing: ${list(issue.options.map((key) => nameOf(bundle, key)))}.`
     if (issue.field === 'scope') {
       const examples = issue.options.slice(0, 3).map((key) => nameOf(bundle, key))
       return `The question names no metric, market or other name in the vocabulary${examples.length ? `: name one, such as ${list(examples)}` : ''}.`
@@ -264,8 +263,6 @@ function issueSay(bundle: Names, issues: readonly ScopeIssue[], question?: strin
             ? ` Try ${names('or')}.`
             : ''
       }`
-    if (issue.field === 'scope' && issue.input !== question && issue.options.length)
-      return `"${issue.input}" could mean ${names('or')}.`
     if (issue.field === 'scope')
       return `The question needs a metric or a market${issue.options.length ? `, such as ${names('or')}` : ''}.`
     return `"${issue.input}" can't be read.`
@@ -277,15 +274,69 @@ function issueSay(bundle: Names, issues: readonly ScopeIssue[], question?: strin
   ].join(' ')
 }
 
+/** A word to ask about: how a person writes it, and what it can mean. */
+type ContestedAsk = { word: string; meanings: readonly WordMeaning[] }
+
+const meaningKinds = {
+  metric: 'metric',
+  group: 'metric group',
+  dim: 'dimension',
+  val: 'value',
+  term: 'term',
+} as const
+const kindOfKey = (key: string) =>
+  meaningKinds[key.slice(0, key.indexOf(':')) as keyof typeof meaningKinds]
+
+/** A meaning in the sentence: a term says so, and two with one name say what each is. */
+function meaningWords(meaning: WordMeaning, all: readonly WordMeaning[]) {
+  const twice = all.filter((m) => m.name === meaning.name).length > 1
+  return meaning.key.startsWith('term:') || twice
+    ? `the ${kindOfKey(meaning.key)} ${meaning.name}`
+    : meaning.name
+}
+const meaningsWords = (meanings: readonly WordMeaning[]) =>
+  list(
+    meanings.map((m) => meaningWords(m, meanings)),
+    'or',
+  )
+const capitalWord = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
+
+/**
+ * The one question for a word with more than one meaning, from the fixed rules: never from a
+ * model, which could just choose, and with nothing else to say. It names every meaning.
+ */
+export const contestedQuestion = ({ word, meanings }: ContestedAsk) =>
+  `${capitalWord(word)} can mean ${meaningsWords(meanings)}. Which do you mean?`
+
+/** The rest of a word's meanings, beside an answer that took one: "Sales can also mean Gross sales." */
+export const contestedAlso = (word: string, others: readonly WordMeaning[]) =>
+  others.length ? `${capitalWord(word)} can also mean ${meaningsWords(others)}.` : null
+
+/** What a person who chose a term's meaning hears when nothing else was asked. */
+export const termChosenSaid = (word: string) =>
+  `${capitalWord(word)} is a term with its own meaning in Definitions, so nothing was looked up.`
+
+/** The agent's way on from a word with more than one meaning: the person chooses, never the agent. */
+function contestedNext({ meanings }: ContestedAsk) {
+  const keys = meanings.map((m) => m.key).filter((key) => !key.startsWith('term:'))
+  const field = keys.every((key) => key.startsWith('metric:'))
+    ? 'that metric in metrics'
+    : 'it in metrics or dimension_filters'
+  return `Ask the person which one they mean, then call again with ${field} (${list(keys, 'or')}). Never choose one yourself.`
+}
+
 /** A reply whose question could not be read (`need_more_detail`): what to fix, and that it read nothing. */
-export const unreadSaid = (
-  bundle: Names,
-  issues: readonly ScopeIssue[],
-  question?: string,
-): Said => ({
-  say: `${notLookedUp} ${issueSay(bundle, issues, question)}`,
-  next: `Fix it from options and call again. ${issueWords(bundle, issues, question)}`,
-})
+export function unreadSaid(bundle: Names, issues: readonly ScopeIssue[], question?: string): Said {
+  const contested = issues.find((issue) => issue.meanings)
+  if (contested) {
+    const ask = { word: contested.word ?? contested.input, meanings: contested.meanings! }
+    return { say: `${notLookedUp} ${contestedQuestion(ask)}`, next: contestedNext(ask) }
+  }
+  return {
+    say: `${notLookedUp} ${issueSay(bundle, issues, question)}`,
+    next: `Fix it from options and call again. ${issueWords(bundle, issues)}`,
+  }
+}
 
 /**
  * A reply that names a domain or an edition nobody knows, or another refusal before anything was

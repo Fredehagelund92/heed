@@ -9,7 +9,9 @@ import {
   phrasesIn,
   resolveTerm,
   suggestTerms,
+  type ContestedWord,
   type Term,
+  type WordMeaning,
 } from './vocabulary.ts'
 
 /**
@@ -29,9 +31,18 @@ export type ScopeInput = {
 }
 /**
  * A part of the scope Heed could not read. `message`, for a name it does not know, says so and
- * names the closest it does, so the caller can recover without guessing (FR-341).
+ * names the closest it does, so the caller can recover without guessing (FR-341). A word with
+ * more than one meaning says how a person writes it (`word`) and each meaning (`meanings`): Heed
+ * never chooses one.
  */
-export type ScopeIssue = { field: string; input: string; options: string[]; message?: string }
+export type ScopeIssue = {
+  field: string
+  input: string
+  options: string[]
+  message?: string
+  word?: string
+  meanings?: WordMeaning[]
+}
 /**
  * The day Heed read a question at because it gave no dates: today, a UTC day (NFR-048; Heed has
  * no company time zone). A reply that used it says so (`assumedDate`), never silently.
@@ -42,10 +53,34 @@ export type AssumedDate = { date: string; time_zone: 'UTC'; reason: 'no date giv
  * a person ("1 Jan to 7 Oct 2026 (this year so far; UTC)"). A reply that used them says so.
  */
 export type DatesRead = { words: string; reads_as: string }
+/** The rest of a question that stopped at a word: its names and dates, null when it gave none. */
+export type HeldScope = Omit<ResolvedScope, 'window'> & { window: DateWindow | null }
 export type ScopeResult =
   | { status: 'resolved'; scope: ResolvedScope; assumed?: AssumedDate; dates?: DatesRead }
-  | { status: 'need_more_detail'; issues: ScopeIssue[] }
+  | { status: 'need_more_detail'; issues: ScopeIssue[]; held?: HeldScope }
 const unique = (values: string[]) => [...new Set(values)].sort()
+
+/** The words of a term as a person writes them, the one that reads as `name` first. */
+const writtenAs = (term: Term, name: string) =>
+  [term.name, ...term.aliases].find((n) => normalizeName(n) === name) ?? name
+
+/**
+ * A phrase with more than one meaning, as a question reads it, or null when it has one: the
+ * meanings `servedWords` found for the word, or the names several terms share. `relevant` are the
+ * terms the caller still leaves open: a metric it names itself wins over the words.
+ */
+function contestedPhrase(name: string, relevant: readonly Term[]): ContestedWord | null {
+  const claim = relevant.flatMap((term) => term.contested ?? []).find((c) => c.word === name)
+  const meanings =
+    claim?.meanings.filter(
+      (m) => m.key.startsWith('term:') || relevant.some((term) => term.key === m.key),
+    ) ??
+    relevant
+      .map((term) => ({ key: term.key, name: term.name }))
+      .sort((a, b) => (a.key < b.key ? -1 : 1))
+  if (meanings.length < 2) return null
+  return { word: name, said: claim?.said ?? writtenAs(relevant[0]!, name), meanings }
+}
 
 const nonValueWords = new Set(
   'a an and as at before between by during for from in last next of on over per since the this through to until up with within'.split(
@@ -126,11 +161,14 @@ export function termsInText(
     const relevant = names.get(name)!.filter(kinds)
     if (!relevant.length) continue
     spans.push({ ...written({ start, end }), keys: relevant.map((term) => term.key).sort() })
-    if (relevant.length > 1)
+    const contested = contestedPhrase(name, relevant)
+    if (contested)
       ambiguous.push({
         field: 'scope',
         input: name,
-        options: relevant.map((term) => term.key).sort(),
+        options: contested.meanings.map((m) => m.key).sort(),
+        word: contested.said,
+        meanings: contested.meanings,
       })
     else {
       const term = relevant[0]!
@@ -228,6 +266,22 @@ export function extractScope(
   const resolve = (value: string, kinds: Term['kind'][], field: string, parent?: string) => {
     const result = resolveTerm(value, terms, kinds, parent)
     if (result.status === 'resolved') return result.key
+    const contested = result.named
+      ? contestedPhrase(
+          normalizeName(value),
+          terms.filter((t) => result.options.includes(t.key)),
+        )
+      : null
+    if (contested) {
+      issues.push({
+        field,
+        input: value,
+        options: result.options,
+        word: contested.said,
+        meanings: contested.meanings,
+      })
+      return undefined
+    }
     const suggestions = suggestTerms(
       value,
       terms.filter(
@@ -301,7 +355,9 @@ export function extractScope(
   } else if (!dateWindowSchema.safeParse(window).success || window?.end === null)
     issues.push({ field: 'dates', input: question, options: [] })
   // A named dimension is scope on its own: an item about that dimension with any value applies.
-  if (!metrics.length && !Object.keys(filters).length)
+  // A word with two meanings is the one thing to settle: it needs no list of other metrics.
+  const contested = issues.some((issue) => issue.meanings)
+  if (!metrics.length && !Object.keys(filters).length && !contested)
     issues.push({
       field: 'scope',
       input: question,
@@ -310,18 +366,23 @@ export function extractScope(
         .map((term) => term.key)
         .sort(),
     })
-  if (issues.length) return { status: 'need_more_detail', issues }
+  const read = {
+    metrics: unique(metrics),
+    filters: Object.fromEntries(
+      Object.entries(filters)
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([key, values]) => [key, unique(values)]),
+    ),
+  }
+  if (issues.length)
+    return {
+      status: 'need_more_detail',
+      issues,
+      ...(contested ? { held: { ...read, window: assumed ? null : window } } : {}),
+    }
   return {
     status: 'resolved',
-    scope: {
-      metrics: unique(metrics),
-      filters: Object.fromEntries(
-        Object.entries(filters)
-          .sort(([a], [b]) => (a < b ? -1 : 1))
-          .map(([key, values]) => [key, unique(values)]),
-      ),
-      window: window!,
-    },
+    scope: { ...read, window: window! },
     ...(assumed ? { assumed } : {}),
     ...(dates ? { dates } : {}),
   }

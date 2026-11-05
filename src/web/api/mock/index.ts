@@ -39,7 +39,7 @@ import {
 } from './data/ask'
 import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { playAnswer } from './ask-live'
-import { followsOn, plannedFor } from './planner'
+import { followsOn, heldFor, plannedFor } from './planner'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
@@ -246,6 +246,11 @@ export function createMockApi() {
         alias: read.alias,
       }
     }
+    // A word with more than one meaning is asked about by the fixed rules, as on the service.
+    const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
+    const recognised = recognisedFor(question, world)
+    const held = heldFor(question, turns, world, recognised)
+    if (held) return held
     // A message that asks nothing is told so, with no model, as on the service.
     const named = readQuestion(question)
     if (!named.metric && !named.markets.length && asksNothing(question, turns ?? []))
@@ -254,13 +259,11 @@ export function createMockApi() {
         text: nothingAskedSaid(question, turns ?? []),
       })
     // Ask's planner reads what the rules cannot, and a follow-up first, as on the service (FR-719).
-    const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
     const planned = () => {
       const a = plannedFor(question, turns, world)
       return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
     }
     const read = readQuestion(question)
-    const recognised = recognisedFor(question, world)
     const ruled = askQuestion(question, pool)
     const refused = recognised?.type === 'refused'
     const answered = recognised

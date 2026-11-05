@@ -3,7 +3,7 @@ import { servedWords, type WrittenTerm } from '../../../src/domain/served-terms.
 import { createToolService, type ToolResult } from '../../../src/server/mcp/service.ts'
 import type { ServedToolName } from '../../../src/server/mcp/tools.ts'
 import type { EditionSource, ServingBundle } from '../../../src/server/modules/editions/index.ts'
-import { bundle, memoryStore } from './fixtures.ts'
+import { bundle, memoryStore, withRevenue } from './fixtures.ts'
 
 /*
   What get_context, find_context and read_context give of the terms and synonyms people write in
@@ -208,4 +208,86 @@ it('serves no term of a stopped domain, and none in conflict', async () => {
   const asked = content(await conflicted('get_context', { question: 'Purchases in peak season' }))
   expect(asked).not.toHaveProperty('terms')
   expect(asked.status).toBe('need_more_detail')
+})
+
+/*
+  A read gave a person's word to a second metric (FR-138): Sales was written for Net revenue, and
+  then a source gave Sales to Gross sales. The reply never answers Checked about one of them.
+*/
+const sales: WrittenTerm = {
+  id: '0190f3a2-0000-7000-8000-000000000004',
+  name: 'Sales',
+  meaning: null,
+  sameAs: 'metric:net_revenue',
+  areaId: 'finance',
+  writtenOn: '2026-10-22',
+  writtenAs: 'owner',
+  conflict: true,
+  alsoMeans: ['metric:gross_sales'],
+}
+
+it('asks which one a contested word means, and looks nothing up', async () => {
+  const call = setup(withTerms(withRevenue(bundle()), [sales]))
+  for (const response_format of ['concise', 'full'] as const) {
+    const reply = content(
+      await call('get_context', { question: 'sales last month', response_format }),
+    )
+    expect(reply.status).toBe('need_more_detail')
+    expect(reply.say).toBe(
+      'Nothing was looked up yet. Sales can mean Net revenue or Gross sales. Which do you mean?',
+    )
+    expect(reply.next).toBe(
+      'Ask the person which one they mean, then call again with that metric in metrics (metric:net_revenue or metric:gross_sales). Never choose one yourself.',
+    )
+    expect(reply.options).toEqual([
+      {
+        field: 'scope',
+        input: 'sales',
+        options: ['metric:gross_sales', 'metric:net_revenue'],
+        word: 'Sales',
+        meanings: [
+          { key: 'metric:net_revenue', name: 'Net revenue' },
+          { key: 'metric:gross_sales', name: 'Gross sales' },
+        ],
+      },
+    ])
+    expect(reply.context).toEqual([])
+  }
+})
+
+it('lets a metric a caller passes win over the word, as an agent that knows what it means', async () => {
+  const call = setup(withTerms(withRevenue(bundle()), [sales]))
+  const reply = content(
+    await call('get_context', { question: 'sales last month', metrics: ['metric:gross_sales'] }),
+  )
+  expect(reply.status).not.toBe('need_more_detail')
+  expect(reply.asked).toMatch(/^Gross sales/)
+})
+
+it('adds no sentence about other metrics when two sources share a name', async () => {
+  const data = withRevenue(bundle())
+  const shared = {
+    ...data,
+    terms: data.terms.map((term) =>
+      term.key === 'metric:net_revenue' || term.key === 'metric:gross_sales'
+        ? { ...term, aliases: [...term.aliases, 'Sales'] }
+        : term,
+    ),
+  }
+  const reply = content(await setup(shared)('get_context', { question: 'sales last month' }))
+  expect(reply.say).toBe(
+    'Nothing was looked up yet. Sales can mean Gross sales or Net revenue. Which do you mean?',
+  )
+})
+
+it('reads a word that only reads as another, accents aside, as that word', async () => {
+  const accent = { ...sales, id: '0190f3a2-0000-7000-8000-000000000005', conflict: false }
+  const call = setup(
+    withTerms(withRevenue(bundle()), [
+      { ...accent, alsoMeans: [] },
+      { ...accent, id: '0190f3a2-0000-7000-8000-000000000006', name: 'Salés', alsoMeans: [] },
+    ]),
+  )
+  const reply = content(await call('get_context', { question: 'sales last month' }))
+  expect(reply.asked).toMatch(/^Net revenue/)
 })

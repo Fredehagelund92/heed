@@ -470,8 +470,10 @@ inside the same window and with nothing else changed (`proposals_guard_state`).
 Terms (migration 0009). `terms` keeps the words people write in Definitions (FR-138): a word
 with its own `meaning`, or a synonym that names what it means instead (`same_as_key`, a live
 metric or dimension of the vocabulary, or `same_as_term`, a term with its own meaning; never
-another synonym). `word` is the name trimmed, its spaces folded and in lower case, and one live
-term holds a word at most (`terms_one_word`). `terms_guard` refuses a word the live vocabulary or
+another synonym). `word` is the name as the service compares it (`cl_term_word`, migration 0039, the
+database's `normalizeName`: case, spaces and accents set aside), and one live term holds a word at
+most (`terms_one_word`). Two terms that only read as one word when 0039 came in both stay, the later
+one marked `word_clash` and outside that index, until it next claims a word. `terms_guard` refuses a word the live vocabulary or
 the definitions source uses for a metric or a dimension (`cl_vocabulary_words`: names, other
 names, and the source's name, title and synonyms) whenever a term takes a word: written, renamed,
 pointed elsewhere or restored. A sync can still give a word a second meaning later; the service
@@ -542,8 +544,10 @@ it; each runs as the owner. The serving and analytics roles have no grant on any
 Serving terms (migration 0011). Agents read the live terms through `serving_terms()`, a security
 definer function the API and serving roles may run: each word with its own meaning or what it
 means, its domain, the day it was last written and the role it was written in (`owner` or
-`administrator`, never the person), and `conflict` when the vocabulary or the definitions source
-gives the word another meaning or what a synonym means is gone. `serving_terms_mark()` changes
+`administrator`, never the person), `conflict` when the vocabulary or the definitions source
+gives the word another meaning or what a synonym means is gone, and `also_means` (migration 0039),
+the metrics and dimensions that other meaning is, so a question in the word can name both.
+`serving_terms_mark()` changes
 with every write to a term and every sync of a definitions source, so a cached serving bundle is
 read again after either.
 
