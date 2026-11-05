@@ -14,6 +14,7 @@ import { changeKinds, docFields, marks } from '../domain/doc-diff.ts'
 import { itemKinds } from '../domain/item.ts'
 import { clashRelations, readinessStates } from '../domain/readiness.ts'
 import { reachSchema } from './answer.ts'
+import { REVIEW_SHEETS_MAX } from './limits.ts'
 import { commentInputBodySchema } from './comments.ts'
 import { editionSchema, reviewProposalSchema } from './review.ts'
 import { savedDraftSchema } from './saved-questions.ts'
@@ -286,8 +287,6 @@ export const reviewSheetSchema = z.object({
 })
 export type ReviewSheet = z.infer<typeof reviewSheetSchema>
 
-/** The most suggestions one read of many sheets names; the Inbox reads more in turns. */
-export const REVIEW_SHEETS_MAX = 100
 export const reviewSheetsInputSchema = z.strictObject({
   ids: z.array(z.string().check(z.uuid())).check(z.minLength(1), z.maxLength(REVIEW_SHEETS_MAX)),
 })
