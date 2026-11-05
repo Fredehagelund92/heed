@@ -79,7 +79,7 @@ To run the whole product instead, with its database and your own Cube model, see
 | Components  | shadcn/ui on Base UI (style `base-nova`), Heed's own parts in `components/heed`, a Tiptap editor, sonner toasts                                                                        |
 | Styling     | Tailwind 4 with the tokens in one file, `src/web/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
 | Guard rails | ESLint and Stylelint rules for the class rules, raw values, icons and plain words, with tests that prove they fail loudly                                                              |
-| Quality     | Vitest; Playwright with the golden job specs J1 to J41 on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI              |
+| Quality     | Vitest; Playwright with the golden job specs on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI                        |
 
 Agents get the published context over MCP, signed in, with a local dev token or with an access
 key.
