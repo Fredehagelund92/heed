@@ -101,6 +101,20 @@ export function isPublicIp(ip: string): boolean {
  */
 export const reachesLocal = () => process.env.NODE_ENV !== 'production'
 
+/**
+ * The hosts whoever runs the server lets `ctx.fetch` reach on this machine or a private network
+ * (`HEED_EGRESS_PRIVATE_HOSTS`), as a name or an IP address: an internal artifact server. It is
+ * theirs to name, never an administrator's in the app, who could otherwise point a source at any
+ * service inside the network. Git and figures take none of them.
+ */
+export const egressPrivateHosts = (): ReadonlySet<string> =>
+  new Set(
+    (process.env.HEED_EGRESS_PRIVATE_HOSTS ?? '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  )
+
 /** A URL's host as an address or a name, without IPv6 brackets or a trailing dot. */
 const hostOf = (url: URL) =>
   url.hostname
@@ -123,10 +137,14 @@ export function canonicalAddress(address: string): string | null {
 }
 
 /**
- * True for an address Heed may fetch: https to a public host, without credentials, query or
- * fragment. Outside production also plain http to this machine and private addresses.
+ * True for an address Heed may fetch: https to a public host, or to one of `privateHosts`, without
+ * credentials, query or fragment. Outside production also plain http to this machine and private
+ * addresses.
  */
-export function isFetchableAddress(address: string): boolean {
+export function isFetchableAddress(
+  address: string,
+  privateHosts: ReadonlySet<string> = new Set(),
+): boolean {
   const canonical = canonicalAddress(address)
   if (canonical === null) return false
   const url = new URL(canonical)
@@ -137,8 +155,11 @@ export function isFetchableAddress(address: string): boolean {
     host === 'localhost' ||
     host.endsWith('.localhost') ||
     (isIP(host) !== 0 && !isPublicIp(host))
-  if (local && !reachesLocal()) return false
-  return url.protocol === 'https:' || (url.protocol === 'http:' && loopback.has(url.hostname))
+  if (local && !reachesLocal() && !privateHosts.has(host)) return false
+  return (
+    url.protocol === 'https:' ||
+    (url.protocol === 'http:' && loopback.has(url.hostname) && reachesLocal())
+  )
 }
 
 /**

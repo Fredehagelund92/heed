@@ -3,7 +3,7 @@ title: Writing a connector
 line: 'What interface 3.0 asks of whoever writes a connector, step by step.'
 group: Connectors
 order: 3
-reviewed: 2026-10-28
+reviewed: 2026-11-04
 ---
 
 ## Read this first
@@ -72,9 +72,17 @@ worded in the manifest and sent as `<id>.<code>`.
   it. The tool word (`tool`) is how people say the tool. The ref prefix is the tool's, for good:
   a second connector for the same tool writes the same prefix (CON-117).
 - **Where the input comes from.** A file or folder in a Git repository (`ctx.git`), the folder
-  whoever runs the server names (`ctx.folder`), or an https API (`ctx.fetch`). Prefer the tool's
-  own resolved output (a built artifact) to its source files: re-implementing a tool's parser is
-  guessing. Never run the tool.
+  whoever runs the server names (`ctx.folder`), or an https address or API (`ctx.fetch`). Prefer the
+  tool's own resolved output (a built artifact) to its source files: re-implementing a tool's
+  parser is guessing. Never run the tool. A built artifact usually lives where a pipeline uploads
+  it, in object storage, so offer that first: [dbt MetricFlow](../../src/connectors/dbt-metricflow/README.md)
+  reads one file from an address, an object store, Git or a server folder, and lets the
+  administrator choose with one `radio` field and `visibleIf` on the rest.
+- **What may read it unchanged.** A file read over https may have an ETag or a date. Send them
+  back and end with `unchanged: true` on a `304`, and the core keeps the last read: see
+  `read` in the dbt runtime. Put your mapping's version in the cursor.
+- **Whether an address is a secret.** A signed link is a credential. Keep it in a secret slot, not
+  a setting, and declare its host with `{ fromSecret: <slot> }`; say only its host in a step.
 - **Whether it can read a folder on the server.** If `read` works from `ctx.folder` with no
   settings, declare `capabilities.serverFolder: true`. Whoever runs the server then names a folder
   for it (`HEED_SERVER_FOLDERS`, by connector id), and that folder is one of the server's own
@@ -104,8 +112,10 @@ worded in the manifest and sent as `<id>.<code>`.
 4. **Write the runtime** (`runtime.ts`) around it: `check` reaches the input and says what it
    found, step by step, in your tool's words; `read` gets the input (`ctx.git` or `ctx.folder`),
    maps it, yields the warnings first, then the definitions, then `end`. Throw a `SourceError`
-   for a failure. Use only what the context hands you: lint refuses `fetch`, `process`, files
-   and the rest ([rules for connector code](security.md#rules-for-connector-code)). If the input
+   for a failure. `ctx.fetch` throws a `SourceError` itself for a host it refuses or cannot reach
+   and for an answer over its cap: only an answer's status is yours to turn into one. Use only what
+   the context hands you: lint refuses `fetch`, `process`, files and the rest
+   ([rules for connector code](security.md#rules-for-connector-code)). If the input
    needs a parser or compiler you would not run in the server, hand it to a `worker.ts`
    (`ctx.worker`, T1); Cube's compiler is the example.
 5. **Record the fixture** in `tests/fixtures/<id>/`: the tool's input, invented, with a
@@ -124,9 +134,9 @@ worded in the manifest and sent as `<id>.<code>`.
 7. **Add a `describeConnector` block** to `tests/server/connectors/conformance.test.ts` with the
    fixture hooks of [the kit](#the-kit). The template's block, at the end of that file, is the
    one to copy.
-8. **Write the README**, which holds the manifest's `title` as its heading, with its sections
-   (Settings, What a read does, Schedule and limits, Tests) and no TODO left: a test refuses a
-   listed connector's README otherwise.
+8. **Write the README**, which holds the manifest's `title` as its heading, with the sections the
+   [review checklist](#review-checklist) names and no TODO left: a test refuses a listed
+   connector's README otherwise.
 9. **Run the checks**: `npx vitest run --project server tests/server/connectors` (add `-u` once to
    write `definitions.json`, then read it; with the README not written yet, the kit's README test
    fails on that first run, and the file is still written), then `npm test`, `npm run typecheck`, `npm run lint`
@@ -191,12 +201,14 @@ bug to fix, not a line to add.
   becomes `example_db`, `example_schema`). A hand-written input says so.
 - **Planted.** Keep the tool's calculations in the fixture on purpose: they are what the kit
   checks never crosses. A secret the tests use is planted the same way.
+- **Every way in.** A connector that reads its input by several routes runs the kit once per
+  route (the third argument of `describeConnector` names it), against the same `definitions.json`.
 - **Expected.** `definitions.json` is the read of the fixture, definitions and warnings, as the
   kit writes it. It is the connector's golden file: a change to the mapping shows in it, in
   review.
 - **No live calls.** The test Git host (`tests/server/connectors/git-server.ts`) serves a
-  repository built from the fixture; a fake of an API runs on the machine
-  (`drive-server.ts`).
+  repository built from the fixture; a fake of an API runs on the machine (`drive-server.ts`), and
+  so does an object store that checks each signature (`object-server.ts`).
 
 ## The kit
 
@@ -238,6 +250,11 @@ means an input's calculation is not.
   `categorical`.
 - Treating a measure, an entity or a join key as a definition.
 - Reading a file over the Git cap (2 MB a file) and failing silently: it is `unreadable_file`.
+- Fetching a file with no `maxBytes`: the core's cap of 20 MB is for APIs, not for one file.
+- Putting a signed link in a setting, or its path in a warning's target. Settings go in the
+  history log.
+- Giving a `visibleIf` field a `required` with no thought for stored sources: a source saved
+  before the field came has no value for it, and a migration has to give it one.
 - Committing a fixture built against a real warehouse or with real names.
 - Writing a test that calls the tool's live API.
 - Adding the tool's name to web copy.

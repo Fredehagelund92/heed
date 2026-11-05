@@ -12,6 +12,9 @@ import type { SourceErrorClass } from './connector-runtime.ts'
 /** The first wait after a failure that clears by itself, in seconds. */
 export const RETRY_FIRST_SECONDS = 60
 
+/** The longest wait a tool may ask for with Retry-After: six digits of seconds, as a host sends it. */
+export const RETRY_AFTER_SECONDS_MAX = 999_999
+
 /** The period a source is read at, in seconds: its own, but never under the connector's minimum. */
 export function scheduleSeconds(
   own: number | null,
@@ -38,7 +41,14 @@ export function nextReadAt(
   if (read.failures > 0 && read.failure === 'transient') {
     const backoff = RETRY_FIRST_SECONDS * 2 ** Math.min(read.failures - 1, 20)
     wait = Math.min(backoff, read.periodSeconds, Math.max(read.staleAfterSeconds / 2, 60))
-    wait = Math.max(wait, read.retryAfterSeconds ?? 0)
+    const asked = read.retryAfterSeconds
+    if (
+      asked !== undefined &&
+      Number.isFinite(asked) &&
+      asked > 0 &&
+      asked <= RETRY_AFTER_SECONDS_MAX
+    )
+      wait = Math.max(wait, asked)
   }
   return new Date(now.getTime() + wait * 1000)
 }

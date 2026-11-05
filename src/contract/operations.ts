@@ -60,6 +60,7 @@ export const sourceWarningCodes = [
   'invalid_rename',
   'taken',
   'private_address',
+  'redirect_refused',
   'unreachable',
   'unauthorized',
   'not_found',

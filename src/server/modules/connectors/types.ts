@@ -71,6 +71,8 @@ export const snapshotSchema = z.object({
   renames: z.array(renameSchema).optional(),
   /** Where the next read may start (a commit, a change token); the core stores it. */
   cursor: z.string().min(1).max(500).optional(),
+  /** What the cursor names is as it was: the core keeps what the last read found. */
+  unchanged: z.literal(true).optional(),
 })
 export type SourceSnapshot = z.infer<typeof snapshotSchema>
 

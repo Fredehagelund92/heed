@@ -11,6 +11,7 @@ import {
 import {
   connectorConfigDomains,
   parseConnectorConfig,
+  secretsInUse,
 } from '../../../src/domain/connector-config.ts'
 import { builtInManifests } from '../../../src/connectors/manifests.ts'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
@@ -88,7 +89,7 @@ describe('checking a manifest', () => {
       'version: Use a semantic version, such as 1.0.0.',
     ])
     expect(problemsOf({ ...valid, heed: '^2.0' })).toEqual([
-      'heed: This build speaks interface 3.2.0, which ^2.0 does not include. Write a range such as ^3.0.',
+      'heed: This build speaks interface 3.3.0, which ^2.0 does not include. Write a range such as ^3.0.',
     ])
     expect(problemsOf({ ...valid, heed: '>=3' })).toHaveLength(1)
     expect(problemsOf({ ...valid, id: 'acme.lookml' })).toEqual([])
@@ -350,6 +351,77 @@ describe("checking a source's settings against its manifest", () => {
     expect(
       connectorConfigDomains(manifest, { names: { a: 'commercial', b: 'risk', c: 'commercial' } }),
     ).toEqual(['commercial', 'risk'])
+  })
+})
+
+describe('settings that depend on each other', () => {
+  const dbt = builtInManifests.find((m) => m.id === 'dbt-metricflow')!
+
+  it('asks to choose where the file lives, as it does not ask to give a choice', () => {
+    const parsed = parseConnectorConfig(dbt, { location: '' })
+    expect('problems' in parsed && parsed.problems).toContainEqual({
+      field: 'location',
+      message: 'Choose where the file lives.',
+    })
+  })
+
+  it('keeps only the settings of the place chosen, however the form left the rest', () => {
+    expect(
+      parseConnectorConfig(dbt, {
+        location: 'git',
+        provider: 's3-compatible',
+        region: 'eu-1',
+        objectAddress: 'https://store.example.test/b/f',
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        file: 'semantic_manifest.json',
+      }),
+    ).toEqual({
+      config: {
+        location: 'git',
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        file: 'semantic_manifest.json',
+      },
+    })
+  })
+
+  it('refuses a choice only the server can make', () => {
+    expect(parseConnectorConfig(dbt, { location: 'folder' })).toEqual({
+      problems: [{ field: 'location', message: 'This is set where the server runs, not here.' }],
+    })
+  })
+
+  it('names the secrets each place uses, and a value in a list of values', () => {
+    const inUse = (config: Record<string, string>) =>
+      secretsInUse(dbt, config).map((secret) => secret.key)
+    expect(inUse({ location: 'address' })).toEqual(['fileAddress'])
+    expect(inUse({ location: 'git' })).toEqual(['token'])
+    expect(inUse({ location: 'storage', provider: 'gcs' })).toEqual(['accessKey', 'secretKey'])
+    expect(inUse({ location: 'storage', provider: 'azure' })).toEqual(['sasToken'])
+    // A service left behind in the form does not bring its secrets to another place.
+    expect(inUse({ location: 'git', provider: 'azure' })).toEqual(['token'])
+  })
+
+  it('checks a host from a secret, and a secret that depends on a field', () => {
+    expect(
+      problemsOf({
+        ...valid,
+        egress: { hosts: [{ fromSecret: 'nothing' }] },
+        secrets: [
+          {
+            key: 'token',
+            label: 'Token',
+            description: 'A token.',
+            boundTo: ['definitions'],
+            visibleIf: { field: 'nothing', equals: 'x' },
+          },
+        ],
+      }),
+    ).toEqual([
+      'secrets[0].visibleIf: nothing is not a setting.',
+      'egress.hosts[0].fromSecret: nothing is not a secret.',
+    ])
   })
 })
 

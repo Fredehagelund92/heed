@@ -152,14 +152,19 @@ async function expectedFile(read: { definitions: unknown[]; warnings: unknown[] 
   })
 }
 
-export function describeConnector(module: ConnectorModule, fixture: ConnectorFixture) {
+/** `route` names which way in a run covers, for a connector the kit runs more than once. */
+export function describeConnector(
+  module: ConnectorModule,
+  fixture: ConnectorFixture,
+  route?: string,
+) {
   const { manifest } = module
   /** A warning code the core or the connector's manifest words. */
   const worded = (code: string) =>
     (sourceWarningCodes as readonly string[]).includes(code) ||
     (code.startsWith(`${manifest.id}.`) && code.slice(manifest.id.length + 1) in manifest.warnings)
   const calculations = [fixture.calculation ?? []].flat()
-  describe(`${manifest.id}: the conformance kit of interface 3`, () => {
+  describe(`${manifest.id}${route ? `, ${route}` : ''}: the conformance kit of interface 3`, () => {
     let registered: RegisteredConnector
     const connector = () => (registered ??= registerConnectors([module], [])[0]!)
     let goodRead: ReturnType<DefinitionSource['read']> | undefined

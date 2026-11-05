@@ -142,10 +142,22 @@ export class ConnectorService {
       if (!registered.enabled) throw new Error('Connector is disabled')
       if (registered.type !== source.type) throw new Error('Connector type does not match registry')
       if (registered.origin !== origin) throw new Error('Connector origin does not match registry')
-      // The cursor of the newest read that brought data: where this read may start.
-      const [last] = await tx.query<{ cursor: string | null }>(
-        `select cursor from connector_snapshots where connector_id=$1 and status <> 'failed'
-         order by fetched_at desc limit 1`,
+      // The newest read that brought data, and its cursor: where this read may start. A read in
+      // part, or one from before the source's settings changed, says nothing a read may rest on.
+      const [last] = await tx.query<{
+        id: string
+        cursor: string | null
+        source_version: string | null
+        definitions_seen: number
+        warnings: SourceWarning[]
+        content_digest: Buffer | null
+      }>(
+        `select s.id, s.source_version, s.definitions_seen, s.warnings, s.content_digest,
+                case when s.status = 'ok' and (c.changed_at is null or s.fetched_at > c.changed_at)
+                     then s.cursor end as cursor
+           from connector_snapshots s join connectors c on c.id = s.connector_id
+          where s.connector_id=$1 and s.status <> 'failed'
+          order by s.fetched_at desc limit 1`,
         [source.id],
       )
       const started = performance.now()
@@ -168,7 +180,9 @@ export class ConnectorService {
         }
         snapshot = undefined
       }
-      if (snapshot) {
+      // Nothing was read: this read stands where the last one did, with what it found.
+      const kept = snapshot?.unchanged ? last : undefined
+      if (snapshot && !kept) {
         // A ref belongs to one source for good (CON-117). A member another source already reads
         // stays with it: this read leaves it out, says so, and is in part, so it marks nothing
         // missing. Disconnecting a source hands its refs over: the next source to read one
@@ -199,13 +213,17 @@ export class ConnectorService {
          values ($1,$2,$3,clock_timestamp(),$4,$5,$6,$7,$8,$9) returning id`,
         [
           source.id,
-          snapshot?.sourceVersion ?? null,
+          kept ? kept.source_version : (snapshot?.sourceVersion ?? null),
           status,
           Math.round(performance.now() - started),
-          snapshot?.definitions.length ?? 0,
-          JSON.stringify(snapshot?.warnings ?? failureWarnings),
+          kept ? kept.definitions_seen : (snapshot?.definitions.length ?? 0),
+          JSON.stringify(kept ? kept.warnings : (snapshot?.warnings ?? failureWarnings)),
           snapshot ? null : 'Definition source could not be read',
-          snapshot ? Buffer.from(await contentDigest(snapshot), 'hex') : null,
+          kept
+            ? kept.content_digest
+            : snapshot
+              ? Buffer.from(await contentDigest(snapshot), 'hex')
+              : null,
           snapshot?.cursor ?? null,
         ],
       )
@@ -227,11 +245,17 @@ export class ConnectorService {
           ...(failure?.retryAfter === undefined ? {} : { retryAfterSeconds: failure.retryAfter }),
         }),
       ])
-      if (!snapshot)
+      if (kept) {
+        await tx.query(
+          'update definitions set last_seen_snapshot=$3 where connector_id=$1 and last_seen_snapshot=$2',
+          [source.id, kept.id, snapshotId],
+        )
+      }
+      if (!snapshot || kept)
         return {
           snapshotId,
           status,
-          definitionsSeen: 0,
+          definitionsSeen: kept?.definitions_seen ?? 0,
           coverage: null,
           flags: { raised: 0, cleared: 0 },
           staleLinkNotices: 0,

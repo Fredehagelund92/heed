@@ -1,4 +1,5 @@
 import type { SourceSettings } from '@contract/sources'
+import { fieldVisible } from '@domain/connector-config'
 import type { ConnectorManifest } from '@domain/connector-manifest'
 import { domainHint } from '@domain/definition-helpers'
 import { builtInManifests } from '../../../connectors/manifests'
@@ -111,6 +112,17 @@ const pureChecks: Record<
       { title: 'Read the semantic manifest', status: 'ok', detail: '12 metrics and 7 dimensions.' },
     ],
     scopes: demoSemanticModels,
+    read: {
+      metrics: 12,
+      dimensions: 7,
+      warnings: [
+        {
+          title: 'No domain named',
+          detail: 'Map it to a domain in the next steps, or name its domain in the tool.',
+          count: 1,
+        },
+      ],
+    },
   }),
 }
 
@@ -172,7 +184,10 @@ export function testFor(connector: string, values: ConnectValues): ConnectTest {
   const manifest = manifestOf(connector)
   if (!tool || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
   const missing = manifest.config.fields.find(
-    (field) => field.required && !values.config[field.key]?.trim(),
+    (field) =>
+      field.required &&
+      fieldVisible(field, values.config, manifest.config.fields) &&
+      !values.config[field.key]?.trim(),
   )
   if (missing)
     return {

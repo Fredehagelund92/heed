@@ -57897,6 +57897,29 @@
                                             "type": "string",
                                             "minLength": 1,
                                             "maxLength": 300
+                                          },
+                                          "recipe": {
+                                            "type": "object",
+                                            "properties": {
+                                              "lead": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 300
+                                              },
+                                              "code": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 2000
+                                              }
+                                            },
+                                            "required": [
+                                              "lead",
+                                              "code"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "serverOnly": {
+                                            "type": "boolean"
                                           }
                                         },
                                         "required": [
@@ -57927,6 +57950,12 @@
                                             },
                                             {
                                               "type": "boolean"
+                                            },
+                                            {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           ]
                                         }
@@ -58015,6 +58044,36 @@
                                     "type": "string",
                                     "pattern": "^[a-z][a-zA-Z0-9]{0,39}$"
                                   }
+                                },
+                                "visibleIf": {
+                                  "type": "object",
+                                  "properties": {
+                                    "field": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-zA-Z0-9]{0,39}$"
+                                    },
+                                    "equals": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "field",
+                                    "equals"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
@@ -58056,6 +58115,19 @@
                                       },
                                       "required": [
                                         "fromField"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "fromSecret": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-zA-Z0-9]{0,39}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "fromSecret"
                                       ],
                                       "additionalProperties": false
                                     },

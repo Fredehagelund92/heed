@@ -19,6 +19,7 @@ import {
 import { builtInFolder, describeConnector, type FixtureSource } from './kit.ts'
 import { driveHost, type DriveHost } from './drive-server.ts'
 import { gitHost, type GitHost } from './git-server.ts'
+import { objectHost, type ObjectHost } from './object-server.ts'
 
 /*
   The conformance kit against every connector built into this repository (CON-108): a new
@@ -30,6 +31,7 @@ const TOKEN = 'kit-token-91c2ef'
 /** The token Cube's data API takes in the kit, invented here. */
 const CUBE_TOKEN = 'kit-cube-token-5d0a7b'
 let host: GitHost
+let store: ObjectHost
 /** Cube's `/v1/load` for the kit: one measure's figure, and what reached it. */
 let cubeApi: Server
 const cubeRequests: { host: string; authorization: string | null }[] = []
@@ -129,6 +131,19 @@ beforeAll(async () => {
     'shop-metrics-wrong',
     semantic({ metadata: {}, nodes: {}, semantic_models: {}, metrics: {} }),
   )
+  // The same files in an object store, each behind a signed link and behind a key.
+  store = await objectHost()
+  const objects = {
+    good: JSON.stringify(legacyManifest),
+    reformatted: JSON.stringify(deepReorder(otherTarget(legacyManifest)), null, 4),
+    changed: JSON.stringify(withChangedRevenue(legacyManifest)),
+    partial: JSON.stringify(withMissingInput(legacyManifest)),
+    wrong: JSON.stringify({ metadata: {}, nodes: {}, semantic_models: {}, metrics: {} }),
+  }
+  for (const [name, text] of Object.entries(objects)) {
+    store.put(`/link/${name}.json`, text)
+    store.put(`/bucket/${name}.json`, text)
+  }
   // Small pages, so every list is read page by page.
   drive = await driveHost({ pageSize: 2 })
   driveKey = drive.key()
@@ -158,6 +173,7 @@ afterAll(async () => {
   cubeApi.closeAllConnections()
   await new Promise<void>((resolve) => cubeApi.close(() => resolve()))
   await host.close()
+  await store.close()
   await drive.close()
   await rm(serverFolder, { recursive: true, force: true })
 })
@@ -342,6 +358,7 @@ const driveSource = (key: string, address = drive.address, signIn = drive.signIn
 
 const dbtSource = (name: string, token: string | null = TOKEN): FixtureSource => ({
   config: {
+    location: 'git',
     repository: host.address(name),
     ref: 'main',
     folder: 'semantic',
@@ -359,31 +376,73 @@ describeConnector(module('dbt-metricflow'), {
     config: { ...dbtSource('shop-metrics').config, repository: 'http://127.0.0.1:9/nothing.git' },
   }),
   invalid: [
-    { config: { ref: 'main' }, field: 'repository' },
-    { config: { repository: 'ftp://git.example.test/a.git', ref: 'main' }, field: 'repository' },
+    { config: {}, field: 'location' },
+    { config: { location: 'folder' }, field: 'location' },
+    { config: { location: 'git', ref: 'main' }, field: 'repository' },
     {
-      config: { repository: 'https://user:pass@git.example.test/a.git', ref: 'main' },
+      config: { location: 'git', repository: 'ftp://git.example.test/a.git', ref: 'main' },
       field: 'repository',
     },
     {
-      config: { repository: 'https://git.example.test/a.git', ref: '--upload-pack' },
+      config: {
+        location: 'git',
+        repository: 'https://user:pass@git.example.test/a.git',
+        ref: 'main',
+      },
+      field: 'repository',
+    },
+    {
+      config: {
+        location: 'git',
+        repository: 'https://git.example.test/a.git',
+        ref: '--upload-pack',
+      },
       field: 'ref',
     },
     {
-      config: { repository: 'https://git.example.test/a.git', ref: 'main', folder: '../up' },
+      config: {
+        location: 'git',
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        folder: '../up',
+      },
       field: 'folder',
     },
     {
-      config: { repository: 'https://git.example.test/a.git', ref: 'main', file: 'a/../../b' },
+      config: {
+        location: 'git',
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        file: 'a/../../b',
+      },
       field: 'file',
     },
     {
       config: {
+        location: 'git',
         repository: 'https://git.example.test/a.git',
         ref: 'main',
         domainNames: { 'Customer Care': 'Not a domain' },
       },
       field: 'domainNames',
+    },
+    { config: { location: 'storage', provider: 's3' }, field: 'objectAddress' },
+    {
+      config: {
+        location: 'storage',
+        provider: 's3',
+        objectAddress: 'https://bucket.example.test/file.json?X-Amz-Signature=abc',
+      },
+      field: 'objectAddress',
+    },
+    {
+      config: {
+        location: 'storage',
+        provider: 's3-compatible',
+        objectAddress: 'https://store.example.test/bucket/file.json',
+        region: 'Not A Region',
+      },
+      field: 'region',
     },
   ],
   partial: () => dbtSource('shop-metrics-partial'),
@@ -414,6 +473,86 @@ describeConnector(module('dbt-metricflow'), {
   serverFolder: () => serverFolder,
   planted: TOKEN,
 })
+
+const dbtCalculations = [
+  'case when',
+  '0.6 * amount',
+  "'completed'",
+  'nullif',
+  'revenue - discounts',
+  'Dimension(',
+  'order_id',
+  'example_db',
+  'example_schema',
+]
+const dbtMoved = [
+  'dbt:_shared.revenue_per_customer',
+  'dbt:orders.average_order_value',
+  'dbt:orders.net_revenue',
+  'dbt:orders.revenue',
+  'dbt:orders.revenue_to_date',
+]
+
+/** dbt's file at a signed link: the link itself is the source's secret. */
+const dbtLink = (name: string): FixtureSource => ({
+  config: { location: 'address' },
+  secrets: { fileAddress: store.link(`/link/${name}.json`) },
+})
+
+describeConnector(
+  module('dbt-metricflow'),
+  {
+    folder: builtInFolder('dbt-metricflow'),
+    good: () => dbtLink('good'),
+    refused: () => ({
+      config: { location: 'address' },
+      secrets: { fileAddress: store.address('/link/good.json?sig=not-the-signature') },
+    }),
+    unreachable: () => ({
+      config: { location: 'address' },
+      secrets: { fileAddress: 'http://127.0.0.1:9/semantic_manifest.json' },
+    }),
+    partial: () => dbtLink('partial'),
+    calculation: dbtCalculations,
+    expected: new URL('../../fixtures/dbt-metricflow/definitions.json', import.meta.url),
+    reformat: () => dbtLink('reformatted'),
+    meaningChange: () => ({ source: dbtLink('changed'), moved: dbtMoved }),
+    wrongFormat: () => dbtLink('wrong'),
+    planted: () => store.link('/link/good.json').split('?')[1],
+  },
+  'its file at an address',
+)
+
+/** dbt's file as an object, read with the store's own key. */
+const dbtObject = (name: string, secretKey = store.secretKey): FixtureSource => ({
+  config: {
+    location: 'storage',
+    provider: 's3-compatible',
+    objectAddress: store.address(`/bucket/${name}.json`),
+  },
+  secrets: { accessKey: store.accessKey, secretKey },
+})
+
+describeConnector(
+  module('dbt-metricflow'),
+  {
+    folder: builtInFolder('dbt-metricflow'),
+    good: () => dbtObject('good'),
+    refused: () => dbtObject('good', 'not-the-secret-key'),
+    unreachable: () => ({
+      ...dbtObject('good'),
+      config: { ...dbtObject('good').config, objectAddress: 'http://127.0.0.1:9/bucket/file.json' },
+    }),
+    partial: () => dbtObject('partial'),
+    calculation: dbtCalculations,
+    expected: new URL('../../fixtures/dbt-metricflow/definitions.json', import.meta.url),
+    reformat: () => dbtObject('reformatted'),
+    meaningChange: () => ({ source: dbtObject('changed'), moved: dbtMoved }),
+    wrongFormat: () => dbtObject('wrong'),
+    planted: () => store.secretKey,
+  },
+  'its file in object storage',
+)
 
 describeConnector(module('google-drive'), {
   folder: builtInFolder('google-drive'),
