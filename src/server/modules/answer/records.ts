@@ -1,6 +1,14 @@
 import type { Asked, LookupInput, RecordsAnswer } from '../../../contract/answer.ts'
+import type { Catalogue } from '../../../contract/index.ts'
 import type { ConflictList } from '../../../contract/conflicts.ts'
 import type { LibraryIndex } from '../../../contract/schemas.ts'
+import type {
+  AuditItem,
+  AuditMembers,
+  AuditTerm,
+  AuditWorld,
+  QueueLine,
+} from '../../../domain/audit.ts'
 import {
   answerRecords,
   recogniseRecords,
@@ -13,7 +21,7 @@ import {
   type RecordsRecognition,
   type RecordsWorld,
 } from '../../../domain/records.ts'
-import { readQuestion } from '../../../domain/scope.ts'
+import { asksDefinition, readQuestion } from '../../../domain/scope.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import type { ServingBundle } from '../editions/index.ts'
@@ -28,8 +36,9 @@ import type { ServingBundle } from '../editions/index.ts'
   to the person: a term whose definition their groups may not see is left out (CON-509). Owners are named as Context names them; nothing is read by
   person, no comment is read, and what agents asked comes from Asked this week, as counts only,
   small ones hidden. The conflicts are the Context list's Conflicts filter (`conflicts.list`), so
-  a pair the person may not read whole is not there. The question itself is never stored: only which of the records questions it
-  was, by week, as a count.
+  a pair the person may not read whole is not there. An analysis (FR-720) reads the catalogue as
+  Definitions shows it to the person, and the person's own Inbox. The question itself is never
+  stored: only which of the records questions it was, by week, as a count.
 */
 
 const DAY = 86_400_000
@@ -48,6 +57,14 @@ export type RecordsReads = {
   hidden: () => Promise<readonly string[]>
   /** The conflicts, as Context's Conflicts filter lists them to the person. */
   conflicts: () => Promise<ConflictList>
+  /** Definitions as the catalogue shows them to the person. */
+  catalogue: () => Promise<Catalogue>
+  /** What the sources list that no term names. */
+  members: () => Promise<AuditMembers>
+  /** The person's own Inbox, by group. */
+  queue: () => Promise<readonly QueueLine[]>
+  /** The words people wrote in Definitions, with what they wrote. */
+  glossary: () => Promise<readonly { name: string; meaning: string }[]>
 }
 
 /** A question is read as a records question only as words: a scope picked with @ is the engine's. */
@@ -115,9 +132,14 @@ const isRecordsKind = (kind: string): kind is RecordsKind =>
   (recordsKinds as readonly string[]).includes(kind)
 
 /** The Context list's items as the records keep them, with their times moved to the service's day. */
-async function itemsOf(tx: Queryable, index: LibraryIndex, shift: number): Promise<RecordsItem[]> {
+async function itemsOf(
+  tx: Queryable,
+  index: LibraryIndex,
+  shift: number,
+  dated = true,
+): Promise<RecordsItem[]> {
   const listed = index.items.filter((i) => isRecordsKind(i.kind))
-  const times = await timesOf(tx, listed)
+  const times = await timesOf(tx, dated ? listed : [])
   const moved = (iso: string | null | undefined) =>
     iso ? new Date(Date.parse(iso) + shift).toISOString() : null
   return listed.map((i) => {
@@ -140,15 +162,101 @@ async function itemsOf(tx: Queryable, index: LibraryIndex, shift: number): Promi
 }
 
 /** What one intent needs read; the rest is left empty. */
-const needs = (ask: RecordsAsk) => ({
-  items: !['asked_nothing', 'terms', 'values', 'conflicts'].includes(ask.intent),
-  asked: ask.intent === 'asked_nothing',
-  conflicts: ask.intent === 'conflicts',
-  terms:
-    ask.intent === 'terms' ||
-    ask.intent === 'values' ||
-    (ask.intent === 'count' && ask.kind === 'definition'),
+const needs = (ask: RecordsAsk) => {
+  const facets = ask.audit?.facets ?? ask.over?.facets ?? []
+  const analysis = ask.intent === 'audit' || ask.intent === 'queue' || !!ask.over
+  const reviews = facets.includes('review')
+  return {
+    items: !['asked_nothing', 'terms', 'values', 'conflicts', 'glossary'].includes(ask.intent),
+    asked:
+      ask.intent === 'asked_nothing' ||
+      reviews ||
+      facets.includes('asked_nothing') ||
+      facets.includes('asked_most'),
+    conflicts:
+      ask.intent === 'conflicts' ||
+      reviews ||
+      facets.includes('conflicts') ||
+      facets.includes('overlaps'),
+    terms:
+      analysis ||
+      ask.intent === 'terms' ||
+      ask.intent === 'values' ||
+      (ask.intent === 'count' && ask.kind === 'definition'),
+    audit: analysis,
+    members: facets.includes('unlinked'),
+    queue: ask.intent === 'queue',
+    glossary: ask.intent === 'glossary',
+  }
+}
+
+/** A catalogue term as an analysis reads it. */
+const auditTermOf = (t: Catalogue['terms'][number]): AuditTerm => ({
+  key: t.key,
+  kind: t.kind,
+  name: t.name,
+  areaId: t.domain.areaId,
+  state:
+    t.definition?.state === 'missing'
+      ? 'gone'
+      : t.definition?.state === 'changed'
+        ? 'changed'
+        : 'current',
+  words: t.definition?.descriptionCopy ?? null,
+  shelf: {
+    event: t.shelf.byKind.event,
+    issue: t.shelf.byKind.issue,
+    note: t.shelf.byKind.note,
+    guide: t.shelf.byKind.guide,
+  },
 })
+
+/** The Context list's live items as an analysis compares them, by the same keys Definitions has. */
+function auditItemsOf(index: LibraryIndex, conflicts: ConflictList | null): AuditItem[] {
+  const marked = (id: string) =>
+    (conflicts?.rows ?? []).flatMap((r) =>
+      r.holder.id === id ? [r.other.id] : r.other.id === id ? [r.holder.id] : [],
+    )
+  return index.items.flatMap((i): AuditItem[] =>
+    isRecordsKind(i.kind) && i.status === 'accepted'
+      ? [
+          {
+            id: i.id,
+            kind: i.kind,
+            title: i.title,
+            areaId: i.areaId,
+            metrics: i.scope.metrics.map((m) => `metric:${m}`),
+            values: i.scope.dimensionValues.map((v) => `val:${v.dimension}/${v.value}`),
+            start: i.validity.start,
+            end: i.validity.end,
+            conflicts: marked(i.id),
+          },
+        ]
+      : [],
+  )
+}
+
+/** What an analysis reads beyond a records answer: from what the person may see. */
+async function auditWorldOf(
+  reads: RecordsReads,
+  need: ReturnType<typeof needs>,
+  conflicts: ConflictList | null,
+): Promise<AuditWorld> {
+  // One after the other: a transaction runs one statement at a time.
+  const catalogue = await reads.catalogue()
+  const index = await reads.index()
+  const members = need.members ? await reads.members() : { total: 0, unlinked: [] }
+  const read = catalogue.sources
+    .flatMap((source) => source.readAt ?? [])
+    .sort()
+    .at(-1)
+  return {
+    terms: catalogue.terms.map(auditTermOf),
+    items: auditItemsOf(index, conflicts),
+    members,
+    readAt: read ?? null,
+  }
+}
 
 /** Counts that a records question of this intent was asked this week: the id only, never the words. */
 async function countIntent(tx: Queryable, intent: RecordsIntent | 'refused', today: string) {
@@ -168,15 +276,19 @@ export async function recogniseRecordsOf(
   clock: Clock,
   bundle: ServingBundle,
   input: LookupInput,
-  reads: Pick<RecordsReads, 'areas'>,
+  reads: Pick<RecordsReads, 'areas' | 'glossary'>,
 ): Promise<RecordsRecognition | null> {
   if (!wordsOnly(input)) return null
   const read = readQuestion(input.question, bundle.terms, clock.today())
+  // A word of the workspace's own is read only for a question about what a word means.
+  const named = read.terms.some((t) => t.kind === 'metric' || t.kind === 'metric_group')
+  const glossary = asksDefinition(input.question) && !named ? await reads.glossary() : undefined
   return recogniseRecords(input.question, {
     spans: read.spans,
     terms: bundle.terms,
     domains: await reads.areas(),
     now: momentOf(clock).now,
+    ...(glossary ? { glossary } : {}),
   })
 }
 
@@ -208,12 +320,16 @@ async function worldFor(
 ): Promise<RecordsWorld> {
   const need = needs(ask)
   const [items, people, asked, hidden, conflicts] = await Promise.all([
-    need.items ? reads.index().then((index) => itemsOf(tx, index, shift)) : [],
+    // An analysis reads an item's state and its check date, never when it was served.
+    need.items ? reads.index().then((index) => itemsOf(tx, index, shift, !need.audit)) : [],
     reads.people(),
     need.asked ? reads.asked() : null,
     need.terms ? reads.hidden().then((refs) => new Set(refs)) : new Set<string>(),
     need.conflicts ? reads.conflicts() : null,
   ])
+  const queue = need.queue ? await reads.queue() : null
+  const glossary = need.glossary ? await reads.glossary() : null
+  const audit = need.audit ? await auditWorldOf(reads, need, conflicts) : null
   // A term is left out when its groups may not see one of its definitions, as the catalogue
   // leaves it out, and a value with its dimension.
   const shown = new Set(
@@ -233,8 +349,12 @@ async function worldFor(
         title: r.title,
         count: r.count,
         atLeast: r.atLeast,
+        nothing: r.nothing,
         state: r.state,
         gap: r.gap,
+        area: r.area,
+        metrics: r.scope.metrics,
+        values: Object.values(r.scope.filters).flat(),
       })),
     },
     // The list shows only pairs the person may read whole, so both titles are there.
@@ -246,5 +366,8 @@ async function worldFor(
         topic: r.topic,
         since: r.since,
       })) ?? null,
+    audit,
+    queue,
+    glossary,
   }
 }

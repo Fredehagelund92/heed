@@ -3,6 +3,7 @@ import {
   type CandidateMember,
   type KnownTerm,
 } from '../../../domain/term-candidates.ts'
+import type { AuditMembers } from '../../../domain/audit.ts'
 import type { Queryable } from '../../db/database.ts'
 import { connectorType } from '../connectors/index.ts'
 
@@ -42,6 +43,27 @@ async function sourceVocabulary(tx: Queryable, everyone = false) {
       where p.subject='vocabulary' and p.state in ('submitted','in_review')`,
   )
   return { members, known }
+}
+
+/**
+ * What the sources list that no live term names (FR-720), for an analysis of what may be missing:
+ * how many members they list, and each one no term links, a date or an id marked as left out on
+ * purpose. Only members every reader may see are counted.
+ */
+export async function unlinkedMembers(tx: Queryable): Promise<AuditMembers> {
+  const { members, known } = await sourceVocabulary(tx, true)
+  const candidates = termCandidates(
+    members,
+    known.filter((term) => !term.open),
+  ).filter((candidate) => !candidate.linked.length)
+  return {
+    total: members.length,
+    unlinked: candidates.map((c) => ({
+      name: c.name,
+      valueType: c.valueType,
+      suggested: c.suggested,
+    })),
+  }
 }
 
 /** A member of a definition source that a domain has and Heed's vocabulary does not yet. */

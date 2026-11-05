@@ -10,7 +10,7 @@ import type {
   Replay,
 } from '../../../contract/answer.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
-import { chatOf, routeQuestion, type Planner } from '../../../domain/ask-route.ts'
+import { chatOf, routeQuestion, type Planner, type RoutedReply } from '../../../domain/ask-route.ts'
 import { overlaps } from '../../../domain/validity.ts'
 import {
   answer,
@@ -23,7 +23,7 @@ import {
   type TopicCount,
 } from '../../../domain/answer.ts'
 import { canRead, followedFrom, termShown } from '../../../domain/links.ts'
-import { asksDefinition } from '../../../domain/scope.ts'
+import { asksDefinitionInAsk } from '../../../domain/scope.ts'
 import { compareIds } from '../../../domain/resolver.ts'
 import { visibleTotal } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
@@ -165,7 +165,11 @@ export async function lookupQuestion(
     const done = { ...result(a, { kind: 'live' }), ...extra }
     const definitions = definitionsOf(
       bundle,
-      define.length ? define : asksDefinition(input.question) ? (done.scope?.metrics ?? []) : [],
+      define.length
+        ? define
+        : asksDefinitionInAsk(input.question)
+          ? (done.scope?.metrics ?? [])
+          : [],
     )
     const valueMetrics = valueMetricsOf(bundle, done, today)
     return {
@@ -177,7 +181,7 @@ export async function lookupQuestion(
   }
   function* events(): Generator<LookupEvent> {
     if (routed.kind === 'reply') {
-      yield { type: 'reply', reply: routed.reply }
+      yield { type: 'reply', reply: replyOf(bundle, routed.reply) }
       return
     }
     if (found && routed.kind === 'records') {
@@ -193,13 +197,15 @@ export async function lookupQuestion(
       const { answer: planned, reading, defines } = routed.planned
       yield { type: 'plan', plan: { kind: 'reads', working: routed.working } }
       for (const step of planned.steps) yield { type: 'step', step }
-      yield { type: 'answer', answer: answered(planned, { reading }, defines) }
+      const limit = routed.limit ? { limit: routed.limit } : {}
+      yield { type: 'answer', answer: answered(planned, { reading, ...limit }, defines) }
       return
     }
     // The rules' answer, also for a records question when no records are read here.
     const rules = routed.kind === 'rules' ? routed.answer : answer(bundle, ask, { today })
+    const limit = routed.kind === 'rules' && routed.limit ? { limit: routed.limit } : {}
     for (const step of rules.steps) yield { type: 'step', step }
-    yield { type: 'answer', answer: answered(rules) }
+    yield { type: 'answer', answer: answered(rules, limit) }
   }
   return (async function* () {
     for (const event of events()) {
@@ -212,6 +218,28 @@ export async function lookupQuestion(
       yield { type: 'words-end' }
     }
   })()
+}
+
+/** A reply as Ask sends it: for a question Ask cannot answer, what it can show beside the sentence. */
+function replyOf(bundle: ServingBundle, reply: RoutedReply) {
+  if (reply.kind !== 'cannot') return reply
+  const definitions = reply.reason === 'source' ? definitionsOf(bundle, reply.metrics) : []
+  const name = (key: string | undefined) =>
+    key ? (bundle.terms.find((t) => t.key === key)?.name ?? null) : null
+  return {
+    kind: reply.kind,
+    text: reply.text,
+    reason: reply.reason,
+    ...(definitions.length ? { definitions } : {}),
+    ...(reply.reason === 'write'
+      ? {
+          write: {
+            metric: name(reply.metrics[0]),
+            market: name(reply.filters['dim:market']?.[0]),
+          },
+        }
+      : {}),
+  }
 }
 
 /** What the working line says while the records are counted for a planned records question. */
@@ -340,7 +368,8 @@ async function topicsOfWeek(
   )
   const topics = await tx.query<TopicCount>(
     `select t.id::text, t.area_id as area, t.metric_keys as metrics, t.value_keys as values,
-            t.dimension_keys as dimensions, t.month::text as month, w.calls
+            t.dimension_keys as dimensions, t.month::text as month, w.calls,
+            w.no_item_calls as "noItem"
        from v_topic_weeks w join topics t on t.id = w.topic_id
       where w.week = $1::date and w.calls > 0
       order by t.id`,
@@ -417,6 +446,7 @@ export async function askedThisWeek(
         atLeast: topic.atLeast,
         state: now.state,
         items: now.items.length,
+        nothing: topic.nothing,
         gap: gap ? { card: `gap:${gap.id}`, draft: gap.draft } : null,
       }
     }),

@@ -1,6 +1,8 @@
 import { stateOfStatus, stateWords } from './answer-state.ts'
 import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
+import type { CannotReason } from './records-answer.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
 import { concepts as peopleConcepts } from './words.ts'
 import type { WordMeaning } from './vocabulary.ts'
@@ -88,6 +90,16 @@ export const notLookedUp = 'Nothing was looked up yet.'
  */
 export const offTopicSaid =
   'Ask answers questions about the business, its numbers and what is written about them. This question is outside that, so nothing was looked up.'
+
+/** What Ask says when it cannot answer the question asked, and reads nothing (FR-720). */
+export const cannotSaid: Record<CannotReason, string> = {
+  numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first.`,
+  source: 'Definitions live in your source tool, so Ask cannot change one.',
+  write: 'Ask does not write context. You can start it here.',
+  person: "Ask does not answer questions about one person's work.",
+  not_yet: 'Ask cannot work this out yet.',
+  unread: 'Ask could not read this question just now, so nothing was looked up.',
+}
 
 type Names = { terms: readonly { key: string; name: string }[] }
 type Groups = Names & { groupsOfMetric: Readonly<Record<string, readonly string[]>> }

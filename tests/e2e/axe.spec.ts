@@ -376,6 +376,9 @@ for (const { name, width, height } of widths) {
         'what did Tomas Eriksen write this week?',
         'list 10 dimensions',
         'what markets are there',
+        'what definitions are missing?',
+        'what is waiting on me?',
+        'how complete is the Sales domain?',
       ])
         test(`a records answer: ${question}`, async ({ page }) => {
           await page.goto(withTheme(`/ask?n=axe-records-${question.length}`, theme))

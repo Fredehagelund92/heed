@@ -44,6 +44,8 @@ export type PlanReading = {
   standalone?: string
   /** Where the dates came from, for the answer to say when it took some. */
   period: PlanPeriod | null
+  /** The part of the question these reads do not answer, as a short question (FR-720). */
+  left?: string
   /**
    * The person said which meaning of a word they meant, and the fixed rules read it, with no
    * model. `also` names the meanings left, so the other one stays in sight.
@@ -507,6 +509,7 @@ export function plannedAnswer(
     /** The chat, oldest first: what the read may have carried. */
     turns?: readonly ChatTurn[]
     standalone?: string
+    left?: string
     settled?: PlanReading['settled']
     now?: () => number
   },
@@ -528,6 +531,7 @@ export function plannedAnswer(
       ),
       period: dated?.period ?? null,
       ...(c.standalone ? { standalone: c.standalone } : {}),
+      ...(c.left ? { left: c.left } : {}),
       ...(c.settled ? { settled: c.settled } : {}),
     },
     defines: [...new Set(ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])))],

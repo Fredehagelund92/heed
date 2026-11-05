@@ -117,7 +117,7 @@ test('Asked this week: topics with the state Ask gives now and a count; an owner
   await go(page, '/ask')
   const week = page.getByRole('region', { name: 'Asked this week' })
   await expect(week).toContainText(
-    'Agents asked 142 times. Counts only, never the words or who asked.',
+    'Agents asked 142 times. Counts only, never the words or who asked. Each state is what Ask gives today.',
   )
   const rows = week.getByRole('listitem')
   // The four most asked; the rest open in place.

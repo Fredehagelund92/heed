@@ -39,7 +39,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
             : w.askedAtLeast && w.askedAtLeast >= 5
               ? `${w.askedAtLeast}+`
               : 'fewer than 5'}{' '}
-          times. Counts only, never the words or who asked.
+          times. Counts only, never the words or who asked. Each state is what Ask gives today.
         </p>
       </div>
       <ul>

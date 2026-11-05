@@ -1,6 +1,18 @@
 import type { AnswerState } from './answer.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
+import {
+  auditAnswer,
+  auditedTerms,
+  dayWords,
+  foundNothing,
+  readAudit,
+  type AuditWorld,
+  type QueueLine,
+} from './audit.ts'
 import {
   recordsKinds,
+  type AuditRead,
+  type LimitReason,
   type RecordsFound,
   type RecordsIntent,
   type RecordsKind,
@@ -8,6 +20,7 @@ import {
   type RecordsRow,
   type RecordsAnswer,
 } from './records-answer.ts'
+import { asksDefinition } from './scope.ts'
 import { normalizeName, type Term } from './vocabulary.ts'
 
 /*
@@ -16,8 +29,8 @@ import { normalizeName, type Term } from './vocabulary.ts'
   Ask answers them from what the workspace keeps about its context items, domains and owners, and
   from what agents asked this week, never from what an item says, and agents never read them.
 
-  The list of questions is closed: ten intents, read by fixed word patterns, each answered by a
-  fixed read and a sentence template. Two of them are about the vocabulary itself, as Definitions
+  The list of questions is closed: read by fixed word patterns, each answered by a fixed read and a
+  sentence template. An analysis of the records is one more of them (src/domain/audit.ts). Two of them are about the vocabulary itself, as Definitions
   shows it: its metrics and dimensions ("list 10 dimensions", "how many metrics are in Sales"),
   and the values of a dimension ("what markets are there"). One is the conflicts, as Context's
   Conflicts filter lists them ("list conflicts", "what is unresolved"). No model chooses or writes anything. A
@@ -42,6 +55,7 @@ export {
   type RecordsPeriod,
   type RecordsRow,
 } from './records-answer.ts'
+export { dayWords } from './audit.ts'
 
 /** Each kind as people name it, one and several, and as a table's row names it. */
 const kindWords: Record<RecordsKind, { one: string; many: string; label: string }> = {
@@ -68,6 +82,14 @@ export type RecordsAsk = {
   noOwner: boolean
   /** For `terms` and `values`: what of the vocabulary is asked. */
   catalogue?: CatalogueAsk
+  /** For `audit`, and for `queue` beside the person's Inbox: the analysis (FR-720). */
+  audit?: AuditRead
+  /** For `owner`: who owns what the chat's last analysis listed. */
+  over?: AuditRead
+  /** For `glossary`: the word, as a person wrote it in Definitions. */
+  word?: string
+  /** What the answer leads with when the question reaches beyond what is written (FR-720). */
+  limit?: LimitReason
 }
 
 /** A question about the vocabulary itself: its metrics and dimensions, or a dimension's values. */
@@ -97,6 +119,8 @@ export type RecordsReading = {
   domains: readonly { id: string; name: string }[]
   /** The moment it is now, as an ISO instant. */
   now: string
+  /** The words people wrote in Definitions, when the question asks what a word means. */
+  glossary?: readonly { name: string }[]
 }
 
 export type RecordsRecognition =
@@ -109,6 +133,11 @@ export type RecordsRecognition =
        * is the context's changes, as before.
        */
       loose?: true
+      /**
+       * The words ask for a judgement, not for this read ("what would you change..."): the planner
+       * reads it first, and with no planner Ask says it cannot, unless the read is an analysis.
+       */
+      judgement?: true
     }
   /** A question about one person's work: refused, with a reason, never looked up. */
   | { type: 'refused' }
@@ -149,7 +178,7 @@ const PLAIN_NOUN =
 
 /** Who may be the subject of "what did X write" without it being one person's work. */
 const NOT_A_PERSON =
-  'agents?|anyone|anybody|someone|somebody|people|everyone|everybody|we|the|owners|administrators|admins|heed|been|it|this|that|there|they|you'
+  'agents?|anyone|anybody|someone|somebody|people|everyone|everybody|we|the|owners|administrators|admins|heed|been|it|this|that|there|they|you|no|any|some|all|none|nothing|anything|something|our|their|these|those|a|an|not|most|many|few'
 const PERSON_VERBS =
   'write|wrote|written|add|added|change|changed|edit|edited|check|checked|create|created|publish|published|archive|archived|suggest|suggested|review|reviewed|do|done|work on|worked on'
 
@@ -171,6 +200,12 @@ function aboutAPerson(t: string): boolean {
     return true
   return /\b(?:my|[a-z]+'s) (?:work|changes|edits|checks|suggestions|drafts)\b/.test(t)
 }
+
+/** Words that ask for a judgement, not a read: the rules leave these to the planner. */
+const JUDGEMENT =
+  /\b(?:think|thinks|believe|opinion|would you|should|could you|improve|better definition)\b|^(?:please )?(?:write|draft|rewrite|compose)\b/
+/** Words that say a read is not the whole of it, when the read is not itself an analysis. */
+const LOOSE_READ = /\b(?:missing|complete|enough|covers?|covered|and who owns)\b/
 
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const NUMBERS: Record<string, number> = {
@@ -195,12 +230,6 @@ const NUMBERS: Record<string, number> = {
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
 const SHORT = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
-
-/** A day as the answers write it: "2 Oct 2026". */
-export function dayWords(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
-  return `${d} ${SHORT[m! - 1]} ${y}`
-}
 
 /** An instant to the minute, UTC: "29 Oct 15:30", with the year when it is not `now`'s. */
 function instantWords(at: number, now: number): string {
@@ -296,7 +325,7 @@ const VOCABULARY = /\b(?:definitions?|metrics?|dimensions?|terms?|synonyms?|valu
  * one about how the business did ("which products sold best", "why did campaigns drop").
  */
 const NOT_CATALOGUE =
-  /\b(?:conflicts?|conflicting|disagree|disagrees|disagreeing|unresolved|unsettled|why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
+  /\b(?:conflicts?|conflicting|disagree|disagrees|disagreeing|unresolved|unsettled|why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|weakest|strongest|riskiest|same|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
 
 /**
  * Whether a dimension's plural is asked for as a list: after list, show, name or give me; in
@@ -392,6 +421,16 @@ export function recogniseRecords(
   question: string,
   reading: RecordsReading,
 ): RecordsRecognition | null {
+  const found = readRecords(question, reading)
+  if (found?.type !== 'records') return found
+  const t = plain(question)
+  const analysis = found.ask.intent === 'audit' || found.ask.intent === 'queue'
+  return JUDGEMENT.test(t) || (!analysis && LOOSE_READ.test(t))
+    ? { ...found, loose: true, judgement: true }
+    : found
+}
+
+function readRecords(question: string, reading: RecordsReading): RecordsRecognition | null {
   // The domain is the longest name found, and the reader's names inside it are the domain's.
   const domain = [...reading.domains]
     .sort((a, b) => b.name.length - a.name.length)
@@ -423,6 +462,17 @@ export function recogniseRecords(
       ...extra,
     },
   })
+
+  const word =
+    asksDefinition(question) && !scoped
+      ? reading.glossary?.find((g) => findName(question, g.name))
+      : undefined
+  if (word) return ask('glossary', { word: word.name })
+  const audit = readAudit(t, scoped)
+  if (audit)
+    return audit.queue
+      ? ask('queue', audit.read.facets.length ? { audit: audit.read } : {})
+      : ask('audit', { audit: audit.read })
 
   if (
     !(scoped && !noun) &&
@@ -524,15 +574,22 @@ export type RecordsWorld = {
   terms: readonly RecordsTerm[]
   /**
    * What agents asked this week, as Asked this week counts it: each topic's count, null under the
-   * minimum, and the state Ask gives it now. Null when the question does not need it.
+   * minimum, how many of those calls delivered nothing, also null under it, and the state Ask gives
+   * it now. Null when the question does not need it.
    */
   asked: {
     rows: readonly {
       title: string
       count: number | null
       atLeast: number
+      /** The calls that delivered no item: what agents found, not what the topic reads as now. */
+      nothing?: number | null
       state: AnswerState
       gap: { card: string; draft: string | null } | null
+      /** The topic's domain, metrics and values, for an analysis that narrows them. */
+      area?: string | null
+      metrics?: readonly string[]
+      values?: readonly string[]
     }[]
     minimum: number
   } | null
@@ -542,6 +599,12 @@ export type RecordsWorld = {
    * question does not need them.
    */
   conflicts: readonly RecordsConflict[] | null
+  /** What an analysis reads besides these (FR-720). Null when the question does not need it. */
+  audit?: AuditWorld | null
+  /** The person's own Inbox, by group. Null when the question does not need it. */
+  queue?: readonly QueueLine[] | null
+  /** The words people wrote in Definitions, with what they wrote. */
+  glossary?: readonly { name: string; meaning: string }[] | null
 }
 
 /** A conflict as the records keep it: the pair, by the item that holds the flag first. */
@@ -556,6 +619,13 @@ export type RecordsConflict = {
 }
 
 const count = (n: number) => n.toLocaleString('en-GB')
+/** The sentence each limit leads with (docs/design/copy.md). */
+export const limitSaid: Record<LimitReason, string> = {
+  advice: 'What to do is not written down. Here is what is.',
+  forecast: 'What happens next is not written down. Here is what is.',
+  outside: 'Ask knows only what is written here, not what others do. Here is what is.',
+  numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out. Here is what is written.`,
+}
 const itemsWords = (n: number, kind: RecordsKind | null = null) =>
   `${count(n)} ${kind ? (n === 1 ? kindWords[kind].one : kindWords[kind].many) : n === 1 ? 'context item' : 'context items'}`
 const was = (n: number) => (n === 1 ? 'was' : 'were')
@@ -718,6 +788,7 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
           .map((i) => itemRow(i, [reason(i), i.checkedAt ? dayWords(i.checkedAt) : 'Never'])),
         total: n,
         shown: n > RECORDS_ROWS ? `Showing the ${RECORDS_ROWS} oldest` : null,
+        ranked: n > 1 ? 'Oldest check date first.' : null,
         more: n
           ? {
               label: `Show all ${count(n)} in Context`,
@@ -834,25 +905,42 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     }
     case 'asked_nothing': {
       const asked = world.asked ?? { rows: [], minimum: 5 }
-      const nothing = asked.rows.filter((r) => r.state === 'missing')
+      const { nothing, section } = foundNothing(asked)
       const n = nothing.length
       return {
         ...base,
         understood: 'Topics agents asked about that found nothing, this week',
         read: 'Read what agents asked this week',
         sentence: n
-          ? `Agents found nothing written for ${count(n)} ${n === 1 ? 'topic' : 'topics'} this week.`
+          ? `Agents found nothing for ${count(n)} of ${count(asked.rows.length)} topics this week.`
           : `No topic agents asked about ${asked.minimum} times or more this week found nothing.`,
-        columns: ['Topic', 'Asked'],
-        rows: nothing.slice(0, RECORDS_ROWS).map((r) => ({
-          type: 'topic' as const,
-          title: r.title,
-          cells: [r.count === null ? `${count(r.atLeast)}+` : count(r.count)],
-          gap: r.gap,
-        })),
+        columns: section?.columns ?? [],
+        rows: section?.rows ?? [],
         total: n,
-        shown: n > RECORDS_ROWS ? `Showing the ${RECORDS_ROWS} asked most` : null,
+        shown: section?.shown ?? null,
         note: `A topic asked about fewer than ${asked.minimum} times is not shown, so no small count is given away.`,
+        notSeen:
+          "Not seen: what people ask in Ask, which is kept nowhere, so this counts agents' calls only.",
+      }
+    }
+    case 'audit':
+    case 'queue': {
+      const read = ask.audit ?? { facets: [], of: null, kind: null, value: null }
+      const queue = ask.intent === 'queue' ? (world.queue ?? []) : null
+      return {
+        ...auditAnswer(read, world, base, domain, queue),
+        ...(ask.limit ? { limit: { reason: ask.limit, sentence: limitSaid[ask.limit] } } : {}),
+      }
+    }
+    case 'glossary': {
+      const word = world.glossary?.find((g) => g.name === ask.word)
+      return {
+        ...base,
+        understood: `What ${ask.word} means`,
+        read: 'Read the words in Definitions',
+        sentence: word?.meaning ?? `${ask.word} is not in Definitions.`,
+        detail: 'This word is written in this workspace, by a person, not by your source.',
+        more: { label: 'Open Definitions', to: 'definitions', domain: null, status: null },
       }
     }
   }
@@ -875,6 +963,38 @@ function ownerAnswer(
     domain: a.id,
     status: null,
   })
+  if (ask.over) {
+    const terms = auditedTerms(ask.over, world, area)
+    const homes = world.areas.filter((a) => terms.some((t) => t.areaId === a.id))
+    const orphans = terms.filter((t) => !t.areaId || !world.areas.some((a) => a.id === t.areaId))
+    return {
+      ...base,
+      understood: `Owners of ${count(terms.length)} ${terms.length === 1 ? 'definition' : 'definitions'} in your last answer`,
+      read: `Read ${count(terms.length)} ${terms.length === 1 ? 'definition' : 'definitions'} and their domains`,
+      sentence: `Those ${count(terms.length)} are in ${count(homes.length)} ${homes.length === 1 ? 'domain' : 'domains'}${orphans.length ? `, and ${count(orphans.length)} ${orphans.length === 1 ? 'is' : 'are'} in none` : ''}.`,
+      columns: ['Domain', 'Owners', 'How many'],
+      rows: [
+        ...homes.map((a) => ({
+          type: 'area' as const,
+          id: a.id,
+          name: a.name,
+          cells: [
+            names(a).length ? list(names(a)) : 'No owner',
+            count(terms.filter((t) => t.areaId === a.id).length),
+          ],
+        })),
+        ...orphans.map((t) => ({
+          type: 'term' as const,
+          key: t.key,
+          kind: t.kind,
+          name: t.name,
+          page: t.name,
+          cells: ['No domain, so no owner', '1'],
+        })),
+      ].slice(0, RECORDS_ROWS),
+      total: terms.length,
+    }
+  }
   if (ask.noOwner) {
     const none = world.areas.filter((a) => !a.ownerIds.length)
     const orphans = none.flatMap((a) => itemsIn(a).filter((i) => !i.owners.length))
@@ -1000,6 +1120,7 @@ function conflictsAnswer(
         }
       : null,
     note: 'A conflict is two context items an owner said disagree. A pair kept as both, and unchanged since, is not one.',
+    notSeen: 'Not seen: two items that disagree when no owner marked them.',
   }
 }
 

@@ -16,7 +16,12 @@ import {
   HELD_MEANINGS,
 } from '../domain/ask-chat.ts'
 import { itemKinds } from '../domain/item.ts'
-import { recordsAnswerSchema } from '../domain/records-answer.ts'
+import {
+  auditReadSchema,
+  cannotReasons,
+  limitSchema,
+  recordsAnswerSchema,
+} from '../domain/records-answer.ts'
 import { tryItInputSchema } from './connect.ts'
 
 /** The resolver's status, as get_context gives it. */
@@ -234,6 +239,8 @@ export const answerSchema = z.object({
       period: z.nullable(z.enum(['asked', 'carried', 'today', 'recent', 'any'])),
       /** The question as it reads alone, as the model restated it, when the chat matters. */
       standalone: z.optional(z.string()),
+      /** The part of the question these reads do not answer, as a short question (FR-720). */
+      left: z.optional(z.string()),
       /**
        * The person said which meaning of a word they meant and the fixed rules read it, with no
        * model; `also` names the meanings left ("Sales can also mean Gross sales.").
@@ -241,6 +248,11 @@ export const answerSchema = z.object({
       settled: z.optional(z.object({ also: z.nullable(z.string()) })),
     }),
   ),
+  /**
+   * In Ask's look-up only, when the question reaches beyond what is written (FR-720): the fixed
+   * sentence it leads with. It changes neither the state nor the items.
+   */
+  limit: z.optional(limitSchema),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 
@@ -295,6 +307,8 @@ export const chatTurnSchema = z.strictObject({
   dated: z.optional(z.boolean()),
   state: z.optional(z.nullable(answerStateSchema)),
   headline: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
+  audit: z.optional(z.nullable(auditReadSchema)),
+  rows: z.optional(z.array(z.string().check(z.maxLength(120))).check(z.maxLength(CHAT_SOURCES))),
 })
 export type ChatTurnInput = z.infer<typeof chatTurnSchema>
 
@@ -330,7 +344,7 @@ export const lookupEventSchema = z.union([
   z.object({
     type: z.literal('plan'),
     plan: z.object({
-      kind: z.enum(['reads', 'records', 'clarify', 'off_topic']),
+      kind: z.enum(['reads', 'records', 'clarify', 'off_topic', 'cannot']),
       /** What the working line says while the reads run: "Looking for events and guides…". */
       working: z.string(),
     }),
@@ -338,8 +352,14 @@ export const lookupEventSchema = z.union([
   z.object({
     type: z.literal('reply'),
     reply: z.object({
-      kind: z.enum(['clarify', 'off_topic', 'nothing_asked']),
+      kind: z.enum(['clarify', 'off_topic', 'nothing_asked', 'cannot']),
       text: z.string(),
+      /** For `cannot` (FR-720): why, what a definition says, and what a draft would start from. */
+      reason: z.optional(z.enum(cannotReasons)),
+      definitions: z.optional(z.array(askDefinitionSchema)),
+      write: z.optional(
+        z.object({ metric: z.nullable(z.string()), market: z.nullable(z.string()) }),
+      ),
       /** Ask asked which meaning of a word: what the next turn sends back with the answer. */
       held: z.optional(heldReadingSchema),
     }),
@@ -382,6 +402,11 @@ export const askedSchema = z.object({
       state: answerStateSchema,
       /** How many items the answer gives. */
       items: z.number(),
+      /**
+       * How many of this week's calls delivered no item, what agents found, not what the topic
+       * reads as now; null under the minimum (FR-614).
+       */
+      nothing: z.nullable(z.number()),
       /**
        * For the owners of the topic's domains and administrators: the Not found card open on it,
        * and its draft when one waits. Null for anyone else, and when nothing is open.

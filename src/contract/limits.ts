@@ -8,3 +8,6 @@ export const API_PREFIX = '/api/v1'
  * dev and preview servers. The command-line tool presents the first when nothing else is given.
  */
 export const DEFAULT_WEB_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'] as const
+
+/** The most suggestions one read of many sheets names; the Inbox reads more in turns. */
+export const REVIEW_SHEETS_MAX = 100

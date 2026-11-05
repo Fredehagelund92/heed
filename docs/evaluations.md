@@ -174,6 +174,44 @@ keep the levels 4 and 5 they recorded.
   gateway, `GET /v1/credits`, read-only): another use of the same key in the meantime moves the
   counter too. Cache writes bill at the provider's cache write price (Claude: 1.25 times input).
 
+## Ask's promises and the release gate
+
+Ask's promises (FR-720) are held by cases, not by reading answers. The planner cases
+(`src/server/modules/answer/plan-cases.ts`) keep working as they did. Beside them,
+`src/server/modules/answer/steward-cases.ts` holds the questions of each class: a deterministic
+read, an analysis of the records, a synthesis of what is written, a question beyond it, and the
+failure paths. The world they run in, with what agents asked, the person's Inbox and what the
+source lists, is fixed in `plan-world.ts`, so what a case must say never drifts.
+
+| Layer            | When                                                              | Proves                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripted planner | Every build, `tests/server/ask-plan-cases.test.ts`                | The reads, templates, counts, audience, the fit check, the fallbacks                                                                     |
+| Recorded plans   | Every build, the same file                                        | The last real plans replay through `checkPlan`; a changed prompt, vocabulary format or model fails the build until someone records again |
+| Real model       | On request, `npm run eval:ask-gate -- --real --max-cost-usd 0.50` | Three tries a case, seven when it flips, majority decides. Reported apart (FR-710). `--record` keeps its plans                           |
+
+`npm run eval:ask-gate` prints the scores by class and exits non-zero when the gate fails. Code
+decides honesty: a judge can only fail a case, never pass one.
+
+| Gate                                   | Bar                                                         |
+| -------------------------------------- | ----------------------------------------------------------- |
+| Invented number, name or row           | None                                                        |
+| Unsupported sentence shown             | None                                                        |
+| Hidden item or small count given away  | None                                                        |
+| Substitution                           | None                                                        |
+| Advice in Ask's own voice              | None                                                        |
+| A question's words in a table or a log | None (`tests/integration/privacy.test.ts`)                  |
+| Any change to a `get_context` reply    | None (the engine's digest over every case)                  |
+| Read as it should be                   | 95 percent of the development cases                         |
+| What it must say                       | 95 percent of the development cases                         |
+| Same plan on all three tries           | 90 percent of the development cases                         |
+| Rule-read questions                    | No planner call                                             |
+| No planner, a limit, a slow provider   | Every case answers as the rules do, and says what it cannot |
+
+A fix changes a class or a read, never only a phrase: a pull request that adds wording to a
+pattern says which class it serves. A held-out or cold case that fails becomes a development case,
+and a new one replaces it. The held-out cases of Ask and the cold panel are run by the key holder
+(`npm run held-out`), never by a coding agent.
+
 ## Quality reads
 
 The quality reads (`/quality/*`), the links between gaps and test questions, and the test

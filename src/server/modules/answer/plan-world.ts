@@ -2,13 +2,17 @@ import type { PlannedBundle } from '../../../domain/planned-answer.ts'
 import type { AnswerSource } from '../../../domain/answer.ts'
 import type { ItemKind } from '../../../domain/item.ts'
 import type { Term } from '../../../domain/vocabulary.ts'
+import type { RecordsItem, RecordsWorld } from '../../../domain/records.ts'
 
 /*
   The world the planner cases run in (FR-710, FR-719): an invented edition shaped like the demo's
   live one, Larchwood Outdoor on 23 October 2026, with its metrics, its twelve markets and the
-  twenty-one context items a person meets around the Norway story (9 events, 7 rules, 2 warnings
-  and 3 guides), and one more for the Finance group only, which no reader here may be given. Every
-  name, number and date is made up.
+  context items a person meets around the Norway story (10 events, 7 rules, 2 warnings and 3
+  guides, one of the events written twice), and one more for the Finance group only, which no
+  reader here may be given. Beside it, the records an analysis reads (FR-720): the 22 metrics and
+  5 dimensions with their domains, owners and source words, what agents asked this week, the
+  person's Inbox and what the source lists, fixed here so the cases' answers stay what they are.
+  Every name, number and date is made up.
 */
 
 /** The day the cases are asked on. */
@@ -25,23 +29,34 @@ const term = (
 ): Term => ({ key, kind, name, aliases, parentKey, areaId: null, definitionRefs: [] })
 
 const groups = ['Payments', 'Revenue', 'Customers', 'Marketing', 'Basket', 'Operations']
-const metrics: [string, string, string, string[]?][] = [
-  ['orders', 'Orders', 'Payments', ['Order count']],
-  ['returns', 'Returns', 'Payments'],
-  ['net_revenue', 'Net revenue', 'Revenue', ['Sales', 'Turnover']],
-  ['gross_sales', 'Gross sales', 'Revenue'],
-  ['units_sold', 'Units sold', 'Revenue'],
-  ['active_customers', 'Active customers', 'Customers'],
-  ['new_customers', 'New customers', 'Customers'],
-  ['first_time_buyers', 'First-time buyers', 'Customers'],
-  ['churn_rate', 'Churn rate', 'Customers'],
-  ['discount_cost', 'Discount cost', 'Marketing'],
-  ['marketing_spend', 'Marketing spend', 'Marketing'],
-  ['return_on_ad_spend', 'Return on ad spend', 'Marketing', ['ROAS']],
-  ['conversion_rate', 'Conversion rate', 'Marketing'],
-  ['average_order_value', 'Average order value', 'Basket', ['AOV']],
-  ['gross_margin', 'Gross margin', 'Basket'],
-  ['support_contacts', 'Support contacts', 'Operations'],
+const SALES = 'area_sales'
+const MARKETING = 'area_marketing'
+const CUSTOMER_VALUE = 'area_customer_value'
+const PAID_MEDIA = 'area_paid_media'
+/** Each metric: its id, name, group, domain (none for one) and other names. */
+const metrics: [string, string, string, string | null, string[]?][] = [
+  ['orders', 'Orders', 'Payments', SALES, ['Order count']],
+  ['returns', 'Returns', 'Payments', SALES],
+  ['net_revenue', 'Net revenue', 'Revenue', SALES, ['Sales', 'Turnover']],
+  ['gross_sales', 'Gross sales', 'Revenue', SALES],
+  ['units_sold', 'Units sold', 'Revenue', SALES],
+  ['active_customers', 'Active customers', 'Customers', CUSTOMER_VALUE],
+  ['new_customers', 'New customers', 'Customers', CUSTOMER_VALUE],
+  ['first_time_buyers', 'First-time buyers', 'Customers', CUSTOMER_VALUE],
+  ['repeat_purchase_rate', 'Repeat purchase rate', 'Customers', CUSTOMER_VALUE],
+  ['churn_rate', 'Churn rate', 'Customers', CUSTOMER_VALUE],
+  ['customer_lifetime_value', 'Customer lifetime value', 'Customers', CUSTOMER_VALUE],
+  ['discount_cost', 'Discount cost', 'Marketing', MARKETING],
+  ['marketing_spend', 'Marketing spend', 'Marketing', MARKETING],
+  ['cost_per_acquisition', 'Cost per acquisition', 'Marketing', MARKETING],
+  ['conversion_rate', 'Conversion rate', 'Marketing', MARKETING],
+  ['return_on_ad_spend', 'Return on ad spend', 'Marketing', PAID_MEDIA, ['ROAS']],
+  ['average_order_value', 'Average order value', 'Basket', SALES, ['AOV']],
+  ['units_per_order', 'Units per order', 'Basket', SALES],
+  ['gross_margin', 'Gross margin', 'Basket', SALES],
+  ['online_share', 'Online share', 'Basket', SALES],
+  ['support_contacts', 'Support contacts', 'Operations', SALES],
+  ['on_time_shipping_rate', 'On-time shipping rate', 'Operations', null],
 ]
 const markets: [string, string, string[]?][] = [
   ['norway', 'Norway', ['Norge']],
@@ -60,7 +75,7 @@ const markets: [string, string, string[]?][] = [
 
 export const planTerms: Term[] = [
   ...groups.map((g) => term(`group:${g.toLowerCase()}`, 'metric_group', g)),
-  ...metrics.map(([id, name, group, aliases]) =>
+  ...metrics.map(([id, name, group, , aliases]) =>
     term(`metric:${id}`, 'metric', name, `group:${group.toLowerCase()}`, aliases),
   ),
   term('dim:market', 'dimension', 'Market', null, ['Country']),
@@ -70,13 +85,16 @@ export const planTerms: Term[] = [
   term('dim:channel', 'dimension', 'Channel'),
   term('val:channel/email', 'dimension_value', 'Email', 'dim:channel'),
   term('val:channel/paid_search', 'dimension_value', 'Paid search', 'dim:channel'),
+  term('dim:product', 'dimension', 'Product'),
+  term('dim:platform', 'dimension', 'Platform'),
+  term('dim:campaign', 'dimension', 'Campaign'),
 ]
 
 export const planAreas = [
-  { id: 'area_sales', name: 'Sales' },
-  { id: 'area_marketing', name: 'Marketing' },
-  { id: 'area_customer_value', name: 'Customer value' },
-  { id: 'area_paid_media', name: 'Paid media' },
+  { id: SALES, name: 'Sales' },
+  { id: MARKETING, name: 'Marketing' },
+  { id: CUSTOMER_VALUE, name: 'Customer value' },
+  { id: PAID_MEDIA, name: 'Paid media' },
 ]
 
 type Seed = {
@@ -126,7 +144,7 @@ const seeds: Seed[] = [
     title: 'Norway launch campaign started on 24 March 2026',
     summary:
       'The Norway launch campaign ran from 24 March 2026 until the regulator paused price promotions on 9 May 2026.',
-    metrics: ['marketing_spend'],
+    metrics: ['return_on_ad_spend'],
     markets: ['norway'],
     from: '2026-03-24',
     until: '2026-05-09',
@@ -138,6 +156,17 @@ const seeds: Seed[] = [
     title: 'Payment provider switched in France on 12 May 2026',
     summary:
       "We moved France's card and bank payments to a new provider on 12 May 2026. For the first week some orders were booked twice, and finance took them out again on 19 May.",
+    metrics: ['orders'],
+    markets: ['france'],
+    from: '2026-05-12',
+  },
+  // The same event written twice: an owner has not noticed yet.
+  {
+    id: 'evt_france_12_again',
+    kind: 'event',
+    area: 'area_sales',
+    title: 'Payment provider switched in France on 12 May 2026',
+    summary: 'France payments moved to the new provider on 12 May 2026.',
     metrics: ['orders'],
     markets: ['france'],
     from: '2026-05-12',
@@ -175,6 +204,7 @@ const seeds: Seed[] = [
     markets: ['italy'],
     from: '2026-04-18',
     until: '2026-05-31',
+    reviewDate: '2026-09-18',
   },
   {
     id: 'evt_norway_vat',
@@ -218,6 +248,7 @@ const seeds: Seed[] = [
       "From 28 April 2026, returns count only refunds that reached the customer's bank, so earlier weeks read higher.",
     metrics: ['returns'],
     from: '2026-04-28',
+    reviewDate: '2026-10-02',
     checkFlag: 'needs_check',
   },
   {
@@ -319,7 +350,6 @@ const seeds: Seed[] = [
       'Before you explain a jump in gross margin, look at four weeks or more. Margin swings with clearance sales, so one good weekend is no trend.',
     metrics: ['gross_margin'],
     from: '2025-01-01',
-    reviewDate: '2026-10-01',
   },
   {
     id: 'gde_roas',
@@ -381,7 +411,9 @@ export const planBundle: PlannedBundle = {
   groupsOfMetric: Object.fromEntries(
     metrics.map(([id, , group]) => [`metric:${id}`, [`group:${group.toLowerCase()}`]]),
   ),
-  metricArea: Object.fromEntries(metrics.map(([id]) => [`metric:${id}`, 'area_sales'])),
+  metricArea: Object.fromEntries(
+    metrics.flatMap(([id, , , area]) => (area ? [[`metric:${id}`, area]] : [])),
+  ),
   stopped: { all: false, areas: [], items: [] },
 }
 
@@ -390,4 +422,158 @@ export const planItem = (title: string) => {
   const found = seeds.find((s) => s.title === title)
   if (!found) throw new Error(`No item is titled "${title}"`)
   return found.id
+}
+
+/** What the definition source says of a metric, for the cases that show its words. */
+export const planDefinitions: Readonly<Record<string, string>> = {
+  'metric:churn_rate':
+    'The share of customers active in the previous month who placed no order this month.',
+  'metric:net_revenue': 'Gross sales less returns, discounts and tax.',
+  'metric:gross_sales': 'What customers paid before returns, discounts and tax.',
+  'metric:active_customers': 'Customers who placed at least one order in the last 90 days.',
+}
+
+type AuditKind = RecordsItem['kind']
+
+const statusOf = (s: Seed): RecordsItem['status'] =>
+  s.reviewDate && s.reviewDate < PLAN_TODAY ? 'due' : 'live'
+
+const itemRecord = (s: Seed): RecordsItem => ({
+  id: s.id,
+  kind: s.kind as RecordsItem['kind'],
+  areaId: s.area,
+  title: s.title,
+  status: statusOf(s),
+  reviewDate: s.reviewDate ?? '2027-03-01',
+  checkFlag: s.checkFlag ?? null,
+  publishedAt: `${s.from}T09:00:00.000Z`,
+  changedAt: '2026-10-20T09:00:00.000Z',
+  checkedAt: '2026-10-20T09:00:00.000Z',
+  archivedAt: null,
+  owners: [],
+})
+
+/** The items a person here may see: never the one for the Finance group. */
+const seen = seeds.filter((s) => !s.groups)
+
+/** What agents asked this week: each topic, its domain, its calls, those that found nothing. */
+const asked: [string, string, number, number, string[], boolean?][] = [
+  ['Orders in Norway', SALES, 31, 0, ['metric:orders', 'val:market/norway']],
+  ['Net revenue in Norway', SALES, 17, 0, ['metric:net_revenue', 'val:market/norway']],
+  ['Orders in Poland', SALES, 13, 6, ['metric:orders', 'val:market/poland']],
+  ['Orders in Spain', SALES, 12, 9, ['metric:orders', 'val:market/spain'], true],
+  ['Cost per acquisition', MARKETING, 10, 0, ['metric:cost_per_acquisition']],
+  ['Orders in Germany', SALES, 6, 6, ['metric:orders', 'val:market/germany']],
+]
+
+const owners: Record<string, string[]> = {
+  [SALES]: ['per_jon', 'per_sofia'],
+  [MARKETING]: ['per_tomas'],
+  [CUSTOMER_VALUE]: ['per_noor', 'per_alex'],
+  [PAID_MEDIA]: ['per_priya'],
+}
+
+/** Jon Abara's records: an administrator and an owner of Sales, in no group. */
+export const planRecords: RecordsWorld = {
+  items: seen.map(itemRecord),
+  areas: planAreas.map((a) => ({ ...a, ownerIds: owners[a.id]! })),
+  people: {
+    per_jon: 'Jon Abara',
+    per_sofia: 'Sofia Brandt',
+    per_tomas: 'Tomas Eriksen',
+    per_noor: 'Noor Haddad',
+    per_alex: 'Alex Moreau',
+    per_priya: 'Priya Nair',
+  },
+  terms: planTerms.map((t) =>
+    t.kind === 'metric' ? { ...t, areaId: planBundle.metricArea[t.key] ?? null } : t,
+  ),
+  asked: {
+    minimum: 5,
+    rows: asked.map(([title, area, count, nothing, keys, gap]) => ({
+      title,
+      area,
+      count,
+      atLeast: count,
+      nothing,
+      state: nothing ? 'missing' : 'grounded',
+      gap: gap ? { card: 'gap:spain', draft: null } : null,
+      metrics: keys.filter((k) => k.startsWith('metric:')),
+      values: keys.filter((k) => k.startsWith('val:')),
+    })),
+  },
+  conflicts: [
+    {
+      key: 'rul_norway_credit.rul_norway_cash',
+      holder: { id: 'rul_norway_credit', title: 'Norway orders count store credit', areaId: SALES },
+      other: {
+        id: 'rul_norway_cash',
+        title: 'Norway orders are card and cash payments only',
+        areaId: SALES,
+      },
+      topic: 'Orders in Norway',
+      since: '2026-09-24',
+    },
+  ],
+  audit: {
+    terms: planTerms
+      .filter((t) => t.kind === 'metric' || t.kind === 'dimension')
+      .map((t) => {
+        const named = seen.filter((s) =>
+          t.kind === 'metric'
+            ? s.metrics.includes(t.key.slice('metric:'.length))
+            : t.key === 'dim:market' && (s.markets?.length ?? 0) > 0,
+        )
+        const count = (kind: ItemKind) => named.filter((s) => s.kind === kind).length
+        return {
+          key: t.key,
+          kind: t.kind as 'metric' | 'dimension',
+          name: t.name,
+          areaId: planBundle.metricArea[t.key] ?? null,
+          state: 'current' as const,
+          words:
+            t.key === 'metric:on_time_shipping_rate'
+              ? null
+              : (planDefinitions[t.key] ?? `What ${t.name} counts.`),
+          shelf: {
+            event: count('event'),
+            issue: count('issue'),
+            note: count('note'),
+            guide: count('guide'),
+          },
+        }
+      }),
+    items: seen.map((s) => ({
+      id: s.id,
+      kind: s.kind as AuditKind,
+      title: s.title,
+      areaId: s.area,
+      metrics: s.metrics.map((m) => `metric:${m}`),
+      values: (s.markets ?? []).map((m) => `val:market/${m}`),
+      start: s.from,
+      end: s.until ?? null,
+      conflicts: s.conflicts ?? [],
+    })),
+    members: {
+      total: 31,
+      unlinked: [
+        { name: 'Order day', valueType: 'Date', suggested: false },
+        { name: 'Marketing day', valueType: 'Date', suggested: false },
+      ],
+    },
+    readAt: '2026-10-22T06:00:00.000Z',
+  },
+  queue: [
+    { group: 'gap', count: 1 },
+    { group: 'flag', count: 2 },
+    { group: 'check', count: 2 },
+    { group: 'suggestion', count: 3 },
+  ],
+  glossary: [
+    {
+      name: 'Store credit',
+      meaning:
+        'Money a customer holds with us from a gift card or a refund, spent like cash at checkout.',
+    },
+  ],
 }

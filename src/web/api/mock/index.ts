@@ -1,10 +1,12 @@
 import type { HeedApi, HeedApiMethod, Inbox } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
+import { asksUndefinedWords, limitOf, readsBeyond } from '@domain/ask-plan'
+import { limitSaid } from '@domain/records'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
 import { mentionNotesOf, type Subject } from '@/model/comments'
-import { servedToAgents } from '@/model/items'
+import { servedToAgents, type DomainId } from '@/model/items'
 import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
@@ -39,7 +41,7 @@ import {
 } from './data/ask'
 import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { playAnswer } from './ask-live'
-import { followsOn, heldFor, plannedFor } from './planner'
+import { cannotAnswer, followsOn, heldFor, plannedFor } from './planner'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
@@ -54,7 +56,7 @@ import {
 } from './integrations'
 import { figureFor, figureTryFor } from './data/figures'
 import { recordsAnswer, replyAnswer, reportedOn, type AskInput } from '@/model/ask'
-import { recognisedFor, recordsFor } from './records'
+import { queueOf, recognisedFor, recordsFor, recordsOf } from './records'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
@@ -258,9 +260,22 @@ export function createMockApi() {
         kind: 'nothing_asked',
         text: nothingAskedSaid(question, turns ?? []),
       })
+    if (asksUndefinedWords(question))
+      return cannotAnswer(question, { reason: 'not_yet', metrics: [], filters: {} }, world)
     // Ask's planner reads what the rules cannot, and a follow-up first, as on the service (FR-719).
-    const planned = () => {
-      const a = plannedFor(question, turns, world)
+    const source = {
+      ...world,
+      asked: () => askedThisWeek(pool).rows,
+      conflicts: () => conflictRows('all'),
+      manages: (domain: DomainId | undefined) => {
+        const p = workspace.person(me())
+        return !!p && (p.admin || (!!domain && p.owns.includes(domain)))
+      },
+      // The person's own Inbox: their cards, by group, as the Inbox counts them.
+      queue: () => queueOf(state.fresh ? [] : cards.filter((c) => c.for === me())),
+    }
+    const planned = (business = false) => {
+      const a = plannedFor(question, turns, world, (ask) => recordsOf(ask, source), business)
       return a && { ...a, parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined }
     }
     const read = readQuestion(question)
@@ -274,27 +289,29 @@ export function createMockApi() {
       if (a) return a
     }
     // A question about the context's own records is answered from them, as on the service; one
-    // about what changed that names nothing Heed keeps is the business's first.
+    // about what changed that names nothing Heed keeps is the business's first, and a word of
+    // judgement is the planner's first, with an honest exit when no plan reads it.
     if (recognised?.type === 'records' && recognised.loose) {
+      const a = planned(!recognised.judgement)
+      if (a) return a
+      if (recognised.judgement && recognised.ask.intent !== 'audit')
+        return cannotAnswer(question, { reason: 'not_yet', metrics: [], filters: {} }, world)
+    }
+    // A question that reaches beyond what is written is the planner's first, as on the service.
+    if (!recognised && readsBeyond(question)) {
       const a = planned()
       if (a) return a
     }
-    const records = recordsFor(question, {
-      ...world,
-      asked: () => askedThisWeek(pool).rows,
-      conflicts: () => conflictRows('all'),
-      manages: (domain) => {
-        const p = workspace.person(me())
-        return !!p && (p.admin || (!!domain && p.owns.includes(domain)))
-      },
-    })
+    const records = recordsFor(question, source)
     if (records) return recordsAnswer(question, records)
     // Read nothing, or a market alone: the planner reads it. The mock's reader finds every
     // metric's items for a market alone, where the service's finds none, so it asks first.
     const unread = ruled.state === null || (!ruled.metric && ruled.markets.length > 0)
+    const reason = limitOf(question)
     return (
       (unread && planned()) || {
         ...ruled,
+        ...(reason ? { limit: { reason, sentence: limitSaid[reason] } } : {}),
         parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
       }
     )

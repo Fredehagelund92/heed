@@ -21,8 +21,43 @@ export const recordsIntents = [
   'terms',
   'values',
   'conflicts',
+  'audit',
+  'queue',
+  'glossary',
 ] as const
 export type RecordsIntent = (typeof recordsIntents)[number]
+
+/** What an analysis can look at (FR-720): one read, a closed list. */
+export const auditFacets = [
+  'no_context',
+  'no_words',
+  'no_domain',
+  'unlinked',
+  'source_changed',
+  'asked_nothing',
+  'asked_most',
+  'due',
+  'conflicts',
+  'duplicates',
+  'overlaps',
+  'review',
+] as const
+export type AuditFacet = (typeof auditFacets)[number]
+
+/** Why Ask leads with a limit sentence, then what is written (FR-720). */
+export const limitReasons = ['advice', 'forecast', 'outside', 'numbers'] as const
+export type LimitReason = (typeof limitReasons)[number]
+
+/**
+ * Why Ask reads nothing and says so in a fixed sentence (FR-720). `unread` is what a question gets
+ * when the planner was asked and gave no plan: never "needs a metric or a market".
+ */
+export const cannotReasons = ['numbers', 'source', 'write', 'person', 'not_yet', 'unread'] as const
+export type CannotReason = (typeof cannotReasons)[number]
+
+/** The sentence a limit leads with. */
+export const limitSchema = z.object({ reason: z.enum(limitReasons), sentence: z.string() })
+export type AnswerLimit = z.infer<typeof limitSchema>
 
 /** The kinds the Context list shows. An item of the fifth, `example`, is not counted. */
 export const recordsKinds = ['event', 'issue', 'note', 'guide'] as const
@@ -40,6 +75,17 @@ const periodSchema = z.object({
   assumed: z.boolean(),
 })
 export type RecordsPeriod = z.infer<typeof periodSchema>
+
+/** Where a full list lives: Context or Definitions with a filter, a domain's page, or the Inbox. */
+const moreSchema = z.object({
+  label: z.string(),
+  to: z.enum(['context', 'definitions', 'domain', 'inbox']),
+  domain: z.nullable(z.string()),
+  /** Context's own filter: due for a check, archived, or only the items in a conflict. */
+  status: z.nullable(z.enum(['due', 'archived', 'conflicts'])),
+  /** One Definitions page by its name, such as a dimension with all its values. */
+  page: z.optional(z.string()),
+})
 
 const rowSchema = z.union([
   /** A context item; it opens in the right panel. */
@@ -91,8 +137,49 @@ const rowSchema = z.union([
     label: z.string(),
     cells: z.array(z.string()),
   }),
+  /** Two context items an analysis found together; each opens in the right panel. */
+  z.object({
+    type: z.literal('pair'),
+    holder: z.object({ id: z.string(), title: z.string() }),
+    other: z.object({ id: z.string(), title: z.string() }),
+    cells: z.array(z.string()),
+  }),
+  /** A member the source lists that no term of Definitions names yet. */
+  z.object({ type: z.literal('member'), name: z.string(), cells: z.array(z.string()) }),
+  /** One line of a review or of the Inbox: what it counts, and where that list lives. */
+  z.object({
+    type: z.literal('line'),
+    label: z.string(),
+    cells: z.array(z.string()),
+    more: z.nullable(moreSchema),
+  }),
 ])
 export type RecordsRow = z.infer<typeof rowSchema>
+
+/** One part of an analysis: what it counts with its denominator, and up to five rows. */
+const sectionSchema = z.object({
+  /** "No context written". */
+  title: z.string(),
+  /** With its denominator: "13 of 22 metrics". */
+  count: z.string(),
+  columns: z.array(z.string()),
+  rows: z.array(rowSchema),
+  shown: z.nullable(z.string()),
+  more: z.nullable(moreSchema),
+})
+export type RecordsSection = z.infer<typeof sectionSchema>
+
+/** An analysis as it was read, so a follow-up can carry it (FR-719, FR-720). */
+export const auditReadSchema = z.object({
+  facets: z.array(z.enum(auditFacets)),
+  /** What is counted: metrics, dimensions, or both. Null for metrics. */
+  of: z.nullable(z.enum(['metric', 'dimension', 'definition'])),
+  /** One kind of context item, for what has none of it. */
+  kind: z.nullable(z.enum(recordsKinds)),
+  /** One dimension value, by key, for what agents asked about it. */
+  value: z.nullable(z.string()),
+})
+export type AuditRead = z.infer<typeof auditReadSchema>
 
 /**
  * A records answer, as Ask shows it: what it was understood as, what was read, one plain sentence,
@@ -122,20 +209,22 @@ export const recordsAnswerSchema = z.union([
     total: z.number(),
     /** Which rows are shown when not all are: "Showing the 5 oldest". */
     shown: z.nullable(z.string()),
-    /** Where the full list lives: Context or Definitions with a filter, or the domain's page. */
-    more: z.nullable(
-      z.object({
-        label: z.string(),
-        to: z.enum(['context', 'definitions', 'domain']),
-        domain: z.nullable(z.string()),
-        /** Context's own filter: due for a check, archived, or only the items in a conflict. */
-        status: z.nullable(z.enum(['due', 'archived', 'conflicts'])),
-        /** One Definitions page by its name, such as a dimension with all its values. */
-        page: z.optional(z.string()),
-      }),
-    ),
+    /** Where the full list lives. */
+    more: z.nullable(moreSchema),
     /** What a word in the answer means, when it needs saying: "Created means first published." */
     note: z.nullable(z.string()),
+    /** An analysis of more than one part: up to four sections, instead of the rows above. */
+    sections: z.optional(z.array(sectionSchema)),
+    /** What came up empty, each in a sentence. */
+    clear: z.optional(z.array(z.string())),
+    /** The rule behind a ranking, in words: "Look first at Orders in Spain: ...". */
+    ranked: z.optional(z.nullable(z.string())),
+    /** What the read cannot see: "Not seen: a definition your source does not hold." */
+    notSeen: z.optional(z.nullable(z.string())),
+    /** The sentence it leads with when the question reaches beyond what is written. */
+    limit: z.optional(z.nullable(limitSchema)),
+    /** The analysis it was read as, for the next question to carry. */
+    audit: z.optional(z.nullable(auditReadSchema)),
   }),
   z.object({
     refused: z.literal(true),

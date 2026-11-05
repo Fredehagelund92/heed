@@ -28,6 +28,8 @@ export type WordsInput = {
   definitions?: readonly WordsDefinition[]
   /** How Ask read the question, when its planner read it (FR-719): "Orders in Sweden, at any date". */
   read?: string
+  /** What the answer leads with when the question reaches beyond what is written (FR-720). */
+  limit?: string
 }
 
 /** The longest answer kept, in characters: a few short sentences. */
@@ -72,6 +74,11 @@ export function wordsPrompt(input: WordsInput): string {
   return [
     `Question: ${input.question}`,
     ...(input.read ? [`Read as: ${input.read}`] : []),
+    ...(input.limit
+      ? [
+          `Already said first: ${input.limit} So say only what the items say: no advice, no forecast, no figure of your own, never "should" or "recommend".`,
+        ]
+      : []),
     `How sure: ${stateAsks[input.state]}`,
     `What agents are told: ${input.say}`,
     ...(definitions.length ? ['Definitions:', ...definitions] : []),
