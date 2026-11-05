@@ -1,5 +1,6 @@
 import { MockLanguageModelV4 } from 'ai/test'
 import { describe, expect, it } from 'vitest'
+import type { AnswerResult } from '../../src/contract/answer.ts'
 import {
   checkWords,
   WORDS_MAX,
@@ -10,6 +11,7 @@ import {
 import {
   askForWords,
   wordsCases,
+  wordsInputOf,
   wordsProblems,
   writeWords,
   type WordsMiss,
@@ -82,6 +84,29 @@ describe('the check on a model’s words', () => {
 })
 
 describe('what the model is given', () => {
+  it('numbers only the sources the person sees, so no citation shifts past an example', () => {
+    const item = (kind: string, title: string) => ({
+      kind,
+      title,
+      summary: `${title}.`,
+      notToConclude: null,
+    })
+    const answer = {
+      state: 'grounded',
+      say: 'Three context items apply.',
+      items: [
+        item('event', 'Online sales stopped'),
+        item('example', 'What explains the movement of Orders?'),
+        item('note', 'Orders are booked in each currency'),
+      ],
+    } as unknown as AnswerResult
+
+    expect(wordsInputOf('How did orders change?', answer).items.map((i) => i.title)).toEqual([
+      'Online sales stopped',
+      'Orders are booked in each currency',
+    ])
+  })
+
   it('numbers the items with their words and what not to conclude, and keeps the rules apart', () => {
     const prompt = wordsPrompt(input)
     expect(prompt).toContain('Question: Do Norway orders include gift-card money?')

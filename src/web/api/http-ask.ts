@@ -95,8 +95,8 @@ const datesOf = (window: { start: string; end: string | null }) =>
   windowWords(window).replace(/^(\d+)-/, '$1 to ')
 
 /**
- * An item's first sentence, as the answer says it. An example opens with the question it answers
- * ("How did Orders change in France in September 2024?"), so the answer says what follows it.
+ * An item's first sentence, as the answer says it. An item that opens with a question says what
+ * follows it.
  */
 const sentenceOf = (summary: string) => {
   const [first = '', ...rest] = plainText(summary)
@@ -284,7 +284,11 @@ function engineAnswerOf(
         ? `No context item matches ${midSentence(a.reading.words)}. That doesn't mean there's no explanation, only that none is written down yet.`
         : `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`,
     }
-  const said = a.items.map((i, n) => `${sentenceOf(i.summary)} [${n + 1}]`).join(' ')
+  // Numbered as the app shows the sources: an example is not one, so its number would shift them.
+  const shown = a.items.filter((i) => i.kind !== 'example')
+  const said = shown.length
+    ? shown.map((i, n) => `${sentenceOf(i.summary)} [${n + 1}]`).join(' ')
+    : a.say
   if (a.state === 'conflict') {
     // The items that name each other as conflicting, not every item the answer gives.
     const ids = new Set(a.items.map((i) => i.id))

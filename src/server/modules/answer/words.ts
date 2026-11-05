@@ -96,7 +96,8 @@ export async function planWords(
 /**
  * The words the model's input is made of, from the engine's answer: its items, the definitions it
  * shows (so what a metric means is said in the source's words), and how the planner read the
- * question, when it did.
+ * question, when it did. An example is left out: the app doesn't show it as a source, and the
+ * numbers the words cite are the numbers of the sources the person sees.
  */
 export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput => {
   const definitions = (answer.definitions ?? []).flatMap((d) =>
@@ -106,11 +107,13 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
     question,
     state: answer.state,
     say: answer.say,
-    items: answer.items.map((item) => ({
-      title: item.title,
-      summary: item.summary,
-      notToConclude: item.notToConclude,
-    })),
+    items: answer.items
+      .filter((item) => item.kind !== 'example')
+      .map((item) => ({
+        title: item.title,
+        summary: item.summary,
+        notToConclude: item.notToConclude,
+      })),
     ...(definitions.length ? { definitions } : {}),
     ...(answer.reading ? { read: answer.reading.words } : {}),
     ...(answer.limit ? { limit: answer.limit.sentence } : {}),
