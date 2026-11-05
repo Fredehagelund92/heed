@@ -7,8 +7,9 @@ import { textFindings } from './draft.ts'
 import { limits, type FieldMark, type MarkedField } from './proposal-rules.ts'
 
 /*
-  A content source's document as a suggestion (docs/connectors.md, "The two pipelines", content;
-  CON-603 to CON-608). Pure: the same document gives the same mark and the same draft.
+  A content source's document as a suggestion (docs/contributing/connector-contract.md, "The two
+  pipelines", content; CON-603 to CON-608). Pure: the same document gives the same mark and the same
+  draft.
 
   The text is data, never instructions (I-7): it fills the fields of a draft that an owner
   reviews, and nothing in it is acted on. Its title and summary are prefilled from the document,

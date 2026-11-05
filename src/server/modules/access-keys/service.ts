@@ -5,7 +5,7 @@ import { TokenError, type AgentCheck, type Principal, type TokenVerifier } from 
 import { initialsOf } from '../auth/index.ts'
 
 /**
- * Access keys (docs/ai-sign-in.md): for a bot or a scheduled job that can't sign in. An
+ * Access keys (docs/contributing/sign-in.md): for a bot or a scheduled job that can't sign in. An
  * administrator creates one with a name; it is shown once and kept only as its SHA-256. It names no
  * person: it acts as a service with the read and feedback scopes, under its own client label, and
  * lasts until an administrator revokes it, which ends it at once. Each key is an agent (FR-420),

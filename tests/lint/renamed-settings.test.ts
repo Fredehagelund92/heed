@@ -21,12 +21,15 @@ const allowedFiles = new Set([
 ])
 /** An applied migration is never changed (db/README.md), so its comments keep the old names. */
 const migration = /^db\/migrations\/.+\.sql$/
-/** The upgrade note in docs/operations.md lists the old names. */
-const upgradeNote = { file: 'docs/operations.md', heading: '## Settings named CL_ before 0.1.0' }
+/** The upgrade note in docs/contributing/internals.md lists the old names. */
+const upgradeNote = {
+  file: 'docs/contributing/internals.md',
+  heading: '## Settings named CL_ before 0.1.0',
+}
 /** Retired before the rename and read by nothing: named only to say it no longer works. */
 const retired = new Set(['CL_DEV_PERSON'])
 
-/** The upgrade note's section of docs/operations.md, up to the next heading of its level. */
+/** The upgrade note's section of its page, up to the next heading of its level. */
 function noteSection(text: string): string {
   const start = text.indexOf(`${upgradeNote.heading}\n`)
   if (start < 0) return ''

@@ -20,8 +20,8 @@ import {
 import { acceptInvite } from './invites.ts'
 
 /*
-  Company sign-in with OpenID Connect (FR-416; the threat note is in docs/ai-sign-in.md): the
-  authorization code flow with PKCE (S256), the provider found by discovery, and every check the
+  Company sign-in with OpenID Connect (FR-416; the threat note is in docs/contributing/sign-in.md):
+  the authorization code flow with PKCE (S256), the provider found by discovery, and every check the
   ID token needs (signature by the provider's published keys, issuer, audience, authorized party,
   expiry, nonce). A sign-in in progress is kept ten minutes, tied to the browser that started it
   by an HttpOnly cookie, and used once whatever its outcome. Signing in makes a new session and

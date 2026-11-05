@@ -14,7 +14,9 @@ describe('the pages of the site', () => {
   const pages = sitePages()
 
   it('are the published list and no other', () => {
-    expect(pages.map((page) => `help/${page.slug}`).sort()).toEqual([...publishedPages].sort())
+    expect(pages.map((page) => page.file).sort()).toEqual(
+      publishedPages.map((page) => `docs/${page}.md`).sort(),
+    )
   })
 
   it('leave no help page off the list', () => {
@@ -38,23 +40,24 @@ describe('the pages of the site', () => {
   })
 
   it('skip a group that has no published page', () => {
-    expect(siteGroups).toContain('Run the service')
-    expect(shownGroups(pages)).toEqual([
+    expect(shownGroups(pages)).toEqual(siteGroups)
+    const onlyHelp = pages.filter((page) => page.file.startsWith('docs/help/'))
+    expect(shownGroups(onlyHelp)).toEqual([
       'Start',
       'Write and review',
       'Set up',
       'How it works',
       'Reference',
     ])
-    const labels = sidebar(pages).map((group) => 'label' in group && group.label)
+    const labels = sidebar(onlyHelp).map((group) => 'label' in group && group.label)
     expect(labels).not.toContain('Run the service')
     expect(labels).not.toContain('Connectors')
   })
 
   it('open a page that is not published on GitHub, at the build reference', () => {
     const context = linkContext(pages, '/v0.1', 'v0.1.1')
-    expect(resolveLink('../reference.md#alerts', 'docs/help/tools.md', context)).toBe(
-      'https://github.com/Fredehagelund92/heed/blob/v0.1.1/docs/reference.md#alerts',
+    expect(resolveLink('../contributing/api.md#alerts', 'docs/help/tools.md', context)).toBe(
+      'https://github.com/Fredehagelund92/heed/blob/v0.1.1/docs/contributing/api.md#alerts',
     )
     expect(resolveLink('privacy.md', 'docs/help/tools.md', context)).toBe('/v0.1/privacy/')
   })

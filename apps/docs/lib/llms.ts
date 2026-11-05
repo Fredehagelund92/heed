@@ -22,7 +22,8 @@ export function llmsFiles(settings: Settings) {
   const index = { pages: pages.filter((page) => page.group), changelog }
   return {
     index: llmsTxt(index, base, {
-      summary: 'Guides for writing context, connecting agents and reviewing suggestions.',
+      summary:
+        'Guides for writing context, connecting agents and reviewing suggestions, and for running the service.',
       groups: shownGroups(pages),
       path: (at, slug) => `${at}/${slug}/`,
     }),

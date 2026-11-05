@@ -3,7 +3,7 @@ title: Where to run Heed
 line: Docker Compose, a cloud host or container platform, or Vercel for the demo, and what each one asks of you.
 group: Run the service
 order: 1
-reviewed: 2026-11-03
+reviewed: 2026-11-05
 ---
 
 Heed has three parts: the service, the web app and a PostgreSQL 18 database. There are three ways to
@@ -30,19 +30,22 @@ This is the way to run Heed for real people. It asks three things of a host: it 
 keeps a folder between restarts, and ends https in front of them.
 
 > **Not tested on a named host.** CI boots both images in production mode, against a stand-in
-> sign-in provider and a PostgreSQL 18 container (`tests/image/production-boot.sh`). The project has
-> not tested them on AWS, Railway, Fly or a managed PostgreSQL, so this page gives no steps for any
-> of them. Expect to work out the host's own part yourself.
+> sign-in provider and a PostgreSQL 18 container. The project has not tested them on AWS, Railway,
+> Fly or a managed PostgreSQL, so this page gives no steps for any of them. Expect to work out the
+> host's own part yourself.
 
 [Run the image in production mode](operations.md#run-the-image-in-production-mode) has the steps and
 the settings, [the database guide](../db/README.md) says how to set up the roles, and
-[How AI sign-in works](ai-sign-in.md) has every sign-in setting.
+[Set up company sign-in](company-sign-in.md) has every sign-in setting.
 
 ### The proxy in front
 
 `HEED_TRUSTED_PROXIES` is the setting people trip on. It names the addresses the proxy connects
-from: addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and `uniquelocal`,
-comma-separated. Your host's documentation says which ones apply.
+from, comma-separated. Your host's documentation says which ones apply. Each entry is one of:
+
+- an address;
+- a range, such as `10.0.0.0/8`;
+- `loopback`, `linklocal` or `uniquelocal`.
 
 Left unset, the service sees the proxy as the only caller and http as the only protocol:
 

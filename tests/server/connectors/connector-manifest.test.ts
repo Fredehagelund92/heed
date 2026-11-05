@@ -21,9 +21,9 @@ import {
 } from '../../../src/connectors/static-definitions/entries.ts'
 
 /*
-  Interface 3.0's manifest (docs/connectors.md, "The manifest"): one schema says what a manifest
-  holds, the checks a schema cannot say are worded for the author, and a source's settings are
-  checked against the manifest the same way in the form and in the service.
+  Interface 3.0's manifest (docs/contributing/connector-contract.md, "The manifest"): one schema
+  says what a manifest holds, the checks a schema cannot say are worded for the author, and a
+  source's settings are checked against the manifest the same way in the form and in the service.
 */
 
 const valid: ConnectorManifest = builtInManifests.find((m) => m.id === 'static-definitions')!

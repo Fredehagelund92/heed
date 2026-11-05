@@ -2,10 +2,10 @@ import * as z from 'zod/mini'
 import { connectorIdPattern } from './connector-id.ts'
 
 /*
-  A connector's manifest (interface 3.0, docs/connectors.md "The manifest"): what a connector is,
-  as pure data. The server and the web app both read it, so Sources lists and describes a
-  connector, and draws its form, without running its code (CON-112). The runtime, the code that
-  reads the tool, is server only and is typed in connector-runtime.ts.
+  A connector's manifest (interface 3.0, docs/contributing/connector-contract.md "The manifest"):
+  what a connector is, as pure data. The server and the web app both read it, so Sources lists and
+  describes a connector, and draws its form, without running its code (CON-112). The runtime, the
+  code that reads the tool, is server only and is typed in connector-runtime.ts.
 
   One schema says what a manifest may hold; `checkManifest` adds the rules a schema cannot say
   (a secret that is also a setting, a range this build does not read) and words every problem

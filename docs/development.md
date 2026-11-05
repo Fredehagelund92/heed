@@ -124,7 +124,7 @@ or erasure. Cookies are HttpOnly and SameSite=Strict, with Secure on HTTPS. Only
 are stored, in the separate `auth` schema; roles are read afresh on every request. This dev
 sign-in has no groups; company sign-in with OpenID Connect (`HEED_OIDC_*`, with
 `HEED_OIDC_ADMIN_GROUPS` and `HEED_OIDC_MEMBER_GROUPS`) is set up as
-[docs/operations.md](operations.md) says.
+[Set up company sign-in](company-sign-in.md) says.
 
 Administrators use `POST /roles/grant`, `POST /roles/revoke`, `POST /assignments/grant` and
 `POST /assignments/revoke` (all under `/api/v1`; API only, with no screen in the web app). Role bodies are
@@ -143,7 +143,7 @@ sets a domain's owners). Administrators list and change people under `/members` 
 `/invites` (list, create, `/{id}/resend`, `/{id}/revoke`): an invite carries a role and owned domains,
 returns a link on the web app's address, is stored only as a token hash, expires after 7 days and is
 single use. An invite is accepted at the person's first OIDC sign-in, by the address the provider
-has verified (`HEED_AUTH=oidc`, docs/ai-sign-in.md); `npm run heed -- invite <email> --admin` invites
+has verified (`HEED_AUTH=oidc`, docs/company-sign-in.md); `npm run heed -- invite <email> --admin` invites
 the first admin of a new install.
 
 Context then shows the demo's items, read from PostgreSQL. The dev and preview servers forward

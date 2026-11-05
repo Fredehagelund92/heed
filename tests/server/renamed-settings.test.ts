@@ -81,7 +81,7 @@ describe('the renamed settings', () => {
 
   it('warns with the names, never a value', () => {
     expect(renamedSettingsWarning(['CL_AUTH', 'CL_METRICS_TOKEN'])).toBe(
-      'Renamed settings: CL_AUTH is now HEED_AUTH, CL_METRICS_TOKEN is now HEED_METRICS_TOKEN. The old names work in this release only (docs/operations.md, "Settings named CL_ before 0.1.0").',
+      'Renamed settings: CL_AUTH is now HEED_AUTH, CL_METRICS_TOKEN is now HEED_METRICS_TOKEN. The old names work in this release only (docs/operations.md, "Settings that started with CL_").',
     )
   })
 })

@@ -37,30 +37,60 @@ Older design pages that still apply:
 | [Review a suggestion](help/review-a-suggestion.md) | The quick view, the review, and publishing or returning           |
 | [All help pages](help/README.md)                   | The documentation, which is also the app's Docs and the docs site |
 
-## Run and build Heed
+## Run Heed
 
-| Page                                                       | What it says                                                           |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [Where to run Heed](where-to-run.md)                       | Docker Compose, a cloud host or container platform, and the demo       |
-| [Self-host Heed on one computer](self-hosting.md)          | Install, back up, restore, upgrade and roll back, for local evaluation |
-| [Run and operate the service](operations.md)               | Setup and settings                                                     |
-| [Run the demo on Vercel and Neon](vercel.md)               | For the demo only: the service as a function, and the data on Neon     |
-| [MCP and API reference](reference.md)                      | The tools and the API                                                  |
-| [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                                      |
-| [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md)            |
-| [The Cube connector](connectors/cube.md)                   | Reading definitions from a Cube model                                  |
-| [Connectors as packages](connectors/packaging.md)          | How a connector could ship on its own, later                           |
-| [Connector security](connectors/security.md)               | What a connector may reach, and how that is enforced                   |
-| [The database](../db/README.md)                            | Roles, grants, migrations and the data each feature keeps              |
-| [Templates](templates/)                                    | Item and test-question files, and prompts that turn notes into items   |
-| [Evaluations and the golden set](evaluations.md)           | How answers are tested                                                 |
-| [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                             |
-| [The public docs site](../apps/docs/README.md)             | Which pages are published, and how, one version at a time              |
-| [Release Heed](releasing.md)                               | One version number, the release pull request and the tag               |
-| [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                                     |
-| [The rename checklist](rename-checklist.md)                | Everything that follows the product name                               |
-| [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents              |
-| [Working with coding agents](agents.md)                    | Where an agent reads first, and what it may and may not do             |
+The docs site publishes these, and their words follow the [reader check](../apps/docs/README.md#ready-for-readers).
+
+| Page                                                    | What it says                                                           |
+| ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Where to run Heed](where-to-run.md)                    | Docker Compose, a cloud host or container platform, and the demo       |
+| [Self-host Heed on one computer](self-hosting.md)       | Install, back up, restore, upgrade and roll back, for local evaluation |
+| [Run and operate the service](operations.md)            | Run it, check it, run it in production, its jobs, limits and metrics   |
+| [Service settings](configuration.md)                    | Every setting the service reads when it starts                         |
+| [Set up company sign-in](company-sign-in.md)            | OpenID Connect, and who may sign in                                    |
+| [Administer the service](administration.md)             | Settings, the history log, import, export and the `heed` command       |
+| [Security, scanning and the restore drill](security.md) | What is scanned and how to prove a backup restores                     |
+| [Run the demo on Vercel and Neon](vercel.md)            | For the demo only: the service as a function, and the data on Neon     |
+
+## Connect Heed
+
+Published on the docs site too.
+
+| Page                                                     | What it says                                         |
+| -------------------------------------------------------- | ---------------------------------------------------- |
+| [MCP and API reference](reference.md)                    | Which page to read, for agents and scripts           |
+| [Connect an agent by hand](reference/connect-by-hand.md) | The MCP address, the commands and the limits         |
+| [The agent tools in detail](reference/agent-tools.md)    | What each tool takes and gives back                  |
+| [Sign in your own agent](ai-sign-in.md)                  | How an agent signs in, and its settings and keys     |
+| [HTTP API overview](reference/http-api.md)               | How to call the API, and what it covers              |
+| [OpenAPI description](api/openapi.json)                  | Every operation, generated from the contract         |
+| [Connectors](connectors.md)                              | What a connector is, and what a read may change      |
+| [The Cube connector](connectors/cube.md)                 | Reading definitions from a Cube model                |
+| [Connector security](connectors/security.md)             | What a connector may reach, and how that is enforced |
+| [Build a connector](connectors/authoring.md)             | The guide for people and coding agents               |
+
+## Build Heed
+
+For contributors, in the repository only.
+
+| Page                                                                | What it says                                                         |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [Internals](contributing/internals.md)                              | Where the requirement ids, reasons and source paths of each page are |
+| [The tools and the API in detail](contributing/api.md)              | Every tool and operation, with its requirements                      |
+| [Sign-in: how it works](contributing/sign-in.md)                    | The flows, the threat notes and the limits                           |
+| [The connector contract](contributing/connector-contract.md)        | What a connector declares and what the core does with it             |
+| [Connector security and egress](contributing/connector-security.md) | The rules, with the code that enforces them                          |
+| [The Cube connector: internals](contributing/cube-connector.md)     | Compilation, marks and tests                                         |
+| [Connectors as packages](connectors/packaging.md)                   | How a connector could ship on its own, later                         |
+| [The database](../db/README.md)                                     | Roles, grants, migrations and the data each feature keeps            |
+| [Templates](templates/)                                             | Item and test-question files, and prompts that turn notes into items |
+| [Evaluations and the golden set](evaluations.md)                    | How answers are tested                                               |
+| [Develop Heed](development.md) and [its tests](testing.md)          | The repository, the commands and the tests                           |
+| [The public docs site](../apps/docs/README.md)                      | Which pages are published, and how, one version at a time            |
+| [Release Heed](releasing.md)                                        | One version number, the release pull request and the tag             |
+| [The rename checklist](rename-checklist.md)                         | Everything that follows the product name                             |
+| [Contributing](../CONTRIBUTING.md)                                  | How to send a change, and the rules for people and agents            |
+| [Working with coding agents](agents.md)                             | Where an agent reads first, and what it may and may not do           |
 
 ## The order of authority
 

@@ -15,10 +15,10 @@ import {
 } from './service-account.ts'
 
 /*
-  Google Drive's runtime (docs/connectors.md, "Interface 3.0"): the Google Docs in the folders
-  shared with a service account. It signs in with the account's key for a token that can only
-  view, lists the folders shared with the account as the scopes to choose, exports each document
-  as Markdown (`files.export`) and reads the changes since its cursor (`changes.list`).
+  Google Drive's runtime (docs/contributing/connector-contract.md, "Interface 3.0"): the Google Docs
+  in the folders shared with a service account. It signs in with the account's key for a token that
+  can only view, lists the folders shared with the account as the scopes to choose, exports each
+  document as Markdown (`files.export`) and reads the changes since its cursor (`changes.list`).
 
   A read from no cursor lists every document of the chosen folders and the folders under them,
   so the core may count one it leaves out as gone. A read from a cursor sends what changed since

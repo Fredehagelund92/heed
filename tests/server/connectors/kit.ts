@@ -23,10 +23,10 @@ import type { DefinitionSource } from '../../../src/server/modules/connectors/ty
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
 
 /*
-  The connector conformance kit (docs/connectors.md, "Conformance kit"; CON-108): what "compatible
-  with interface 3" means, as tests any connector runs against itself. Its tests switch on by
-  what the manifest declares, and each takes the connector through the core, as Sources and the
-  pipelines do, so a connector passes only if the core accepts what it does.
+  The connector conformance kit (docs/contributing/connector-contract.md, "Conformance kit";
+  CON-108): what "compatible with interface 3" means, as tests any connector runs against itself.
+  Its tests switch on by what the manifest declares, and each takes the connector through the core,
+  as Sources and the pipelines do, so a connector passes only if the core accepts what it does.
 
   A connector in this repository runs it from a test of its own (tests/server/connectors/
   conformance.test.ts), with a fixture: settings that work, and where it has them, a secret the

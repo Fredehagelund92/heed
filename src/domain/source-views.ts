@@ -1,6 +1,7 @@
 /**
  * What a definition source holds, by view (Sources, the connector contract in
- * docs/connectors.md). A member's view is its name up to the last dot: `payments` of
+ * docs/contributing/connector-contract.md). A member's view is its name up to the last dot:
+ * `payments` of
  * `orders.returns`. A member without a dot is in no view. Pure: the operations overview and
  * the mock binding compute the same answer from the same rule.
  */

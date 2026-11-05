@@ -1,6 +1,6 @@
 # Cube model in a Git repository
 
-The first definitions connector (connector interface 3.0, [the contract](../../../docs/connectors.md)).
+The first definitions connector (connector interface 3.0, [the contract](../../../docs/contributing/connector-contract.md)).
 It reads the YAML model files of a Cube project and gives Heed each public member as a definition
 under `cube:`, so context can be checked against the metrics and dimensions that exist. It reads
 files only, offline: never a Cube server, a warehouse or data, and it keeps no calculation. A read
@@ -23,12 +23,12 @@ An admin adds a Cube model in a Git repository with:
 | Read-only token         | A secret, kept in the server's secret store and sent only to the repository's address. Empty for a public repository. |
 
 Whoever runs the server may also point it at a model folder on the server (`CUBE_MODEL_DIR`), which
-the same runtime reads as `ctx.folder` ([configuration of the server's model](../../../docs/connectors/cube.md#configuration-of-the-servers-model)).
+the same runtime reads as `ctx.folder` ([a model on the server](../../../docs/connectors/cube.md#read-a-model-on-the-server)).
 
 ## What a read does
 
 1. Fetches the one commit the ref names, read only, through `ctx.git`
-   ([security](../../../docs/connectors/security.md#git)), or takes the server's folder.
+   ([security](../../../docs/contributing/connector-security.md#git)), or takes the server's folder.
 2. Lists the model folder's files. Only YAML is read: any other file is left out with
    `unsupported_file`, and a file over 2 MB, past 20 MB in all, a link or not text with
    `unreadable_file`. Either makes the read partial, so it marks nothing missing. More than 1,000

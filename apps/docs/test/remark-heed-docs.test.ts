@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import type { Blockquote, Paragraph, Root } from 'mdast'
+import type { Blockquote, Paragraph, Root, Table } from 'mdast'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { gfm } from 'micromark-extension-gfm'
@@ -39,6 +39,19 @@ describe('the remark plugin', () => {
     ).children.filter((node) => node.type === 'blockquote') as Blockquote[]
     expect(note!.data).toMatchObject({ hName: 'div', hProperties: { role: 'note' } })
     expect(quote!.data).toBeUndefined()
+  })
+
+  it('tells each cell of a table its column, for a phone, which has no heading row', () => {
+    const tree = fromMarkdown('| Job | When |\n| --- | ---- |\n| `a.b` | Daily |', {
+      extensions: [gfm()],
+      mdastExtensions: [gfmFromMarkdown()],
+    })
+    remarkHeedDocs(context)(tree, new VFile({ path: join(repoRoot, 'docs/help/privacy.md') }))
+    const [, row] = (tree.children[0] as Table).children
+    expect(row!.children.map((cell) => cell.data)).toEqual([
+      { hProperties: { dataLabel: 'Job' } },
+      { hProperties: { dataLabel: 'When' } },
+    ])
   })
 
   it('lets the keyboard reach a table, which scrolls on a phone', () => {

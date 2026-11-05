@@ -1,7 +1,7 @@
 /**
- * Where a client may send a person back with a sign-in code (docs/ai-sign-in.md, "Redirect
- * rules"): https anywhere, or http on this computer for a desktop client (RFC 8252). Never a
- * wildcard, a fragment, credentials or another scheme. A requested address must equal a
+ * Where a client may send a person back with a sign-in code (docs/contributing/sign-in.md,
+ * "Redirect rules"): https anywhere, or http on this computer for a desktop client (RFC 8252).
+ * Never a wildcard, a fragment, credentials or another scheme. A requested address must equal a
  * registered one; only a loopback address may differ in its port, because a desktop client
  * listens on a port it picks when it starts (RFC 8252, section 7.3).
  */

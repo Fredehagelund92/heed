@@ -3,10 +3,10 @@ import type { ConnectorConfig, FieldProblem } from './connector-config.ts'
 import type { ConnectorManifest } from './connector-manifest.ts'
 
 /*
-  A connector's runtime (interface 3.0, docs/connectors.md "The runtime and its messages"): the
-  code that checks settings, lists what a source may cover and reads it. It runs on the server
-  only and touches nothing but what its context hands it. What it returns is untrusted data
-  (I-7): every message is checked against these schemas before the core keeps anything, and a
+  A connector's runtime (interface 3.0, docs/contributing/connector-contract.md "The runtime and its
+  messages"): the code that checks settings, lists what a source may cover and reads it. It runs on
+  the server only and touches nothing but what its context hands it. What it returns is untrusted
+  data (I-7): every message is checked against these schemas before the core keeps anything, and a
   definition is strict, so SQL a tool returns somewhere in its payload never crosses.
 
   This file holds the types and the message schemas only; the core runs a runtime.
@@ -237,10 +237,10 @@ export interface RuntimeContext<Config = ConnectorConfig> {
   readonly folder: FolderTree | null
   /**
    * Runs the connector's worker with this input and returns its one answer, untrusted (T1,
-   * docs/connectors/security.md): a child process of its own under Node's permission model, with
-   * no network, no writes and no programs, that reads only the service's code and dependencies,
-   * within the read's time limit. A connector that declares no worker is refused. Built-in
-   * connectors only.
+   * docs/contributing/connector-security.md): a child process of its own under Node's permission
+   * model, with no network, no writes and no programs, that reads only the service's code and
+   * dependencies, within the read's time limit. A connector that declares no worker is refused.
+   * Built-in connectors only.
    */
   worker(input: unknown): Promise<unknown>
   /** Ends the work at the manifest's `limits.timeoutSeconds`. */

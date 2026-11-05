@@ -17,9 +17,9 @@ In this folder, `npm run typecheck`, `npm run lint` and `npm test` check its own
 
 ## What is on the site
 
-The site publishes only pages written for the people who read it. `publishedPages` in `lib/pages.ts` is the list: today, the 13 help pages and What's new. Every help page has to be on it.
+The site publishes only pages written for the people who read it. `publishedPages` in `lib/pages.ts` is the list: the 13 help pages and What's new, the MCP and API reference with its pages, the pages for running the service, and the connector pages. Every help page has to be on it.
 
-Every operator page (Where to run Heed, the Vercel demo, running and operating the service, security, the MCP and API reference, AI sign-in and the connector pages) has its front matter and is held back until it passes the reader check below. The rest of `docs/` stays in the repository. A page that is not on the list is out of the sidebar, the search, `llms.txt`, `llms-full.txt` and the sitemap, and a published page that links to it opens it on GitHub. A group with no published page is left out of the sidebar, the landing page and `llms.txt`.
+The rest of `docs/` stays in the repository, `docs/contributing` among it, which holds what the published pages leave out: requirement ids, design reasons and source paths. A page that is not on the list is out of the sidebar, the search, `llms.txt`, `llms-full.txt` and the sitemap, and a published page that links to it opens it on GitHub. A group with no published page is left out of the sidebar, the landing page and `llms.txt`.
 
 ## Ready for readers
 
@@ -32,7 +32,7 @@ Every operator page (Where to run Heed, the Vercel demo, running and operating t
 
 It reads what a reader sees, so the address of a link does not count, but the words of a link do.
 
-To publish a held page, make it pass, then add it to `publishedPages`. Its group shows up on its own.
+To publish a page, make it pass, then add it to `publishedPages`. Its group shows up on its own. A page that must name a source file does so through a link, whose address does not count. A command runs through an `npm run` script, not a path.
 
 ## Links
 

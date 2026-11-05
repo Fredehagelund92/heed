@@ -27,7 +27,7 @@ shown only as set, and a failure names its host and never its path or signature.
 or Google Cloud Storage last 7 days at most, so a source that lasts needs Object storage, or a link
 that does not expire. Test connection says when a link stops working, and warns in its last 14
 days. An artifact server on a private network has to be allowed by name by whoever runs the
-server (`HEED_EGRESS_PRIVATE_HOSTS`, [Operations](../../../docs/operations.md)).
+server (`HEED_EGRESS_PRIVATE_HOSTS`, [Service settings](../../../docs/configuration.md#connectors)).
 
 **Object storage.** Upload the file, then give the object's https address and a key that can read
 that object and nothing else.
@@ -105,7 +105,7 @@ config:
 commit: whoever runs the server names the folder, and the connector reads `semantic_manifest.json`
 in it (`ctx.folder`). It is then one of the server's own sources, with no settings, token or Git.
 The server's domain map (`HEED_DOMAIN_OVERRIDES`) gives a semantic model with no domain its domain.
-[Configuration](../../../docs/operations.md) has the rest.
+[Service settings](../../../docs/configuration.md#connectors) has the rest.
 
 ```sh
 HEED_SERVER_FOLDERS='{"dbt-metricflow":"/srv/dbt/target"}'
@@ -133,10 +133,10 @@ HEED_SERVER_FOLDERS='{"dbt-metricflow":"/srv/dbt/target"}'
 ## What a read does
 
 1. Takes the one file. From an address or an object store, one GET through `ctx.fetch`
-   ([security](../../../docs/connectors/security.md#http-interface-3)), with the ETag and date of
+   ([security](../../../docs/contributing/connector-security.md#http-interface-3)), with the ETag and date of
    the last read: when the store says the file has not changed, nothing is read and Heed keeps what
    it knows. From Git, the one commit the ref names, read only, through `ctx.git`
-   ([security](../../../docs/connectors/security.md#git)). Or the server's folder (`ctx.folder`).
+   ([security](../../../docs/contributing/connector-security.md#git)). Or the server's folder (`ctx.folder`).
 2. Maps it, in plain code with no worker:
    - **A semantic model is a group**, which Integrations lists and maps to a domain.
    - **Every dimension is a definition**, `dbt:<semantic model>.<dimension>`, with `categorical` or

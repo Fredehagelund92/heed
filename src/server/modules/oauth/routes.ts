@@ -12,9 +12,9 @@ import {
 } from './service.ts'
 
 /**
- * The login server's addresses (docs/ai-sign-in.md): discovery (RFC 8414), the key set, dynamic
- * registration (RFC 7591, behind a setting), the authorize and token endpoints of the OAuth 2.1
- * code flow with PKCE, and revocation (RFC 7009). Every address has its own rate per caller
+ * The login server's addresses (docs/contributing/sign-in.md): discovery (RFC 8414), the key set,
+ * dynamic registration (RFC 7591, behind a setting), the authorize and token endpoints of the OAuth
+ * 2.1 code flow with PKCE, and revocation (RFC 7009). Every address has its own rate per caller
  * address, answers only to the issuer's host, is never cached and never framed. Access log lines
  * carry the path only (observability/logger.ts); the sign-in lines add the outcome (FR-411).
  */

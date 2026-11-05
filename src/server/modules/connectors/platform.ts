@@ -48,9 +48,9 @@ import {
 import { runWorker, workerLimits, type WorkerLimits } from './worker.ts'
 
 /*
-  Interface 3.0 in the core (docs/connectors.md, "Interface 3.0"): a connector is a manifest and
-  a runtime. The registry checks every manifest at start and keeps each connector here as one
-  shape, so Sources lists, checks and reads them all the same way.
+  Interface 3.0 in the core (docs/contributing/connector-contract.md, "Interface 3.0"): a connector
+  is a manifest and a runtime. The registry checks every manifest at start and keeps each connector
+  here as one shape, so Sources lists, checks and reads them all the same way.
 
   A runtime's read is a stream of messages. Until the core's own pipelines take messages, a
   definitions read is gathered into a snapshot and goes through the one pipeline every
