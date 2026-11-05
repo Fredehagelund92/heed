@@ -360,7 +360,7 @@ describe('a semantic manifest in Git', () => {
     await client.query(`update connectors set config = config - 'location' where id = $1`, [id])
     await client.query(
       await readFile(
-        new URL('../../db/migrations/0039_dbt_file_location.sql', import.meta.url),
+        new URL('../../db/migrations/0040_dbt_file_location.sql', import.meta.url),
         'utf8',
       ),
     )
