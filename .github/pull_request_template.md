@@ -30,5 +30,6 @@
 - [ ] Shared components you reused, and any token you added, are named here: <!-- e.g. Button, Sheet; token `--mark-add` -->
 - [ ] A new migration takes the number after the latest on `main`, and generated files (`npm run api:generate`) are up to date
 - [ ] The first load stays within its budget (`npm run size`; see CONTRIBUTING)
+- [ ] A new connector has every item of the [review checklist](https://github.com/Fredehagelund92/heed/blob/main/docs/connectors/authoring.md#review-checklist) done
 
 <!-- Contributions are licensed under Apache-2.0, as LICENSE says. -->

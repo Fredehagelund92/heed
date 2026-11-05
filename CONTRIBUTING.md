@@ -1,10 +1,46 @@
 # Contributing
 
-Thanks for helping. This page says how to send a change, then how to write code that passes the
-checks.
+Thanks for helping. This page says where you can help, how to send a change, then how to write
+code that passes the checks.
 
 Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md). Found a security problem? Don't
 open an issue: [SECURITY.md](SECURITY.md) says how to tell us privately.
+
+## Ways to help
+
+1. **Add a connector.** This is the most useful change you can send. A connector teaches Heed to
+   read a tool your team uses, and it stays inside one folder. [Writing a connector](docs/connectors/authoring.md)
+   is written so a coding agent can follow it from top to bottom: see
+   [Write a connector with a coding agent](#write-a-connector-with-a-coding-agent).
+2. **Pick up an issue.** Look for **good first issue** and **help wanted**:
+   [Finding something to work on](#finding-something-to-work-on) says what they mean.
+3. **Try the demo and tell us what confused you.** Run the
+   [Quick start](README.md#quick-start), then open an issue. A step that didn't work, or a word you
+   had to guess, counts as a bug.
+4. **Fix the docs.** Every page is Markdown in `docs`. If a page is wrong, send the fix. A small fix
+   needs no issue.
+
+### Write a connector with a coding agent
+
+The guide holds everything a connector needs: the contract, the decisions to make first, the steps,
+the conformance kit and the review checklist. `src/connectors/_template` is a working connector that
+passes the kit, and [dbt MetricFlow](src/connectors/dbt-metricflow/README.md) was built by following
+the guide. Open an issue with the **A connector** template first, so nobody builds the same one
+twice, then give your agent this:
+
+```text
+Add a definitions connector for <the tool> to Heed.
+Read docs/connectors/authoring.md and follow it from top to bottom.
+Copy src/connectors/_template. Keep the tool's name inside the new folder.
+Use invented fixtures only, and make no live calls in tests.
+Finish with every item of the guide's review checklist done, and with
+npm test, npm run typecheck, npm run lint and npm run test:integration passing.
+```
+
+Read what it wrote before you send it, above all `definitions.json`: that file is what the
+connector reads from the tool. A connector needs no change to the app, so a diff outside the new
+folder, the two connector lists and the tests is a sign to stop and look. To suggest a tool without
+building it, use the same issue template.
 
 ## How to send a change
 
@@ -21,8 +57,6 @@ open an issue: [SECURITY.md](SECURITY.md) says how to tell us privately.
 
 You send your contribution under the Apache License 2.0, as section 5 of [LICENSE](LICENSE)
 says. You keep the copyright in your work.
-
-Not sure where to start? See [Finding something to work on](#finding-something-to-work-on).
 
 ## Set up
 
@@ -164,8 +198,8 @@ Issues carry labels that say how ready they are:
   need to ask first; say in a comment that you are taking it.
 - **help wanted**: agreed in principle, and a maintainer would welcome a pull request. Comment with
   your plan before you start if it is more than a day's work.
-- **bug** and **enhancement**: what the issue templates add. An enhancement without a label above
-  is still being shaped; discuss before you build.
+- **bug**, **enhancement** and **connector**: what the issue templates add. An enhancement without
+  a label above is still being shaped; discuss before you build.
 
 If your idea has no issue yet, open one and make the case.
 

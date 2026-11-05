@@ -5,16 +5,16 @@
   <img alt="Heed" src="docs/images/heed-lockup-light.svg" height="56">
 </picture>
 
-### The context behind your numbers, checked before AI agents read them.
+### Stop AI agents misreading your numbers.
 
-Heed is a library of checked context that AI agents read before they answer questions about your data.<br>
-People write down what the numbers don't show, the owner of each domain checks it and publishes it,<br>
-and agents get only what was published, each item with its source.
+Heed is a reviewed context layer for analytics teams and their agents.<br>
+The people who own the data write down what the numbers don't show,<br>
+and agents read it over MCP before they answer, with its source and its owner.
 
-<!-- Live demo: when the hosted mock site is up, put this at the start of the link row below:
+<!-- Live demo: when the hosted demo is up, put this at the start of the link row below:
 [**Live demo**](https://LIVE-DEMO-ADDRESS) &nbsp;·&nbsp; -->
 
-[Quick start](#quick-start) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Docs](#docs) &nbsp;·&nbsp; [Connect Claude Code](#connect-claude-code) &nbsp;·&nbsp; [Contributing](CONTRIBUTING.md)
+[Quick start](#quick-start) &nbsp;·&nbsp; [Proof](#proof) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Status](#status) &nbsp;·&nbsp; [Docs](#docs) &nbsp;·&nbsp; [Contributing](CONTRIBUTING.md)
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node 26](https://img.shields.io/badge/node-26-339933.svg)](.nvmrc)
@@ -28,9 +28,9 @@ and agents get only what was published, each item with its source.
 
 ## Why Heed
 
-Company data shows what happened to a number. It rarely shows why. A market closed, a tool changed how it
-counts, a partner's data came in late. People know this. An agent can't see it, so it guesses, and a guess can
-sound sure of itself.
+Your metric has a definition. Why it moved doesn't. A market closed, a tool changed how it counts, a
+partner's data came in late. Your analytics team knows this. An agent reading the warehouse or the
+semantic layer can't see it, so it guesses, and a guess can sound sure of itself.
 
 > Orders in Norway fell to almost nothing after 4 August.
 >
@@ -40,6 +40,20 @@ sound sure of itself.
 
 _An illustration of the difference, not a transcript._ The demo data belongs to an invented outdoor-gear
 retailer that sells in twelve real countries.
+
+## Proof
+
+Each of these is held by a test in this repository, so you can read it, run it, or try it on the demo.
+
+| What Heed promises                         | What shows it                                                                                                                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents read only what an owner published   | The database role that serves agents can't read the table of versions, drafts included: `permission denied` ([`tests/integration/mcp.test.ts`](tests/integration/mcp.test.ts))                                |
+| The answer above is real                   | CI starts the demo, asks that question in a browser and expects **Checked** with the customs rule ([`tests/e2e-seed/demo.spec.ts`](tests/e2e-seed/demo.spec.ts))                                              |
+| The right context gets delivered           | All 53 questions of the [golden set](db/seed/golden-set.yml) run in CI with no model, and each must get the items it expects ([`tests/integration/golden-set.test.ts`](tests/integration/golden-set.test.ts)) |
+| Nothing is filled in when nothing is known | Every answer starts with one of six [answer lines](docs/help/answer-lines.md). Golden questions with nothing written down must come back Not found                                                            |
+
+Heed doesn't yet have a measured number for how much better an agent answers with it than without it.
+[Status](#status) says what is and isn't done.
 
 ## How it works
 
@@ -53,23 +67,33 @@ retailer that sells in twelve real countries.
 4. **Gaps come back.** A question that keeps finding nothing becomes a Not found card in the owner's Inbox,
    counted by topic, never by who asked.
 
-Heed holds context, not numbers. [Cube](https://cube.dev) defines your metrics and returns the figures; a context
-item points to them.
+Heed holds context, not numbers. Your semantic layer defines the metrics and returns the figures; a context item
+points to them. Heed reads definitions from [Cube](docs/connectors/cube.md) and
+[dbt MetricFlow](src/connectors/dbt-metricflow/README.md), and turns documents from Markdown in Git and Google
+Drive into suggestions for owners. [Writing a connector](docs/connectors/authoring.md) adds another tool.
 
 ## Quick start
 
-You need Docker, or Node 26 with npm.
+You need Docker:
 
 ```sh
 git clone https://github.com/Fredehagelund92/heed.git && cd heed
-docker compose up        # the service with demo data: http://localhost:8080
-npm ci && npm run dev    # or the app on mock data, no database: http://localhost:5173
+docker compose -f compose.yaml -f compose.images.yaml up
 ```
 
-Both open on the demo of an invented outdoor-gear retailer: people, domains and context items, with their
-history, suggestions waiting for review and what agents asked over the past weeks. Sign in as any demo
-person: Jon Abara owns Sales, Ravi Kapoor is the admin. Nothing leaves your computer, and no AI service is
-called. Stop with Ctrl+C; `docker compose down --volumes` also removes the data.
+The first start pulls the published images and loads the demo, which takes about two minutes. Then open
+<http://localhost:8080> and sign in as any demo person: Jon Abara owns Sales, Ravi Kapoor is the admin.
+
+The demo is an invented outdoor-gear retailer: people, domains and context items, with their history,
+suggestions waiting for review and what agents asked over the past weeks. Nothing leaves your computer, and no
+AI service is called. Stop with Ctrl+C; `docker compose down --volumes` also removes the data.
+
+Two other ways in:
+
+- **No Docker, under a minute.** With Node 26, `npm ci && npm run dev` opens the app on mock data at
+  <http://localhost:5173>. It has no database and no MCP server.
+- **The code in this checkout.** `docker compose up` builds the images here, which takes far longer. The
+  published images are the latest release, so use this for anything merged since.
 
 To choose how to run Heed for your own team, see [Where to run Heed](docs/where-to-run.md). To keep it running
 here, back it up, upgrade it or roll an upgrade back, see [Self-host Heed on one computer](docs/self-hosting.md).
@@ -81,7 +105,7 @@ sign-in: see [Run the image in production mode](docs/operations.md#run-the-image
 
 ### Connect Claude Code
 
-With the service running (`docker compose up`):
+With the demo running:
 
 ```sh
 claude mcp add --transport http heed http://localhost:3000/mcp
@@ -99,7 +123,8 @@ demo person and **Allow**. Ask _"How did orders in Norway change in October 2026
 
 ### Use your own data
 
-Heed reads metric and dimension names from a [Cube](https://cube.dev) model, as files, and never writes to it:
+Heed reads metric and dimension names from your semantic layer, and never writes to it. For a
+[Cube](https://cube.dev) model, name its folder:
 
 ```sh
 CUBE_MODEL_DIR=/path/to/your/cube/model docker compose up
@@ -109,6 +134,10 @@ With your own model Heed starts empty, with no demo data. Sign in as Ravi Kapoor
 `db/seed/people.local.yml`, and add your domains in Settings, under Domains and owners. On a Mac the
 folder must be one Docker shares, or Heed refuses to start and says so. See
 [the Cube connector](docs/connectors/cube.md).
+
+For dbt, Heed reads the `semantic_manifest.json` that `dbt parse` writes, from a link, object storage, a Git
+repository or a folder: see [the dbt MetricFlow connector](src/connectors/dbt-metricflow/README.md). It needs
+this checkout, which is ahead of the latest release.
 
 ## What you get
 
@@ -141,8 +170,8 @@ folder must be one Docker shares, or Heed refuses to start and says so. See
 - **Gaps and saved questions.** Questions that found nothing are counted by topic, so people write what's
   missing. Saved questions are answered again after every change, so a publish that makes an answer worse is
   seen at once. Heed never records who asked.
-- **Stays in step with Cube.** When a definition an item relies on changes or disappears, the item is marked for
-  its owner to check.
+- **Stays in step with your semantic layer.** When a definition an item relies on changes or disappears, the item
+  is marked for its owner to check.
 
 ## How it fits together
 
@@ -155,7 +184,7 @@ folder must be one Docker shares, or Heed refuses to start and says so. See
 | A wiki or shared document        | Agents can't see it, or read a page nobody has checked in a year | Short, dated context with a source and an owner, delivered over MCP            |
 | Notes in `CLAUDE.md` or a prompt | One copy per tool, no review, no history                         | One library for every agent, with review, checks and a history                 |
 | Search over your documents       | Returns text that looks like the question, with no owner or date | Returns the context that applies to the metric, market and dates, or says none |
-| Your semantic layer              | Defines the number, not why it moved                             | Sits beside it: Cube gives the figure, Heed gives the context                  |
+| Your semantic layer              | Defines the number, not why it moved                             | Sits beside it: the layer gives the figure, Heed gives the context             |
 
 Heed is not a data tool: it stores no numbers. When an admin switches figures on for an integration, Ask reads
 one figure from it when someone asks, and keeps it nowhere. It is not a wiki: every context item is short, has a
@@ -174,9 +203,12 @@ source, and its owner checks it. It doesn't watch people: it counts questions by
 |                                                         | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)                         |
 |                                                         | [Security, scanning and the restore drill](docs/security.md)                                 |
 
-The help pages are also the app's own Docs, at `/docs`, and a static site (`npm run docs:build`).
-[Requirements](docs/requirements.md) says what Heed must do, and [Writing a connector](docs/connectors/authoring.md)
-how to read another source.
+<!-- Docs site: when it is published, add this line:
+Read these as a site at [fredehagelund92.github.io/heed](https://fredehagelund92.github.io/heed/). -->
+
+The help pages are also the app's own Docs, at `/docs`, and [the docs site](apps/docs/README.md), which isn't
+published yet: `npm run site:dev` runs it on your computer. [Requirements](docs/requirements.md) says what Heed must
+do, and [Writing a connector](docs/connectors/authoring.md) how to read another source.
 
 The [documentation index](docs/README.md) lists every page. The [product page](docs/product.md) and the
 [design contract](docs/design/design-contract.md) say what the Heed v1 web app is and how it looks.
@@ -185,22 +217,39 @@ The clickable mockup is the design the app was built from, kept as a reference i
 
 ## Status
 
-Heed is **pre-1.0**. Expect rough edges and breaking changes.
+Heed is **pre-1.0**, and [v0.1.0](https://github.com/Fredehagelund92/heed/releases/tag/v0.1.0) is its first release.
+It is for trying on one computer, not for production use. Expect rough edges and breaking changes.
 
-- It runs on one computer, or on one container host. `docker compose up` uses the demo sign-in: anyone can be an
-  admin, so keep it off the internet. Company sign-in with OpenID Connect is in
-  [Run the image in production mode](docs/operations.md#run-the-image-in-production-mode) and
-  [How AI sign-in works](docs/ai-sign-in.md).
-- Agents on your computer connect today. Agents that run in the cloud need Heed at an address on the internet;
-  see [Connect an agent](docs/help/connect-an-agent.md).
-- The demo runs on scripted mock models and spends nothing. Ask's words and the test runs can use Anthropic,
-  directly or through Vercel's AI Gateway, chosen by an admin.
+**Works today**
+
+- The whole loop on the demo: write, review, publish, read over MCP, and gaps back to the owner.
+- Definitions from Cube and dbt MetricFlow, documents from Markdown in Git and Google Drive, and agents on your
+  computer over MCP, such as Claude Code.
+- Company sign-in with OpenID Connect ([Run the image in production mode](docs/operations.md#run-the-image-in-production-mode)
+  and [How AI sign-in works](docs/ai-sign-in.md)).
+
+**Not there yet**
+
+- **No measured result.** Heed has an [evaluation runner](docs/evaluations.md) and a golden set, but no published
+  figure for how much better an agent answers with Heed than without it.
+- **No hosted demo and no published docs site.** Run the demo yourself, and read the docs in this repository.
+- **Not tested on a named cloud host.** CI starts the images in production mode, but nobody has yet run them on AWS,
+  Railway or Fly ([Where to run Heed](docs/where-to-run.md)).
+- **Agents in the cloud** need Heed at an address on the internet: see [Connect an agent](docs/help/connect-an-agent.md).
+
+**Good to know**
+
+- The Docker demo uses the demo sign-in: anyone can be an admin, so keep it off the internet.
+- The demo runs on scripted mock models and spends nothing. Ask's words and the test runs can use Anthropic, directly
+  or through Vercel's AI Gateway, chosen by an admin.
 - Built with TypeScript on Node 26, Fastify, PostgreSQL 18, React 19 and the official MCP SDK.
 
 ## Contributing
 
-Open an issue first for anything bigger than a small fix, then send a pull request. [CONTRIBUTING.md](CONTRIBUTING.md)
-says how, and `npm run check` runs the type check, lint, format check and unit tests. Please follow the
+**The most useful change you can send is a connector.** [Writing a connector](docs/connectors/authoring.md) is
+written so a coding agent can follow it from top to bottom, and [CONTRIBUTING.md](CONTRIBUTING.md) has the prompt
+to start from. For anything else, open an issue first if it is bigger than a small fix, then send a pull request.
+`npm run check` runs the type check, lint, format check and unit tests. Please follow the
 [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Security

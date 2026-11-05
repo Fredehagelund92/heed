@@ -1,0 +1,13 @@
+# The demo from the published images, instead of building them on this computer (README, "Quick
+# start"). Everything else comes from compose.yaml:
+#
+#   docker compose -f compose.yaml -f compose.images.yaml up
+#
+# This runs the latest release, which can be behind this checkout. To run the code you have here,
+# use docker compose up.
+
+services:
+  heed:
+    image: ghcr.io/fredehagelund92/heed:latest
+  web:
+    image: ghcr.io/fredehagelund92/heed-web:latest

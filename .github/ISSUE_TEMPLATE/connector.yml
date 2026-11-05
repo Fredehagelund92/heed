@@ -1,0 +1,51 @@
+name: A connector
+description: A tool Heed should read, whether you want to build it or just need it.
+labels: [enhancement, connector]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A connector reads a tool Heed does not own: its definitions (metrics and dimensions), or its documents, which become suggestions for owners. It reads only, and stays inside one folder.
+
+        [Writing a connector](https://github.com/Fredehagelund92/heed/blob/main/docs/connectors/authoring.md) is the whole guide, written so a coding agent can follow it. Use made-up data here. Leave out real access keys, addresses and names.
+  - type: input
+    id: tool
+    attributes:
+      label: The tool
+      placeholder: Notion, LookML, a metrics catalogue
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What Heed would read
+      options:
+        - Definitions (metrics and dimensions)
+        - Documents (each one becomes a suggestion)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Where the input comes from
+      description: The tool's own built output is better than its source files. Is it a file in Git, a file in object storage, or an API? Link to the tool's documentation of it.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Who it helps
+      description: What does your team use the tool for, and what should an agent know that it can't see today?
+    validations:
+      required: true
+  - type: dropdown
+    id: building
+    attributes:
+      label: Will you build it?
+      options:
+        - Yes, with a coding agent
+        - Yes, by hand
+        - I'd like someone else to
+    validations:
+      required: true

@@ -19,7 +19,7 @@ git clone https://github.com/Fredehagelund92/heed.git && cd heed
 docker compose up -d --wait   # builds the images, prepares the database, waits until all is ready
 ```
 
-Then open http://localhost:8080. The first start takes a few minutes, as it builds both images and loads the demo.
+Then open http://localhost:8080. The first start builds both images and loads the demo, which can take ten minutes or more.
 
 To check it, `docker compose ps` shows each part `healthy`, and `docker compose logs heed` shows what the start did.
 
