@@ -1,6 +1,6 @@
 # Components: the inventory
 
-Part of the [design contract](design-contract.md). It lists every part a screen is built from, and the file of the approved mockup it comes from. Paths are relative to the mockup's `mockup/src` folder. In the app (`src/web`) the same paths hold, except the demo world: the mockup's `data/` is the app's mock binding (`api/mock`), with its types and pure rules in `model/`, and the app reads it through its API (`api/`).
+Part of the [design contract](design-contract.md). It lists every part a screen is built from, and the file of the approved mockup it comes from. Paths are relative to the mockup's `src` folder, in git history, under the tag `mockup-archive`. In the app (`src/web`) the same paths hold, except the demo world: the mockup's `data/` is the app's mock binding (`api/mock`), with its types and pure rules in `model/`, and the app reads it through its API (`api/`).
 
 Rules:
 
@@ -9,7 +9,7 @@ Rules:
 - **shadcn parts stay as shadcn ships them** (`components/ui`). Only these changes are made to them: the theme's tokens, the radius rules (frames use `--radius-frame`), the field fill that matches the 3:1 border, and the loading state of the button.
 - **Heed's own parts** are in `components/heed`, `components/obs` and the root of `components`. They are small, and each does one job.
 - The editor (`components/editor`) and the static renderer are third-party code in a trimmed form. They are not held to the copy rules.
-- **Icons** come from Lucide through one module in the app. The mockup imports Lucide directly; that moves into the module on import.
+- **Icons** come from Lucide through one module in the app.
 
 ## 1. shadcn primitives in use
 

@@ -1,13 +1,13 @@
 # Heed front end: design contract v2
 
-|             |                                                                                                                                                                                                                                                                   |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status      | v2, written from the approved Heed v1 mockup. It replaces Draft 1 (2026-10-07)                                                                                                                                                                                    |
-| Date        | 2026-10-25                                                                                                                                                                                                                                                        |
-| Applies to  | The React front end: Vite single-page app, shadcn on Base UI, Tailwind 4, Tiptap                                                                                                                                                                                  |
-| Written for | Engineers and coding agents that build screens, and the people who review them                                                                                                                                                                                    |
-| Governs     | How screens look, are laid out and behave. [The product page](../product.md) says what the product is. [The requirements](../requirements.md) say what it must do. Where they differ from this page, the mockup decides, and the document that differs gets a fix |
-| Companions  | [Motion](motion.md), [Copy](copy.md), [Accessibility](accessibility.md), [Components](components.md)                                                                                                                                                              |
+|             |                                                                                                                                                                                                                                                                |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status      | v2, written from the approved Heed v1 mockup. It replaces Draft 1 (2026-10-07)                                                                                                                                                                                 |
+| Date        | 2026-10-25                                                                                                                                                                                                                                                     |
+| Applies to  | The React front end: Vite single-page app, shadcn on Base UI, Tailwind 4, Tiptap                                                                                                                                                                               |
+| Written for | Engineers and coding agents that build screens, and the people who review them                                                                                                                                                                                 |
+| Governs     | How screens look, are laid out and behave. [The product page](../product.md) says what the product is. [The requirements](../requirements.md) say what it must do. Where they differ from this page, the app decides, and the document that differs gets a fix |
+| Companions  | [Motion](motion.md), [Copy](copy.md), [Accessibility](accessibility.md), [Components](components.md)                                                                                                                                                           |
 
 ## 0. One page summary
 
@@ -39,15 +39,15 @@
 
 ## 1. Authority and how to change this page
 
-**The mockup is the acceptance specification** until the real application switches over to it. The mockup is the Heed v1 mockup at commit `080cbc3`. Its Playwright job specs J1 to J30 and its unit tests are the golden checks (section 9). The first plan for the web app named J1 to J29; J30 (topics) is part of the same commit. If a screen of the app differs from the mockup, the app is wrong. If this page differs from the mockup, this page is wrong and gets a fix in the same change. [The product page](../product.md) records the reference and lists the specs.
+**The web app leads, and the mockup is a reference.** The mockup is the Heed v1 mockup, in git history, under the tag `mockup-archive`. The app's Playwright job specs in `tests/e2e` and its unit tests are the golden checks (section 9). If this page differs from the app, this page is wrong and gets a fix in the same change. [The product page](../product.md) records the reference and lists the specs.
 
-**The order of authority.** The mockup, then this contract and the product page, then the requirements specification. The requirements carry a status per id (kept, changed, withdrawn, new) so a reader knows which still stand.
+**The order of authority.** The app, then this contract and the product page, then the requirements specification. The requirements carry a status per id (kept, changed, withdrawn, new) so a reader knows which still stand.
 
-**Changing the contract.** A change to a token, a scale, a layout or a rule is one reviewed pull request that edits this file, the token file and the tests together. A screen pull request never changes a scale on its own. If the mockup changes, the reference commit in the product page changes with it.
+**Changing the contract.** A change to a token, a scale, a layout or a rule is one reviewed pull request that edits this file, the token file and the tests together. A screen pull request never changes a scale on its own.
 
 **Requirement words.** Must, should and may mean what they mean in the requirements specification.
 
-**The product's name.** One constant holds it (`PRODUCT` in the mockup's `lib/brand.ts`; `productName` in the app). A sentence never contains it: copy says "it", "agents", "your workspace" or "the checked context". The name appears only where it is the brand: the logo's label, sign-in and the page title. Addresses, the MCP server name, the command line and the Drive service account follow the constant. A rename or a white label is a one-line change. A lint rule reports a hand-written name. [Copy](copy.md) has the rest.
+**The product's name.** One constant holds it (`PRODUCT` in the web app's `lib/brand.ts`; `productName` in the service). A sentence never contains it: copy says "it", "agents", "your workspace" or "the checked context". The name appears only where it is the brand: the logo's label, sign-in and the page title. Addresses, the MCP server name, the command line and the Drive service account follow the constant. A rename or a white label is a one-line change. A lint rule reports a hand-written name. [Copy](copy.md) has the rest.
 
 ## 2. Tokens
 
@@ -64,7 +64,7 @@ The theme is shadcn's neutral theme with these changes only:
 Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`, `--mark-fmt`, `--mark-link`, `--mark-move`, each with a `-line` colour), and `--ok`, `--warn` and `--idle` for freshness and the list's trust ring. The chips' hues come from one place (section 5.7). `--caution-soft` is a soft caution fill (`oklch(0.978 0.024 80)` in light, `oklch(0.23 0.035 75)` in dark) used in one place only: behind a Conflict answer in the quick view's answers (section 5.3), where the answer line, the words and the caution ink keep their contrast on it.
 
 ```css
-/* tokens.css v2: values from the approved mockup (src/index.css) */
+/* tokens.css v2: values from the approved mockup */
 :root {
   color-scheme: light;
   --background: oklch(1 0 0);
@@ -302,7 +302,7 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 - Lucide icons are imported only in the icon module.
 - A second component base (`@radix-ui/*`), `vaul`, `framer-motion` and decorative animated sets are not used.
 
-**The chip.** One chip for everything that names a thing: 24 px high, a 6 px radius, the type's icon, tinted by what it names. A metric, a dimension, a market, a term and each domain has its own hue (`lib/tones.ts` in the mockup; the values move into tokens). Colour is never alone: the icon and the words stay. A mention chip never breaks across lines. A dashed chip means its target is gone (archived or deleted) and keeps the author's words. A synonym shows as a tag. A domain shows as a dot plus its name. Tags in the editor, Details, the list's Scope column, filters and mentions all use the same chip.
+**The chip.** One chip for everything that names a thing: 24 px high, a 6 px radius, the type's icon, tinted by what it names. A metric, a dimension, a market, a term and each domain has its own hue (`lib/tones.ts`; the values move into tokens). Colour is never alone: the icon and the words stay. A mention chip never breaks across lines. A dashed chip means its target is gone (archived or deleted) and keeps the author's words. A synonym shows as a tag. A domain shows as a dot plus its name. Tags in the editor, Details, the list's Scope column, filters and mentions all use the same chip.
 
 **The fold.** The section folds, Details, the panels' groups and the inline toggles open from one trigger (`components/heed/fold.tsx`). Three folds still have their own toggle: the list's group header rows, Overview's month rows in the topic table, and an integration's More settings. A section's fold is a full-width row at least 44 px tall, inside its heading where it has one: what it holds in 14 px at weight 500, a muted summary only while it is closed, and the chevron at the end, pointing down and turning half a turn as it opens. Hover is `bg-band-soft` and the focus ring is drawn inside the row. A toggle in a line of text (Ask's look-up, a figure's query, the Text diff's unchanged lines) keeps its size, with the same chevron and a 44 px area under a finger. A section header's fold is its chevron, with the whole header row as its target.
 
@@ -430,7 +430,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 | Guard              | Checks                                                                                                                                                                                                                   | Fails when                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| Golden job specs   | The mockup's J1 to J30 Playwright specs. Before the switch they run on the mock build. After it they run against the mock and the real service. They are the acceptance specification of this contract                   | A job fails in either mode           |
+| Golden job specs   | The app's Playwright specs in `tests/e2e`. They run on the mock build and against the real service. They are the acceptance specification of this contract                                                               | A job fails in either mode           |
 | Unit tests         | Copy rules read through the TypeScript syntax tree (no product name by hand, banned words, the six labels, the four kinds), the motion guard rails, agent reply, bulk, selection, connect timers, observability sums     | A rule is broken                     |
 | Class rules (lint) | Raw palette colours, numeric z-index, raw durations, `transition-all`, `ease-in`, `scale-0`, `ease-[...]`, arbitrary values outside the allowlist; viewport variants are banned inside anything that can sit in the dock | Any violation                        |
 | Token test         | Every token exists in light and dark; every pair meets 4.5:1 for text and 3:1 for controls and marks                                                                                                                     | A token is missing or a ratio is low |
@@ -455,7 +455,6 @@ Light, dark and system, from a small menu at the right end of every header. `the
 9. Text follows [Copy](copy.md): no product name in a sentence, plain English, the glossary's names.
 10. Motion uses the tokens and nothing moves that the person did not ask for. Reduced motion and dark mode were checked.
 11. The golden specs that touch this screen pass.
-12. A change to the mockup's behaviour is a new reference commit in the product page.
 
 ## 10. Open questions
 
@@ -511,7 +510,7 @@ Draft 1 is in the git history (`git show 0cb7b42:docs/design/design-contract.md`
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | 0 Summary                                                                                            | 0                                                                                    |
 | 1 Authority, words, vocabulary                                                                       | 1, and [Copy](copy.md)                                                               |
-| 2 Departures from the prototypes                                                                     | Withdrawn; the mockup is the reference                                               |
+| 2 Departures from the prototypes                                                                     | Withdrawn; the mockup, under the tag `mockup-archive`, is the reference              |
 | 3 Spacing and its lint (3.3)                                                                         | 2.4, and the class rules in 9                                                        |
 | 4 Layout (shell, breakpoints, widths, gutter, density)                                               | 3                                                                                    |
 | 5 Page templates                                                                                     | 3.8                                                                                  |

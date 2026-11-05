@@ -37,20 +37,19 @@ npx playwright install chromium       # once, for the browser tests
 Heed is one npm package, not a workspace. The layout is in the
 [folder map](docs/development.md#folder-map); the short version:
 
-| Folder              | What is in it                                                                     |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `src/web`           | The web app (React). Pages in `pages`, routes in `routes`, data in `api`          |
-| `src/server`        | The Heed service (Fastify, PostgreSQL 18), one folder per feature in `modules`    |
-| `src/domain`        | The item model and the words, pure code shared by both sides                      |
-| `src/contract`      | The API, defined once and used by the service and the app                         |
-| `tests/web`         | Unit tests for the web app, and the `HeedApi` suite that both bindings must pass  |
-| `tests/server`      | Unit tests for the service and the domain, without a database                     |
-| `tests/integration` | The service against a real PostgreSQL 18                                          |
-| `tests/e2e`         | Browser tests: the golden journeys and axe, on the mock build and in http mode    |
-| `db`                | Migrations, grants and the demo data (`db/seed`)                                  |
-| `docs`              | Everything written about Heed; `docs/help` is also the app's own Docs             |
-| `apps/mockup`       | The clickable mockup: the living design reference the web app is changed to match |
-| `apps/docs`         | The public docs site, built from the Markdown in `docs`                           |
+| Folder              | What is in it                                                                    |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `src/web`           | The web app (React). Pages in `pages`, routes in `routes`, data in `api`         |
+| `src/server`        | The Heed service (Fastify, PostgreSQL 18), one folder per feature in `modules`   |
+| `src/domain`        | The item model and the words, pure code shared by both sides                     |
+| `src/contract`      | The API, defined once and used by the service and the app                        |
+| `tests/web`         | Unit tests for the web app, and the `HeedApi` suite that both bindings must pass |
+| `tests/server`      | Unit tests for the service and the domain, without a database                    |
+| `tests/integration` | The service against a real PostgreSQL 18                                         |
+| `tests/e2e`         | Browser tests: the golden journeys and axe, on the mock build and in http mode   |
+| `db`                | Migrations, grants and the demo data (`db/seed`)                                 |
+| `docs`              | Everything written about Heed; `docs/help` is also the app's own Docs            |
+| `apps/docs`         | The public docs site, built from the Markdown in `docs`                          |
 
 ## Run it
 
@@ -145,7 +144,7 @@ for the same build, so go by the margin CI prints.
   ([Validation tiers](docs/development.md#validation-tiers)). Changes to `db`, `src/server`,
   sign-in, security or dependencies run everything and get a closer read.
 - Reviewers look at the same things the template asks: is the problem real, is the change small
-  and tested, do the words follow the glossary, do the screens match the mockup.
+  and tested, do the words follow the glossary, do the screens follow the design contract.
 - Push fixes as new commits while a review is open. The history on `main` is one commit per pull
   request, titled like `feat(web): ...`, `fix(server): ...` or `docs: ...`. The title is also the
   line in `CHANGELOG.md` and the release notes ([Releasing Heed](docs/releasing.md)).
@@ -180,8 +179,9 @@ request and explain why; do not work around it.
 
 ## Which rules apply
 
-The web app (`src/web`) leads; the approved Heed v1 mockup it was built from is a reference. Its
-rules are in [the design contract v2](docs/design/design-contract.md), with [motion](docs/design/motion.md),
+The web app (`src/web`) leads; the approved Heed v1 mockup it was built from is a reference in
+git history, under the tag `mockup-archive`. The app's rules are in
+[the design contract v2](docs/design/design-contract.md), with [motion](docs/design/motion.md),
 [copy](docs/design/copy.md), [accessibility](docs/design/accessibility.md) and
 [components](docs/design/components.md), and the product in [docs/product.md](docs/product.md).
 Its behaviour is checked against the golden journeys in `tests/e2e`.
@@ -199,7 +199,7 @@ Its behaviour is checked against the golden journeys in `tests/e2e`.
 
 ## The class rules
 
-Tailwind's spacing and text scales, and weights 400 to 700, are allowed as the mockup uses them.
+Tailwind's spacing and text scales, and weights 400 to 700, are allowed.
 `eslint.class-rules.js` reports the rest, one rule each, with the fix in its message:
 
 - an arbitrary value (`w-[13px]`) or property, except a token by its variable

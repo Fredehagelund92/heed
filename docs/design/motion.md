@@ -42,7 +42,7 @@ One block in the token file does all of it. It sets every duration token to 0 (a
 
 ## Banned
 
-These are checked by a unit test (`src/lib/motion.test.ts` in the mockup) and become lint rules in the app:
+These are lint rules in the app:
 
 - a raw `duration-NNN` or `delay-NNN`;
 - `transition-all`, `ease-in`, `ease-linear` for movement, an arbitrary `ease-[...]`, `scale-0`;

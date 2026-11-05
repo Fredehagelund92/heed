@@ -42,7 +42,7 @@ export class ErrorBoundary extends React.Component<
           <EmptyTitle>{load ? "This page didn't load" : 'This page hit an error'}</EmptyTitle>
           <EmptyDescription>
             {load
-              ? "This page's code couldn't be fetched. If you run the mockup locally, check that the dev server is still running, then reload."
+              ? "This page's code couldn't be fetched. If you run the app locally, check that the dev server is still running, then reload."
               : 'Something on this page failed. Reload to start the demo again.'}
           </EmptyDescription>
         </EmptyHeader>

@@ -4,9 +4,9 @@ Everything written about Heed, in one place. If you are new, start with the prod
 
 ## Product and design (Heed v1)
 
-The web app leads: these pages say what it does. They were first written from the approved Heed v1 mockup, which is now a reference. Read them in this order.
+The web app leads: these pages say what it does. They were first written from the approved Heed v1 mockup, which is now a reference in git history, under the tag `mockup-archive`. Read them in this order.
 
-The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state as it was designed, with demo data and no backend. The app has since moved past it in places on purpose, such as Overview holding the topics and Conflicts being a filter of the Context list, and the mockup is not changed to follow ([its job specs](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
+The mockup is a clickable version of every screen and state as it was designed, with demo data and no backend. The app has since moved past it in places on purpose, such as Overview holding the topics and Conflicts being a filter of the Context list, and the mockup is not changed to follow.
 
 | Page                                            | What it says                                                                                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -68,4 +68,4 @@ Older design pages that still apply:
 2. [Product](product.md) and the [design contract v2](design/design-contract.md), which say what it does and are changed with it.
 3. The [requirements](requirements.md), which are changed to match both.
 
-The Heed v1 mockup, in [apps/mockup](../apps/mockup/README.md), is a reference for the design (its commit is recorded in [Product](product.md#14-the-acceptance-reference)). Where the app and the mockup differ, the app and these documents are right.
+The Heed v1 mockup, in git history, under the tag `mockup-archive`, is a reference for the design ([Product](product.md#14-the-acceptance-reference)). Where the app and the mockup differ, the app and these documents are right.

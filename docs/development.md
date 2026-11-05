@@ -5,12 +5,12 @@ How the repository is laid out, how to run the front end, the commands, what CI 
 ## The two parts
 
 The repository holds two parts. The **web app** in `src/web` began as the approved mockup
-(`apps/mockup`, now a reference) on the repository's router, icon module, class merge
+(now a reference in git history, under the tag `mockup-archive`) on the repository's router, icon module, class merge
 and lint. Its screens are listed with their addresses in [docs/product.md](product.md), section 5:
 the Inbox and the review, Ask, Context, Definitions, Observability, Settings, Help and the docs, the
 sign-in page and an agent's consent page. Its pages read their data through one typed interface,
 `HeedApi` (`src/web/api/client.ts`), with TanStack Query: the mock binding answers from the
-mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
+demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
 `?slow=1`, `?demo=` and the rest), and the http binding talks to the service. `npm run dev` runs it
 on the mock; `npm run dev:http` takes the http binding, which answers the wired methods
 (`wiredMethods` in `src/web/api/http.ts`).
@@ -73,8 +73,8 @@ To run the whole product instead, with its database and your own Cube model, see
 | Area        | What                                                                                                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | App         | Vite 8 single page app, React 19, TypeScript strict mode                                                                                                                               |
-| Routes      | TanStack Router, file based (`src/web/routes`), with zod search params, one to one with the mockup's addresses ([docs/product.md](product.md), section 5); old addresses redirect      |
-| Data        | TanStack Query on one API boundary, `HeedApi`, with two bindings: the mock over the mockup's demo world, and the Heed service through a client typed from the API contract             |
+| Routes      | TanStack Router, file based (`src/web/routes`), with zod search params ([docs/product.md](product.md), section 5); old addresses redirect                                              |
+| Data        | TanStack Query on one API boundary, `HeedApi`, with two bindings: the mock over the demo world, and the Heed service through a client typed from the API contract                      |
 | Shell       | Sidebar (Inbox, Ask, Context, Definitions; Help, Observability and Settings at its foot) that folds to a rail, a header with the breadcrumb and the theme menu, one right dock, search |
 | Components  | shadcn/ui on Base UI (style `base-nova`), Heed's own parts in `components/heed`, a Tiptap editor, sonner toasts                                                                        |
 | Styling     | Tailwind 4 with the tokens in one file, `src/web/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
@@ -153,7 +153,7 @@ reads.
 
 Both bindings pass one conformance suite (`tests/web/conformance/heed-api.ts`): the mock in
 `npm test`, the http binding against PostgreSQL in `npm run test:integration`, for the methods it
-wires (`wiredMethods` in `src/web/api/http.ts`), on the mockup's demo week
+wires (`wiredMethods` in `src/web/api/http.ts`), on the demo week
 (`tests/web/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
 people wrote in Definitions, and the suggestions waiting for Jon Abara, sent through the service's
 own API, with Lars Dahl's suggestion to archive that he took back in the comments. A method added
@@ -202,7 +202,7 @@ src/
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev and OpenID Connect sign-in, sessions and roles), oauth,
       access-keys, agents and the rest, one folder each
-  web/            the web app: the mockup's shell and pages on a typed API
+  web/            the web app: its shell and pages on a typed API
     api/            HeedApi (client.ts) and its method list, the query factories and what each write
                     makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
       mock/           the demo world: its fixtures (data/), its state, and its review flags (scenario.ts)
@@ -226,7 +226,6 @@ tests/
 docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
-apps/mockup/      the clickable mockup the app was built from, now a reference: its own package (apps/mockup/README.md)
 apps/docs/        the public docs site, built from the pages in docs/ that are ready for readers: its own package (apps/docs/README.md)
 ```
 
@@ -294,9 +293,8 @@ A pull request takes the highest tier any of its files falls in.
 | Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                                             |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Docs      | `docs/**`, `apps/docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the apps read: `docs/help`, `docs/templates` and `docs/api`                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), build and the docs site with its links |
-| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                                        |
 | Medium    | Anything else: the web app, the domain, the contract, the tests, scripts and configuration                                                                                                                                              | Every app job: the checks, the service tests, the golden job specs in both modes, the demo install, the Docker images |
-| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                   |
+| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything                                                                                                            |
 
 Every tier also runs the security scan (known vulnerabilities in dependencies, and secrets in the
 history), the held-out seal and the migration numbers check. A path no rule names counts as Medium,
@@ -414,7 +412,7 @@ variants own control height, type and radius; feature code never overrides them.
 
 These are enforced by lint and tests, not by good intentions. `CONTRIBUTING.md` has the detail.
 
-- Tailwind's spacing and text scales, and weights 400 to 700, as the mockup uses them.
+- Tailwind's spacing and text scales, and weights 400 to 700.
 - No arbitrary Tailwind values outside a short list of named tokens, no raw palette colours, no
   numeric layers, no raw motion, no inline `style` for spacing or colour.
 - Colour, radius, shadow, motion and the layout metrics come from `src/web/styles/tokens.css`,
@@ -458,7 +456,7 @@ package is there.
   Docker image builds it.
 - Dependency scanning (OSV-Scanner) passes with three reviewed exceptions: two in `extract-zip`,
   which the Cube compiler loads but never calls, and one in `deepmerge`, which only the shadcn CLI
-  and the mockup's build tooling load, for their own configuration files. They are listed with
+  loads, for its own configuration files. They are listed with
   their reasons and an expiry date in `osv-scanner.toml`. None has a fixed version. `npm audit` shows the same findings;
   `.npmrc` turns off the audit on install, so look at it on purpose.
 - axe passes on every place, but it does not replace a keyboard and screen reader review.

@@ -65,7 +65,7 @@
 
 ## Status of each requirement (Heed v1)
 
-The approved Heed v1 mockup decides the product (see [the product page](product.md) and [the design contract](design/design-contract.md)). Each requirement table has a **Status** column that says how the requirement stands against the mockup. No id is renumbered or removed. A new id continues the range of its table.
+These requirements were amended to the approved Heed v1 mockup, now a reference in git history, under the tag `mockup-archive`: the app leads (see [the product page](product.md) and [the design contract](design/design-contract.md)). Each requirement table has a **Status** column that says how the requirement stands against the mockup. No id is renumbered or removed. A new id continues the range of its table.
 
 | Status | Meaning |
 | --- | --- |
@@ -74,7 +74,7 @@ The approved Heed v1 mockup decides the product (see [the product page](product.
 | Withdrawn | The mockup does not have it. It is not built. |
 | New | Added for the mockup. |
 
-Where two requirements disagree, the changed one, the new one and the mockup win over the older text.
+Where two requirements disagree, the changed one and the new one win over the older text.
 
 **Changed or withdrawn, and why.**
 
@@ -944,7 +944,7 @@ The first two digits of an NFR number show its area. The areas are 01 simplicity
 | NFR-084 | Each decision in section 17 must have a short written decision record. | First build | Kept |
 | NFR-085 | A new service or data store must not be added without a decision record. | First build | Kept |
 | NFR-086 | Dependencies must be open source with permissive licenses. A dependency with another license needs a decision record. | First build | Kept |
-| NFR-087 | The golden job specs (J1 to J30 of the approved mockup) must pass in mock mode and against the real service before a release. | First build | New |
+| NFR-087 | The golden job specs (`tests/e2e`) must pass in mock mode and against the real service before a release. | First build | New |
 
 ### 8.9 Neutrality and no lock-in
 
