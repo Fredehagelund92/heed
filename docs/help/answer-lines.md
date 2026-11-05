@@ -28,7 +28,7 @@ A question that names no metric and no market is not looked up, so its answer ha
 
 A question about the context itself, such as "what was created in the last 24 hours?", "what is due for a check in Sales?" or "who owns Orders?", gets an answer from the records instead. It starts with a Records chip, not one of the six lines: it counts what you can see in Context, and agents never read it.
 
-Ask also reads the records to say what is missing, out of date, in conflict or without an owner, such as "what definitions are missing?" or "what is waiting on me?". Every count there comes with the total it is out of, and the answer says what it cannot see. A topic agents asked about only a few times is not shown. A question beyond what is written, such as "should we restart the Norway campaign?", gets a fixed sentence saying so, followed by what is written. Ask does not give advice of its own, and Heed keeps no numbers, so for numbers use an agent with your data tool.
+Ask also reads the records to say what is missing, out of date, in conflict or without an owner, such as "what definitions are missing?" or "what is waiting on me?". Every count there comes with the total it is out of, and the answer says what it cannot see. A topic agents asked about only a few times is not shown. A question beyond what is written, such as "should we restart the Norway campaign?", gets a fixed sentence saying so, followed by what is written. Ask does not give advice of its own, and Ask keeps no numbers, so for numbers use an agent with your data tool.
 
 ## Words
 
