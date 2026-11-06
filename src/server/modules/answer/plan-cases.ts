@@ -772,7 +772,7 @@ export async function askPlanCase(
   const define =
     routed.kind === 'reads'
       ? routed.planned.defines
-      : routed.kind === 'rules' && (asksDefinitionInAsk(c.question) || !routed.answer.items.length)
+      : routed.kind === 'rules' && (asksDefinitionInAsk(c.question))
         ? (routed.answer.scope?.metrics ?? [])
         : []
   return {
