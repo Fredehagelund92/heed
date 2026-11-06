@@ -1355,6 +1355,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   // stands for Not found, and one quiet line says nothing else is written.
   const lead =
     !draft &&
+    answer.reply !== 'cannot' &&
     !!answer.definitions?.some((d) => d.words) &&
     asksWhatItIs(askedOf(answer), { values: answer.markets.length > 0, dates: !!answer.dates })
       ? answer.definitions
@@ -1369,7 +1370,9 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
         ),
         definitionOnly ? `Nothing else is written about ${defined} yet.` : answer.text,
       ].join('\n\n')
-    : answer.text
+    : answer.limit
+      ? `${answer.limit.sentence}\n\n${answer.text}`
+      : answer.text
   // The two items that disagree, as the answer numbers them: named in the state's card.
   const disagree =
     answer.state === 'conflict'
@@ -1420,8 +1423,14 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
             {note && <p className="text-sm text-muted-foreground">{note}</p>}
           </div>
         )}
+      {/* What the question reaches for is not written: said first, then what is. */}
+      {answered && answer.limit && (
+        <p data-answer-limit className="max-w-reading text-base leading-chat font-medium">
+          {answer.limit.sentence}
+        </p>
+      )}
       {/* What the metric means, from its source, beside an answer about its data. */}
-      {answered && !lead && answer.definitions && (
+      {answered && !lead && answer.definitions && answer.reply !== 'cannot' && (
         <div className="animate-in duration-(--dur-3) fade-in-0">
           <AnswerDefinitions definitions={answer.definitions} />
         </div>
@@ -1465,6 +1474,23 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           ))}
         </p>
       )}
+      {/* What Ask cannot do says it first: what it shows instead sits under that sentence. */}
+      {answered && answer.reply === 'cannot' && answer.definitions && (
+        <AnswerDefinitions definitions={answer.definitions} />
+      )}
+      {answered && answer.write && (
+        <p className="text-sm">
+          <a
+            href={href('/context/new', {
+              metric: answer.write.metric ?? undefined,
+              market: answer.write.market ?? undefined,
+            })}
+            className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Write context
+          </a>
+        </p>
+      )}
       {/* The sources are the engine's, in with its answer; a model's words never change them. Then
             what was looked up, which opens What agents get. */}
       {answered && (
@@ -1496,6 +1522,11 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
             </Button>
+          )}
+          {answer.reading?.left && (
+            <p className="text-sm text-muted-foreground">
+              Not answered here: {answer.reading.left}
+            </p>
           )}
           {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
           {view?.kind === 'against' && (

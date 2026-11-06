@@ -5,6 +5,6 @@ export {
   type UnderPolicy,
 } from './service.ts'
 export { draftOf } from './checks.ts'
-export { waitingMembers, type WaitingMember } from './vocabulary.ts'
+export { unlinkedMembers, waitingMembers, type WaitingMember } from './vocabulary.ts'
 export { createReviewPath, type ReviewPath } from './path.ts'
 export { loadProposal, type LoadedProposal } from './records.ts'

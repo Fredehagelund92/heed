@@ -1,11 +1,18 @@
 import * as React from 'react'
-import type { RecordsAnswer, RecordsFound, RecordsKind, RecordsRow } from '@domain/records-answer'
+import type {
+  RecordsAnswer,
+  RecordsFound,
+  RecordsKind,
+  RecordsRow,
+  RecordsSection,
+} from '@domain/records-answer'
 import type { RecordsParts } from '@/components/heed/records-parts'
 
 // A records answer in Ask (FR-718): a question about the context's own records, counted from what
 // the person may see. It has no answer state: a Records chip and one source sentence say where it
 // comes from, then the answer in one plain sentence, and at most five rows with links, or a small
-// table of counts. Context keeps the full list. Loaded with the first records answer, so Ask's first
+// table of counts. An analysis (FR-720) has up to four sections of them instead, the rule behind a
+// ranking and what the read cannot see. Context keeps the full list. Loaded with the first records answer, so Ask's first
 // load does not carry it; the parts it shares with Ask come from Ask itself (records-parts.ts), so
 // loading it apart leaves Ask's own first load as it was.
 
@@ -54,12 +61,50 @@ function KindGlyph({ kind }: { kind: RecordsKind }) {
   )
 }
 
+/** Where a list lives, as an address. */
+function moreTo(
+  more: NonNullable<RecordsFound['more']>,
+  href: ReturnType<typeof useParts>['href'],
+) {
+  return more.to === 'context'
+    ? href('/context', {
+        domain: more.domain ?? undefined,
+        due: more.status === 'due' ? '1' : undefined,
+        status: more.status === 'archived' ? 'archived' : undefined,
+        show: more.status === 'conflicts' ? 'conflicts' : undefined,
+      })
+    : more.to === 'inbox'
+      ? '/inbox'
+      : more.to === 'definitions'
+        ? more.page
+          ? `/definitions/${encodeURIComponent(more.page)}`
+          : href('/definitions', { domain: more.domain ?? undefined })
+        : `/settings/domains/${more.domain}`
+}
+
 /**
  * Where a row leads: a context item, a domain's page, a term's page in Definitions, a conflict's
  * own page, or the Not found card open on a topic.
  */
 function RowName({ row }: { row: RecordsRow }) {
   const { href, cn } = useParts()
+  if (row.type === 'pair')
+    return (
+      <span className="min-w-0">
+        <ItemLink id={row.holder.id} title={row.holder.title} className="text-foreground" />
+        <span className="text-muted-foreground"> and </span>
+        <ItemLink id={row.other.id} title={row.other.title} className="text-foreground" />
+      </span>
+    )
+  if (row.type === 'member') return <span>{row.name}</span>
+  if (row.type === 'line')
+    return row.more ? (
+      <a href={moreTo(row.more, href)} className={cn(link, 'text-foreground')}>
+        {row.label}
+      </a>
+    ) : (
+      <span>{row.label}</span>
+    )
   if (row.type === 'item')
     return (
       <span className="flex min-w-0 items-start gap-2">
@@ -119,16 +164,22 @@ const rowKey = (row: RecordsRow) =>
       ? row.key
       : row.type === 'topic'
         ? row.title
-        : (row.kind ?? 'all')
+        : row.type === 'pair'
+          ? `${row.holder.id}.${row.other.id}`
+          : row.type === 'member'
+            ? row.name
+            : row.type === 'line'
+              ? row.label
+              : (row.kind ?? 'all')
 
 /**
  * The rows: a small table where there is room, and on a narrow screen or in the right panel each
  * row stacked, its name first and then what each column says.
  */
-function RecordsRows({ found }: { found: RecordsFound }) {
+function RecordsRows({ found }: { found: Pick<RecordsFound, 'columns' | 'rows'> }) {
   const { cn } = useParts()
   const [first, ...rest] = found.columns
-  const counts = found.rows[0]?.type === 'kind'
+  const counts = found.rows[0]?.type === 'kind' || found.rows[0]?.type === 'line'
   return (
     <div className="@container">
       <div
@@ -183,16 +234,16 @@ function RecordsRows({ found }: { found: RecordsFound }) {
         {found.rows.map((row) => (
           <li
             key={rowKey(row)}
-            className="flex min-h-11 flex-col gap-0.5 border-t px-3 py-2 first:border-t-0"
+            className="flex min-h-11 flex-col justify-center gap-0.5 border-t px-3 py-2 first:border-t-0"
           >
             <RowName row={row} />
-            <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
-              {row.cells.map((cell, i) => (
-                <span key={i}>
-                  {rest[i]} {cell}
-                </span>
-              ))}
-            </span>
+            {row.cells.length > 0 && (
+              <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
+                {row.cells.map((cell, i) => (
+                  <span key={i}>{row.type === 'line' ? cell : `${rest[i]} ${cell}`}</span>
+                ))}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -201,24 +252,11 @@ function RecordsRows({ found }: { found: RecordsFound }) {
 }
 
 /** Where the full list lives, with what the rows are of it. */
-function More({ found }: { found: RecordsFound }) {
+function More({ found }: { found: Pick<RecordsFound, 'more' | 'shown'> }) {
   const { href, cn, ArrowUpRightIcon } = useParts()
   const { more, shown } = found
   if (!more && !shown) return null
-  const to = !more
-    ? null
-    : more.to === 'context'
-      ? href('/context', {
-          domain: more.domain ?? undefined,
-          due: more.status === 'due' ? '1' : undefined,
-          status: more.status === 'archived' ? 'archived' : undefined,
-          show: more.status === 'conflicts' ? 'conflicts' : undefined,
-        })
-      : more.to === 'definitions'
-        ? more.page
-          ? `/definitions/${encodeURIComponent(more.page)}`
-          : href('/definitions', { domain: more.domain ?? undefined })
-        : `/settings/domains/${more.domain}`
+  const to = more ? moreTo(more, href) : null
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
       {more && to && (
@@ -229,6 +267,19 @@ function More({ found }: { found: RecordsFound }) {
       )}
       {shown && <span className="text-xs text-muted-foreground">{shown}</span>}
     </p>
+  )
+}
+
+/** One part of an analysis: what it counts with its denominator, its rows and where the rest is. */
+function RecordsPart({ section }: { section: RecordsSection }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-2">
+      <h3 className="text-sm font-medium text-pretty">
+        {section.title}: <span className="font-normal tabular-nums">{section.count}</span>
+      </h3>
+      {section.rows.length > 0 && <RecordsRows found={section} />}
+      <More found={section} />
+    </section>
   )
 }
 
@@ -290,6 +341,11 @@ function RecordsBody({
         <RecordsChip />
         <p className="text-sm text-muted-foreground">Counted from the workspace&apos;s records.</p>
       </div>
+      {records.limit && (
+        <p data-answer-limit className="text-base font-medium text-pretty">
+          {records.limit.sentence}
+        </p>
+      )}
       <p className="text-base font-semibold text-pretty">{records.sentence}</p>
       {records.period?.assumed && (
         <p className="-mt-1.5 text-sm text-muted-foreground">
@@ -309,8 +365,22 @@ function RecordsBody({
       )}
       {records.rows.length > 0 && <RecordsRows found={records} />}
       <More found={records} />
+      {records.sections && (
+        <div className="mt-1 flex flex-col gap-5">
+          {records.sections.map((section) => (
+            <RecordsPart key={section.title} section={section} />
+          ))}
+        </div>
+      )}
+      {records.clear?.map((line) => (
+        <p key={line} className="text-sm text-muted-foreground">
+          {line}
+        </p>
+      ))}
+      {records.ranked && <p className="text-sm">{records.ranked}</p>}
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         {records.note && <p>{records.note}</p>}
+        {records.notSeen && <p>{records.notSeen}</p>}
         <p>Agents did not read this answer. It says nothing about what they get.</p>
       </div>
     </div>

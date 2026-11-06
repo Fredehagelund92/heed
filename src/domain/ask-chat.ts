@@ -1,4 +1,5 @@
 import type { AnswerState } from './answer.ts'
+import type { AuditRead } from './records-answer.ts'
 import type { HeldScope, ResolvedScope } from './scope.ts'
 import type { WordMeaning } from './vocabulary.ts'
 
@@ -65,6 +66,10 @@ export type ChatTurn = {
   state?: AnswerState | null | undefined
   /** What it answered in one sentence, from a template: never an item's words or a data value. */
   headline?: string | null | undefined
+  /** The analysis it was read as, when it was one, for a follow-up to carry. */
+  audit?: AuditRead | null | undefined
+  /** The terms an analysis listed, by key, in order: never their text. */
+  rows?: string[] | undefined
 }
 
 const charsOf = (t: ChatTurn) =>
@@ -72,6 +77,7 @@ const charsOf = (t: ChatTurn) =>
   (t.understood?.length ?? 0) +
   (t.headline?.length ?? 0) +
   (t.asked?.length ?? 0) +
+  (t.rows?.join('').length ?? 0) +
   t.sources.join('').length
 
 /** The turns the planner may read, oldest first: the newest that fit both caps. */

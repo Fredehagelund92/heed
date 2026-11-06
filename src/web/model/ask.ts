@@ -1,6 +1,6 @@
 import { CHAT_LINE, CHAT_SOURCES, type ChatTurn, type HeldReading } from '@domain/ask-chat'
 import { notLookedUp } from '@domain/say'
-import type { RecordsAnswer } from '@domain/records-answer'
+import type { AnswerLimit, RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
@@ -172,6 +172,8 @@ export type Answer = {
     standalone?: string
     /** Where the dates came from, as the service read them. */
     period?: 'asked' | 'carried' | 'today' | 'recent' | 'any' | null
+    /** The part of the question these reads do not answer, as a short question (FR-720). */
+    left?: string
     /** The person said which meaning of a word they meant: read by the rules, with no model. */
     settled?: { also: string | null }
     /** On the mock binding, what the working line said while the reads ran (the service sends it). */
@@ -179,12 +181,16 @@ export type Answer = {
   }
   /**
    * No answer from the context: a short question Ask asked back (`clarify`), a question off
-   * topic, or a message that asks nothing. Nothing was looked up, so there is no state; `text` says
-   * it.
+   * topic, a message that asks nothing, or what Ask cannot do (`cannot`, FR-720). Nothing was
+   * looked up, so there is no state; `text` says it.
    */
-  reply?: 'clarify' | 'off_topic' | 'nothing_asked'
+  reply?: 'clarify' | 'off_topic' | 'nothing_asked' | 'cannot'
   /** A question back about a word's meanings: what the next question sends back with its answer. */
   held?: HeldReading
+  /** What a draft would start from, for a question that asks Ask to write context. */
+  write?: { metric: string | null; market: string | null }
+  /** The fixed sentence it leads with when the question reaches beyond what is written (FR-720). */
+  limit?: AnswerLimit
   /**
    * The last question, asked again because the person said so in words ("try again"): what was
    * asked. `question` and `parts` stay what they typed.
@@ -237,6 +243,12 @@ function headlineOf(a: Answer) {
 const datedOf = (a: Answer) =>
   a.reading ? a.reading.period === 'asked' || a.reading.period === 'carried' : !!a.dates
 
+/** The terms an analysis listed, by key, in order: what "the first one" points at. */
+const rowKeysOf = (records: Extract<RecordsAnswer, { refused: false }>) =>
+  [...records.rows, ...(records.sections ?? []).flatMap((s) => s.rows)].flatMap((row) =>
+    row.type === 'term' ? [row.key] : [],
+  )
+
 /** What a turn sends on to the next question: none for one that asked nothing. */
 export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
   askedOf(a).trim() && a.reply !== 'nothing_asked'
@@ -252,6 +264,9 @@ export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
           ? {
               domain: a.records.domain?.id ?? null,
               period: a.records.period?.assumed === false ? a.records.period.words : null,
+              ...(a.records.audit
+                ? { audit: a.records.audit, rows: rowKeysOf(a.records).slice(0, CHAT_SOURCES) }
+                : {}),
             }
           : {}),
         ...(a.reply === 'clarify' ? { asked: a.text } : {}),
@@ -285,7 +300,13 @@ export const recordsAnswer = (
  */
 export const replyAnswer = (
   question: string,
-  reply: { kind: NonNullable<Answer['reply']>; text: string; held?: HeldReading | undefined },
+  reply: {
+    kind: NonNullable<Answer['reply']>
+    text: string
+    held?: HeldReading | undefined
+    definitions?: readonly { name: string; words: string | null; tool: string }[]
+    write?: Answer['write']
+  },
 ): Answer => ({
   id: 'custom',
   question,
@@ -296,6 +317,12 @@ export const replyAnswer = (
   sources: [],
   said: '',
   reply: reply.kind,
+  ...(reply.definitions?.length
+    ? {
+        definitions: reply.definitions.map((d) => ({ name: d.name, words: d.words, tool: d.tool })),
+      }
+    : {}),
+  ...(reply.write ? { write: reply.write } : {}),
   ...(reply.held ? { held: reply.held } : {}),
 })
 
@@ -419,6 +446,8 @@ export type AskedRow = {
   times: number
   /** How often, as shown: "31", or "13+" when a month under 5 would be given away. */
   count: string
+  /** How many of this week's calls delivered nothing; null under the minimum. */
+  nothing: number | null
   state: AnswerState
   sources: number
   /** For an owner of the topic's domain, on a Not found row: the draft or the suggestion that waits. */

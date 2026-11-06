@@ -87,6 +87,7 @@ import {
   createReviewPath,
   createReviewService,
   type ReviewService,
+  unlinkedMembers,
 } from '../modules/review/index.ts'
 import { createConflictsService } from '../modules/conflicts/index.ts'
 import { createContextService } from '../modules/context/index.ts'
@@ -1184,6 +1185,13 @@ export function createRouter({
             }),
             hidden: () => hiddenDefinitions(context.tx),
             conflicts: () => context.conflicts.list({ whose: 'all' }),
+            catalogue: () => context.catalogue.list(),
+            members: () => unlinkedMembers(context.tx),
+            queue: async () => (await context.cards.feed('needs')).groups,
+            glossary: async () =>
+              (await context.terms.list()).terms.flatMap((t) =>
+                t.meaning ? [{ name: t.name, meaning: t.meaning }] : [],
+              ),
           },
         })
       }),

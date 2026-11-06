@@ -237,10 +237,12 @@ function engineAnswerOf(
             carried: a.reading.carried,
             period: a.reading.period,
             ...(a.reading.standalone ? { standalone: a.reading.standalone } : {}),
+            ...(a.reading.left ? { left: a.reading.left } : {}),
             ...(a.reading.settled ? { settled: a.reading.settled } : {}),
           },
         }
       : {}),
+    ...(a.limit ? { limit: a.limit } : {}),
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'
@@ -371,6 +373,7 @@ export function askedWeekOf(asked: Asked | null, names: Names): AskedWeek {
       question: questionAbout(r.title),
       times: r.count ?? r.atLeast,
       count: r.count === null ? `${r.atLeast}+` : String(r.count),
+      nothing: r.nothing,
       state: r.state,
       sources: r.items,
       // A Not found card with a draft is named by its draft (the Inbox's own naming).

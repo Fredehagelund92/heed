@@ -3,9 +3,11 @@ import { asksNothing, nothingAskedSaid } from './ask-again.ts'
 import { chatSources, fitChat, type ChatTurn, type HeldReading, type HeldWord } from './ask-chat.ts'
 import { chosenMeanings, heldOf, settled } from './ask-held.ts'
 import {
+  asksUndefinedWords,
   asksWhy,
   checkPlan,
   leftOpen,
+  limitOf,
   plannerPrompt,
   plannerReason,
   plannerSystem,
@@ -24,8 +26,10 @@ import {
   type PlannedAnswer,
   type PlannedBundle,
 } from './planned-answer.ts'
-import type { RecordsRecognition } from './records.ts'
+import { limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
+import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
 import {
+  cannotSaid,
   contestedAlso,
   contestedQuestion,
   offTopicSaid,
@@ -46,11 +50,14 @@ import { namesOf, normalizeName } from './vocabulary.ts'
 
 /** What the planner reads: its instructions, the vocabulary, and the question with the chat. */
 export type PlannerInput = { system: string; vocabulary: string; prompt: string }
-/** The planner: the checked plan for a question, or null to answer it as with no model. */
+/**
+ * The planner: the checked plan for a question, null to answer it as with no model, or `missed`
+ * when it was asked and gave none (a limit, a slow provider, a plan that failed the check).
+ */
 export type Planner = (
   input: PlannerInput,
   check: (raw: unknown) => PlanCheck,
-) => Promise<AskPlan | null>
+) => Promise<AskPlan | null | 'missed'>
 
 /** A bundle Ask's reads run on, with its domains. */
 export type RouteBundle = PlannedBundle & { areas: readonly { id: string; name: string }[] }
@@ -112,6 +119,7 @@ export function chatOf(
       ...rest,
       ...(held ? { held } : {}),
       scope,
+      ...(turn.rows ? { rows: turn.rows.filter((key) => keys.has(key)) } : {}),
       domain: bundle.areas.some((a) => a.id === turn.domain) ? turn.domain : null,
       sources: turn.sources.filter((id) => {
         const item = byId.get(id)
@@ -156,6 +164,7 @@ export function plannerInputOf(
         return [{ title: item.title, kind: item.kind, number }]
       }),
       ...(turn.asked ? { asked: turn.asked } : {}),
+      ...(turn.rows?.length ? { rows: turn.rows } : {}),
     }
   })
   const [previous = null, ...earlier] = newestFirst
@@ -171,7 +180,7 @@ export function planContextOf(
   bundle: RouteBundle,
   question: string,
   turns: readonly ChatTurn[],
-  moment: { today: string; now: string },
+  moment: { today: string; now: string; business?: boolean },
 ): PlanContext {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
   return {
@@ -180,6 +189,7 @@ export function planContextOf(
     areas: bundle.areas,
     today: moment.today,
     now: moment.now,
+    ...(moment.business ? { business: true } : {}),
     previous: turns.at(-1) ?? null,
     earlier: turns.slice(0, -1),
     readable: (id) => {
@@ -189,10 +199,43 @@ export function planContextOf(
   }
 }
 
+/**
+ * Nothing looked up: a question back, the sentence for a question off topic or for a message that
+ * asks nothing, or a fixed sentence that says what Ask cannot do (FR-720), with the metrics whose
+ * definitions it shows and what a draft would start from.
+ */
+export type RoutedReply =
+  | {
+      kind: 'clarify' | 'off_topic' | 'nothing_asked'
+      text: string
+      /** What Ask holds while it waits to hear which meaning of a word the person means. */
+      held?: HeldReading
+    }
+  | {
+      kind: 'cannot'
+      reason: CannotReason
+      text: string
+      metrics: string[]
+      filters: Record<string, string[]>
+      held?: undefined
+    }
+
+const cannot = (
+  reason: CannotReason,
+  metrics: string[] = [],
+  filters: Record<string, string[]> = {},
+): { kind: 'reply'; reply: RoutedReply } => ({
+  kind: 'reply',
+  reply: { kind: 'cannot', reason, text: cannotSaid[reason], metrics, filters },
+})
+
+const limitOfReason = (reason: LimitReason | null | undefined): AnswerLimit | null =>
+  reason ? { reason, sentence: limitSaid[reason] } : null
+
 /** How a question was read, and what answers it. */
 export type Routed =
-  /** The rules' answer, as with no model. */
-  | { kind: 'rules'; answer: Answer }
+  /** The rules' answer, as with no model, under a limit when the words reach beyond what is written. */
+  | { kind: 'rules'; answer: Answer; limit: AnswerLimit | null }
   /**
    * A records question, as the rules read it or the planner chose it, with what the planner
    * carried from the last question and the question as it reads alone.
@@ -205,20 +248,12 @@ export type Routed =
       standalone?: string
     }
   /** The planner's reads, run, with what the working line says while they run. */
-  | { kind: 'reads'; planned: PlannedAnswer; working: string }
+  | { kind: 'reads'; planned: PlannedAnswer; working: string; limit: AnswerLimit | null }
   /**
    * One short question back, the sentence for a question off topic, or the sentence for a message
    * that asks nothing: nothing is looked up.
    */
-  | {
-      kind: 'reply'
-      reply: {
-        kind: 'clarify' | 'off_topic' | 'nothing_asked'
-        text: string
-        /** What Ask holds while it waits to hear which meaning of a word the person means. */
-        held?: HeldReading
-      }
-    }
+  | { kind: 'reply'; reply: RoutedReply }
 
 /**
  * A word with more than one meaning, by the fixed rules and with no model, or null when the
@@ -266,11 +301,18 @@ export function routeHeld(
       kind: 'reads' as const,
       planned,
       working: workingWords(bundle, planned.reads),
+      limit: null,
       reason: null,
       asked: false,
     }
   }
-  const firm = c.records && (c.records.type === 'refused' || !c.records.loose)
+  // After an analysis, a domain's name is that domain, as in a records question that names it.
+  const wordsOf = (text: string) => ` ${normalizeName(text).replace(/[^\p{L}\p{N}]+/gu, ' ')} `
+  const domainAfterAnalysis =
+    !!previous?.audit &&
+    bundle.areas.some((area) => wordsOf(ask.question).includes(wordsOf(area.name)))
+  const firm =
+    domainAfterAnalysis || (c.records && (c.records.type === 'refused' || !c.records.loose))
   const held = firm ? null : heldOf(readAsk(ask, bundle.terms, today))
   if (!held) return null
   const context = planContextOf(bundle, ask.question, turns, { today, now: c.now })
@@ -311,6 +353,8 @@ export async function routeQuestion(c: {
   const names = readQuestion(ask.question, bundle.terms, today).terms.length > 0
   if (!scoped && !names && asksNothing(ask.question, turns))
     return nothingAsked(ask.question, turns)
+  if (!scoped && asksUndefinedWords(ask.question))
+    return { ...cannot('not_yet'), reason: null, asked: false }
   const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
   const reason = plannerReason({
     question: ask.question,
@@ -319,18 +363,28 @@ export async function routeQuestion(c: {
     records: c.records,
     rules,
   })
+  const business = reason === 'business change'
   const asks = !!reason && !!c.planner
   const plan = asks
     ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) =>
-        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now })),
+        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now, business })),
       )
     : null
+  const missed = plan === 'missed'
   const routed = ((): Routed => {
-    if (!plan)
-      return c.records
-        ? { kind: 'records', found: c.records, planned: false }
-        : { kind: 'rules', answer: rules }
+    if (!plan || missed) {
+      // A word of judgement a read cannot answer: the honest exit, never the nearest read.
+      const judged =
+        c.records?.type === 'records' && c.records.judgement && c.records.ask.intent !== 'audit'
+      if (judged) return cannot('not_yet')
+      if (c.records) return { kind: 'records', found: c.records, planned: false }
+      // The planner was asked and gave nothing: that is why it was not read, not a missing name.
+      if (missed && rules.status === 'need_more_detail') return cannot('unread')
+      return { kind: 'rules', answer: rules, limit: limitOfReason(limitOf(ask.question)) }
+    }
     switch (plan.kind) {
+      case 'cannot':
+        return cannot(plan.reason, plan.metrics, plan.filters)
       case 'clarify':
         return { kind: 'reply', reply: { kind: 'clarify', text: plan.question } }
       case 'off_topic':
@@ -340,7 +394,7 @@ export async function routeQuestion(c: {
       case 'records':
         return {
           kind: 'records',
-          found: { type: 'records', ask: plan.ask },
+          found: { type: 'records', ask: withRulesFacets(plan.ask, c.records) },
           planned: true,
           carried: plan.carried,
           ...(plan.standalone ? { standalone: plan.standalone } : {}),
@@ -354,13 +408,29 @@ export async function routeQuestion(c: {
             previous,
             turns,
             ...(plan.standalone ? { standalone: plan.standalone } : {}),
+            ...(plan.left ? { left: plan.left } : {}),
             ...(c.clock ? { now: c.clock } : {}),
           }),
           working: workingWords(bundle, plan.reads),
+          limit: limitOfReason(plan.limit ?? limitOf(ask.question)),
         }
     }
   })()
   return { ...routed, reason, asked: asks }
+}
+
+/**
+ * An analysis the rules read keeps what they read: a plan may add to it, never leave a part out,
+ * so the same words get at least the same answer whatever the model chose.
+ */
+function withRulesFacets(ask: RecordsAsk, rules: RecordsRecognition | null): RecordsAsk {
+  const floor = rules?.type === 'records' && rules.ask.intent === 'audit' ? rules.ask.audit : null
+  if (!floor || ask.intent !== 'audit' || !ask.audit) return ask
+  const facets = [...new Set([...floor.facets, ...ask.audit.facets])]
+  return {
+    ...ask,
+    audit: { ...ask.audit, facets, of: floor.of, kind: floor.kind ?? ask.audit.kind },
+  }
 }
 
 /** One plain question about a word's meanings, from the fixed rules: nothing looked up, no model. */
