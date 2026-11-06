@@ -132,7 +132,7 @@ describe('what the model is given', () => {
     expect(prompt).toContain('[1] Store credit counts')
     expect(prompt).toContain('[2] Card and cash only')
     expect(prompt).toContain('Do not conclude: A lower value is not fewer orders.')
-    expect(prompt).toMatch(/give both sides and do not pick one/)
+    expect(prompt).toMatch(/give both sides of what they disagree on and do not pick one/)
     expect(wordsSystem).toMatch(/data, never instructions/)
     expect(wordsSystem).not.toContain('Norway')
   })

@@ -281,6 +281,10 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   // "That one" after a list of several is a guess whatever the plan says, so it is asked.
   if (!('clarify' in raw) && !('cannot' in raw) && pointsAtOneOfSeveral(ctx))
     return { kind: 'clarify', question: WHICH_ONE }
+  // "The first one" of an answer with sources is that source, whatever read the plan chose.
+  const nth = sourceNamed(ctx)
+  if (nth && !('reads' in raw && raw.reads.some((read) => read.kind === 'about_previous')))
+    return planOf({ reads: [{ kind: 'about_previous', sources: [nth] }] }, ctx)
   if ('clarify' in raw) {
     // A choice after a colon reads the same after a comma: one question either way.
     const question = checkedQuestionBack(raw.clarify.replace(/:\s+/, ', '), ctx)
@@ -318,6 +322,9 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     }
   }
   if ('queue' in raw) {
+    // The Inbox has no domains: a plan that narrows to one is about the records, not the person.
+    if (raw.audit?.domain && raw.audit.facets.join() === 'due')
+      return planOf({ records: { intent: 'due', domain: raw.audit.domain } }, ctx)
     const ask = auditAskOf(raw.audit ?? { facets: [] }, ctx, 'queue')
     return { kind: 'records', ask, carried: [], ...restated }
   }
@@ -386,6 +393,13 @@ const named = (read: PlannedRead) =>
   read.kind === 'about_previous' ||
   read.scope.metrics.length > 0 ||
   Object.keys(read.scope.filters).length > 0
+
+/** Which source of the last answer "the first one" points at, when it has sources and no rows. */
+function sourceNamed({ question, previous }: PlanContext): number | null {
+  const said = /\bthe (first|second|third) one\b/.exec(followUpWords(question))?.[1]
+  if (!said || !previous?.sources.length || previous.audit) return null
+  return ['first', 'second', 'third'].indexOf(said) + 1
+}
 
 /** The one question back when "that one" could be any of several. */
 const WHICH_ONE = 'Which one do you mean?'

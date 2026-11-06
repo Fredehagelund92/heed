@@ -277,6 +277,25 @@ describe('a plan that does not answer the question asked', () => {
     expect(carried).toMatchObject({ ok: true, plan: { reads: [{ kind: 'lookup' }] } })
   })
 
+  it('reads "the first one" of an answer with sources as that source', () => {
+    const got = plan(
+      { reads: [{ kind: 'definition', metrics: ['metric:orders'] }] },
+      { question: 'tell me more about the first one' },
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { reads: [{ kind: 'about_previous', ids: ['evt_norway_stop'] }] },
+    })
+  })
+
+  it('reads a queue narrowed to a domain as what is due there', () => {
+    const narrowed = { queue: true, audit: { facets: ['due'], domain: 'area_paid_media' } }
+    expect(plan(narrowed, { question: 'I am in Paid media, what needs checking?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'due', domain: 'area_paid_media' } },
+    })
+  })
+
   it('never shows a key as a name in how the question reads alone', () => {
     const got = plan(
       {
