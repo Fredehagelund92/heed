@@ -1078,6 +1078,7 @@ export function createMockApi() {
       return { fault: result.fault, data: result.data || state !== before || mentions }
     },
     offline: scenario.offline,
+    showsLoads: scenario.showsLoads,
     slowSwitch: scenario.slowSwitch,
     setSlow: scenario.setSlow,
     subscribe: scenario.subscribe,

@@ -24,8 +24,6 @@ const router = createRouter({
     const s = q.toString()
     return s ? `?${s}` : ''
   },
-  // Load a page's code when the pointer or focus signals intent, before the click.
-  defaultPreload: 'intent',
   // A page's own loading state starts at once and waits its 150ms (lib/loading.ts).
   defaultPendingMs: 0,
   defaultPendingMinMs: 0,
