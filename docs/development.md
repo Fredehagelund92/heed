@@ -184,7 +184,9 @@ on a PostgreSQL 18 container.
 `bash tests/image/production-boot.sh`, after `docker compose build`, boots the service image as it
 ships, in production mode, behind the web image, against a stand-in OpenID Connect provider: a
 person signs in, makes an access key, and an agent calls the MCP server with it. CI's Docker job
-runs it, then starts the demo with `docker compose up`.
+runs it, then starts the demo with `docker compose up` and runs
+`bash tests/image/compose-secrets.sh`, which saves a connector's secret and finds it again in a new
+container.
 
 ## Folder map
 

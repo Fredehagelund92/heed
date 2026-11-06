@@ -880,11 +880,11 @@ export function IntegrationsPage() {
           href={CONNECTOR_REQUEST_URL}
           target="_blank"
           rel="noreferrer"
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
           <PlusIcon data-icon="inline-start" />
           <span className="max-sm:sr-only">Request a connector</span>
-          <ArrowUpRightIcon data-icon="inline-end" />
+          <ArrowUpRightIcon data-icon="inline-end" className="max-sm:hidden" />
         </a>
       }
     >
