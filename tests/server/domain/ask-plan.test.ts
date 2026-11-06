@@ -193,6 +193,82 @@ describe('a plan as the model writes it', () => {
   })
 })
 
+describe('a plan that does not answer the question asked', () => {
+  const plan = (raw: unknown, over: Partial<PlanContext>) => checkPlan(raw, ctx(over))
+
+  it.each([
+    'how healthy is our documentation?',
+    'how covered are we?',
+    'which domain has the worst coverage?',
+    'what changed at the source?',
+  ])('fails a search that names nothing for "%s"', (question) => {
+    expect(plan({ reads: [{ kind: 'explore', kinds: ['event'] }] }, { question })).toEqual({
+      ok: false,
+      why: 'does not fit',
+    })
+  })
+
+  it('stops at the sentence when values are ranked by a figure', () => {
+    const got = plan(
+      { reads: [{ kind: 'explore', metrics: ['metric:net_revenue'] }], limit: 'numbers' },
+      { question: 'which campaign made the most money?' },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'cannot', reason: 'numbers' } })
+  })
+
+  it('reads a limit written as an exit as that limit, whatever key it came in', () => {
+    const named = plan({ cannot: 'advice' }, { question: 'what would you do about orders?' })
+    expect(named).toMatchObject({ ok: true, plan: { kind: 'reads', limit: 'advice' } })
+    const nothing = plan({ cannot: 'advice' }, { question: 'what should we add?' })
+    expect(nothing).toMatchObject({ ok: true, plan: { kind: 'records', ask: { limit: 'advice' } } })
+  })
+
+  it('reads what has no owner from the metrics, unless it asks about domains', () => {
+    const no_owner = { records: { intent: 'owner', no_owner: true } }
+    expect(plan(no_owner, { question: 'what is nobody responsible for?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'audit', audit: { facets: ['no_domain'] } } },
+    })
+    expect(plan(no_owner, { question: 'which domains are unclaimed?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'owner' } },
+    })
+  })
+
+  const listed = { question: 'which metrics have no context?', sources: [], rows: ['a', 'b'] }
+
+  it('asks which one when "that one" could be any of several rows', () => {
+    const got = plan(
+      { records: { intent: 'owner', metric: 'metric:orders' } },
+      { question: 'who owns that one?', previous: listed },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'clarify' } })
+  })
+
+  it('takes "that one" as the domain a ranking put first', () => {
+    const got = plan(
+      { records: { intent: 'owner' } },
+      {
+        question: 'who owns that one?',
+        previous: { ...listed, rows: [], domain: 'area_sales' },
+      },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'records' } })
+  })
+
+  it('never shows a key as a name in how the question reads alone', () => {
+    const got = plan(
+      {
+        standalone: 'Who owns on_time_shipping_rate?',
+        records: { intent: 'owner', metric: 'metric:orders' },
+      },
+      { question: 'who owns it?' },
+    )
+    expect(got).toMatchObject({ ok: true })
+    expect(got.ok && got.plan.kind === 'records' && got.plan.standalone).toBeFalsy()
+  })
+})
+
 describe('the question Ask asks back', () => {
   const back = (text: string) => checkedQuestionBack(text, ctx())
 

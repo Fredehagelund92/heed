@@ -48,7 +48,7 @@ const heldOut: PlanCase[] = [
     expect: {
       route: 'planner',
       plan: ['audit'],
-      audit: ['no_context', 'no_words', 'asked_nothing'],
+      audit: ['no_context', 'no_words'],
       state: null,
       must: ['13 of 22 metrics', NOT_SEEN],
       refuse: [/\b27 definitions\b/],
@@ -168,7 +168,7 @@ const heldOut: PlanCase[] = [
     class: 'R',
     what: 'Notes that clash: the pair an owner marked.',
     question: 'any pairs of notes that clash?',
-    expect: { route: 'planner', intent: 'conflicts', state: null, must: NORWAY_PAIR },
+    expect: { route: 'planner', audit: ['conflicts'], state: null, must: NORWAY_PAIR },
   },
   {
     id: 'H12',

@@ -30,6 +30,7 @@ const clash = [
   { id: 'itm_recclash01', title: 'Harbour fees include VAT' },
   { id: 'itm_recclash02', title: 'Harbour fees exclude VAT' },
 ]
+const ended = { id: 'itm_recended01', title: 'Harbour closed for works in January' }
 const canaries = [hidden.id, 'Quokkasunrise', draft.id, 'Zephyrdraft']
 
 const app = buildApp({
@@ -155,6 +156,16 @@ beforeAll(async () => {
     )
     await accept(client, first.id)
     await serve(first.id)
+    // An item whose own dates ended, with its check date passed: still due for a check.
+    const over = await version(client, {
+      item: ended.id,
+      title: ended.title,
+      owner: people.owner,
+      validity: { from: '2026-01-01', until: '2026-02-01' },
+      reviewDate: '2026-09-01',
+    })
+    await accept(client, over.id)
+    await serve(over.id)
     // A version written and never published: a draft is no context item.
     await version(client, { item: draft.id, title: draft.title })
   })
@@ -199,7 +210,7 @@ describe('records answers on PostgreSQL', () => {
       const listed = library.json<{ items: { id: string; kind: string }[] }>().items
       const count = await counted(who, 'how many context items are there?')
       expect(count.total, who).toBe(listed.filter((i) => i.kind !== 'example').length)
-      expect(count.total, who).toBe(4)
+      expect(count.total, who).toBe(5)
       expect((await counted(who, 'what is archived?')).rows).toEqual([
         expect.objectContaining({ type: 'item', id: archived.id, title: archived.title }),
       ])
@@ -229,7 +240,7 @@ describe('records answers on PostgreSQL', () => {
       }
     // Both published items were created within the day; the hidden one is never among them.
     const created = await counted('reader', 'give me context created in last 24 hours?')
-    expect(created.sentence).toBe('4 context items were created in the last 24 hours.')
+    expect(created.sentence).toBe('5 context items were created in the last 24 hours.')
     expect(created.period?.label).toMatch(/, UTC$/)
   })
 
@@ -254,6 +265,19 @@ describe('records answers on PostgreSQL', () => {
     expect((await counted('reader', 'any conflicts in Marketing?')).sentence).toBe(
       'There are no conflicts in Marketing. No context items disagree.',
     )
+  })
+
+  it('lists an item whose dates ended as due, with the fields Context shows', async () => {
+    const due = await counted('reader', 'what is due for a check?')
+    expect(due.sentence).toMatch(/^1 of 4 context items is due for a check\.$/)
+    expect(due.columns).toEqual(['Context item', 'Why it is due', 'Last checked'])
+    expect(due.rows).toEqual([
+      expect.objectContaining({
+        id: ended.id,
+        // Checked today by the clock, which this service pins to 8 October.
+        cells: ['Check date 1 Sep 2026', '8 Oct 2026'],
+      }),
+    ])
   })
 
   it('names the owners of a domain as Context names them', async () => {
