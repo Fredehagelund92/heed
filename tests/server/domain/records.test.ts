@@ -580,6 +580,10 @@ describe('a records answer', () => {
     expect(
       answer(ask({ intent: 'due', domain: 'marketing' }), world([item({ id: 'a' })])).sentence,
     ).toBe('Nothing in Marketing is due for a check.')
+    // With items in scope too: the read line counts them, the sentence stays this plain.
+    const clear = answer(ask({ intent: 'due', domain: 'sales' }), world([item({ id: 'a' })]))
+    expect(clear.sentence).toBe('Nothing in Sales is due for a check.')
+    expect(clear.read).toBe('Read 1 context item in Sales')
     expect(
       answer(ask({ intent: 'archived', domain: 'sales' }), world([item({ id: 'a' })])).sentence,
     ).toBe('Nothing is archived in Sales.')

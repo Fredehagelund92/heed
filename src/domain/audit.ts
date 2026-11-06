@@ -789,10 +789,9 @@ export function dueRead(
   const total = `${count(n)} of ${count(open.length)} ${word}`
   const flagged = due.some((i) => i.checkFlag)
   const dated = due.some((i) => !i.checkFlag)
+  const clear = `Nothing${c.where} is due for a check.`
   return {
-    sentence: open.length
-      ? `${total}${c.where} ${n === 1 ? 'is' : 'are'} due for a check.`
-      : `Nothing${c.where} is due for a check.`,
+    sentence: n ? `${total}${c.where} ${n === 1 ? 'is' : 'are'} due for a check.` : clear,
     section: n
       ? {
           title: 'Due for a check',
@@ -810,7 +809,7 @@ export function dueRead(
           more: contextLink(`Show all ${count(n)} in Context`, c.domainId, 'due'),
         }
       : null,
-    clear: `Nothing${c.where} is due for a check.`,
+    clear,
     ranked:
       n > 1
         ? dated && flagged
