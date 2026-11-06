@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpRightIcon,
   CheckIcon,
   ChevronDownIcon,
   CircleAlertIcon,
@@ -29,10 +30,11 @@ import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
-import { fieldVisible } from '@domain/connector-config'
+import { CONNECTOR_REQUEST_URL } from '@domain/brand'
+import { fieldVisible, noSecretStoreWords } from '@domain/connector-config'
 import { Badge } from '@/components/ui/badge'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSelection } from '@/hooks/use-selection'
@@ -68,6 +70,7 @@ import {
 import { connectorById, connectors } from '@/model/catalogue'
 import {
   kindName,
+  lacksSecretStore,
   type Activity,
   type ConnectField,
   type ConnectOption,
@@ -107,7 +110,7 @@ import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/com
 
 // Settings > Integrations: the tools Heed reads. Connected tools as rows (is it healthy, when did
 // it last read, what is waiting), available tools as Efferd hairline cells below in two groups,
-// Definitions and Context, and Request a connector. Each connected tool has one page with sections
+// Definitions and Context, and a link to request a connector. Each connected tool has one page with sections
 // and no tabs; connecting is five steps on a full page. A sync never publishes.
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
@@ -689,54 +692,6 @@ function FiguresSection({ c }: { c: Connector }) {
 
 /* ---------- the catalog ---------- */
 
-function RequestConnector({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (o: boolean) => void
-}) {
-  const [text, setText] = React.useState('')
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Request a connector</DialogTitle>
-          <DialogDescription>
-            Tell us which tool holds your definitions or your context. A warehouse on its own isn't
-            one: a figure is read only from the tool a metric&apos;s definition comes from.
-          </DialogDescription>
-        </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="request-tool">The tool, and what it holds</FieldLabel>
-          <Textarea
-            id="request-tool"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Confluence: our data team's definitions pages"
-            className="min-h-24"
-          />
-        </Field>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!text.trim()}
-            onClick={() => {
-              onOpenChange(false)
-              setText('')
-              toast('Request sent', { description: "Thank you. You'll hear back by email." })
-            }}
-          >
-            Send the request
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 /** When a tool reads next, on its row: "07:00" today, "tomorrow", or the day. */
 const nextWords = (next: When) =>
   next.day === 'Today' ? next.time : next.day === 'Tomorrow' ? 'tomorrow' : next.day
@@ -913,7 +868,6 @@ const catalogOrder = (a: Source, b: Source) =>
 
 export function IntegrationsPage() {
   const load = useQuery(integrationsPageQuery())
-  const [asking, setAsking] = React.useState(false)
   return (
     <Page
       title={
@@ -922,10 +876,16 @@ export function IntegrationsPage() {
         />
       }
       actions={
-        <Button variant="outline" size="sm" onClick={() => setAsking(true)}>
+        <a
+          href={CONNECTOR_REQUEST_URL}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
           <PlusIcon data-icon="inline-start" />
           <span className="max-sm:sr-only">Request a connector</span>
-        </Button>
+          <ArrowUpRightIcon data-icon="inline-end" />
+        </a>
       }
     >
       <FramePage>
@@ -935,7 +895,7 @@ export function IntegrationsPage() {
             description="The tools definitions and context are read from. They are only read, and a read never publishes: definitions arrive as a read-only copy, and documents become suggestions for their owners."
           />
           <Loadable what="Integrations" skeleton={<RowsSkeleton rows={4} />} query={load}>
-            {load.data && <IntegrationsBody view={load.data} onRequest={() => setAsking(true)} />}
+            {load.data && <IntegrationsBody view={load.data} />}
           </Loadable>
         </Panel>
         <p className="text-xs text-muted-foreground">
@@ -944,12 +904,11 @@ export function IntegrationsPage() {
           metric&apos;s definition comes from, and keeps it nowhere.
         </p>
       </FramePage>
-      <RequestConnector open={asking} onOpenChange={setAsking} />
     </Page>
   )
 }
 
-function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onRequest: () => void }) {
+function IntegrationsBody({ view }: { view: IntegrationsView }) {
   const { query } = useRoute()
   const state = query.get('state')
   const [text, setText] = React.useState('')
@@ -1065,15 +1024,16 @@ function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onReque
             </span>
             <h4 className="mt-1 text-sm font-medium">Request a connector</h4>
             <p className="text-sm text-muted-foreground">
-              Tell us which tool holds your definitions or context.
+              Tell us which tool holds your definitions or context, in an issue on GitHub.
             </p>
-            <button
-              type="button"
-              onClick={onRequest}
+            <a
+              href={CONNECTOR_REQUEST_URL}
+              target="_blank"
+              rel="noreferrer"
               className="mt-auto inline-flex w-fit items-center gap-1 pt-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
-              Tell us <ArrowRightIcon className="size-3.5" aria-hidden />
-            </button>
+              Open an issue <ArrowUpRightIcon className="size-3.5" aria-hidden />
+            </a>
           </div>
         </div>
       </PanelSection>
@@ -2116,6 +2076,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   const sent = inUse(form, values)
   const sentKey = settingsKey(sent)
   const tested = !!test.result?.ok && test.of === sentKey
+  const noStore = lacksSecretStore(form, values)
 
   const go = (n: number) => setQuery({ step: String(n) })
   const cancel = () =>
@@ -2278,6 +2239,16 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   return (
     <FlowFrame at={at}>
       <div className="flex flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
+        {/* Said before the form is filled in: a test would pass, and only the last step fail. */}
+        {noStore && at <= 2 && (
+          <p
+            role="alert"
+            className="flex items-start gap-2.5 rounded-frame border border-caution/40 bg-caution/8 px-3 py-2.5 text-sm"
+          >
+            <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
+            {noSecretStoreWords}
+          </p>
+        )}
         {at === 1 && <PickStep c={c} />}
         {at === 2 && (
           <>
@@ -2414,12 +2385,12 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                     variant="outline"
                     className="w-fit"
                     onClick={() => void runTest()}
-                    disabled={test.running}
+                    disabled={test.running || noStore}
                   >
                     <PlugIcon data-icon="inline-start" />
                     Test connection
                   </Button>
-                  {!tested && !test.running && (
+                  {!tested && !test.running && !noStore && (
                     <span className="text-sm text-muted-foreground">
                       Test it before you continue.
                     </span>

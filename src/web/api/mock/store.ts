@@ -43,7 +43,7 @@ export type State = {
 }
 
 export type Action =
-  | { type: 'signIn'; name: string; fresh: boolean }
+  | { type: 'signIn'; name: string }
   | { type: 'signOut' }
   | { type: 'demo'; mode: 'setup' | 'done' | 'week' | 'last' }
   | { type: 'complete'; card: string; outcome: string }
@@ -92,13 +92,7 @@ export const start: State = {
 export function reduce(s: State, a: Action): State {
   switch (a.type) {
     case 'signIn':
-      return {
-        ...start,
-        user: a.name,
-        install: a.fresh ? 'new' : 'normal',
-        fresh: a.fresh,
-        about: a.fresh ? '' : ABOUT_BUSINESS,
-      }
+      return { ...start, user: a.name }
     case 'signOut':
       return { ...s, user: null }
     case 'demo': {

@@ -56,7 +56,7 @@ export type Session = {
   user: string | null
   /** A new install shows the setup checklist until it is done. */
   install: 'new' | 'normal'
-  /** Started as a new install: no demo context or cards, only what this visit adds. */
+  /** The mock's new install (`?demo=setup`): no demo context or cards, only what this visit adds. */
   fresh: boolean
 }
 
@@ -272,8 +272,8 @@ export interface HeedApi {
   readInvite: (input: { token: string }) => Promise<InviteNote | null>
   /** The people the demo's sign-in offers, by name. Needs no session. */
   listSignInPeople: () => Promise<string[]>
-  /** Signs in as one of them; `fresh` starts as a new install. */
-  signIn: (input: { name: string; fresh: boolean }) => Promise<Session>
+  /** Signs in as one of them. */
+  signIn: (input: { name: string }) => Promise<Session>
   signOut: () => Promise<void>
   getWorkspace: () => Promise<Workspace>
   getVocabulary: () => Promise<Vocabulary>

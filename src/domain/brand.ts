@@ -13,6 +13,9 @@
 /** The public repository: Edit on GitHub, links to its documents and the demo model's files. */
 export const REPOSITORY_URL = 'https://github.com/Fredehagelund92/heed'
 
+/** Where to ask for a connector: the issue template for one (.github/ISSUE_TEMPLATE/connector.yml). */
+export const CONNECTOR_REQUEST_URL = `${REPOSITORY_URL}/issues/new?template=connector.yml`
+
 /** The name when `HEED_PRODUCT_NAME` is not set. */
 export const DEFAULT_PRODUCT_NAME = 'Heed'
 

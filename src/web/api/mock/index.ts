@@ -366,11 +366,11 @@ export function createMockApi() {
     getSignInMethod: () => now(() => ({ kind: 'picker' as const })),
     readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
-    signIn: ({ name, fresh }) => {
+    signIn: ({ name }) => {
       if (!signInPeople.includes(name))
         return Promise.reject(new ApiError('not-found', `${name} can't sign in here.`))
       return now(() => {
-        dispatch({ type: 'signIn', name, fresh })
+        dispatch({ type: 'signIn', name })
         return { user: state.user, install: state.install, fresh: state.fresh }
       })
     },

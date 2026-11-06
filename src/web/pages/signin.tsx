@@ -1,17 +1,9 @@
 import { usePageTitle } from '@/lib/page-title'
-import * as React from 'react'
 import { ChevronRightIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Logo } from '@/components/heed/logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
 import {
   Item,
   ItemActions,
@@ -21,7 +13,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item'
-import { Switch } from '@/components/ui/switch'
 import { useQuery } from '@tanstack/react-query'
 import {
   inviteQuery,
@@ -112,10 +103,9 @@ export function SignInPage() {
 /** More people than this, and the picker lays them out in two columns on a wide screen. */
 const ONE_COLUMN = 6
 
-// The demo person picker. A long list of people takes two columns on a wide screen, so the switch
-// to start as a new install stays in view without scrolling.
+// The demo person picker. A long list of people takes two columns on a wide screen, so they stay
+// in view without scrolling.
 function PickerSignIn({ token }: { token: string | null }) {
-  const [fresh, setFresh] = React.useState(false)
   const wide = (useQuery(signInPeopleQuery()).data?.length ?? 0) > ONE_COLUMN
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
@@ -129,19 +119,7 @@ function PickerSignIn({ token }: { token: string | null }) {
           <CardContent>
             <FieldGroup>
               {token && <InviteLine token={token} />}
-              <PeoplePicker fresh={fresh} columns={wide ? 2 : 1} />
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or
-              </FieldSeparator>
-              <Field orientation="horizontal">
-                <FieldContent>
-                  <FieldLabel htmlFor="fresh">Start as a new install</FieldLabel>
-                  <FieldDescription>
-                    A workspace with no context yet, and the setup checklist in the Inbox.
-                  </FieldDescription>
-                </FieldContent>
-                <Switch id="fresh" checked={fresh} onCheckedChange={setFresh} />
-              </Field>
+              <PeoplePicker columns={wide ? 2 : 1} />
             </FieldGroup>
           </CardContent>
         </Card>
@@ -154,7 +132,7 @@ function PickerSignIn({ token }: { token: string | null }) {
 }
 
 /** The demo's people, one button each: a press signs in as them. */
-function PeoplePicker({ fresh = false, columns = 1 }: { fresh?: boolean; columns?: 1 | 2 }) {
+function PeoplePicker({ columns = 1 }: { columns?: 1 | 2 }) {
   const signIn = useApiWrite('signIn')
   const offered = useQuery(signInPeopleQuery()).data ?? []
   // Signed out on the service, nobody's workspace can be read: the picker shows names alone.
@@ -174,7 +152,7 @@ function PeoplePicker({ fresh = false, columns = 1 }: { fresh?: boolean; columns
                   // Signed in, the app moves on (App.tsx). Not from here: while the shell loads the
                   // person's workspace this page is unmounted, so a callback of this click would
                   // never run.
-                  onClick={() => signIn.mutate({ name, fresh })}
+                  onClick={() => signIn.mutate({ name })}
                 />
               }
               className="w-full text-left hover:bg-muted"
