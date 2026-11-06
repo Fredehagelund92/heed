@@ -85,7 +85,10 @@ function shapeOf(question: string, spans: readonly Span[]): string {
   // "Orders in Norway in August", "Norway orders" and "Norway and Sweden" are one thing asked about.
   let shape = said
   for (;;) {
-    const next = shape.replace(/\bx (?:(?:in|for|and|or|on|during|at|bound to) (?:the )?)?x\b/g, 'x')
+    const next = shape.replace(
+      /\bx (?:(?:in|for|and|or|on|during|at|bound to) (?:the )?)?x\b/g,
+      'x',
+    )
     if (next === shape) return shape
     shape = next
   }
