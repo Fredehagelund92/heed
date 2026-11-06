@@ -253,8 +253,7 @@ export function createFigureSources({
         next.endpoint !== undefined && originOf(next.endpoint) !== originOf(before.endpoint)
       if (input.token !== undefined || (rebound && before.secretRef)) {
         if (input.token !== undefined) {
-          if (!secrets.available)
-            invalid('token', noSecretStoreWords)
+          if (!secrets.available) invalid('token', noSecretStoreWords)
           const ref = await secrets.write({ token: input.token })
           hooks.onRollback(() => secrets.remove(ref))
           next.secretRef = ref
