@@ -173,12 +173,9 @@ describe('the names a read makes', () => {
       noHolders,
       nothingLeft,
     )
-    expect(names[0]).toMatchObject({
-      state: 'flagged',
-      flags: [
-        { code: 'titles_differ', message: expect.stringContaining('“Market” and “Country”') },
-      ],
-    })
+    expect(names[0]).toMatchObject({ state: 'flagged' })
+    expect(names[0]!.flags[0]!.code).toBe('titles_differ')
+    expect(names[0]!.flags[0]!.message).toContain('“Market” and “Country”')
   })
 
   it('drops another name someone else already has, rather than flag the metric', () => {
