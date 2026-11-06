@@ -787,7 +787,8 @@ and `next` as before.
   `src/domain/ask-chat.ts`): the input may carry `turns`, the chat's last six turns as the browser
   keeps them, oldest first: each its `question`, `scope` as keys, up to 10 `sources` by item id,
   `asked` (the question Ask asked back), `understood` (its Understood as line), `state`, `headline`
-  (one sentence from a template), `domain`, `period` and `dated`. They hold no answer text and no
+  (one sentence from a template), `domain`, `period`, `dated`, `audit` (the analysis it was read
+  as) and `rows` (the keys of the terms an analysis listed). They hold no answer text and no
   data value and are never stored; the service keeps the newest that fit 4,000 characters. For a
   question the rules cannot read (`need_more_detail`), a value alone that finds nothing, a question
   about what changed that names nothing Heed keeps, or a follow-up of the chat, the model of
@@ -797,23 +798,32 @@ and `next` as before.
   and `answer`, whose `reading` says how the model read the question, what it carried, and, when
   the chat matters, the question as it reads alone (`standalone`); a planned `records` event has a
   `reading` with `carried` and `standalone`. Or one `reply` event, `clarify` (one short question
-  back), `off_topic` or `nothing_asked`, with nothing looked up. A message with no subject of its
+  back), `off_topic`, `nothing_asked` or `cannot` (FR-720, with its `reason`, `numbers`, `source`,
+  `write`, `person`, `not_yet` or `unread`, the `definitions` a `source` reply shows and what a
+  `write` reply starts from), with nothing looked up. An `answer`'s `limit` is the fixed sentence
+  it leads with when the question reaches beyond what is written, and its `reading.left` names a
+  part of the question its reads do not answer. A message with no subject of its
   own and no question that fits ("hmm", or "try again" with nothing to repeat) gets `nothing_asked`
   with no model call. A message that only asks again never reaches the service as such: the browser
   sends the last question instead (`src/domain/ask-again.ts`). A plan that fails the check, a limit,
   an error or a slow call leaves the rules' answer, and the log says why (`ask plan not used`, a
-  reason only). The planner cases (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
+  reason only); a question the rules cannot read then gets `cannot` with `unread`. The planner cases (`src/server/modules/answer/plan-cases.ts`) run on the scripted planner in every build and with
   `npm run eval:ask-plan` (mock), or `-- --real --max-cost-usd <dollars>`, which also asks for the
   words of each planned answer and reports the planner's time and the cost of a planned question.
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
   no `metrics`, `dimension_filters` or `window`, is not looked up: `POST /ask/lookup` answers with
   one `records` event. It has the intent (`created`, `changed`, `due`, `archived`, `owner`,
   `count`, `asked_nothing`, `terms` for the metrics and dimensions Definitions lists, `values`
-  for a dimension's values, or `conflicts` for the pairs of context items an owner said disagree),
+  for a dimension's values, `conflicts` for the pairs of context items an owner said disagree,
+  `audit` for an analysis of the records, `queue` for the person's own Inbox, or `glossary` for a
+  word people wrote in Definitions),
   what it was understood as, the period (ISO instants, and its words in UTC), what was read, the
   sentence, at most five `rows` (a context item, a domain, a topic, a term with the Definitions
-  page it opens, a conflict with the pair's `key` its page opens, or a kind's counts) with
-  `columns`, the exact `total`, and where the full list lives (`more`, with `page` for one
+  page it opens, a conflict with the pair's `key` its page opens, two items found together, a
+  member of the source, a line of a review or the Inbox, or a kind's counts) with
+  `columns`, up to four `sections` of them for an analysis (`src/domain/audit.ts`), with what came
+  up empty (`clear`), the rule behind a ranking (`ranked`), what the read cannot see (`notSeen`), the
+  `limit` it leads with and the `audit` it was read as, the exact `total`, and where the full list lives (`more`, with `page` for one
   Definitions page, and `status: conflicts` for Context's Conflicts filter). A
   question about one person's work gets `refused: true` with its sentence and what to ask
   instead. Everything is counted in the request's own transaction from the items `GET /library`
@@ -825,7 +835,9 @@ and `next` as before.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
   to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
   first, each with the state the engine gives its newest shown month now (the month of today for a
-  row listed only by its total) and how many items that gives.
+  row listed only by its total), how many items that gives, and `nothing`, how many of the week's
+  calls delivered no item, under the same minimum. The state is today's; `nothing` is what agents
+  found.
   Counts only (FR-614): a month under `privacy.min_count` never shows on its own, a row's `count`
   is null when a total would give such a month away (its `atLeast` is what the shown months add up
   to), a row that shows under the minimum is not listed, and `hidden` counts the calls of the rows
