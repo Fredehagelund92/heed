@@ -1,6 +1,6 @@
 /**
  * The Inbox of Heed v1 on the API (docs/product.md, section 5): one read that joins what needs the
- * person, grouped by need as the mockup groups it (`inbox.feed`), which cards they opened
+ * person, grouped by need (`inbox.feed`), which cards they opened
  * (`cards.markRead`), the one decision a card offers (`cards.decide`), and the setup checklist of a
  * new workspace (`setup.state`). Every count from agents is a count only, and a count under the
  * minimum reads as hidden (FR-614).
@@ -27,7 +27,7 @@ const cardBase = {
 }
 
 /**
- * One card, by what happened (the mockup's groups: Not found, Reported, Saved questions, Alerts,
+ * One card, by what happened (the Inbox's groups: Not found, Reported, Saved questions, Alerts,
  * Mentioned you, Due for a check, Suggestions).
  */
 export const cardSchema = z.union([

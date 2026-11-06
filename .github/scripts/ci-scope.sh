@@ -4,7 +4,6 @@
 # FULL=true (a push to main, the nightly run, a manual run or the full-ci label) runs everything.
 #
 #   sensitive  db, the service, sign-in, MCP, security files, workflows, packages: everything runs
-#   mockup     apps/mockup: only the mockup job
 #   docs       prose nothing in the app reads, and the docs site (apps/docs): only the checks (type
 #              check, lint, unit tests, build), which build the site and check its links
 #   code       anything else: every job that runs the code
@@ -15,7 +14,6 @@ set -euo pipefail
 
 full=${FULL:-false}
 sensitive=false
-mockup=false
 docs=false
 code=false
 seen=false
@@ -28,8 +26,6 @@ while IFS= read -r path; do
       .gitleaks.toml | osv-scanner.toml | .github/* | package*.json | */package*.json | \
       .nvmrc | .npmrc | Dockerfile | docker/* | compose.yaml)
       sensitive=true ;;
-    apps/mockup/*)
-      mockup=true ;;
     apps/docs/*)
       docs=true ;;
     # The help pages, the templates and the API description are read by the app and its tests.
@@ -58,13 +54,6 @@ if [ "$run_code" = true ] || [ "$docs" = true ]; then
   check=true
 fi
 
-# The mockup job needs apps/mockup in the checkout; MOCKUP_PRESENT says whether it is there.
-run_mockup=false
-if [ "${MOCKUP_PRESENT:-false}" = true ] && { [ "$full" = true ] || [ "$mockup" = true ]; }; then
-  run_mockup=true
-fi
-
 echo "full=$full"
 echo "check=$check"
 echo "code=$run_code"
-echo "mockup=$run_mockup"

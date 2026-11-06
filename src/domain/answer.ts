@@ -558,7 +558,7 @@ export type AskedTopic = {
 }
 /**
  * Topics asked about this week, one row per metric, market and dimension with its months joined
- * (as the mockup's Questions page groups them), most asked first. A month asked fewer than
+ * (as the Questions page groups them), most asked first. A month asked fewer than
  * `minimum` times is never shown on its own (FR-614): a row's count is shown only when no hidden
  * month could be worked out from it by subtraction (`visibleTotal`); otherwise `count` is null
  * and `atLeast` is what its shown months add up to ("13+"). Only shown months are listed in

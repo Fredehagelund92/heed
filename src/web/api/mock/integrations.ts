@@ -169,7 +169,7 @@ export function connectFormFor(
   return {
     ...form,
     source: live ? form.source : null,
-    // The demo's key file is already uploaded, as the mockup draws it.
+    // The demo's key file is already uploaded.
     secrets: form.secrets.map((secret) =>
       secret.key === tool.keyFile && demo
         ? { ...secret, set: true, file: { name: `${SLUG}-reader.json`, account: SERVICE_ACCOUNT } }

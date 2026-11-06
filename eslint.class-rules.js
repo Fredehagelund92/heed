@@ -3,10 +3,10 @@
 /*
   The Tailwind class rules of the web app in src/web (design contract v2, sections 2 and 9, and
   docs/design/motion.md). Each pattern matches a complete class name, variants and the `!`
-  modifier included, and eslint.config.js feeds them to `better-tailwindcss/no-restricted-classes`. The mockup's scales are allowed as they are: Tailwind's spacing with its
+  modifier included, and eslint.config.js feeds them to `better-tailwindcss/no-restricted-classes`. The design contract's scales are allowed as they are: Tailwind's spacing with its
   half steps, margins, Tailwind's text scale, weights 400 to 700, and viewport variants in pages.
-  What stays out: raw palette colours, numeric layers, raw motion and the motion the mockup's
-  guard rails ban, and arbitrary values outside a short allowlist.
+  What stays out: raw palette colours, numeric layers, raw motion and the motion the design
+  contract's guard rails ban, and arbitrary values outside a short allowlist.
   A value that repeats becomes a token in src/web/styles/tokens.css. tests/lint/web-class-rules.test.ts
   runs them against samples.
 */

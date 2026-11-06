@@ -4,7 +4,7 @@ import type { Topic as FixtureTopic } from '@/api/mock/obs-engine'
 import { vocabulary } from '../../../db/seed/fixtures/reference-data.ts'
 
 /*
-  The mockup's Observability on the real service, for the http journeys and the http binding's
+  The demo's Observability on the real service, for the http journeys and the http binding's
   conformance: what agents asked over the 27 weeks the mock counts, as delivery records with their
   topic, answer state and kind of agent (never a question or who asked, FR-602); their tool calls
   with how they ended and how long they took; what agents reported about answers; the answers

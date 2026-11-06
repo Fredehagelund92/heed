@@ -15,4 +15,4 @@ reason = "extract-zip: arbitrary file writes through symlink entries in a hostil
 [[IgnoredVulns]]
 id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2027-01-08
-reason = "deepmerge 4.3.1: no fixed version exists. Only the shadcn CLI and the mockup's build tooling load it, to merge their own configuration files, never data from users or documents, and the running service does not ship it."
+reason = "deepmerge 4.3.1: no fixed version exists. Only the shadcn CLI loads it, to merge its own configuration files, never data from users or documents, and the running service does not ship it."

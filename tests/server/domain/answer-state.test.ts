@@ -11,7 +11,7 @@ import {
 import { statusRules, statusRuleWords } from '../../../src/domain/mcp-text.ts'
 
 /*
-  The six answer states (FR-349), as docs/product.md section 6 and the Heed v1 mockup's
+  The six answer states (FR-349), as docs/product.md section 6 and
   ANSWER_LINES give them: one list, the same words for agents and people.
 */
 describe('the answer lines', () => {
@@ -84,7 +84,7 @@ describe('a reply status', () => {
     expect(replyStatus({ status: 'no_match', items: [], assumed: true })).toBe('no_match')
   })
 
-  it('is Outdated when an item may be out of date, after Partial, as the mockup orders them', () => {
+  it('is Outdated when an item may be out of date, after Partial', () => {
     expect(replyStatus({ status: 'matched', items: [exact, old] })).toBe('stale')
     expect(replyStatus({ status: 'matched', items: [part, { ...part, unverified: true }] })).toBe(
       'partial',

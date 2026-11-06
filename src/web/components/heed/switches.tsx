@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-// The three ways the mockup lets someone pick between things, one component each, so a later
-// change is one edit (segmented/segmented-controls.md has the inventory and the reason per place):
+// The three ways the app lets someone pick between things, one component each, so a later
+// change is one edit:
 //   ViewToggle   another view of the same thing, usually an advanced one: one quiet icon button
 //   TextSwitch   a filter or a two-way option: words (with counts), the chosen one underlined
 //   ChoiceGroup  a decision with a few answers, all visible: outline buttons, one checked

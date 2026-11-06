@@ -7,8 +7,7 @@ import plainWords, { webPlacesOf, webSurfaces } from '../../eslint.plain-words.j
 
 /**
  * heed/plain-words with glossary v2 (src/domain/words.ts, docs/design/copy.md) is the copy guard
- * rail of the web app: the mockup's copy check (`src/lib/copy.test.ts` there), as a lint rule
- * on src/web. It reports each banned word in text people read, allows a word only on the place the
+ * rail of the web app, as a lint rule on src/web. It reports each banned word in text people read, allows a word only on the place the
  * glossary names, and leaves code alone.
  */
 

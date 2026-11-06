@@ -9,8 +9,8 @@ import {
 
 /*
   The claim check (docs/product.md, section 4): each claim of a suggestion against the sentence
-  its writer copied, never saying more than was compared. The cases are the mockup's
-  (apps/mockup/src/data/review.ts: sug-agent and gap-spain).
+  its writer copied, never saying more than was compared. The cases are the demo's
+  suggestions sug-agent and gap-spain.
 */
 
 describe('the claim check against the copied sentence', () => {

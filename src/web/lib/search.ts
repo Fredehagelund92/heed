@@ -3,7 +3,7 @@ import * as z from 'zod/mini'
 /**
  * The app's addresses and their search params, one schema per place (routes/). Every param is
  * optional, so an address carries only what someone chose. A value a page does not know is dropped
- * instead of failing the page, as the mockup ignored it. The router merges what a schema returns
+ * instead of failing the page. The router merges what a schema returns
  * over the raw params, so a dropped key comes back as `undefined` and its raw value never reaches
  * a page.
  */

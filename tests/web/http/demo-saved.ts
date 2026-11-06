@@ -6,7 +6,7 @@ import { loadServingBundle } from '../../../src/server/modules/editions/index.ts
 import { answerNow } from '../../../src/server/modules/saved-questions/index.ts'
 
 /*
-  The mockup's saved questions on the real service (data/saved-questions.ts), for the http
+  The demo's saved questions on the real service, for the http
   journeys and the http binding's conformance: the twelve questions, each saved by the person the
   mock names, for its domain, nine weeks before the demo week. What each gets now is what the
   service's answer engine gives it on the demo week's library; what each should keep getting is

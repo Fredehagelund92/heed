@@ -149,11 +149,7 @@
     "held-out": "node scripts/held-out.ts",
     "heed": "node --env-file-if-exists=.env.local src/cli/main.ts",
     "api:generate": "node scripts/generate-api.ts",
-    "cn:generate": "node scripts/generate-cn-tables.ts",
-    "mockup:dev": "npm --prefix apps/mockup run dev",
-    "mockup:build": "npm --prefix apps/mockup run build",
-    "mockup:test": "npm --prefix apps/mockup test",
-    "mockup:e2e": "npm --prefix apps/mockup run e2e"
+    "cn:generate": "node scripts/generate-cn-tables.ts"
   },
   "allowScripts": {
     "es5-ext@0.10.64": true,

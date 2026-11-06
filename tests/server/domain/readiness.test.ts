@@ -13,7 +13,7 @@ import {
 /*
   The Ready line (design contract, section 5.3), with the publish rules it decides: only a clash
   with no answer holds Publish (FR-225), and only plain changes go out with "Publish the N you've
-  read" (FR-226). The cases follow the mockup's review tests (apps/mockup/src/data/review.test.ts).
+  read" (FR-226). The cases follow the demo's reviews.
 */
 
 const side = (patch: Partial<DocSide> = {}): DocSide => ({

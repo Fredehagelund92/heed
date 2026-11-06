@@ -8,7 +8,7 @@
 # higher first load budget, new dependency versions or overrides, or a renumbered migration. Each
 # belongs in a change of its own that says why (docs/development.md, "Continuous integration").
 # A name without a slash matches at any depth, so package.json and package-lock.json cover the
-# mockup's too. The rule covers the whole of package.json: it cannot single out its overrides.
+# docs site's too. The rule covers the whole of package.json: it cannot single out its overrides.
 protected_paths:
   - scripts/check-bundle-size.mjs
   - package.json

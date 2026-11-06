@@ -2,7 +2,7 @@
 
 The docs site, built with [Starlight](https://starlight.astro.build) on Astro. It holds no pages of its own. It reads the Markdown in `docs/`, where the pages stay, and builds them into a static site that needs no service: search and fonts are local files, and no page loads anything from another host.
 
-It is its own npm package with its own lockfile, as `apps/mockup` is, so its packages stay out of the app's tree and out of the images, and a bad upgrade can only break the docs build. The app's own Docs area, at `/docs`, and `npm run docs:build` do not use it.
+It is its own npm package with its own lockfile, so its packages stay out of the app's tree and out of the images, and a bad upgrade can only break the docs build. The app's own Docs area, at `/docs`, and `npm run docs:build` do not use it.
 
 ## Run it
 

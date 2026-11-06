@@ -5,7 +5,7 @@ import { describe, type Domain, type Domains, type Person } from '@/model/people
   The workspace's people as the service has them (members.list and invites.list), in the app's
   shape: an Admin or a Member, the domains each owns, when they last signed in in words, and the
   open invites, each a person named by their address, who owns the invite's domains from the
-  start. A domain lists its invited owners beside its owners, as the mockup draws them.
+  start. A domain lists its invited owners beside its owners.
 */
 
 const DAY = 86_400_000

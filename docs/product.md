@@ -6,7 +6,7 @@ This page says what Heed v1 is: the job, the people, the promise, every screen w
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status               | v1 spec, written from the approved mockup                                                                                                                                                                     |
 | Date                 | 2026-10-25                                                                                                                                                                                                    |
-| Acceptance reference | The Heed v1 mockup at commit `080cbc3` (section 14)                                                                                                                                                           |
+| Acceptance reference | The Heed v1 mockup, in git history, under the tag `mockup-archive` (section 14)                                                                                                                               |
 | Written for          | Everyone who builds, reviews or runs Heed: contributors, coding agents, and the people who pick Heed up for their own company                                                                                 |
 | Order of authority   | The app first. Then this page and the design contract, which say what it does. Then the requirements, which are changed to match both. The mockup is a reference ([section 14](#14-the-acceptance-reference)) |
 
@@ -293,12 +293,11 @@ Ask answers from what the workspace has written. An item with no Applies to is r
 
 |                   |                                                                                                             |
 | ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| Mockup            | `apps/mockup`, imported from the repository `heed-v1-design`, folder `mockup/`                              |
-| Commit            | `080cbc3` ("README: topics, roll-ups and the month in the key")                                             |
+| Mockup            | In git history, under the tag `mockup-archive`                                                              |
 | Acceptance checks | The web app's own job specs in `tests/e2e` (Playwright), on the mock build and on the service, listed below |
 | The mockup's role | A reference for the design. It is not changed to follow the app                                             |
 
-If the app and the mockup differ, the app and these documents are right. A change to the mockup needs a new reference commit, recorded here.
+If the app and the mockup differ, the app and these documents are right.
 
 The job specs, one line each:
 

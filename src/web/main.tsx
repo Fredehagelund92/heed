@@ -16,7 +16,7 @@ mockControls?.setAddress({
 
 const router = createRouter({
   routeTree,
-  // Search params are plain text, read and written as the mockup did (?step=3 is the text "3").
+  // Search params are plain text, read and written as they are (?step=3 is the text "3").
   parseSearch: (search) => Object.fromEntries(new URLSearchParams(search)),
   stringifySearch: (search) => {
     const q = new URLSearchParams()
