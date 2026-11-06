@@ -82,9 +82,16 @@ describe('a rule reads only what is plainly a read', () => {
     'compare orders in Norway and Sweden',
     'do Norway orders include gift cards?',
     'is net revenue in Spain before or after VAT?',
+    'what is written about orders going to Norway?',
   ])('"%s" stays with the rules', (question) => {
     const { spans } = readQuestion(question, planBundle.terms, PLAN_TODAY)
     expect(readsPlainly(question, spans)).toBe(true)
+  })
+
+  it('does not read a forecast plainly', () => {
+    const question = 'are orders going to bounce back in Spain?'
+    const { spans } = readQuestion(question, planBundle.terms, PLAN_TODAY)
+    expect(readsPlainly(question, spans)).toBe(false)
   })
 
   it("never gives every domain's owners for something the rules cannot name", async () => {

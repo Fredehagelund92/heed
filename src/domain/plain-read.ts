@@ -20,7 +20,7 @@ const wordsOf = (text: string) =>
 
 /** "Going to Norway": a place named after "going to" is where something goes, not what happens next. */
 export const withoutDestinations = (text: string) =>
-  text.replace(/\bgoing to (?=\p{Lu})/gu, 'bound for ')
+  text.replace(/\bgoing to(?= \p{Lu})/gu, 'bound to')
 
 /** What happens next: a question about the future is no read of what is written. */
 const FORECAST =
@@ -85,7 +85,7 @@ function shapeOf(question: string, spans: readonly Span[]): string {
   // "Orders in Norway in August", "Norway orders" and "Norway and Sweden" are one thing asked about.
   let shape = said
   for (;;) {
-    const next = shape.replace(/\bx (?:(?:in|for|and|or|on|during|at) (?:the )?)?x\b/g, 'x')
+    const next = shape.replace(/\bx (?:(?:in|for|and|or|on|during|at|bound to) (?:the )?)?x\b/g, 'x')
     if (next === shape) return shape
     shape = next
   }
@@ -96,6 +96,6 @@ function shapeOf(question: string, spans: readonly Span[]): string {
  * `spans` are the names and dates the engine's reader found in it.
  */
 export function readsPlainly(question: string, spans: readonly Span[]): boolean {
-  const shape = shapeOf(question, spans)
+  const shape = shapeOf(withoutDestinations(question), spans)
   return !reachesBeyond(shape) && PLAIN_SHAPES.some((plain) => plain.test(shape))
 }
