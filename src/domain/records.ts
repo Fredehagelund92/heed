@@ -195,7 +195,7 @@ const PERSON_PAST =
  * person. It turns on who the question is about, never on words like "nobody" or "who": an
  * indefinite word names no one, and "who owns" asks for a domain's owners.
  */
-function aboutAPerson(t: string): boolean {
+function aboutAPerson(t: string, words: string, people: readonly string[]): boolean {
   if (
     new RegExp(
       `\\b(?:what|which|how many)\\b(?: [a-z]+){0,3} (?:did|has|have|does) (?!(?:${NOT_A_PERSON})\\b)[a-z]+(?: [a-z]+)? (?:${PERSON_VERBS})\\b`,
@@ -203,16 +203,23 @@ function aboutAPerson(t: string): boolean {
   )
     return true
   // "everything Ines wrote", "all Tomas published": no question word, the person is the subject.
-  if (
-    new RegExp(
-      `\\b(?:everything|anything|all|whatever|what)(?: that)? (?!(?:${NOT_A_PERSON})\\b)[a-z]+(?: has| have| had)? (?:${PERSON_PAST})\\b`,
-    ).test(t)
+  // Only a capitalised word, or one a workspace person is called, can be a person, so "what else changed" and "all terms changed" are not.
+  const subject = new RegExp(
+    `\\b(?:everything|anything|all|whatever|what)(?: that)? ([\\p{L}]+)(?: has| have| had)? (?:${PERSON_PAST})\\b`,
+    'giu',
   )
-    return true
+  const known = new Set(people.flatMap((name) => name.toLowerCase().split(/\s+/)))
+  for (const m of words.matchAll(subject)) {
+    const who = m[1]!
+    if (new RegExp(`^(?:${NOT_A_PERSON})$`, 'i').test(who)) continue
+    if (/^\p{Lu}/u.test(who) || known.has(who.toLowerCase())) return true
+  }
   // A ranking of people: "who is furthest behind", "who reviews the slowest".
   if (
     /\bwho\b.*\b(?:behind|furthest|slowest|fastest|latest|most|least|best|worst)\b/.test(t) &&
-    !/\bwho (?:owns|is the owner|are the owners)\b/.test(t)
+    !/\bwho (?:owns|is the owner|are the owners|is responsible for|are responsible for|looks? after|manages|maintains|is in charge of)\b/.test(
+      t,
+    )
   )
     return true
   if (
@@ -231,14 +238,14 @@ function aboutAPerson(t: string): boolean {
  * read here filters by a person. A whole name of two or more words reads in any case; one word of
  * a name only with its capital and not as the first word, so "Will orders rise?" names nobody.
  */
-function namesAPerson(words: string, people: readonly string[]): boolean {
-  const said = words.trim()
+function namesAPerson(words: string, dateless: string, people: readonly string[]): boolean {
+  const said = dateless.trim()
   const capitalised = (part: string) =>
     /^\p{Lu}/u.test(part) &&
     new RegExp(`(?<=\\S\\s+)${escape(part)}(?![\\p{L}\\p{N}])`, 'u').test(said)
   return people.some((name) => {
     const parts = name.trim().split(/\s+/)
-    return (parts.length > 1 && findName(said, name) !== null) || parts.some(capitalised)
+    return (parts.length > 1 && findName(words, name) !== null) || parts.some(capitalised)
   })
 }
 
@@ -465,7 +472,7 @@ export function recogniseRecords(
   if (found?.type !== 'records') return found
   const t = plain(question)
   const analysis = found.ask.intent === 'audit' || found.ask.intent === 'queue'
-  return JUDGEMENT.test(t) || reachesBeyond(t) || (!analysis && LOOSE_READ.test(t))
+  return JUDGEMENT.test(t) || reachesBeyond(question) || (!analysis && LOOSE_READ.test(t))
     ? { ...found, loose: true, judgement: true }
     : found
 }
@@ -485,10 +492,18 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   let words = question
   for (const at of [...named, ...(domain ? [domain.at!] : [])].sort((a, b) => b.start - a.start))
     words = `${words.slice(0, at.start)} ${words.slice(at.end)}`
+  let dateless = question
+  const cut = [...named, ...reading.spans.filter((s) => s.dates), ...(domain ? [domain.at!] : [])]
+  for (const at of cut.sort((a, b) => b.start - a.start))
+    dateless = `${dateless.slice(0, at.start)} ${dateless.slice(at.end)}`
   const t = plain(words)
   const scoped = named.length > 0
   const noun = RECORDS_NOUN.test(t) || (!named.length && PLAIN_NOUN.test(t))
-  if (namesAPerson(words, reading.people ?? []) || aboutAPerson(t)) return { type: 'refused' }
+  if (
+    namesAPerson(words, dateless, reading.people ?? []) ||
+    aboutAPerson(t, words, reading.people ?? [])
+  )
+    return { type: 'refused' }
 
   const ask = (intent: RecordsIntent, extra: Partial<RecordsAsk> = {}): RecordsRecognition => ({
     type: 'records',
@@ -700,6 +715,10 @@ const since = (iso: string | null) => (iso ? Date.parse(iso) : Number.NaN)
 const within = (iso: string | null, p: RecordsPeriod) =>
   iso !== null && since(iso) >= since(p.start) && since(iso) < since(p.end)
 
+/** A check is dated by its day, so it counts when any of that day is in the period. */
+const checkedWithin = (iso: string | null, p: RecordsPeriod) =>
+  iso !== null && since(iso) < since(p.end) && since(iso) + DAY > since(p.start)
+
 const NOTE =
   'Live means published and in use. Due for a check means its check date passed or its source changed.'
 
@@ -780,13 +799,13 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
       const p = ask.period ?? assumedPeriod(nowIso)
       const changes = inScope
         .flatMap((i) => {
-          const what: [string, string | null][] = [
-            ['Archived', i.archivedAt],
-            ['Added', i.publishedAt],
-            ['Changed', i.changedAt],
-            ['Checked', i.checkedAt],
+          const what: [string, string | null, boolean][] = [
+            ['Archived', i.archivedAt, false],
+            ['Added', i.publishedAt, false],
+            ['Changed', i.changedAt, false],
+            ['Checked', i.checkedAt, true],
           ]
-          const hit = what.find(([, at]) => within(at, p))
+          const hit = what.find(([, at, day]) => (day ? checkedWithin(at, p) : within(at, p)))
           return hit ? [{ item: i, what: hit[0], at: hit[1]! }] : []
         })
         .sort((a, b) => since(b.at) - since(a.at))

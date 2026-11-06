@@ -18,6 +18,10 @@ const wordsOf = (text: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
 
+/** "Going to Norway": a place named after "going to" is where something goes, not what happens next. */
+export const withoutDestinations = (text: string) =>
+  text.replace(/\bgoing to (?=\p{Lu})/gu, 'bound for ')
+
 /** What happens next: a question about the future is no read of what is written. */
 const FORECAST =
   /\b(?:will|won t|going to|gonna|shall|might|expect(?:ed|ing)?|likely|predict(?:ion|ed)?|forecast|outlook|next (?:week|month|quarter|year))\b/
@@ -33,13 +37,13 @@ const JUDGES =
  * A word that only ends up in a name is not read here: take the names out first.
  */
 export const reachesBeyond = (words: string) => {
-  const t = wordsOf(words)
+  const t = wordsOf(withoutDestinations(words))
   return FORECAST.test(t) || ACTS.test(t) || JUDGES.test(t)
 }
 
 /** Whether the words ask Ask to write or change something, or what happens next. */
 export const asksToActOrForecast = (words: string) => {
-  const t = wordsOf(words)
+  const t = wordsOf(withoutDestinations(words))
   return FORECAST.test(t) || ACTS.test(t)
 }
 

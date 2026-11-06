@@ -232,7 +232,7 @@ const cannot = (
 })
 
 /** A limit sentence: what follows when something was read, and only the limit when nothing was. */
-const limitOfReason = (
+export const limitOfReason = (
   reason: LimitReason | null | undefined,
   answer: Pick<Answer, 'items'>,
 ): AnswerLimit | null =>

@@ -45,6 +45,26 @@ const input: WordsInput = {
 }
 
 describe('the check on a model’s words', () => {
+  it('never takes advice from the question, nor from an item the sentence does not cite', () => {
+    const asked = (items: WordsInput['items']): WordsInput => ({
+      ...input,
+      question: 'do you think we should pause ads in Norway?',
+      state: 'grounded',
+      items,
+    })
+    const pause = { title: 'Ads', summary: 'Ads in Norway paused in May.', notToConclude: null }
+    const words = 'Ads in Norway paused in May [1]. We should pause ads in Norway [1].'
+    expect(checkWords(words, asked([pause]))).toEqual({
+      ok: true,
+      text: 'Ads in Norway paused in May [1].',
+    })
+    const other = { title: 'Guide', summary: 'You should read it weekly.', notToConclude: null }
+    expect(checkWords(words, asked([pause, other]))).toEqual({
+      ok: true,
+      text: 'Ads in Norway paused in May [1].',
+    })
+  })
+
   it('drops a sentence that turns an item into advice of its own, and keeps one that quotes it', () => {
     const guide = (summary: string): WordsInput => ({
       ...input,

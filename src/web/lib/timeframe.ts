@@ -108,10 +108,11 @@ export function ageDays(checkedOn: string) {
 
 export function trustOf(f: Fact): Trust {
   if (f.status === 'Archived') return 'retired'
+  // Due is what the service says: a check date passed or a source changed, never an age, and an
+  // item never checked is still due.
+  if (f.status === 'Needs checking') return 'due'
   const age = ageDays(f.checkedOn)
   if (age === undefined) return 'draft'
-  // Due is what the service says: a check date passed or a source changed, never an age.
-  if (f.status === 'Needs checking') return 'due'
   return age > 30 ? 'ageing' : 'fresh'
 }
 

@@ -224,16 +224,15 @@ export function wordsGate(input: WordsInput) {
   const waiting: string[] = []
   const dropped: string[] = []
 
-  /** Whether a sentence that cites items says only what they, the definitions and the question say. */
-  const cites = (text: string) => {
-    const cited = [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))]
-    return supportedBy(
-      text,
-      [...cited.map((n) => support.items[n - 1] ?? ''), support.definitions, support.frame].join(
-        ' ',
-      ),
+  /** The text of the items a sentence cites. */
+  const citedItems = (text: string) =>
+    [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].map(
+      (n) => support.items[n - 1] ?? '',
     )
-  }
+
+  /** Whether a sentence that cites items says only what they, the definitions and the question say. */
+  const cites = (text: string) =>
+    supportedBy(text, [...citedItems(text), support.definitions, support.frame].join(' '))
 
   /** One complete sentence: what it lets through, nothing once the words have failed. */
   const sentence = (raw: string): string[] => {
@@ -243,8 +242,9 @@ export function wordsGate(input: WordsInput) {
       failed = check.why
       return []
     }
-    // An item's own "you should" may be quoted; a model turning its words into advice may not.
-    if (OWN_VOICE.test(check.text) && !OWN_VOICE.test(everything)) {
+    // An item's own "you should" may be quoted by a sentence that cites that item; a model turning
+    // its words into advice may not, and the question never lets it.
+    if (OWN_VOICE.test(check.text) && !OWN_VOICE.test(citedItems(check.text).join(' '))) {
       dropped.push('advises in its own voice')
       return []
     }

@@ -90444,6 +90444,9 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "best": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -93897,6 +93900,9 @@
                                                       "type": "null"
                                                     }
                                                   ]
+                                                },
+                                                "best": {
+                                                  "type": "boolean"
                                                 }
                                               },
                                               "required": [

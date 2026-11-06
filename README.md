@@ -261,6 +261,9 @@ to start from. For anything else, open an issue first if it is bigger than a sma
 `npm run check` runs the type check, lint, format check and unit tests. Please follow the
 [code of conduct](CODE_OF_CONDUCT.md).
 
+Data status for agents, which would let an agent know when the data behind a metric is late or failing, is not built
+yet. [The design is open](https://github.com/Fredehagelund92/heed/issues/159), and your input is welcome there.
+
 ## Security
 
 Please report a security problem privately, through GitHub's private vulnerability reporting, not in a public

@@ -12,6 +12,7 @@ import {
   type RecordsWorld,
 } from '../../../src/domain/records.ts'
 import type { Term } from '../../../src/domain/vocabulary.ts'
+import { PLAN_NOW, planRecords } from '../../../src/server/modules/answer/plan-world.ts'
 
 /*
   Records answers: the closed list of questions about the context's own records, read by
@@ -354,6 +355,81 @@ describe('reading a records question', () => {
   })
 })
 
+describe('the person boundary, with the workspace in hand', () => {
+  const read = (question: string) =>
+    recogniseRecords(question, {
+      spans: readQuestion(question, terms, today).spans,
+      terms,
+      domains,
+      now,
+      people: ['Ines Duarte', 'May Lin'],
+    })
+
+  it.each([
+    'what else changed last week?',
+    'what exactly changed?',
+    'what terms changed',
+    'all terms changed',
+    'anything new published',
+    'who is responsible for the latest warning?',
+    'who looks after the worst domain?',
+    'who owns the latest warning?',
+    'What changed in May?',
+  ])('does not take "%s" for a person', (question) => {
+    expect(read(question)?.type).not.toBe('refused')
+  })
+
+  it.each([
+    'show me everything Ines wrote',
+    'everything ines wrote',
+    'what did May Lin change?',
+    'is Ines behind on her checks?',
+    'who is furthest behind on their reviews?',
+    'who reviews the slowest',
+  ])('refuses "%s"', (question) => {
+    expect(read(question)?.type).toBe('refused')
+  })
+})
+
+describe('a ranking across domains', () => {
+  const audit = (question: string) => {
+    const found = recognise(question)
+    return found?.type === 'records' ? (found.ask.audit ?? null) : null
+  }
+  const ranked = (best: boolean) =>
+    answerRecords(
+      ask({
+        intent: 'audit',
+        audit: { facets: ['review'], of: null, kind: null, value: null, ...(best ? { best } : {}) },
+      }),
+      planRecords,
+      PLAN_NOW,
+    )
+
+  it('reads the best from the best end, and the worst from the worst', () => {
+    expect(audit('which domain is best covered?')).toMatchObject({ facets: ['review'], best: true })
+    expect(audit('which domain has the best documentation?')).toMatchObject({ best: true })
+    expect(audit('which domain has the worst documentation?')).toMatchObject({
+      facets: ['review'],
+    })
+    expect(audit('which domain has the worst documentation?')?.best).toBeUndefined()
+  })
+
+  it('puts first what comes first, says so, and a follow-up follows it', () => {
+    const worst = ranked(false)
+    const best = ranked(true)
+    expect(worst.top?.name).toBe('Marketing')
+    expect(worst.ranked).toContain('so Marketing comes first')
+    expect(best.top?.name).toBe('Paid media')
+    expect(best.ranked).toContain('the smallest first, so Paid media comes first')
+  })
+
+  it('leaves a ranking by another measure out of this read', () => {
+    expect(audit('which domain has the most conflicts?')?.facets).not.toEqual(['review'])
+    expect(audit('what do agents ask most in the Sales domain?')?.facets).toEqual(['asked_most'])
+  })
+})
+
 describe('the period a question names', () => {
   const read = (words: string, at = now) => readRecordsPeriod(words, at)
   it('reads hours and days back from now', () => {
@@ -574,6 +650,22 @@ describe('a records answer', () => {
       world(items, { queue: [{ group: 'check', count: 1 }] }),
     )
     expect(read(queue.sections!.find((s) => s.title === 'Due for a check')!)).toEqual(rows)
+  })
+
+  it('keeps a check made inside a rolling period, though a check is dated by its day', () => {
+    // Asked on Friday at 15:30; the check was on Thursday at 16:00, inside the last 24 hours.
+    const a = answer(
+      ask({ intent: 'changed', period: last24 }),
+      world([
+        item({
+          id: 'checked',
+          publishedAt: at('2026-01-01'),
+          changedAt: at('2026-01-01'),
+          checkedAt: '2026-10-29T00:00:00.000Z',
+        }),
+      ]),
+    )
+    expect(JSON.stringify(a)).toContain('Checked')
   })
 
   it('says when nothing is due or archived: a real answer, never Not found', () => {

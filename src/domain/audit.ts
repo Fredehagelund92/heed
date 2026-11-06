@@ -664,7 +664,7 @@ function readingOf(
     }
   }
 
-  /** Every domain on a line, the largest share of metrics with nothing written first. */
+  /** Every domain on a line, the largest share of metrics with nothing written first, or last for the best. */
   const libraryReview = (): Part => {
     // A domain with no metrics has nothing to count, so it takes no line.
     const lines = world.areas.flatMap((a) => {
@@ -674,7 +674,7 @@ function readingOf(
       if (!total) return []
       const line = {
         area: a,
-        share: total ? none / total : 0,
+        share: none / total,
         row: {
           type: 'area' as const,
           id: a.id,
@@ -688,11 +688,16 @@ function readingOf(
       }
       return [line]
     })
+    const way = read.best ? -1 : 1
     const ranked = [...lines].sort(
-      (a, b) => b.share - a.share || a.area.name.localeCompare(b.area.name, 'en'),
+      (a, b) => way * (b.share - a.share) || a.area.name.localeCompare(b.area.name, 'en'),
     )
     const [first, second] = ranked
-    const alone = first && first.share > 0 && (!second || first.share > second.share)
+    const alone =
+      first && (read.best ? true : first.share > 0) && (!second || first.share !== second.share)
+    const rule = read.best
+      ? 'Ranked by the share of metrics with no context written, the smallest first'
+      : 'Ranked by the share of metrics with no context written'
     return {
       sentence: 'This is what the records show, a line a domain.',
       section: {
@@ -705,9 +710,7 @@ function readingOf(
         more: null,
       },
       clear: null,
-      ranked: alone
-        ? `Ranked by the share of metrics with no context written, so ${first.area.name} comes first.`
-        : 'Ranked by the share of metrics with no context written.',
+      ranked: alone ? `${rule}, so ${first.area.name} comes first.` : `${rule}.`,
       found: lines.length,
       top: alone ? { id: first.area.id, name: first.area.name } : null,
     }
@@ -1093,10 +1096,25 @@ export function readAudit(
     )
   )
     return read(['review'])
-  // A ranking across domains is the review, ordered, with its rule said.
-  const rank = 'worst|best|weakest|strongest|thinnest|poorest|least|most|lowest|highest'
-  if (new RegExp(`\\bdomains?\\b.*\\b(?:${rank})\\b|\\b(?:${rank})\\b.*\\bdomains?\\b`).test(t))
-    return read(['review'])
+  // A ranking across domains by how well each is covered is the review, ordered, with its rule said.
+  // Any other measure ("the most conflicts") is not this ranking, and is left to the planner.
+  const high = 'best|strongest|most|highest'
+  const low = 'worst|weakest|thinnest|poorest|least|lowest'
+  const measure =
+    'cover(?:ed|age)|document(?:ed|ation)|context|written|healthy|health|complete(?:ness)?'
+  const ranking = new RegExp(
+    `\\bdomains?\\b.*\\b(?:${high}|${low})\\b|\\b(?:${high}|${low})\\b.*\\bdomains?\\b`,
+  )
+  if (ranking.test(t)) {
+    const sure =
+      /\b(?:best|strongest|worst|weakest|thinnest|poorest)\b/.test(t) &&
+      !/\b(?:conflicts?|duplicat\w*|overlap\w*|due|owners?|asked|agents?|stale|outdated)\b/.test(t)
+    if (sure || new RegExp(`\\b(?:${measure})\\b`).test(t)) {
+      const best =
+        new RegExp(`\\b(?:${high})\\b`).test(t) && !new RegExp(`\\b(?:${low})\\b`).test(t)
+      return { read: { ...read(['review']).read, ...(best ? { best } : {}) } }
+    }
+  }
   if (/\bcovers? everything\b|\b(?:biggest |main )?gaps? in\b.*\bcontext\b/.test(t))
     return read(['no_context', 'asked_nothing'])
   if (/\bagents?\b.*\b(?:most|most often)\b|\bmost asked\b|\basked (?:about )?most\b/.test(t))

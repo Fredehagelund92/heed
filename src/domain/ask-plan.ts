@@ -19,7 +19,7 @@ import {
   type CannotReason,
   type PlanLimit,
 } from './records-answer.ts'
-import { reachesBeyond } from './plain-read.ts'
+import { reachesBeyond, withoutDestinations } from './plain-read.ts'
 import { readQuestion, type ResolvedScope } from './scope.ts'
 import { anyDate, shiftDate, type DateWindow } from './validity.ts'
 import { normalizeName, type Term } from './vocabulary.ts'
@@ -283,8 +283,16 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     return { kind: 'clarify', question: WHICH_ONE }
   // "The first one" of an answer with sources is that source, whatever read the plan chose.
   const nth = sourceNamed(ctx)
-  if (nth && !('reads' in raw && raw.reads.some((read) => read.kind === 'about_previous')))
-    return planOf({ reads: [{ kind: 'about_previous', sources: [nth] }] }, ctx)
+  // Only a plan that reads becomes the source: an exit, a question back or a records question
+  // asks about something else, and a limit stays.
+  if (nth && 'reads' in raw && !raw.reads.some((read) => read.kind === 'about_previous'))
+    return planOf(
+      {
+        reads: [{ kind: 'about_previous', sources: [nth] }],
+        ...(raw.limit ? { limit: raw.limit } : {}),
+      },
+      ctx,
+    )
   if ('clarify' in raw) {
     // A choice after a colon reads the same after a comma: one question either way.
     const question = checkedQuestionBack(raw.clarify.replace(/:\s+/, ', '), ctx)
@@ -1147,7 +1155,7 @@ export const readsBeyond = (question: string) =>
  * before...") is none of these.
  */
 export function limitOf(question: string): PlanLimit | null {
-  const t = followUpWords(question)
+  const t = followUpWords(withoutDestinations(question))
   if (OUTSIDE.test(t)) return 'outside'
   if (FORECAST.test(t)) return 'forecast'
   if (NUMBERS.test(t)) return 'numbers'

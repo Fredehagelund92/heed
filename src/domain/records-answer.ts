@@ -186,6 +186,8 @@ export const auditReadSchema = z.object({
   kind: z.nullable(z.enum(recordsKinds)),
   /** One dimension value, by key, for what agents asked about it. */
   value: z.nullable(z.string()),
+  /** A ranking of domains the best first, when the question asks for the best covered. */
+  best: z.optional(z.boolean()),
 })
 export type AuditRead = z.infer<typeof auditReadSchema>
 

@@ -118,6 +118,14 @@ describe('a word of judgement', () => {
 })
 
 describe('what reaches beyond what is written', () => {
+  it('reads "going to" a place as where something goes, and "going to" a verb as what is next', () => {
+    expect(limitOf('what is written about orders going to Norway?')).toBeNull()
+    expect(limitOf('are orders going to Norway counted in Sales?')).toBeNull()
+    expect(limitOf('are orders going to bounce back in Spain?')).toBe('forecast')
+    expect(readsBeyond('what is written about orders going to Norway?')).toBe(false)
+    expect(readsBeyond('are orders going to bounce back in Spain?')).toBe(true)
+  })
+
   it.each([
     ['should we restart the Norway campaign?', 'advice'],
     ['will orders recover in Norway next quarter?', 'forecast'],

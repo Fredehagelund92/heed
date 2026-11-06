@@ -335,7 +335,7 @@ function searchOnce(
   const read = matched.length ? asked : { ...asked, words: '' }
   const every = matched.length
     ? matched
-    : strict.words
+    : strict.words && asked.words.trim()
       ? []
       : candidates.map((item) => ({ item, score: 0, all: true }))
   // An item for no value applies to every one, so it says nothing of the value asked: it is read
@@ -437,11 +437,16 @@ function widerReads(
   question: string,
 ): { read: ExploreRead; strict: Strict }[] {
   if (read.kind !== 'lookup' && read.kind !== 'explore') return []
+  const scoped = read.scope.metrics.length > 0 || Object.keys(read.scope.filters).length > 0
+  // A name holds a wider read to the question. With none, only the kinds asked can, and with no
+  // kinds either there is nothing it could be about.
+  const kinds = !scoped && read.kind === 'explore' ? read.kinds : []
+  if (!scoped && !kinds.length) return []
   const every = { ...read.scope, window: anyDate }
   const widest = {
     kind: 'explore' as const,
     words: '',
-    kinds: [],
+    kinds,
     scope: every,
     period: 'any' as const,
   }
@@ -467,7 +472,13 @@ function limitedRead(
   read: PlannedRead,
   c: { question: string; today: string; previous: ChatTurn | null; now?: () => number },
 ): ReadRun {
-  const first = runRead(bundle, read, c, { names: true })
+  // Words alone are all a search with no scope is about, so words that match nothing read nothing.
+  const wordsAlone =
+    read.kind === 'explore' &&
+    read.words.trim() !== '' &&
+    !read.scope.metrics.length &&
+    !Object.keys(read.scope.filters).length
+  const first = runRead(bundle, read, c, { names: true, words: wordsAlone })
   if (first.answer.items.length) return first
   for (const wider of widerReads(bundle, read, c.question)) {
     const run = runRead(bundle, wider.read, c, wider.strict)

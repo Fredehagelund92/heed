@@ -288,6 +288,19 @@ describe('a plan that does not answer the question asked', () => {
     })
   })
 
+  it('lets an exit stand over "the first one", and keeps the limit of a read', () => {
+    const exit = plan({ cannot: 'write' }, { question: 'rewrite the first one' })
+    expect(exit).toMatchObject({ ok: true, plan: { kind: 'cannot', reason: 'write' } })
+    const limited = plan(
+      { reads: [{ kind: 'definition', metrics: ['metric:orders'] }], limit: 'advice' },
+      { question: 'tell me more about the first one' },
+    )
+    expect(limited).toMatchObject({
+      ok: true,
+      plan: { reads: [{ kind: 'about_previous' }], limit: 'advice' },
+    })
+  })
+
   it('reads "the first one" of an answer with sources as that source', () => {
     const got = plan(
       { reads: [{ kind: 'definition', metrics: ['metric:orders'] }] },
@@ -499,6 +512,45 @@ describe('what the planner is told', () => {
     expect(plannerVocabulary(many, [])).toContain(
       `dim:campaign Campaign: ${PLANNER_VALUES + 1} values, not listed`,
     )
+  })
+})
+
+describe('a read under a limit', () => {
+  const window = recentWindow(PLAN_TODAY)
+  const read = (reads: Parameters<typeof plannedAnswer>[1]) =>
+    plannedAnswer(planBundle, reads, {
+      question: 'what should we do about the zebra stripes?',
+      today: PLAN_TODAY,
+      previous: null,
+      turns: [],
+      limited: true,
+    })
+
+  it('shows nothing when the words match nothing, never every recent item', () => {
+    const got = read([
+      {
+        kind: 'explore',
+        words: 'zebra stripes',
+        kinds: [],
+        scope: { metrics: [], filters: {}, window },
+        period: 'recent',
+      },
+    ])
+    expect(got.answer.items).toEqual([])
+  })
+
+  it('keeps to the kinds asked when no name holds a wider read to the question', () => {
+    const got = read([
+      {
+        kind: 'explore',
+        words: '',
+        kinds: ['event'],
+        scope: { metrics: [], filters: {}, window },
+        period: 'recent',
+      },
+    ])
+    expect(got.answer.items.length).toBeGreaterThan(0)
+    expect(got.answer.items.every((item) => item.kind === 'event')).toBe(true)
   })
 })
 

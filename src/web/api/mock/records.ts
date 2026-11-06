@@ -10,6 +10,7 @@ import {
   type RecordsWorld,
 } from '@domain/records'
 import { cardGroups } from '@domain/inbox'
+import { readsPlainly } from '@domain/plain-read'
 import type { Term } from '@domain/vocabulary'
 import { toServerValidity } from '@/model/validity'
 import { HIDE_UNDER } from '@/api/mock/obs-engine'
@@ -254,6 +255,10 @@ export function recognisedFor(
     tools: [...new Set(world.definitions.flatMap((d) => d.tool ?? []))],
   })
 }
+
+/** Whether a question is plainly a read, as the service's rules decide it. */
+export const readsPlainlyFor = (question: string, definitions: readonly Definition[]) =>
+  readsPlainly(question, spansOf(question, termsOf(definitions)))
 
 /** The demo world a records answer is counted from. */
 type RecordsSource = {

@@ -19,6 +19,9 @@ open an issue: [SECURITY.md](SECURITY.md) says how to tell us privately.
    had to guess, counts as a bug.
 4. **Fix the docs.** Every page is Markdown in `docs`. If a page is wrong, send the fix. A small fix
    needs no issue.
+5. **Weigh in on an open design.** [Data status for agents](https://github.com/Fredehagelund92/heed/issues/159)
+   would let an agent know when the data behind a metric is late or failing. It is not built yet, and
+   your input is welcome there.
 
 ### Write a connector with a coding agent
 
