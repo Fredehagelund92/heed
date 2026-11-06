@@ -354,3 +354,19 @@ describe('one word, one meaning (FR-138)', () => {
     expect(both.map((name) => name.flags[0]!.code)).toEqual(['same_name', 'same_name'])
   })
 })
+
+describe('a disconnected source', () => {
+  it('offers no names, on the card or in the list', async () => {
+    expect((await names('admin')).names.length).toBeGreaterThan(0)
+    const { rows } = await client.query<{ id: string }>(
+      `select id from connectors where type = 'dbt-metricflow' and removed_at is null`,
+    )
+    await ok(
+      call('POST', `/sources/${rows[0]!.id}/disconnect`, 'admin', {
+        reason: 'Connected the wrong dbt project',
+      }),
+    )
+    expect((await names('admin')).names).toEqual([])
+    expect(await namesCard('admin')).toBeUndefined()
+  })
+})

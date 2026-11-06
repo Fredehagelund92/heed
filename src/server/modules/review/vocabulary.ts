@@ -23,7 +23,8 @@ export async function sourceVocabulary(tx: Queryable, everyone = false) {
             d.description_copy as description,d.value_type as "valueType",d.area_hint as "areaHint",
             d.synonyms,d.base_name as "baseName",c.type,c.name as "sourceName"
        from definitions d left join connectors c on c.id=d.connector_id
-      where d.missing_since_snapshot is null and c.type is distinct from 'demo'
+      where d.missing_since_snapshot is null and (c.id is null or c.removed_at is null)
+        and c.type is distinct from 'demo'
         ${everyone ? 'and d.visible_groups is null' : ''}`,
   )
   // Whether a source's same-named dimensions are one is its connector's to say (CON-201).

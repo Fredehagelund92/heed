@@ -26,7 +26,7 @@ import {
 } from './terms.ts'
 
 /** Why a name needs an owner's eyes before it goes live. */
-export const nameFlagCodes = ['taken', 'same_name', 'titles_differ'] as const
+export const nameFlagCodes = ['taken', 'same_name', 'titles_differ', 'bad_name'] as const
 export type NameFlagCode = (typeof nameFlagCodes)[number]
 export type NameFlag = { code: NameFlagCode; message: string }
 
@@ -103,6 +103,8 @@ export function sourceNames(
     if (!offered.has(candidate)) return []
     const plain = plainName(candidate, byRef)
     const flags: NameFlag[] = []
+    const shape = nameShapeRefusal(candidate.name)
+    if (shape) flags.push({ code: 'bad_name', message: shape })
     const held = wordRefusal(plain, othersOf(candidate.key, termWord(plain), holders), null)
     if (held) flags.push({ code: 'taken', message: held.message })
     const others = (sharing.get(termWord(plain)) ?? []).filter((other) => other !== candidate)
@@ -144,6 +146,15 @@ export function sourceNames(
   })
 }
 
+/** What is wrong with the shape of a name, whatever else holds its word; null when it is fine. */
+function nameShapeRefusal(name: string): string | null {
+  const said = termName(name)
+  if (!termWord(said)) return 'Give it a name.'
+  if (said.length > TERM_NAME_MAX) return `A name can be ${TERM_NAME_MAX} characters at most.`
+  if (!termNamePattern.test(said)) return 'A name holds no comma or line break.'
+  return null
+}
+
 /** Why a name can't be accepted as it stands, in one sentence; null when it can. */
 export function nameRefusal(
   key: string,
@@ -151,10 +162,9 @@ export function nameRefusal(
   holders: WordHolders,
   chosen: ReadonlyMap<string, string>,
 ): string | null {
+  const shape = nameShapeRefusal(name)
+  if (shape) return shape
   const said = termName(name)
-  if (!termWord(said)) return 'Give it a name.'
-  if (said.length > TERM_NAME_MAX) return `A name can be ${TERM_NAME_MAX} characters at most.`
-  if (!termNamePattern.test(said)) return 'A name holds no comma or line break.'
   const word = termWord(said)
   const held = wordRefusal(said, othersOf(key, word, holders), null)
   if (held) return held.message

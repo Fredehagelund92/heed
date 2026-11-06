@@ -178,6 +178,29 @@ describe('the names a read makes', () => {
     expect(names[0]!.flags[0]!.message).toContain('“Market” and “Country”')
   })
 
+  it('flags a name the service would refuse, so Publish all never carries it', () => {
+    const names = sourceNames(
+      [
+        member('dbt:orders.net', { title: 'Revenue, net' }),
+        member('dbt:orders.long', { title: 'x'.repeat(101) }),
+        member('dbt:orders.fine', { title: 'Fine' }),
+      ],
+      [],
+      noHolders,
+      nothingLeft,
+    )
+    expect(names.map((n) => [n.name, n.state])).toEqual([
+      ['Revenue, net', 'flagged'],
+      ['x'.repeat(101), 'flagged'],
+      ['Fine', 'ready'],
+    ])
+    expect(names[0]!.flags[0]).toEqual({
+      code: 'bad_name',
+      message: 'A name holds no comma or line break.',
+    })
+    expect(names[1]!.flags[0]!.message).toBe('A name can be 100 characters at most.')
+  })
+
   it('drops another name someone else already has, rather than flag the metric', () => {
     const term: WordHolder = {
       origin: 'term',

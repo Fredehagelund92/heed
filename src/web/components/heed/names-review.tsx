@@ -8,6 +8,7 @@ import { Domain, Fold, PaneFoot, PaneHead, PrimaryAction } from '@/components/he
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { ListSkeleton, Loadable } from '@/components/heed/load-state'
 import { useOnline } from '@/lib/send'
 import { memberOf } from '@domain/vocabulary'
 import { namesWords } from '@/model/inbox'
@@ -22,7 +23,15 @@ const FIRST_ROWS = 40
 const kindWord = { metric: 'Metric', dimension: 'Dimension' } as const
 
 /** A name that is ready: what it is, and the source's own words for it. */
-function ReadyRow({ name }: { name: SourceNameRead }) {
+function ReadyRow({
+  name,
+  busy,
+  onLeaveOut,
+}: {
+  name: SourceNameRead
+  busy: boolean
+  onLeaveOut: () => void
+}) {
   return (
     <li className="flex min-w-0 flex-col gap-0.5 py-2">
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -32,6 +41,11 @@ function ReadyRow({ name }: { name: SourceNameRead }) {
           <span className="text-xs text-muted-foreground">Adds another view</span>
         )}
         {name.areaId && <Domain id={name.areaId} />}
+        {name.linked.length === 0 && (
+          <Button variant="ghost" size="sm" className="ml-auto" disabled={busy} onClick={onLeaveOut}>
+            Leave out
+          </Button>
+        )}
       </span>
       {name.description && (
         <span className="line-clamp-1 text-xs text-muted-foreground">{name.description}</span>
@@ -40,7 +54,7 @@ function ReadyRow({ name }: { name: SourceNameRead }) {
   )
 }
 
-/** A flagged name: why, the name to keep or change, and its two decisions. */
+/** A name with an editor: why it waits, the name to keep or change, and its decisions. */
 function FlaggedRow({
   name,
   busy,
@@ -52,7 +66,7 @@ function FlaggedRow({
   busy: boolean
   problem: string | undefined
   onAccept: (chosen: string) => void
-  onLeaveOut: () => void
+  onLeaveOut?: () => void
 }) {
   const [chosen, setChosen] = React.useState(name.name)
   const id = React.useId()
@@ -76,9 +90,11 @@ function FlaggedRow({
         <Button variant="outline" size="sm" disabled={busy} onClick={() => onAccept(chosen)}>
           Publish
         </Button>
-        <Button variant="ghost" size="sm" disabled={busy} onClick={onLeaveOut}>
-          Leave out
-        </Button>
+        {onLeaveOut && (
+          <Button variant="ghost" size="sm" disabled={busy} onClick={onLeaveOut}>
+            Leave out
+          </Button>
+        )}
       </div>
       {problem && (
         <p role="alert" className="text-xs text-destructive">
@@ -134,7 +150,8 @@ export default function NamesReview({
     } catch (e) {
       const error = toApiError(e)
       const key = picks.length === 1 ? picks[0]!.key : undefined
-      if (key) setProblems({ [key]: error.message })
+      const edited = key && names.some((n) => n.key === key && n.state !== 'ready')
+      if (key && edited) setProblems({ [key]: error.message })
       else toast("Couldn't publish the names", { description: error.message })
       await client.invalidateQueries({ queryKey: queryKeys.names })
     } finally {
@@ -148,6 +165,13 @@ export default function NamesReview({
       `${chosen} is live`,
     )
 
+  if (!read.data)
+    return frame(
+      <Loadable what="the names" skeleton={<ListSkeleton rows={5} />} query={read}>
+        {null}
+      </Loadable>,
+      null,
+    )
   const shown = all ? ready : ready.slice(0, FIRST_ROWS)
   const body = (
     <>
@@ -186,7 +210,12 @@ export default function NamesReview({
             </h3>
             <ul className="divide-y divide-border">
               {shown.map((name) => (
-                <ReadyRow key={name.key} name={name} />
+                <ReadyRow
+                  key={name.key}
+                  name={name}
+                  busy={busy}
+                  onLeaveOut={() => void decide([], [name.key], `${name.name} is left out`)}
+                />
               ))}
             </ul>
             {shown.length < ready.length && (
@@ -203,17 +232,13 @@ export default function NamesReview({
           >
             <ul className="divide-y divide-border">
               {left.map((name) => (
-                <li key={name.key} className="flex items-center justify-between gap-3 py-1.5">
-                  <span className="min-w-0 truncate">{name.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void acceptOne(name, name.name)}
-                  >
-                    Publish
-                  </Button>
-                </li>
+                <FlaggedRow
+                  key={name.key}
+                  name={name}
+                  busy={busy}
+                  problem={problems[name.key]}
+                  onAccept={(chosen) => void acceptOne(name, chosen)}
+                />
               ))}
             </ul>
           </Fold>

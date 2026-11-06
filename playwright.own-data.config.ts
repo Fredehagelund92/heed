@@ -25,7 +25,9 @@ export default defineConfig({
   timeout: 180_000,
   expect: { timeout: 15_000 },
   forbidOnly: ci,
-  retries: ci ? 1 : 0,
+  // The journey changes its one database, so a retry would start from changed data, always fail at
+  // '0 of 6 done' and hide the first error.
+  retries: 0,
   reporter: ci
     ? [['github'], ['html', { open: 'never', outputFolder: 'playwright-report/e2e-own' }]]
     : 'list',
