@@ -201,6 +201,66 @@ describe('the names a read makes', () => {
     expect(names[1]!.flags[0]!.message).toBe('A name can be 100 characters at most.')
   })
 
+  it('gives a word shared across kinds to neither', () => {
+    const names = sourceNames(
+      [
+        member('dbt:orders.revenue', { title: 'Revenue', synonyms: ['Sales'] }),
+        member('dbt:orders.channel', {
+          kind: 'dimension',
+          valueType: 'categorical',
+          synonyms: ['Sales', 'Route'],
+        }),
+        member('dbt:orders.sales', { title: 'Sales' }),
+      ],
+      [],
+      noHolders,
+      nothingLeft,
+    )
+    const alias = (key: string) => names.find((n) => n.key === key)!.aliases
+    expect(alias('metric:revenue')).toEqual([])
+    expect(alias('dim:channel')).toEqual(['Route'])
+    expect(names.every((n) => n.state === 'ready')).toBe(true)
+  })
+
+  it('keeps a live name from taking a word a term people wrote has, and flags differing titles', () => {
+    const live: KnownTerm = {
+      key: 'dim:market',
+      kind: 'dimension',
+      name: 'Market',
+      aliases: ['Region'],
+      areaId: null,
+      definitionRefs: ['cube:orders.market'],
+      open: false,
+    }
+    const term: WordHolder = { origin: 'term', id: 't1', name: 'Sales', sameAs: null, by: 'Maria' }
+    const members = [
+      member('cube:orders.market', { kind: 'dimension', valueType: 'string', mergeDimensions: 'by-name' }),
+      member('cube:returns.market', {
+        kind: 'dimension',
+        valueType: 'string',
+        mergeDimensions: 'by-name',
+        title: 'Returns Country',
+        synonyms: ['Sales', 'Territory'],
+      }),
+    ]
+    const [name] = sourceNames(members, [live], new Map([['sales', [term]]]), nothingLeft)
+    expect(name!.aliases).toEqual(['Region', 'Territory'])
+    expect(name).toMatchObject({ state: 'flagged' })
+    expect(name!.flags[0]!.code).toBe('titles_differ')
+  })
+
+  it('refuses two names that go by one word, aliases included', () => {
+    const chosen = new Map([
+      ['metric:a', ['Alpha', 'Sales']],
+      ['dim:b', ['Sales']],
+    ])
+    expect(nameRefusal('dim:b', 'Sales', noHolders, chosen)).toContain('“Sales”')
+    expect(nameRefusal('metric:a', 'Alpha', noHolders, chosen)).toContain('“Sales”')
+    expect(nameRefusal('dim:b', 'Beta', noHolders, new Map([...chosen, ['dim:b', ['Beta']]]))).toBe(
+      null,
+    )
+  })
+
   it('drops another name someone else already has, rather than flag the metric', () => {
     const term: WordHolder = {
       origin: 'term',

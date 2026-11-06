@@ -197,7 +197,11 @@ export default function NamesReview({
                   busy={busy}
                   problem={problems[name.key]}
                   onAccept={(chosen) => void acceptOne(name, chosen)}
-                  onLeaveOut={() => void decide([], [name.key], `${name.name} is left out`)}
+                  onLeaveOut={
+                    name.linked.length
+                      ? undefined
+                      : () => void decide([], [name.key], `${name.name} is left out`)
+                  }
                 />
               ))}
             </ul>

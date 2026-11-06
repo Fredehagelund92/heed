@@ -255,9 +255,24 @@ export function createNamesService(tx: Queryable) {
       return { ...waiting, chosen: name === undefined ? waiting.name : termName(name) }
     })
     const left = input.leaveOut.map(found)
+    const live = left.find((name) => name.linked.length)
+    if (live)
+      throw new ORPCError('UNPROCESSABLE_CONTENT', {
+        message: `“${live.name}” is live already and gains a view when you publish it. It can't be left out.`,
+      })
+    const renamed = picked.find((name) => name.linked.length && name.chosen !== name.name)
+    if (renamed)
+      throw new ORPCError('UNPROCESSABLE_CONTENT', {
+        message: `“${renamed.name}” is live already. Rename it where it is edited.`,
+      })
     if (new Set([...picked, ...left].map((name) => name.key)).size !== picked.length + left.length)
       throw new ORPCError('CONFLICT', { message: 'Accept a name or leave it out, not both.' })
-    const chosen = new Map(picked.map((name) => [name.key, name.chosen]))
+    const chosen = new Map(
+      picked.map((name) => [
+        name.key,
+        [name.chosen, ...name.aliases.filter((alias) => termWord(alias) !== termWord(name.chosen))],
+      ]),
+    )
     // A name changed by hand can land on a word nobody read yet.
     const typed = picked.flatMap((name) => {
       const word = termWord(name.chosen)
@@ -284,7 +299,7 @@ export function createNamesService(tx: Queryable) {
       await tx.query(
         `insert into names_left_out(definition_ref)
          select unnest($1::text[]) on conflict (definition_ref) do nothing`,
-        [left.flatMap((name) => name.definitionRefs.filter((r) => !name.linked.includes(r)))],
+        [left.flatMap((name) => name.definitionRefs)],
       )
       await recordAudit(tx, {
         action: 'names.left_out',

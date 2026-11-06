@@ -42,3 +42,25 @@ test('an owner accepts the ready names with one press, and looks at the rest', a
   await main.getByRole('button', { name: /Left out/ }).click()
   await expect(main.getByText('Paid at')).toBeVisible()
 })
+
+test('an owner leaves one ready name out, and can still edit and publish it from the fold', async ({
+  page,
+}) => {
+  await go(page, '/inbox?demo=names')
+  const main = page.getByRole('main')
+  const ready = main.getByRole('region', { name: 'Ready to publish' })
+  await expect(ready.getByRole('listitem')).toHaveCount(2)
+  await ready
+    .getByRole('listitem')
+    .filter({ hasText: 'Completed orders' })
+    .getByRole('button', { name: 'Leave out', exact: true })
+    .click()
+  await expect(page.getByText('Completed orders is left out')).toBeVisible()
+  await expect(ready.getByRole('listitem')).toHaveCount(1)
+
+  await main.getByRole('button', { name: /Left out/ }).click()
+  const row = main.getByRole('textbox', { name: 'Name for completed_orders' })
+  await row.fill('Finished orders')
+  await row.locator('xpath=ancestor::li').getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByText('Finished orders is live')).toBeVisible()
+})

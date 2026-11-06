@@ -75,17 +75,41 @@ export function sourceNames(
   leftOut: ReadonlySet<string>,
 ): SourceName[] {
   const byRef = new Map(members.map((member) => [member.ref, member]))
-  const candidates = termCandidates(members, known).map((candidate) => ({
-    ...candidate,
-    aliases: candidate.linked.length
-      ? candidate.aliases
-      : candidate.aliases.filter(
-          (alias) => !othersOf(candidate.key, termWord(alias), holders).length,
-        ),
-  }))
+  const live = new Map(known.map((term) => [term.key, term]))
+  const base = termCandidates(members, known)
   const adds = (candidate: TermCandidate) =>
     candidate.definitionRefs.filter((ref) => !candidate.linked.includes(ref))
   const leftByOwner = (candidate: TermCandidate) => adds(candidate).every((ref) => leftOut.has(ref))
+  // The names that claim words: those on offer, and a live name gaining a view.
+  const claiming = base.filter(
+    (candidate) => candidate.suggested && (candidate.linked.length || !leftByOwner(candidate)),
+  )
+  const claimedBy = new Map<string, Set<TermCandidate>>()
+  for (const candidate of claiming) {
+    const words = [
+      ...(candidate.linked.length ? [] : [plainName(candidate, byRef)]),
+      candidate.name,
+      ...candidate.aliases,
+    ].map(termWord)
+    for (const word of words) claimedBy.set(word, (claimedBy.get(word) ?? new Set()).add(candidate))
+  }
+  // An other name goes to one meaning only: one that a term people wrote, a live name or another
+  // name on offer has too goes to neither (CON-201). A live term keeps the ones it has.
+  const candidates = base.map((candidate) => {
+    const kept = new Set((live.get(candidate.key)?.aliases ?? []).map(termWord))
+    return {
+      ...candidate,
+      aliases: candidate.aliases.filter((alias) => {
+        const word = termWord(alias)
+        if (kept.has(word)) return true
+        const claimants = claimedBy.get(word)
+        return (
+          !othersOf(candidate.key, word, holders).length &&
+          !(claimants && [...claimants].some((other) => other.key !== candidate.key))
+        )
+      }),
+    }
+  })
   const offered = new Set(
     candidates.filter(
       (candidate) => candidate.suggested && !leftByOwner(candidate) && !candidate.linked.length,
@@ -100,6 +124,27 @@ export function sourceNames(
     for (const word of words) sharing.set(word, [...(sharing.get(word) ?? []), candidate])
   }
   const flagsOf = (candidate: TermCandidate): NameFlag[] => {
+    if (candidate.linked.length) {
+      if (!candidate.suggested) return []
+      const views = [
+        ...new Set(
+          adds(candidate).flatMap((ref) => {
+            const member = byRef.get(ref)
+            return member?.title && termWord(memberName(member)) !== termWord(candidate.name)
+              ? [memberName(member)]
+              : []
+          }),
+        ),
+      ]
+      return views.length
+        ? [
+            {
+              code: 'titles_differ',
+              message: `Its new views call it ${quoted(views)}, not “${candidate.name}”. Keep the name or leave it.`,
+            },
+          ]
+        : []
+    }
     if (!offered.has(candidate)) return []
     const plain = plainName(candidate, byRef)
     const flags: NameFlag[] = []
@@ -160,7 +205,7 @@ export function nameRefusal(
   key: string,
   name: string,
   holders: WordHolders,
-  chosen: ReadonlyMap<string, string>,
+  chosen: ReadonlyMap<string, readonly string[]>,
 ): string | null {
   const shape = nameShapeRefusal(name)
   if (shape) return shape
@@ -168,9 +213,13 @@ export function nameRefusal(
   const word = termWord(said)
   const held = wordRefusal(said, othersOf(key, word, holders), null)
   if (held) return held.message
-  for (const [other, otherName] of chosen)
-    if (other !== key && termWord(otherName) === word)
-      return `You gave two definitions the name “${said}”. One word has one meaning.`
+  const mine = new Set((chosen.get(key) ?? [said]).map(termWord))
+  for (const [other, otherWords] of chosen)
+    if (other !== key) {
+      const shared = otherWords.find((w) => mine.has(termWord(w)))
+      if (shared !== undefined)
+        return `You gave two definitions the word “${shared}”. One word has one meaning.`
+    }
   return null
 }
 

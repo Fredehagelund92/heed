@@ -104,8 +104,14 @@ export function createMockNames() {
           termName(name ?? list.find((n) => n.key === key)?.name ?? key),
         ]),
       )
+      const going = new Map(
+        [...chosen].map(([key, name]) => [
+          key,
+          [name, ...(list.find((n) => n.key === key)?.aliases ?? [])],
+        ]),
+      )
       for (const [key, name] of chosen) {
-        const refused = nameRefusal(key, name, holders, chosen)
+        const refused = nameRefusal(key, name, holders, going)
         if (refused) throw new ApiError('invalid', refused)
       }
       for (const key of chosen.keys())
