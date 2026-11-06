@@ -9,7 +9,7 @@ open an issue: [SECURITY.md](SECURITY.md) says how to tell us privately.
 ## Ways to help
 
 1. **Add a connector.** This is the most useful change you can send. A connector teaches Heed to
-   read a tool your team uses, and it stays inside one folder. [Writing a connector](docs/connectors/authoring.md)
+   read a tool your team uses, and it stays inside one folder. [Build a connector](docs/connectors/authoring.md)
    is written so a coding agent can follow it from top to bottom: see
    [Write a connector with a coding agent](#write-a-connector-with-a-coding-agent).
 2. **Pick up an issue.** Look for **good first issue** and **help wanted**:

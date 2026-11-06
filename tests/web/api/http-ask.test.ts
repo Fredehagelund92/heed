@@ -338,6 +338,31 @@ describe("Ask's answer from the engine", () => {
     expect(failed.note).toMatch(/^The check couldn't run just now/)
   })
 
+  it('counts only the sources shown in the stale note', () => {
+    const old = { unverified: true, unverifiedReason: 'past_review_date' as const }
+    const withExample = answerOf(
+      result({
+        state: 'stale',
+        items: [
+          item('itm_a', 'Returns count refunds.', old),
+          item('itm_b', 'Which markets moved most?', { kind: 'example' }),
+        ],
+      }),
+      'Returns in Norway?',
+      names,
+    )
+    expect(withExample.note).toMatch(/^Based on 1 context item that may be out of date/)
+    const onlyExample = answerOf(
+      result({
+        state: 'stale',
+        items: [item('itm_b', 'Which markets moved most?', { kind: 'example', ...old })],
+      }),
+      'Returns in Norway?',
+      names,
+    )
+    expect(onlyExample.note).toMatch(/^Based on 1 context item that may be out of date/)
+  })
+
   it('says why an item may be out of date, and what was left out', () => {
     const a = answerOf(
       result({

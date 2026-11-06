@@ -314,12 +314,13 @@ function engineAnswerOf(
     }
   }
   if (a.state === 'stale') {
-    const stale = a.items.find((i) => i.unverified)
+    const seen = shown.length ? shown : a.items
+    const stale = seen.find((i) => i.unverified)
     const reason = stale?.unverifiedReason ? outOfDate[stale.unverifiedReason] : 'it may be old'
     return {
       ...base,
       text: said,
-      note: `Based on ${a.items.length === 1 ? '1 context item' : `${a.items.length} context items, one of them`} that may be out of date: ${reason}.`,
+      note: `Based on ${seen.length === 1 ? '1 context item' : `${seen.length} context items, one of them`} that may be out of date: ${reason}.`,
     }
   }
   // A question about why something moved is told the context does not give the cause.

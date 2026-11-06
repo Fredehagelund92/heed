@@ -290,7 +290,7 @@ invariants, sources an administrator adds and snapshot behavior;
 may reach; and [the Cube connector](cube-connector.md) for `CUBE_MODEL_DIR`, domain
 overrides, renames and the `sources.cube_model_url` setting that builds the address of a model
 file. Connector authors start at
-[Writing a connector](../connectors/authoring.md).
+[Build a connector](../connectors/authoring.md).
 
 A refresh compares each definition with what accepted items recorded:
 

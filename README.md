@@ -70,7 +70,7 @@ Heed doesn't yet have a measured number for how much better an agent answers wit
 Heed holds context, not numbers. Your semantic layer defines the metrics and returns the figures; a context item
 points to them. Heed reads definitions from [Cube](docs/connectors/cube.md) and
 [dbt MetricFlow](src/connectors/dbt-metricflow/README.md), and turns documents from Markdown in Git and Google
-Drive into suggestions for owners. [Writing a connector](docs/connectors/authoring.md) adds another tool.
+Drive into suggestions for owners. [Build a connector](docs/connectors/authoring.md) says how to add another tool.
 
 ## Quick start
 
@@ -198,23 +198,26 @@ source, and its owner checks it. It doesn't watch people: it counts questions by
 
 ## Docs
 
-| Use it                                                  | Run and build it                                                                             |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [Get started](docs/help/get-started.md)                 | [Where to run Heed](docs/where-to-run.md): the ways to run it, compared                      |
-| [Write context](docs/help/write-context.md)             | [Self-host Heed on one computer](docs/self-hosting.md): install, back up, upgrade, roll back |
-| [Review a suggestion](docs/help/review-a-suggestion.md) | [Run and operate the service](docs/operations.md): setup and settings                        |
-| [Connect an agent](docs/help/connect-an-agent.md)       | [MCP and API reference](docs/reference.md)                                                   |
-| [Privacy](docs/help/privacy.md)                         | [How AI sign-in works](docs/ai-sign-in.md)                                                   |
-| [All help pages](docs/help/README.md)                   | [Evaluations and the golden set](docs/evaluations.md)                                        |
-|                                                         | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)                         |
-|                                                         | [Security, scanning and the restore drill](docs/security.md)                                 |
+| Use it                                                  | Run and build it                                                                               |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [Get started](docs/help/get-started.md)                 | [Where to run Heed](docs/where-to-run.md): the ways to run it, compared                        |
+| [Write context](docs/help/write-context.md)             | [Self-host Heed on one computer](docs/self-hosting.md): install, back up, upgrade, roll back   |
+| [Review a suggestion](docs/help/review-a-suggestion.md) | [Run and operate the service](docs/operations.md): run it, check it, run it in production      |
+| [Connect an agent](docs/help/connect-an-agent.md)       | [MCP and API reference](docs/reference.md): which page to read, for agents and scripts         |
+| [Privacy](docs/help/privacy.md)                         | [Sign in your own agent](docs/ai-sign-in.md)                                                   |
+| [All help pages](docs/help/README.md)                   | [Evaluations and the golden set](docs/evaluations.md)                                          |
+|                                                         | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)                           |
+|                                                         | [Security, scanning and the restore drill](docs/security.md)                                   |
+|                                                         | [Service settings](docs/configuration.md): every setting the service reads                     |
+|                                                         | [Set up company sign-in](docs/company-sign-in.md): OpenID Connect, and who may sign in         |
+|                                                         | [Administer the service](docs/administration.md): settings, the history log, import and export |
 
 <!-- Docs site: when it is published, add this line:
 Read these as a site at [fredehagelund92.github.io/heed](https://fredehagelund92.github.io/heed/). -->
 
 The help pages are also the app's own Docs, at `/docs`, and [the docs site](apps/docs/README.md), which isn't
 published yet: `npm run site:dev` runs it on your computer. [Requirements](docs/requirements.md) says what Heed must
-do, and [Writing a connector](docs/connectors/authoring.md) how to read another source.
+do, and [Build a connector](docs/connectors/authoring.md) how to read another source.
 
 The [documentation index](docs/README.md) lists every page. The [product page](docs/product.md) and the
 [design contract](docs/design/design-contract.md) say what the Heed v1 web app is and how it looks.
@@ -231,8 +234,8 @@ It is for trying on one computer, not for production use. Expect rough edges and
 - The whole loop on the demo: write, review, publish, read over MCP, and gaps back to the owner.
 - Definitions from Cube and dbt MetricFlow, documents from Markdown in Git and Google Drive, and agents on your
   computer over MCP, such as Claude Code.
-- Company sign-in with OpenID Connect ([Run the image in production mode](docs/operations.md#run-the-image-in-production-mode)
-  and [How AI sign-in works](docs/ai-sign-in.md)).
+- Company sign-in with OpenID Connect ([Set up company sign-in](docs/company-sign-in.md)
+  and [Sign in your own agent](docs/ai-sign-in.md)).
 
 **Not there yet**
 
@@ -252,7 +255,7 @@ It is for trying on one computer, not for production use. Expect rough edges and
 
 ## Contributing
 
-**The most useful change you can send is a connector.** [Writing a connector](docs/connectors/authoring.md) is
+**The most useful change you can send is a connector.** [Build a connector](docs/connectors/authoring.md) is
 written so a coding agent can follow it from top to bottom, and [CONTRIBUTING.md](CONTRIBUTING.md) has the prompt
 to start from. For anything else, open an issue first if it is bigger than a small fix, then send a pull request.
 `npm run check` runs the type check, lint, format check and unit tests. Please follow the

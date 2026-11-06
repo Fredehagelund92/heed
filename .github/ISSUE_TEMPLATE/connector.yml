@@ -7,7 +7,7 @@ body:
       value: |
         A connector reads a tool Heed does not own: its definitions (metrics and dimensions), or its documents, which become suggestions for owners. It reads only, and stays inside one folder.
 
-        [Writing a connector](https://github.com/Fredehagelund92/heed/blob/main/docs/connectors/authoring.md) is the whole guide, written so a coding agent can follow it. Use made-up data here. Leave out real access keys, addresses and names.
+        [Build a connector](https://github.com/Fredehagelund92/heed/blob/main/docs/connectors/authoring.md) is the whole guide, written so a coding agent can follow it. Use made-up data here. Leave out real access keys, addresses and names.
   - type: input
     id: tool
     attributes:
