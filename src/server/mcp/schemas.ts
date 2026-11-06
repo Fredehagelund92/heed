@@ -140,7 +140,7 @@ export const findContextInput = z.strictObject({
 })
 export type FindContextInput = z.infer<typeof findContextInput>
 /**
- * report (replacing report and report): the person says something is missing, wrong or
+ * report: the person says something is missing, wrong or
  * unclear, or that it helped, about a reply, an item, or a question's scope. It records
  * what and where, never who: the reply's topic or the item's domain, and a short note checked
  * for sensitive text (FR-611).
@@ -299,7 +299,7 @@ const question = z.strictObject({
   options: z.array(z.string()).optional(),
 })
 /**
- * What `suggest_context` and `suggest_context` return (their MCP output schema), field names and
+ * What `suggest_context` returns (their MCP output schema), field names and
  * marks from the attribute table (src/domain/proposal-attributes.ts). `status` says which parts
  * are present: a suggestion sent to the owner, one published under an owner's policy (FR-421), a
  * saved draft (suggest_context's, or one the review checks kept back), a domain to choose, possible

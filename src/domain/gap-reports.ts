@@ -76,7 +76,7 @@ const words = (text: string) =>
 /**
  * FR-611: what an anonymous note may not hold. It passes the text check of FR-117 and the
  * stricter words above, and must not carry the question either (FR-602), so a note that repeats
- * it is refused. report, report and a person's report (case 5) all apply it.
+ * it is refused. report and a person's report (case 5) both apply it.
  */
 export function noteFindings(note: string, question?: string): FormatFinding[] {
   const findings = textFindings(note, 'note')

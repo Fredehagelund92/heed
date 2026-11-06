@@ -16,8 +16,9 @@ import { productName } from '../../brand.ts'
 /*
   The one write path for a draft that someone other than the person wrote for them: an AI agent
   through the MCP tool `suggest_context` (FR-121) and the built-in assistant's `create_draft`
-  (FR-707). Both save an unsubmitted draft owned by the person through proposals.create, with a
-  mark on every field; neither ever submits (FR-102, FR-122).
+  (FR-707). Both save a draft owned by the person through proposals.create, with a mark on
+  every field. `suggest_context` saves it here and draft-tool.ts then submits it for review; the
+  assistant's `create_draft` never submits (FR-102, FR-122).
 */
 
 export type AgentDraftRequest = {

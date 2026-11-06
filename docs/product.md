@@ -224,7 +224,7 @@ One rule everywhere: **from agents, Heed keeps only what a question was about an
 3. **Words are kept only when a person sends them on purpose, and then with their name.** That means a suggestion, a named report, a saved question and a comment.
 4. **Ask chats are the person's own.** They stay in the person's browser and are seen only by them. Ask says so, and its empty state says what is kept.
 5. **Agents never read comments, reports or saved questions.** An agent's answer is built from published context only.
-6. **Report a problem** sends the page address and the reporter's name, never an agent's words.
+6. **Report a problem** opens a mail with the page's address when `HEED_SUPPORT_EMAIL` is set; unset, it opens a GitHub issue with the page's path only. A person's name goes with neither, and never an agent's words.
 7. **Figures are read when asked and kept nowhere.** No person's identity is passed to the data source.
 8. **No tracking.** Heed sends nothing to anyone about how it is used. To learn which questions about the records people use, Ask counts which of its seven was asked each week, by its fixed name only: never the words, never who asked.
 9. **No promise of anonymity.** Copy says what is kept, not that nobody can see.
