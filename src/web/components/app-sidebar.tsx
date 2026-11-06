@@ -31,7 +31,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { open } from '@/lib/events'
-import { useRoute } from '@/lib/router'
+import { useDestination, useRoute } from '@/lib/router'
 import { useInboxRows } from '@/lib/inbox-rows'
 import { useSession } from '@/api/queries'
 import { useMe } from '@/lib/workspace'
@@ -102,6 +102,7 @@ export function AppSidebar({
   const { install } = useSession()
   const { isMobile, setOpenMobile } = useSidebar()
   const place = route.parts[0] ?? 'inbox'
+  const going = useDestination()
   const { needing } = useInboxRows()
   const count = install === 'new' ? 0 : needing.length
   const close = () => isMobile && setOpenMobile(false)
@@ -179,7 +180,7 @@ export function AppSidebar({
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={place === item.id}
+                        isActive={going === item.id}
                         render={<a href={`/${item.id}`} onClick={close} />}
                       >
                         <item.icon />
@@ -201,13 +202,13 @@ export function AppSidebar({
               <SidebarGroupContent>
                 <SidebarMenu className="**:data-[slot=sidebar-menu-button]:text-dense **:data-[slot=sidebar-menu-button]:[&>span]:text-muted-foreground">
                   {/* One Help row: its menu holds the Help page, the keys, Documentation and the ways to reach a person. */}
-                  <HelpMenu place={place} />
+                  <HelpMenu place={going} />
                   {/* What agents asked and got, for the same people as Settings. */}
                   {seesObservability(me) && (
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         tooltip="Observability"
-                        isActive={place === 'observability'}
+                        isActive={going === 'observability'}
                         render={<a href="/observability" onClick={close} />}
                       >
                         <ActivityIcon />
@@ -220,7 +221,7 @@ export function AppSidebar({
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         tooltip="Settings"
-                        isActive={place === 'settings'}
+                        isActive={going === 'settings'}
                         render={
                           <a href={me.admin ? '/settings' : '/settings/domains'} onClick={close} />
                         }

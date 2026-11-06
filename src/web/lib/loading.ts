@@ -56,6 +56,19 @@ export function useDelayedBusy(busy: boolean, after = SHOW_AFTER, hold = HOLD_AT
  */
 export const ArrivedAfterWait = React.createContext(false)
 
+/**
+ * False while a page's first render draws its header and bar, true in a background render right
+ * after: the rows of a list, the slowest thing it mounts, never hold back the frame that answers
+ * the click.
+ */
+export const useRowsAfterFirstFrame = () => React.useDeferredValue(true, false)
+
+/**
+ * What a list shows while its page read comes back, when the shell already holds the same rows.
+ * Nothing under the mock's review flags, which are there to show that load.
+ */
+export const heldRows = <T>(rows: T) => (mockControls?.showsLoads() ? undefined : rows)
+
 /* ---------- Slow network: the mock binding's switch in Help ---------- */
 
 /** Whether the mock's Slow network switch is on; false with the http binding, which has none. */

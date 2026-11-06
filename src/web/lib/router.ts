@@ -84,6 +84,13 @@ export function useRoute(): Route {
   }, [key])
 }
 
+/**
+ * The part of the app the person is going to. It changes with the click, where `useRoute` waits for
+ * the page, so what says where they are answers at once however long the page's code takes.
+ */
+export const useDestination = () =>
+  useRouterState({ select: (s) => s.location.pathname.split('/')[1] || 'inbox' })
+
 /** The address as it stands, outside React. */
 function current(): Route {
   const s = router!.state
@@ -130,25 +137,33 @@ export function changeQuery(
   return router!.navigate({ href: href(path, Object.fromEntries(q)), replace: opts?.replace })
 }
 
+/** Where the plain link around `target` goes, if it is one to this origin that opens in this tab. */
+export function inAppLink(target: EventTarget | null) {
+  const a = (target as Element | null)?.closest?.('a[href]')
+  if (
+    !(a instanceof HTMLAnchorElement) ||
+    (a.target && a.target !== '_self') ||
+    a.hasAttribute('download')
+  )
+    return null
+  const url = new URL(a.href)
+  return url.origin === window.location.origin ? url : null
+}
+
 /**
  * A plain link (`<a href="/context">`) moves inside the app without loading the page again, as a
  * #/ link did: a click with no modifier key, on a link to this origin that opens in this tab. A
- * link to a place on the same page (#section) is left to the browser.
+ * link to a place on the same page (#section) is left to the browser. Pointing at one, focusing it
+ * or touching it fetches the page's code before the click. The router's own preloading only
+ * watches its <Link>, which the app does not use.
  */
 export function useInAppLinks() {
   React.useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
         return
-      const a = (e.target as Element | null)?.closest?.('a[href]')
-      if (
-        !(a instanceof HTMLAnchorElement) ||
-        (a.target && a.target !== '_self') ||
-        a.hasAttribute('download')
-      )
-        return
-      const url = new URL(a.href)
-      if (url.origin !== window.location.origin) return
+      const url = inAppLink(e.target)
+      if (!url) return
       if (
         url.pathname === window.location.pathname &&
         url.search === window.location.search &&
@@ -158,7 +173,24 @@ export function useInAppLinks() {
       e.preventDefault()
       void router!.navigate({ href: `${url.pathname}${url.search}${url.hash}` })
     }
+    // Moving across a link's icon and label is one intent.
+    let intended = ''
+    const onIntent = (e: Event) => {
+      const url = inAppLink(e.target)
+      const to = url ? `${url.pathname}${url.search}` : ''
+      if (url && to !== intended)
+        void router!.preloadRoute({
+          to: url.pathname,
+          search: Object.fromEntries(url.searchParams),
+        })
+      intended = to
+    }
+    const intents = ['pointerover', 'focusin', 'touchstart']
     document.addEventListener('click', onClick)
-    return () => document.removeEventListener('click', onClick)
+    for (const intent of intents) document.addEventListener(intent, onIntent, { passive: true })
+    return () => {
+      document.removeEventListener('click', onClick)
+      for (const intent of intents) document.removeEventListener(intent, onIntent)
+    }
   }, [])
 }

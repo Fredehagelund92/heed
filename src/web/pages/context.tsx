@@ -71,11 +71,12 @@ import { href, navigate, setQuery } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import { conflictsQuery, contextPageQuery, useVocabulary } from '@/api/queries'
 import { conflictsByItem } from '@/model/conflicts'
-import { useDomainList, useDomains } from '@/lib/workspace'
+import { useDomainList, useDomains, useFacts } from '@/lib/workspace'
 import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
 import { allLoaded, Loadable, TableSkeleton } from '@/components/heed/load-state'
+import { heldRows, useRowsAfterFirstFrame } from '@/lib/loading'
 import { useLeavingRows } from '@/lib/presence'
 import { WhereChip } from '@/components/heed/tag-chip'
 import { useRoute } from '@/lib/router'
@@ -127,8 +128,10 @@ const NO_FACTS: Fact[] = []
 const COLS = 8
 
 export function ContextPage() {
-  const load = useQuery(contextPageQuery())
+  // The shell's shared read holds these rows, so a first visit draws them and reads again behind them.
+  const load = useQuery({ ...contextPageQuery(), placeholderData: heldRows(useFacts()) })
   const facts = load.data ?? NO_FACTS
+  const showRows = useRowsAfterFirstFrame()
   // The pairs the person may read, most asked first: each item's conflict, and the Conflicts filter.
   const conflicts = useQuery(conflictsQuery('all'))
   const conflictOf = React.useMemo(() => conflictsByItem(conflicts.data ?? []), [conflicts.data])
@@ -701,31 +704,40 @@ export function ContextPage() {
                         </tr>
                       )
                     )}
-                    {groups.map((g) => {
-                      const open = !folded.includes(g.key)
-                      return (
-                        <React.Fragment key={g.key || 'all'}>
-                          {g.key && (
-                            <GroupRow
-                              label={g.key}
-                              detail={String(g.rows.length)}
-                              open={open}
-                              colSpan={COLS}
-                              onToggle={() => setFolded((x) => toggle(x, g.key))}
-                            />
-                          )}
-                          {open && g.rows.map(row)}
-                        </React.Fragment>
-                      )
-                    })}
-                    <AddRow
-                      label="Write context"
-                      colSpan={COLS}
-                      onClick={() => navigate('/context/new')}
-                    />
+                    {showRows &&
+                      groups.map((g) => {
+                        const open = !folded.includes(g.key)
+                        return (
+                          <React.Fragment key={g.key || 'all'}>
+                            {g.key && (
+                              <GroupRow
+                                label={g.key}
+                                detail={String(g.rows.length)}
+                                open={open}
+                                colSpan={COLS}
+                                onToggle={() => setFolded((x) => toggle(x, g.key))}
+                              />
+                            )}
+                            {open && g.rows.map(row)}
+                          </React.Fragment>
+                        )
+                      })}
+                    {showRows && (
+                      <AddRow
+                        label="Write context"
+                        colSpan={COLS}
+                        onClick={() => navigate('/context/new')}
+                      />
+                    )}
                   </tbody>
                   {/* While rows are picked the bar's band holds the foot, so the totals stop sticking over the last rows. */}
-                  <tfoot className={cn('z-raised bg-background', !sel.count && 'sticky bottom-0')}>
+                  <tfoot
+                    className={cn(
+                      'z-raised bg-background',
+                      !sel.count && 'sticky bottom-0',
+                      !showRows && 'hidden',
+                    )}
+                  >
                     <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-hairline-top">
                       <td className={cn('hidden @xl/main:table-cell', boxes && 'table-cell')} />
                       <td />
