@@ -21,6 +21,7 @@ import {
   planDefinitions,
   planItem,
   planRecords,
+  sourceChangedRecords,
 } from './plan-world.ts'
 
 /*
@@ -55,6 +56,8 @@ export type PlanCase = {
   scoped?: true
   /** The class of question it tests (FR-720): reads, analysis, synthesis, beyond, and the rest. */
   class?: 'D' | 'R' | 'S' | 'A' | 'X'
+  /** The world it is asked in, when it is not the usual one. */
+  world?: 'source changed'
   /** Asked with no model, with a planner that gave up, or with this plan as the model's. */
   with?: { planner: 'none' | 'missed' } | { raw: unknown }
   expect: {
@@ -722,7 +725,7 @@ const titleOf = new Map(planBundle.items.map((item) => [item.id, item.title]))
  * `chat` is the turns of the cases it follows, oldest first.
  */
 export async function askPlanCase(
-  c: Pick<PlanCase, 'question' | 'sources' | 'scoped'>,
+  c: Pick<PlanCase, 'question' | 'sources' | 'scoped' | 'world'>,
   planner: Planner | null,
   chat: readonly ChatTurn[],
 ): Promise<PlanOutcome> {
@@ -732,6 +735,8 @@ export async function askPlanCase(
     terms: planBundle.terms,
     domains: planAreas,
     now: PLAN_NOW,
+    people: Object.values(planRecords.people),
+    tools: ['Cube'],
     ...(asksDefinition(c.question) ? { glossary: planRecords.glossary ?? [] } : {}),
   })
   const given = c.sources
@@ -762,12 +767,12 @@ export async function askPlanCase(
     found?.type === 'refused'
       ? refusedAnswer(planRecords)
       : found
-        ? answerRecords(found.ask, planRecords, PLAN_NOW)
+        ? answerRecords(found.ask, c.world ? sourceChangedRecords : planRecords, PLAN_NOW)
         : null
   const define =
     routed.kind === 'reads'
       ? routed.planned.defines
-      : routed.kind === 'rules' && asksDefinitionInAsk(c.question)
+      : routed.kind === 'rules' && (asksDefinitionInAsk(c.question) || !routed.answer.items.length)
         ? (routed.answer.scope?.metrics ?? [])
         : []
   return {
@@ -799,7 +804,7 @@ export async function askPlanCase(
       ...(answer ? { state: answer.state } : {}),
       ...(found?.type === 'records'
         ? {
-            domain: found.ask.domain,
+            domain: found.ask.domain ?? (shown && !shown.refused ? (shown.top?.id ?? null) : null),
             period: found.ask.period?.assumed === false ? found.ask.period.words : null,
           }
         : {}),

@@ -42,9 +42,11 @@ export function itemDisplayStatus(item: StatusInput, today: string): ItemDisplay
 }
 
 /**
- * Whether an item can be trusted today, as the library index says it: `ended` once it is retired
- * or its last day has passed, `needs_check` while a source flag is on or its review date has
- * passed, else `current`.
+ * Whether an item can be trusted today, as the library index says it: `ended` once it is retired,
+ * `needs_check` while a source flag is on or its check date has passed, `ended` once its last day
+ * has passed with neither, else `current`. An item whose own dates ended still waits for its check
+ * when that date has passed: agents get it for those dates, so it is due like any other, until it
+ * is checked or archived. This is the one rule of what is due for a check.
  */
 export const itemTrusts = ['current', 'needs_check', 'ended'] as const
 export type ItemTrust = (typeof itemTrusts)[number]
@@ -53,9 +55,9 @@ export function itemTrust(
   item: Pick<ContextItem, 'status' | 'validity' | 'reviewDate' | 'checkFlag'>,
   today: string,
 ): ItemTrust {
-  if (item.status === 'retired' || hasEnded(item, today)) return 'ended'
+  if (item.status === 'retired') return 'ended'
   if (item.checkFlag || (item.reviewDate !== null && item.reviewDate < today)) return 'needs_check'
-  return 'current'
+  return hasEnded(item, today) ? 'ended' : 'current'
 }
 
 /**

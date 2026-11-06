@@ -154,7 +154,7 @@ const freshLabel: Record<Trust, string> = {
   retired: 'Archived',
 }
 
-/** Freshness as a dot: filled fresh (to 30 days), half ageing (to 90), hollow overdue, a dash when it doesn't apply. */
+/** Freshness as a dot: filled fresh (to 30 days), half ageing, hollow once it is due, a dash when it doesn't apply. */
 export function FreshDot({ fact, plain }: { fact: Fact; plain?: boolean }) {
   const trust = trustOf(fact)
   const tone =

@@ -110,7 +110,8 @@ export function trustOf(f: Fact): Trust {
   if (f.status === 'Archived') return 'retired'
   const age = ageDays(f.checkedOn)
   if (age === undefined) return 'draft'
-  if (f.status === 'Needs checking' || age > 90) return 'due'
+  // Due is what the service says: a check date passed or a source changed, never an age.
+  if (f.status === 'Needs checking') return 'due'
   return age > 30 ? 'ageing' : 'fresh'
 }
 
@@ -126,7 +127,7 @@ export function checkedTip(f: Fact) {
   if (trust === 'retired') lines.push('No longer checked')
   else if (trust === 'due')
     lines.push(f.outOfDate ? 'A definition it relies on changed since' : 'Its check is due')
-  else if (trust === 'ageing') lines.push('A check is due after 90 days')
+  else if (trust === 'ageing') lines.push('Its check date has not passed')
   else lines.push('Checked in the last 30 days')
   return lines.join('. ') + '.'
 }

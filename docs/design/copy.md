@@ -86,12 +86,18 @@ When Ask cannot answer the question asked, it says so in a fixed sentence (FR-72
 | `limit:forecast` | What happens next is not written down. Here is what is.                                                                |
 | `limit:outside`  | Ask knows only what is written here, not what others do. Here is what is.                                              |
 | `limit:numbers`  | Heed keeps no numbers, so Ask cannot work this out. Here is what is written.                                           |
+| `limit:partly`   | Ask could read only part of this question. Here is what is written about what it names.                                |
+| `limit:general`  | Nothing is written about Poland in particular. Here is what is written in general.                                     |
 | `cannot:numbers` | Heed keeps no numbers, so Ask cannot work this out. An agent with your data tool can, and it reads this context first. |
 | `cannot:source`  | Definitions live in your source tool, so Ask cannot change one.                                                        |
 | `cannot:write`   | Ask does not write context. You can start it here.                                                                     |
 | `cannot:person`  | Ask does not answer questions about one person's work.                                                                 |
 | `cannot:not_yet` | Ask cannot work this out yet.                                                                                          |
 | Plan not used    | Ask could not read this question just now, so nothing was looked up.                                                   |
+
+When nothing was read under a limit, the sentence ends at its first part ("What happens next is not written down."): there is nothing to go on to. `limit:partly` is said by code, when no model read a question that is not plainly a read; `limit:general` when a name has nothing of its own and what was read applies to everything. A plan never chooses either.
+
+A due row says why it is due: **Check date 18 Sep 2026**, **Definition changed** or **Source missing**, and never a date the item has not reached.
 
 Ask does not advise: no "should", "recommend" or "I suggest" in its own voice. A cited item may say so, and Ask may quote it.
 

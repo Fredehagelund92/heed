@@ -518,15 +518,62 @@ describe('a records answer', () => {
         item({ id: 'elsewhere', areaId: 'marketing', status: 'due' }),
       ]),
     )
-    expect(a.sentence).toBe('3 context items in Sales are due for a check.')
+    expect(a.sentence).toBe('3 of 4 context items in Sales are due for a check.')
     expect(a.detail).toBe('Sales is owned by Jon Abara and Sofia Brandt.')
-    expect(a.rows.map((r) => r.cells[0])).toEqual(['9 Aug 2026', '3 Sep 2026', 'Source missing'])
+    expect(a.rows.map((r) => r.cells[0])).toEqual([
+      'Check date 9 Aug 2026',
+      'Check date 3 Sep 2026',
+      'Source missing',
+    ])
     expect(a.more).toEqual({
       label: 'Show all 3 in Context',
       to: 'context',
       domain: 'sales',
       status: 'due',
     })
+  })
+
+  it('shows each date from the field its label names, in every read of what is due', () => {
+    const items = [
+      item({
+        id: 'ended',
+        title: 'Ended, check date passed',
+        status: 'due',
+        reviewDate: '2026-09-18',
+        checkedAt: at('2026-06-20'),
+      }),
+      item({
+        id: 'flag',
+        title: 'Definition changed, check date ahead',
+        status: 'due',
+        reviewDate: '2027-03-01',
+        checkFlag: 'needs_check',
+        checkedAt: at('2026-09-30'),
+      }),
+      item({ id: 'fine', reviewDate: '2027-03-01', checkedAt: at('2026-10-01') }),
+      item({ id: 'gone', status: 'archived', reviewDate: '2026-01-01' }),
+    ]
+    const rows = [
+      ['Ended, check date passed', 'Check date 18 Sep 2026', '20 Jun 2026'],
+      ['Definition changed, check date ahead', 'Definition changed', '30 Sep 2026'],
+    ]
+    const read = (r: { rows: unknown[] }) =>
+      (r.rows as { title: string; cells: string[] }[]).map((row) => [row.title, ...row.cells])
+    const due = answer(ask({ intent: 'due' }), world(items))
+    expect(due.sentence).toBe('2 of 3 context items are due for a check.')
+    expect(due.columns).toEqual(['Context item', 'Why it is due', 'Last checked'])
+    expect(read(due)).toEqual(rows)
+    expect(due.ranked).toBe('Oldest check date first, then what changed at its source.')
+    const audit = { facets: ['due' as const], of: null, kind: null, value: null }
+    const analysis = answer(ask({ intent: 'audit', audit }), world(items))
+    expect(analysis.sentence).toBe(due.sentence)
+    expect(analysis.columns).toEqual(due.columns)
+    expect(read(analysis)).toEqual(rows)
+    const queue = answer(
+      ask({ intent: 'queue', audit }),
+      world(items, { queue: [{ group: 'check', count: 1 }] }),
+    )
+    expect(read(queue.sections!.find((s) => s.title === 'Due for a check')!)).toEqual(rows)
   })
 
   it('says when nothing is due or archived: a real answer, never Not found', () => {
@@ -705,7 +752,7 @@ describe('a records answer', () => {
       ask({ intent: 'due', kind: 'definition' }),
       world([item({ id: 'due', status: 'due', checkFlag: 'needs_check' }), item({ id: 'live' })]),
     )
-    expect(a.sentence).toBe('1 context item is due for a check.')
+    expect(a.sentence).toBe('1 of 2 context items is due for a check.')
     expect(a.rows[0]!.cells[0]).toBe('Definition changed')
     expect(a.note).toBe(
       'A definition needs no check: the context written about it does. Context whose definition changed is due for a check too.',

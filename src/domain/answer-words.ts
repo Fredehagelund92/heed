@@ -43,7 +43,8 @@ const stateAsks: Record<AnswerState, string> = {
   grounded: 'The items cover the question.',
   partial:
     'The items cover only part of the question: say plainly which part has nothing written down.',
-  conflict: 'The items disagree: give both sides and do not pick one.',
+  conflict:
+    'Some items disagree: first say what the items do settle, then give both sides of what they disagree on and do not pick one.',
   stale: 'An item may be out of date: say so plainly.',
   missing: 'Nothing is written down.',
   failed: 'The check could not run.',

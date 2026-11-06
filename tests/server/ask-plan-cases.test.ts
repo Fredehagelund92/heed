@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { parsePlan } from '../../src/domain/ask-plan.ts'
 import {
   engineDigest,
+  gateCases,
   gatePasses,
   plannerDigest,
   recordedPlansFile,
@@ -78,7 +79,10 @@ describe('what Ask promises (FR-720), on the scripted planner', async () => {
   })
 
   it('leaves what get_context says as it was', () => {
-    expect(engineDigest([...planCases, ...stewardCases])).toBe('be23418b7e7d7350')
+    // Over the questions the digest was first taken on: a change to the engine changes it.
+    const gate = new Set(gateCases.map((c) => c.id))
+    const before = [...planCases, ...stewardCases].filter((c) => !gate.has(c.id))
+    expect(engineDigest(before)).toBe('be23418b7e7d7350')
   })
 })
 

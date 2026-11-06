@@ -1123,7 +1123,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
         </span>
       </div>
     ) : (
-      <p className="text-sm text-muted-foreground">The owner has been reminded.</p>
+      <p className="text-sm text-muted-foreground">Its owner can check it.</p>
     )
   }
   return null

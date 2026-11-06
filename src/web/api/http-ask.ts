@@ -280,9 +280,7 @@ function engineAnswerOf(
   if (a.state === 'missing')
     return {
       ...base,
-      text: a.reading
-        ? `No context item matches ${midSentence(a.reading.words)}. That doesn't mean there's no explanation, only that none is written down yet.`
-        : `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`,
+      text: `Nobody has written down anything about ${scope?.metrics.length || markets.length ? what : midSentence(a.reading?.words ?? what)}. That doesn't mean there's no explanation, only that none is written down yet.`,
     }
   // Numbered as the app shows the sources: an example is not one, so its number would shift them.
   const shown = a.items.filter((i) => i.kind !== 'example')

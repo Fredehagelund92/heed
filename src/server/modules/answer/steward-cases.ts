@@ -1,4 +1,5 @@
 import { DEFAULT_PRODUCT_NAME as PRODUCT } from '../../../domain/brand.ts'
+import { gateCases } from './gate-cases.ts'
 import type { PlanCase } from './plan-cases.ts'
 
 /*
@@ -1204,4 +1205,5 @@ export const stewardCases: PlanCase[] = [
   ...classed('D', D),
   ...classed('A', A),
   ...classed('X', X),
+  ...gateCases,
 ]

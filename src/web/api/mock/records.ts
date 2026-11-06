@@ -241,7 +241,7 @@ const conflictsOf = (rows: readonly ConflictRow[]): NonNullable<RecordsWorld['co
 /** How a question reads as a records question, as the service's reader reads it, or null. */
 export function recognisedFor(
   question: string,
-  world: Pick<RecordsSource, 'definitions' | 'domains'>,
+  world: Pick<RecordsSource, 'definitions' | 'domains'> & { people?: readonly string[] },
 ): RecordsRecognition | null {
   const terms = termsOf(world.definitions)
   return recogniseRecords(question, {
@@ -250,6 +250,8 @@ export function recognisedFor(
     domains: world.domains,
     now: RECORDS_NOW,
     glossary: world.definitions.filter((d) => d.type === 'term' && !d.sameAs),
+    people: world.people,
+    tools: [...new Set(world.definitions.flatMap((d) => d.tool ?? []))],
   })
 }
 

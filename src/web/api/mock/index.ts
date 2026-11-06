@@ -250,7 +250,10 @@ export function createMockApi() {
     }
     // A word with more than one meaning is asked about by the fixed rules, as on the service.
     const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
-    const recognised = recognisedFor(question, world)
+    const recognised = recognisedFor(question, {
+      ...world,
+      people: workspace.people().map((p) => p.name),
+    })
     const held = heldFor(question, turns, world, recognised)
     if (held) return held
     // A message that asks nothing is told so, with no model, as on the service.
@@ -307,7 +310,7 @@ export function createMockApi() {
     // Read nothing, or a market alone: the planner reads it. The mock's reader finds every
     // metric's items for a market alone, where the service's finds none, so it asks first.
     const unread = ruled.state === null || (!ruled.metric && ruled.markets.length > 0)
-    const reason = limitOf(question)
+    const reason = limitOf(question) ?? (readsBeyond(question) ? 'partly' : null)
     return (
       (unread && planned()) || {
         ...ruled,

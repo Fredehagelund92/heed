@@ -31,7 +31,7 @@ import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { quoted } from '../../mcp/outcomes.ts'
 import { draftBundle } from '../proposals/index.ts'
-import { answerRecordsOf, recogniseRecordsOf, type RecordsReads } from './records.ts'
+import { answerRecordsOf, momentOf, recogniseRecordsOf, type RecordsReads } from './records.ts'
 
 /**
  * An edition to answer on: its sequence, its label, the overlay of stops and flags now, and, for
@@ -142,7 +142,11 @@ export async function lookupQuestion(
 ): Promise<AsyncGenerator<LookupEvent>> {
   const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
   const today = clock.today()
-  const reads = deps.records && { ...deps.records, areas: once(deps.records.areas) }
+  const reads = deps.records && {
+    ...deps.records,
+    areas: once(deps.records.areas),
+    people: once(deps.records.people),
+  }
   const { turns: given, ...ask } = input
   const routed = await routeQuestion({
     bundle,
@@ -150,7 +154,8 @@ export async function lookupQuestion(
     turns: chatOf(bundle, given, today),
     records: reads ? await recogniseRecordsOf(clock, bundle, input, reads) : null,
     today,
-    now: clock.now().toISOString(),
+    // The service's own moment: a pinned day keeps every period on that day, as the records do.
+    now: momentOf(clock).now,
     planner: deps.planner,
     clock: clockMs,
   })
@@ -167,7 +172,7 @@ export async function lookupQuestion(
       bundle,
       define.length
         ? define
-        : asksDefinitionInAsk(input.question)
+        : asksDefinitionInAsk(input.question) || !done.items.length
           ? (done.scope?.metrics ?? [])
           : [],
     )

@@ -227,6 +227,7 @@ describe('when the planner reads a question', () => {
       question,
       previous: null,
       scoped: false,
+      plain: true,
       records: null,
       rules: rules('matched', ['metric:orders']),
       ...over,

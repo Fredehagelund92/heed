@@ -26,12 +26,14 @@ import {
   type PlannedAnswer,
   type PlannedBundle,
 } from './planned-answer.ts'
-import { limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
+import { readsPlainly } from './plain-read.ts'
+import { limitAlone, limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
 import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
 import {
   cannotSaid,
   contestedAlso,
   contestedQuestion,
+  generalSaid,
   offTopicSaid,
   scopeWords,
   termChosenSaid,
@@ -229,8 +231,12 @@ const cannot = (
   reply: { kind: 'cannot', reason, text: cannotSaid[reason], metrics, filters },
 })
 
-const limitOfReason = (reason: LimitReason | null | undefined): AnswerLimit | null =>
-  reason ? { reason, sentence: limitSaid[reason] } : null
+/** A limit sentence: what follows when something was read, and only the limit when nothing was. */
+const limitOfReason = (
+  reason: LimitReason | null | undefined,
+  answer: Pick<Answer, 'items'>,
+): AnswerLimit | null =>
+  reason ? { reason, sentence: (answer.items.length ? limitSaid : limitAlone)[reason] } : null
 
 /** How a question was read, and what answers it. */
 export type Routed =
@@ -350,25 +356,35 @@ export async function routeQuestion(c: {
   const scoped = !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window)
   const held = routeHeld(c, scoped)
   if (held) return held
-  const names = readQuestion(ask.question, bundle.terms, today).terms.length > 0
+  const read = readQuestion(ask.question, bundle.terms, today)
+  const names = read.terms.length > 0
   if (!scoped && !names && asksNothing(ask.question, turns))
     return nothingAsked(ask.question, turns)
   if (!scoped && asksUndefinedWords(ask.question))
     return { ...cannot('not_yet'), reason: null, asked: false }
   const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
+  const plain = readsPlainly(ask.question, read.spans)
   const reason = plannerReason({
     question: ask.question,
     previous,
     scoped,
+    plain,
     records: c.records,
     rules,
   })
   const business = reason === 'business change'
   const asks = !!reason && !!c.planner
+  // A plan that does not fit the question leaves it honestly unanswered, never to a nearby read.
+  let misfit = false
   const plan = asks
-    ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) =>
-        checkPlan(raw, planContextOf(bundle, ask.question, turns, { today, now: c.now, business })),
-      )
+    ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) => {
+        const checked = checkPlan(
+          raw,
+          planContextOf(bundle, ask.question, turns, { today, now: c.now, business }),
+        )
+        misfit = !checked.ok && checked.why === 'does not fit'
+        return checked
+      })
     : null
   const missed = plan === 'missed'
   const routed = ((): Routed => {
@@ -378,9 +394,12 @@ export async function routeQuestion(c: {
         c.records?.type === 'records' && c.records.judgement && c.records.ask.intent !== 'audit'
       if (judged) return cannot('not_yet')
       if (c.records) return { kind: 'records', found: c.records, planned: false }
+      if (misfit) return cannot('not_yet')
       // The planner was asked and gave nothing: that is why it was not read, not a missing name.
       if (missed && rules.status === 'need_more_detail') return cannot('unread')
-      return { kind: 'rules', answer: rules, limit: limitOfReason(limitOf(ask.question)) }
+      // No read answers it plainly and nothing read it: what is written, and that it is only part.
+      const said = limitOf(ask.question) ?? (!plain && rules.scope ? 'partly' : null)
+      return { kind: 'rules', answer: rules, limit: limitOfReason(said, rules) }
     }
     switch (plan.kind) {
       case 'cannot':
@@ -399,21 +418,27 @@ export async function routeQuestion(c: {
           carried: plan.carried,
           ...(plan.standalone ? { standalone: plan.standalone } : {}),
         }
-      case 'reads':
+      case 'reads': {
+        const limit = plan.limit ?? limitOf(ask.question)
+        const planned = plannedAnswer(bundle, plan.reads, {
+          question: ask.question,
+          today,
+          previous,
+          turns,
+          limited: !!limit,
+          ...(plan.standalone ? { standalone: plan.standalone } : {}),
+          ...(plan.left ? { left: plan.left } : {}),
+          ...(c.clock ? { now: c.clock } : {}),
+        })
         return {
           kind: 'reads',
-          planned: plannedAnswer(bundle, plan.reads, {
-            question: ask.question,
-            today,
-            previous,
-            turns,
-            ...(plan.standalone ? { standalone: plan.standalone } : {}),
-            ...(plan.left ? { left: plan.left } : {}),
-            ...(c.clock ? { now: c.clock } : {}),
-          }),
+          planned,
           working: workingWords(bundle, plan.reads),
-          limit: limitOfReason(plan.limit ?? limitOf(ask.question)),
+          limit: planned.general
+            ? { reason: 'general', sentence: generalSaid(planned.general) }
+            : limitOfReason(limit, planned.answer),
         }
+      }
     }
   })()
   return { ...routed, reason, asked: asks }

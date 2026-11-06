@@ -92554,7 +92554,9 @@
                                             "advice",
                                             "forecast",
                                             "outside",
-                                            "numbers"
+                                            "numbers",
+                                            "partly",
+                                            "general"
                                           ],
                                           "type": "string"
                                         },
@@ -93778,6 +93780,28 @@
                                             }
                                           ]
                                         },
+                                        "top": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
                                         "limit": {
                                           "anyOf": [
                                             {
@@ -93788,7 +93812,9 @@
                                                     "advice",
                                                     "forecast",
                                                     "outside",
-                                                    "numbers"
+                                                    "numbers",
+                                                    "partly",
+                                                    "general"
                                                   ],
                                                   "type": "string"
                                                 },
@@ -101792,7 +101818,9 @@
                                 "advice",
                                 "forecast",
                                 "outside",
-                                "numbers"
+                                "numbers",
+                                "partly",
+                                "general"
                               ],
                               "type": "string"
                             },

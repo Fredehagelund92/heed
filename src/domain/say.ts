@@ -656,3 +656,7 @@ export function reportSaid(c: {
     say: `${what} Who asked is not kept.${c.assumed ? ` ${c.assumed}` : ''}`,
   }
 }
+
+/** What a planned answer leads with when what was read says nothing of the names asked. */
+export const generalSaid = (names: readonly string[]) =>
+  `Nothing is written about ${names.length < 2 ? (names[0] ?? 'this') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`} in particular. Here is what is written in general.`
