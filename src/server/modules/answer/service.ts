@@ -172,7 +172,7 @@ export async function lookupQuestion(
       bundle,
       define.length
         ? define
-        : asksDefinitionInAsk(input.question) || !done.items.length
+        : asksDefinitionInAsk(input.question)
           ? (done.scope?.metrics ?? [])
           : [],
     )
