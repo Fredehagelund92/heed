@@ -190,15 +190,15 @@ describe('the names a read makes', () => {
       nothingLeft,
     )
     expect(names.map((n) => [n.name, n.state])).toEqual([
-      ['Revenue, net', 'flagged'],
-      ['x'.repeat(101), 'flagged'],
       ['Fine', 'ready'],
+      ['Revenue, net', 'flagged'],
+      ['X' + 'x'.repeat(100), 'flagged'],
     ])
-    expect(names[0]!.flags[0]).toEqual({
+    expect(names[1]!.flags[0]).toEqual({
       code: 'bad_name',
       message: 'A name holds no comma or line break.',
     })
-    expect(names[1]!.flags[0]!.message).toBe('A name can be 100 characters at most.')
+    expect(names[2]!.flags[0]!.message).toBe('A name can be 100 characters at most.')
   })
 
   it('gives a word shared across kinds to neither', () => {
@@ -332,11 +332,11 @@ describe('accepting a name', () => {
         'Revenue',
         noHolders,
         new Map([
-          ['metric:a', 'Revenue'],
-          ['metric:b', 'revenue'],
+          ['metric:a', ['Revenue']],
+          ['metric:b', ['revenue']],
         ]),
       ),
-    ).toContain('two definitions the name')
+    ).toContain('two definitions the word')
   })
 
   it('refuses a name that is empty, too long or holds a comma', () => {

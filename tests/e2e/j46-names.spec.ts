@@ -40,7 +40,7 @@ test('an owner accepts the ready names with one press, and looks at the rest', a
     .click()
   await expect(flagged).toBeHidden()
   await main.getByRole('button', { name: /Left out/ }).click()
-  await expect(main.getByText('Paid at')).toBeVisible()
+  await expect(main.getByRole('textbox', { name: 'Name for orders.paid_at' })).toHaveValue('Paid at')
 })
 
 test('an owner leaves one ready name out, and can still edit and publish it from the fold', async ({
@@ -59,7 +59,7 @@ test('an owner leaves one ready name out, and can still edit and publish it from
   await expect(ready.getByRole('listitem')).toHaveCount(1)
 
   await main.getByRole('button', { name: /Left out/ }).click()
-  const row = main.getByRole('textbox', { name: 'Name for completed_orders' })
+  const row = main.getByRole('textbox', { name: 'Name for orders.completed_orders' })
   await row.fill('Finished orders')
   await row.locator('xpath=ancestor::li').getByRole('button', { name: 'Publish' }).click()
   await expect(page.getByText('Finished orders is live')).toBeVisible()

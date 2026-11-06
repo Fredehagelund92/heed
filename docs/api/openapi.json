@@ -66831,7 +66831,8 @@
                                   "enum": [
                                     "taken",
                                     "same_name",
-                                    "titles_differ"
+                                    "titles_differ",
+                                    "bad_name"
                                   ],
                                   "type": "string"
                                 },
