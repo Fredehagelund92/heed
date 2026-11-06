@@ -27,9 +27,10 @@ test('one Help row opens the menu; Documentation lives in it', async ({ page }) 
 })
 
 test('Get started shows in the menu while setup is unfinished', async ({ page }) => {
+  // The mock's new install keeps the demo's domains; the service's starts with none.
   await go(page, '/inbox?demo=setup')
   await page.locator('[data-sidebar=sidebar]').first().getByRole('button', { name: 'Help' }).click()
-  await expect(page.getByRole('menuitem', { name: /Get started/ })).toContainText('1 of 6')
+  await expect(page.getByRole('menuitem', { name: /Get started/ })).toContainText(/[01] of 6/)
 })
 
 test('? opens the keys from anywhere, and once in the review', async ({ page }) => {
