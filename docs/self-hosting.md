@@ -32,11 +32,11 @@ To check it, `docker compose ps` shows each part `healthy`, and `docker compose 
 
 ## What runs
 
-| Part   | What it is                                                                | Address                  |
-| ------ | ------------------------------------------------------------------------- | ------------------------ |
-| `db`   | PostgreSQL 18, with all the data, in the volume `heed_db`                 | None outside the network |
-| `heed` | The API, the MCP server for agents and the jobs, with keys in `heed_keys` | http://localhost:3000    |
-| `web`  | The web app, served by nginx, which forwards `/api/v1` to the service     | http://localhost:8080    |
+| Part   | What it is                                                                                     | Address                  |
+| ------ | ---------------------------------------------------------------------------------------------- | ------------------------ |
+| `db`   | PostgreSQL 18, with all the data, in the volume `heed_db`                                      | None outside the network |
+| `heed` | The API, the MCP server for agents and the jobs, with keys and the secret store in `heed_keys` | http://localhost:3000    |
+| `web`  | The web app, served by nginx, which forwards `/api/v1` to the service                          | http://localhost:8080    |
 
 A third volume, `heed_no-model`, stays empty. It stands where your own model's folder goes when you name none.
 
@@ -51,7 +51,7 @@ A third volume, `heed_no-model`, stays empty. It stands where your own model's f
 | ------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
 | The database                          | The volume `heed_db`                | Everything people wrote and decided, the history log, agents' access and the settings     |
 | The keys                              | The volume `heed_keys`              | Without them every connected agent must sign in again, and sealed drafts cannot be opened |
-| The secret store, when it is set      | The folder `HEED_SECRETS_DIR` names | The tokens of sources added in Settings. `compose.yaml` sets none                         |
+| The secret store                      | The folder `secrets` in `heed_keys` | The tokens and signed links of tools connected in Settings. Without them, each read fails |
 | Your own Cube model, when you use one | The folder `CUBE_MODEL_DIR` names   | It is only read here. It is yours, and lives wherever you keep it                         |
 
 The keys and the secret store are secrets, so keep their backups where only you can read them. Never copy the database volume's files while it runs.
@@ -65,7 +65,7 @@ docker compose exec -T heed sh -c 'pg_dump --format=custom --dbname="$DATABASE_U
 docker compose exec -T heed tar -C /var/lib/heed -cf - . > heed-keys.tar
 ```
 
-`heed.dump` is the whole database, taken in one consistent snapshot while the service keeps running. `heed-keys.tar` holds the three key files. Copy both off this computer.
+`heed.dump` is the whole database, taken in one consistent snapshot while the service keeps running. `heed-keys.tar` holds the three key files and the secret store. Copy both off this computer.
 
 ### Prove the backup restores: the restore drill
 
@@ -133,7 +133,7 @@ With [`npm run dev:server`](operations.md#run-the-service-locally) the same part
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
 | The database     | The one `DATABASE_URL_MIGRATE` names in `.env.local`                                                         |
 | The keys         | The files `MCP_DEV_KEY_FILE`, `HEED_MCP_STATE_KEY_FILE` and `HEED_OAUTH_SIGNING_KEY_FILE` name, in the clone |
-| The secret store | The folder `HEED_SECRETS_DIR` names, when it is set                                                          |
+| The secret store | The folder `HEED_SECRETS_DIR` names, when it is set. Without it, a tool that needs a secret can't connect    |
 
 Back up the database and prove the backup with these, which need PostgreSQL 18's tools on `PATH`:
 

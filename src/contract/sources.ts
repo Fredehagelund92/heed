@@ -25,10 +25,13 @@ const fieldKey = z.string().check(z.regex(/^[a-z][a-zA-Z0-9]{0,39}$/))
  * A connector an admin may add a source of, as Sources lists it: its manifest, which is pure
  * data (CON-112), so the screen draws the form and names the tool from it and no screen names a
  * vendor (CON-101). `writtenTo` is the interface it was written to: 3 for every connector today.
+ * `secretStore` says whether this server can keep a secret, so the form says so before it is
+ * filled in rather than when it is sent.
  */
 export const connectorListingSchema = z.object({
   writtenTo: z.number(),
   manifest: connectorManifestSchema,
+  secretStore: z.boolean(),
 })
 
 /**

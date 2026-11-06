@@ -1,3 +1,4 @@
+import { fieldVisible } from '@domain/connector-config'
 import type { ConnectorManifest, ManifestField } from '@domain/connector-manifest'
 import cube from '@/assets/logos/cube.svg'
 import dbt from '@/assets/logos/dbt.svg'
@@ -296,10 +297,21 @@ export type ConnectForm = {
   perDay: number | null
   /** What it reads now, with each one's domain: Change settings starts from these. */
   chosen: ConnectChoice[]
+  /** Whether the server can keep a secret; without a store, a form that needs one says so first. */
+  secretStore: boolean
 }
 
 /** What the form says for each setting and secret: settings by key, secrets as written. */
 export type ConnectValues = { config: Record<string, string>; secrets: Record<string, string> }
+
+/** These settings need or hold a secret, and the server has nowhere to keep one. */
+export const lacksSecretStore = (form: ConnectForm, values: ConnectValues) =>
+  !form.secretStore &&
+  form.secrets.some(
+    (secret) =>
+      (secret.required || values.secrets[secret.key]) &&
+      fieldVisible(secret, values.config, form.fields),
+  )
 
 /**
  * What a tool may read, as its test found it: a view of a definitions tool, with what it holds, or

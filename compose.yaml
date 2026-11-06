@@ -52,6 +52,10 @@ services:
       CUBE_MODEL_DIR: ${CUBE_MODEL_DIR:+/cube-model}
       HEED_DEFAULT_WEB_ORIGINS: http://localhost:${HEED_WEB_PORT:-8080}
       MCP_RESOURCE_URL: http://localhost:${HEED_PORT:-3000}/mcp
+      # The secret store: the tokens and signed links of the tools you connect, in a folder of its
+      # own in the keys volume, so they stay when the container is made again. The service makes
+      # it, for its own user alone: it refuses a folder others may read, as the volume's top is.
+      HEED_SECRETS_DIR: /var/lib/heed/secrets
     volumes:
       # Your own model's folder, or an empty volume nothing reads when you name none: the demo
       # never depends on a folder Docker shares from this computer.

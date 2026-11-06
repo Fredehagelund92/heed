@@ -63,7 +63,7 @@ The endpoint's token is sent only to that origin, and forgotten when the scheme,
 
 ## Secrets
 
-Set `HEED_SECRETS_DIR` to a folder outside the repository that only the service's user may open (mode 0700). The service refuses to start with a folder others may read. Unset, no secret is kept, and a source that needs one cannot be added.
+`HEED_SECRETS_DIR` names a folder outside the repository that only the service's user may open (mode 0700). The service makes it if it isn't there, and refuses to start with a folder others may read. `compose.yaml` sets it to `/var/lib/heed/secrets`, in the `heed_keys` volume. Unset, no secret is kept: connecting says so at its first step, before anything is filled in, and Test connection refuses a source that needs one.
 
 - A secret goes in once, and comes out only to its own source's reader. The API never returns it.
 - The history log and the reads never hold it, the service never logs it, and it never reaches the browser.

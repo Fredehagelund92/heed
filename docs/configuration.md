@@ -75,15 +75,15 @@ A connector that cannot read a folder stops the service at start. A folder that 
 
 `HEED_EGRESS_PRIVATE_HOSTS` applies to files and APIs read over https, not to Git or figures. An admin in the app cannot add a host: see [Connector security](connectors/security.md#what-a-connector-may-reach).
 
-`HEED_SECRETS_DIR` must be outside the repository, and only the server's user may open it (mode 0700). Unset, no secret is kept, and a source that needs one cannot be added.
+`HEED_SECRETS_DIR` must be outside the repository, and only the server's user may open it (mode 0700). `compose.yaml` sets it to a folder in the `heed_keys` volume. Unset, no secret is kept, and a source that needs one cannot be added: connecting says so at its first step.
 
 ## The product
 
-| Setting              | Default                | What it does                                                                                  |
-| -------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `HEED_PRODUCT_NAME`  | `Heed`                 | The name the app and the help pages say                                                       |
-| `HEED_SUPPORT_EMAIL` | `support@heed.example` | Where Contact support and Report a problem write to. Read when the app and the docs are built |
-| `HEED_METRICS_TOKEN` | None                   | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                          |
-| `HEED_FIXED_TODAY`   | None                   | Pins the service's day for demos and tests. Refused in production                             |
+| Setting              | Default | What it does                                                                                                                                |
+| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                     |
+| `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built |
+| `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                        |
+| `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. Refused in production                                                                           |
 
-Report a problem opens a mail in the person's own mail app, and sends nothing through the service.
+Report a problem opens a mail in the person's own mail app, or an issue on GitHub when `HEED_SUPPORT_EMAIL` is unset, and sends nothing through the service. An issue leaves out the install's address.
