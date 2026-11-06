@@ -407,9 +407,13 @@ describe('comparing two sequences', () => {
     const a = Array.from({ length: 2000 }, (_, i) => `a${i}`)
     const b = Array.from({ length: 2000 }, (_, i) => `b${i}`)
     expect((a.length + 1) * (b.length + 1)).toBeGreaterThan(LCS_CELLS)
-    const started = performance.now()
-    const ops = sequenceDiff(a, b, (x, y) => x === y)
-    expect(performance.now() - started).toBeLessThan(200)
+    // Counted, not timed: the table of every pair is millions of comparisons on any machine.
+    let compared = 0
+    const ops = sequenceDiff(a, b, (x, y) => {
+      compared++
+      return x === y
+    })
+    expect(compared).toBeLessThan(a.length + b.length)
     expect(rebuild(ops, a, b)).toEqual({ a, b })
     expect(ops.filter((op) => op.op === 'same')).toHaveLength(0)
   })

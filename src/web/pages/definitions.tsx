@@ -62,6 +62,7 @@ import {
   toolOf,
   type Definition,
   type DefinitionType,
+  useDefinitions,
   useGlossary,
 } from '@/lib/definitions'
 import { closeDock, openDock, useDock } from '@/lib/dock'
@@ -74,6 +75,7 @@ import { TruncatedText } from '@/components/heed/truncated'
 import { TextSwitch } from '@/components/heed/switches'
 import { plainText } from '@/lib/mentions'
 import { Loadable, TableSkeleton } from '@/components/heed/load-state'
+import { heldRows, useRowsAfterFirstFrame } from '@/lib/loading'
 import { useFigures } from '@/lib/figures'
 import { useLeavingRows } from '@/lib/presence'
 
@@ -120,8 +122,10 @@ const COLS = 7
 const NO_DEFINITIONS: Definition[] = []
 
 export function DefinitionsPage() {
-  const load = useQuery(definitionsPageQuery())
+  // The shell's shared read holds these rows, so a first visit draws them and reads again behind them.
+  const load = useQuery({ ...definitionsPageQuery(), placeholderData: heldRows(useDefinitions()) })
   const all = load.data ?? NO_DEFINITIONS
+  const showRows = useRowsAfterFirstFrame()
   const glossary = useGlossary()
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
@@ -758,31 +762,40 @@ export function DefinitionsPage() {
                     </td>
                   </tr>
                 )}
-                {groups.map((g) => {
-                  const open = !folded.includes(g.key)
-                  return (
-                    <React.Fragment key={g.key || 'all'}>
-                      {g.key && (
-                        <GroupRow
-                          label={g.key}
-                          detail={mix(g.rows)}
-                          open={open}
-                          colSpan={COLS}
-                          onToggle={() => setFolded((x) => toggle(x, g.key))}
-                        />
-                      )}
-                      {open && g.rows.map(row)}
-                    </React.Fragment>
-                  )
-                })}
-                <AddRow
-                  label="New term"
-                  colSpan={COLS}
-                  onClick={() => navigate('/definitions/new')}
-                />
+                {showRows &&
+                  groups.map((g) => {
+                    const open = !folded.includes(g.key)
+                    return (
+                      <React.Fragment key={g.key || 'all'}>
+                        {g.key && (
+                          <GroupRow
+                            label={g.key}
+                            detail={mix(g.rows)}
+                            open={open}
+                            colSpan={COLS}
+                            onToggle={() => setFolded((x) => toggle(x, g.key))}
+                          />
+                        )}
+                        {open && g.rows.map(row)}
+                      </React.Fragment>
+                    )
+                  })}
+                {showRows && (
+                  <AddRow
+                    label="New term"
+                    colSpan={COLS}
+                    onClick={() => navigate('/definitions/new')}
+                  />
+                )}
               </tbody>
               {/* While rows are picked the bar's band holds the foot, so the totals stop sticking over the last rows. */}
-              <tfoot className={cn('z-raised bg-background', !sel.count && 'sticky bottom-0')}>
+              <tfoot
+                className={cn(
+                  'z-raised bg-background',
+                  !sel.count && 'sticky bottom-0',
+                  !showRows && 'hidden',
+                )}
+              >
                 <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-hairline-top">
                   <td className="hidden @xl/main:table-cell" />
                   <td className="h-bar pr-2 pl-4 md:pl-6 @xl/main:pl-1.5">

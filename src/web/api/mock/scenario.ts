@@ -106,6 +106,8 @@ export function createScenario() {
     },
     offline,
     slow,
+    /** Whether a flag is on that plays a page's own load, so that it can be seen. */
+    showsLoads: () => slow() || fault !== null,
     setSlow: (on: boolean) => {
       slowSwitch = on
       loaded.clear()
