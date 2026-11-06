@@ -32,6 +32,9 @@ export type WordsInput = {
   limit?: string
 }
 
+/** Advice in Ask's own voice. A cited item may say so; Ask's own sentences may not (FR-720). */
+export const OWN_VOICE = /\b(?:I recommend|I suggest|you should|we should|I would)\b/i
+
 /** The longest answer kept, in characters: a few short sentences. */
 export const WORDS_MAX = 1200
 
@@ -204,7 +207,7 @@ function supportOf(input: WordsInput) {
  * none may restate the question or what agents are told, or say what a definition says; before
  * any sentence that cites an item, one short lead may also say what the items say, and it waits
  * until a sentence that cites an item, or says what a definition says, has passed. A sentence that
- * says more than that is dropped, and the words go on (`dropped`). A sentence that fails
+ * says more than that, or advises in Ask's own voice, is dropped, and the words go on (`dropped`). A sentence that fails
  * `checkSentence` ends the words there, and nothing after it is shown. Altogether at most
  * `WORDS_MAX` characters. With no sentence let through, the engine's own words stand.
  */
@@ -238,6 +241,11 @@ export function wordsGate(input: WordsInput) {
     const check = checkSentence(splitCitations(raw), input.items.length, known)
     if (!check.ok) {
       failed = check.why
+      return []
+    }
+    // An item's own "you should" may be quoted; a model turning its words into advice may not.
+    if (OWN_VOICE.test(check.text) && !OWN_VOICE.test(everything)) {
+      dropped.push('advises in its own voice')
       return []
     }
     const defined = !!support.definitions && supportedBy(check.text, support.definitions)

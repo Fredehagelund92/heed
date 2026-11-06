@@ -45,6 +45,25 @@ const input: WordsInput = {
 }
 
 describe('the check on a model’s words', () => {
+  it('drops a sentence that turns an item into advice of its own, and keeps one that quotes it', () => {
+    const guide = (summary: string): WordsInput => ({
+      ...input,
+      state: 'grounded',
+      items: [{ title: 'Margin', summary, notToConclude: null }],
+    })
+    const asked = 'Look at four weeks or more [1]. You should look at four weeks or more [1].'
+    expect(checkWords(asked, guide('Look at four weeks or more.'))).toEqual({
+      ok: true,
+      text: 'Look at four weeks or more [1].',
+    })
+    expect(
+      checkWords(
+        'You should look at four weeks or more [1].',
+        guide('You should look at four weeks or more.'),
+      ),
+    ).toMatchObject({ ok: true })
+  })
+
   it('keeps one paragraph that cites only the items it was given', () => {
     expect(
       checkWords(

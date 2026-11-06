@@ -87,6 +87,14 @@ describe('a rule reads only what is plainly a read', () => {
     expect(readsPlainly(question, spans)).toBe(true)
   })
 
+  it("never gives every domain's owners for something the rules cannot name", async () => {
+    for (const question of ["who's responsible for on-time shipping?", 'who owns delivery?']) {
+      expect((await asked(question)).calls).toBe(1)
+      const alone = await askPlanCase({ question }, null, [])
+      expect(alone.rendered).not.toContain('Every domain has an owner')
+    }
+  })
+
   it('says what it could not read when nothing can read it', async () => {
     const got = await askPlanCase({ question: 'are returns a big worry in Spain?' }, null, [])
     expect(got.routed.kind).toBe('rules')

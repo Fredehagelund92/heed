@@ -532,11 +532,16 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   )
     return ask('owner', { noOwner: true })
   if (
-    /\bwho (?:owns|is the owner|are the owners|is responsible|are responsible|looks after|look after|is in charge)\b|\bowners? of\b|\bwhose\b|\bwho checks\b|\bwho reviews\b/.test(
+    /\bwho (?:owns|is the owner|are the owners|is responsible|are responsible|looks after|look after|is in charge)\b|\bwho's (?:the owner|responsible|in charge)\b|\bowners? of\b|\bwhose\b|\bwho checks\b|\bwho reviews\b/.test(
       t,
     )
-  )
-    return ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+  ) {
+    const owner = ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+    // Who owns something the words name and no read knows: never every domain's owners.
+    return owner.type === 'records' && !domain && !metric && namesSomethingElse(t)
+      ? { ...owner, loose: true, judgement: true }
+      : owner
+  }
   if (!(scoped && !noun) && CONFLICTS.test(t) && !VOCABULARY.test(t)) return ask('conflicts')
   const catalogue = catalogueAsk(t, named, terms)
   if (catalogue)
@@ -573,6 +578,14 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   }
   return null
 }
+
+/** What an owner question is about, past its own words, once the names read are out of them. */
+const OWNER_OF =
+  /\b(?:owns?|owners? of|responsible for|in charge of|looks? after|checks|reviews)\b(.*)$/
+const NO_SUBJECT =
+  /\b(?:the|a|an|our|this|that|these|those|it|them|each|every|all|any|what|domains?|metrics?)\b/g
+const namesSomethingElse = (t: string) =>
+  (OWNER_OF.exec(t)?.[1] ?? '').replace(NO_SUBJECT, ' ').trim().length > 0
 
 /** A kind of context item the words name; definitions are no context items. */
 const kindOrNull = (t: string): RecordsKind | null => {

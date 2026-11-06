@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { OWN_VOICE } from '../../../domain/answer-words.ts'
 import { plannerSystem, plannerVocabulary } from '../../../domain/ask-plan.ts'
 import { answer } from '../../../domain/answer.ts'
 import { planProblems, type PlanCase, type PlanOutcome } from './plan-cases.ts'
@@ -21,8 +22,7 @@ export const classOf = (c: PlanCase): GateClass => c.class ?? 'earlier'
 
 /** What a shown count under the minimum looks like in a line about a topic. */
 const SMALL_COUNT = /\b[Aa]sked (?:[1-4])\b/
-/** Advice in Ask's own voice. A cited item may say so; Ask's own sentences may not. */
-export const OWN_VOICE = /\b(?:I recommend|I suggest|you should|we should|I would)\b/i
+export { OWN_VOICE }
 
 export type ZeroRule =
   'invented' | 'unsupported sentence' | 'hidden given away' | 'substitution' | 'advice'
