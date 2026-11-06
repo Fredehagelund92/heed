@@ -261,7 +261,8 @@ export function checkPlan(raw: unknown, ctx: PlanContext): PlanCheck {
  */
 function limitAsExit(raw: unknown, ctx: PlanContext): unknown {
   const said = (raw as { cannot?: unknown } | null)?.cannot
-  const limit = planLimits.find((reason) => reason === said)
+  // "numbers" is an exit of its own.
+  const limit = planLimits.find((reason) => reason === said && reason !== 'numbers')
   if (!limit) return raw
   const named = readQuestion(ctx.question, ctx.terms, ctx.today).terms
   const keys = (...kinds: Term['kind'][]) =>
