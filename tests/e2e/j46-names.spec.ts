@@ -1,6 +1,6 @@
 import { expect, go, test } from './go.ts'
 
-// J45, the card that makes a source's definitions usable (FR-141): the names a read made wait in
+// J46, the card that makes a source's definitions usable (FR-141): the names a read made wait in
 // one card at the top of the Inbox. Publish all takes what is ready; a name that would give a word
 // a second meaning waits for a look and is never picked; a date stays out by itself. The whole way
 // from a connected tool to a Checked answer, on the service, is the own-data journey (tests/e2e-own).

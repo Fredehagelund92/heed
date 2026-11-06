@@ -42,8 +42,8 @@ export default defineConfig({
     /\/j8-states\.spec\.ts$/,
     // J29 times saves the mock delays on purpose (docs/design/motion.md).
     /\/j29-motion\.spec\.ts$/,
-    // J45 reads the names the mock makes; the service's are the own-data journey (tests/e2e-own).
-    /\/j45-names\.spec\.ts$/,
+    // J46 reads the names the mock makes; the service's are the own-data journey (tests/e2e-own).
+    /\/j46-names\.spec\.ts$/,
     // J3 states asks the mock for each of the six answer states by its example question; the
     // service's demo week has no check that fails to run.
     /\/j3-ask-states\.spec\.ts$/,
