@@ -118,4 +118,4 @@ Every page is drawn ahead of time, so it reads with no script; the script adds t
 - `DOCS_BASE`: the path it is served under, `/docs` by default. `DOCS_BASE=` serves it at the root of its own host.
 - `VITE_DOCS_APP_URL`: where the app is, for the links to its screens, when the site is hosted apart from it (`https://context.example.com`). By default the links stay on the site's own host, as when it is served beside the app.
 
-`HEED_PRODUCT_NAME` and `HEED_SUPPORT_EMAIL` work as for the app ([Run and operate the service](../operations.md)). Any static host serves the result; a page is `privacy.html` for the address `/docs/privacy`, which GitHub Pages, Netlify and `vite preview` find by themselves (nginx: `try_files $uri $uri.html =404`).
+`HEED_PRODUCT_NAME` and `HEED_SUPPORT_EMAIL` work as for the app ([Service settings](../configuration.md#the-product)). Any static host serves the result; a page is `privacy.html` for the address `/docs/privacy`, which GitHub Pages, Netlify and `vite preview` find by themselves (nginx: `try_files $uri $uri.html =404`).

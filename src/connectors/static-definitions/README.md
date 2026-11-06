@@ -1,6 +1,6 @@
 # Static list of definitions
 
-The smallest definitions connector (connector interface 3.0, [the contract](../../../docs/connectors.md)):
+The smallest definitions connector (connector interface 3.0, [the contract](../../../docs/contributing/connector-contract.md)):
 metrics and dimensions an admin writes in the form, as JSON. It reads nothing outside its own
 settings, needs no host and no secret, and proves the whole path of the interface on its own: the
 manifest, the form, the check, the read and the definitions pipeline. Useful for a trial, or for a

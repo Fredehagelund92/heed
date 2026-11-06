@@ -2,8 +2,8 @@
  * The settings that were named `CL_*` before Heed 0.1.0 and are `HEED_*` since, the rest of each
  * name unchanged. For one release an old name still works when its new name is unset, and the
  * process that reads it says so once; the release after that reads the new names only
- * (docs/operations.md, "Settings named CL_ before 0.1.0"). This table is the only code that names
- * an old setting: tests/lint/renamed-settings.test.ts fails on one anywhere else.
+ * (docs/contributing/internals.md, "Settings named CL_ before 0.1.0"). This table is the only code
+ * that names an old setting: tests/lint/renamed-settings.test.ts fails on one anywhere else.
  */
 export const renamedSettings = {
   CL_AUTH: 'HEED_AUTH',
@@ -74,5 +74,5 @@ export function withRenamedSettings(environment: Environment): {
 /** The one warning line about old names in use: each with its new name, never a value. */
 export function renamedSettingsWarning(oldNames: readonly OldSettingName[]): string {
   const names = oldNames.map((name) => `${name} is now ${renamedSettings[name]}`).join(', ')
-  return `Renamed settings: ${names}. The old names work in this release only (docs/operations.md, "Settings named CL_ before 0.1.0").`
+  return `Renamed settings: ${names}. The old names work in this release only (docs/operations.md, "Settings that started with CL_").`
 }

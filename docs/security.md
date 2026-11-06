@@ -1,35 +1,49 @@
 ---
-title: 'Security, scanning and the restore drill'
-line: 'How dependencies and commits are scanned, and how a backup is proved restorable.'
+title: Security, scanning and the restore drill
+line: What is scanned, how a backup is proved restorable, and where to report a security problem.
 group: Run the service
-order: 5
-reviewed: 2026-10-31
+order: 7
+reviewed: 2026-11-05
 ---
 
-How dependencies and commits are scanned, and how a backup is proved restorable. To report a security problem, see [SECURITY.md](../SECURITY.md).
+What is scanned on every change, and how to prove a backup restores. To report a security problem, see the [security policy](../SECURITY.md).
 
-**Scanning.** `.github/workflows/security.yml` runs from the CI workflow on every pull request,
-on `main` and every night, whatever changed, because a new advisory can fail an unchanged
-lockfile. The CI gate needs it. It checks the registry signature of every
-installed package (`npm audit signatures`), every locked dependency in `package-lock.json` and
-`apps/docs/package-lock.json` against the OSV database (OSV-Scanner, with the reviewed exceptions
-in `osv-scanner.toml`), and every commit for secrets
-(gitleaks, with `.gitleaks.toml`: the default rules, plus one made-up key the content checks must
-recognise). Run them locally with `npm audit signatures`, `osv-scanner scan source --lockfile
-package-lock.json --lockfile apps/docs/package-lock.json --config osv-scanner.toml` and `gitleaks git --config .gitleaks.toml .`.
+## What is scanned
 
-**The restore drill** (NFR-044, NFR-045). `npm run db:restore-drill` backs up the database in
-`DATABASE_URL_MIGRATE` (or `--source <url>`; the owner or a superuser) with `pg_dump`, restores it
-into a new scratch database with `pg_restore` in one transaction, and proves the copy is the same
-database: every table's rows and every sequence equal the snapshot the dump was taken from; every
-sealed edition's digest recomputes to the stored one, both with `edition_content_digest` and in
-TypeScript from the restored rows; every item and vocabulary version served by an edition
-recomputes to its content digest; and the history log's hash chain verifies with
-`audit_verify()` and with the drill's own copy of the rule, ending on the source's last hash. It
-prints the times and a verdict (`--json` for the full report), drops the scratch copy unless
-`--keep`, and exits 1 on any difference. It needs `pg_dump` and `pg_restore` from PostgreSQL 18 on
-`PATH`. `tests/integration/restore-drill.test.ts` runs it through the script and shows that a
-changed row, version, edition digest or history entry is each reported.
+The scans run on every pull request, on `main` and every night, whatever changed, because a new advisory can fail an unchanged lockfile. A change cannot merge until they pass.
 
-The drill is the proof step of backing up an install: [Self-host Heed on one computer](self-hosting.md#back-up)
-says how to back up, restore, upgrade and roll back, and how to run the drill in the `heed` container.
+| Scan        | What it checks                                                                 |
+| ----------- | ------------------------------------------------------------------------------ |
+| Signatures  | The registry signature of every installed package, with `npm audit signatures` |
+| OSV-Scanner | Every locked dependency against the OSV database, with reviewed exceptions     |
+| gitleaks    | Every commit, for secrets                                                      |
+
+## The restore drill
+
+The drill proves a backup restores, without touching your database:
+
+```sh
+npm run db:restore-drill
+```
+
+It needs `pg_dump` and `pg_restore` from PostgreSQL 18 on `PATH`. In containers, run it inside the service: see [Self-host Heed on one computer](self-hosting.md#prove-the-backup-restores-the-restore-drill).
+
+1. It backs up the database with `pg_dump`.
+2. It restores that into a new scratch database, in one transaction.
+3. It proves the copy is the same (below).
+4. It prints the times and a verdict, and drops the copy.
+
+The copy has to match on all of these:
+
+- every table's rows and every sequence;
+- every sealed edition's digest;
+- the content digest of every item and vocabulary version an edition serves;
+- the history log's hash chain.
+
+| Option           | What it does                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `--source <url>` | Backs up this database, as the owner or a superuser. By default it is `DATABASE_URL_MIGRATE` |
+| `--json`         | Prints the full report                                                                       |
+| `--keep`         | Keeps the scratch copy                                                                       |
+
+It exits with 1 on any difference.

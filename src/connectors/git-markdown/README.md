@@ -1,6 +1,6 @@
 # Markdown in Git
 
-The first content connector (connector interface 3.0, [the contract](../../../docs/connectors.md)).
+The first content connector (connector interface 3.0, [the contract](../../../docs/contributing/connector-contract.md)).
 An admin chooses folders of a Git repository and maps each to one domain. Each read turns every
 new or changed Markdown file in those folders into one suggestion for that domain's owners. A
 read never publishes: an owner does (CON-604).
@@ -19,7 +19,7 @@ read never publishes: an owner does (CON-604).
 ## What a read does
 
 1. Fetches the one commit the branch or tag names, read only, through `ctx.git`
-   ([security](../../../docs/connectors/security.md#git)), and removes it afterwards.
+   ([security](../../../docs/contributing/connector-security.md#git)), and removes it afterwards.
 2. Lists the `.md` and `.markdown` files of the chosen folders. A file belongs to the deepest
    chosen folder it is in. The folder itself is offered as `.` when it holds Markdown files of its
    own.

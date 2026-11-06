@@ -29,10 +29,10 @@ import { SourceReadError } from '../../../src/server/modules/connectors/types.ts
 import { withChosenGroups } from '../../../src/server/modules/connectors/platform.ts'
 
 /*
-  Interface 3.0 in the core (docs/connectors.md): the registry checks every connector's manifest
-  at start and refuses what this build cannot run; a connector written to interface 2 keeps
-  working as a server source (the demo); and a runtime's read is checked message by message
-  before its definitions reach the one definitions pipeline.
+  Interface 3.0 in the core (docs/contributing/connector-contract.md): the registry checks every
+  connector's manifest at start and refuses what this build cannot run; a connector written to
+  interface 2 keeps working as a server source (the demo); and a runtime's read is checked message
+  by message before its definitions reach the one definitions pipeline.
 */
 
 const definitions = JSON.stringify([

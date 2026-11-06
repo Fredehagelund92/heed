@@ -15,10 +15,10 @@ import { startOidcProvider, type Account, type Tweaks } from './oidc-provider.ts
 import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
-  Company sign-in with OpenID Connect (FR-416; the threat note in docs/ai-sign-in.md), end to end
-  against a local provider over real HTTP, on PostgreSQL: the code flow with PKCE, a sign-in tied
-  to its browser and used once, every check of the ID token, a new session at every sign-in, who
-  may sign in (a linked account, an active person or an open invite by a verified address, a
+  Company sign-in with OpenID Connect (FR-416; the threat note in docs/contributing/sign-in.md), end
+  to end against a local provider over real HTTP, on PostgreSQL: the code flow with PKCE, a sign-in
+  tied to its browser and used once, every check of the ID token, a new session at every sign-in,
+  who may sign in (a linked account, an active person or an open invite by a verified address, a
   mapped group) and one plain refusal for everyone else, the session's idle and absolute ends,
   and logs that hold no code, token, address or account.
 */

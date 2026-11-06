@@ -6,7 +6,8 @@ import type { SourceConfig } from '../../../contract/sources.ts'
 import { canonicalAddress, folderParts, GitFetchError, withGitCheckout } from './git.ts'
 
 /*
-  `ctx.git` (docs/connectors/security.md, "Git"): interface 2's Git fetch behind the same rules as
+  `ctx.git` (docs/contributing/connector-security.md, "Git"): interface 2's Git fetch behind the
+  same rules as
   `ctx.fetch`. A connector names a repository by the settings field that holds it; the core fetches
   only a repository its manifest declares (`egress.git` and a host from that field), sends a secret
   only when that secret is bound to the field (CON-114), and hands the connector a read-only view

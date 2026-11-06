@@ -15,11 +15,11 @@ import { navigate, useRoute } from '@/lib/router'
 import { SignInChoices } from '@/pages/signin'
 
 /*
-  The consent page of an agent's sign-in (FR-403, docs/ai-sign-in.md). The person's own agent sent
-  them here from the login server with `?request=`: they sign in if they have not, read which agent
-  asks and what it may do, and allow or deny. The answer sends the browser back to the agent. It
-  stands outside the shell, as the sign-in page does, and never inside another page's frame, so a
-  hidden page cannot trick a person into pressing Allow.
+  The consent page of an agent's sign-in (FR-403, docs/contributing/sign-in.md). The person's own
+  agent sent them here from the login server with `?request=`: they sign in if they have not, read
+  which agent asks and what it may do, and allow or deny. The answer sends the browser back to the
+  agent. It stands outside the shell, as the sign-in page does, and never inside another page's
+  frame, so a hidden page cannot trick a person into pressing Allow.
 */
 
 /** What each permission lets an agent do, as the person reads it before they allow it. */

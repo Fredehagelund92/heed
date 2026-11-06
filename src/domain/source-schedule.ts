@@ -1,12 +1,12 @@
 import type { SourceErrorClass } from './connector-runtime.ts'
 
 /*
-  When a source is read next (CON-115, docs/connectors.md "Warnings, health and schedules"). Each
-  source has its own schedule, at or above its connector's minimum. A good read, or one that
-  failed for a reason an administrator must fix, waits a whole period. A failure that clears by
-  itself (a timeout, too many requests) is tried again sooner, doubling the wait each time, but
-  never later than half of how long the source may go unread, and never sooner than the tool
-  asked.
+  When a source is read next (CON-115, docs/contributing/connector-contract.md "Warnings, health and
+  schedules"). Each source has its own schedule, at or above its connector's minimum. A good read,
+  or one that failed for a reason an administrator must fix, waits a whole period. A failure that
+  clears by itself (a timeout, too many requests) is tried again sooner, doubling the wait each
+  time, but never later than half of how long the source may go unread, and never sooner than the
+  tool asked.
 */
 
 /** The first wait after a failure that clears by itself, in seconds. */

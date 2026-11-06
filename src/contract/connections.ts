@@ -3,7 +3,7 @@ import { POLICY_MAX_PER_DAY, policyPauses } from '../domain/agent-policies.ts'
 import { agentKinds, agentNameProblem, agentToolNames } from '../domain/agents.ts'
 
 /**
- * A person's own agents (FR-403, docs/ai-sign-in.md): the consent screen for a sign-in in
+ * A person's own agents (FR-403, docs/contributing/sign-in.md): the consent screen for a sign-in in
  * progress, and the apps that hold a connection, which the person can disconnect.
  */
 export const connectionScopes = ['read', 'feedback', 'propose'] as const

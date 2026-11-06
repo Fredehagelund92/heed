@@ -1,6 +1,6 @@
 # Google Drive
 
-A content connector (connector interface 3.0, [the contract](../../../docs/connectors.md)). An
+A content connector (connector interface 3.0, [the contract](../../../docs/contributing/connector-contract.md)). An
 admin shares Google Drive folders with a service account, chooses which of them to read and maps
 each to one domain. Each read turns every new or changed Google Doc in those folders into one
 suggestion for that domain's owners. A read never publishes: an owner does (CON-604).

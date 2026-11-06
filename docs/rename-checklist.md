@@ -64,7 +64,7 @@ alone or done wrong.
 | 11    | The MCP server id and registration name `heed`, the protected resource name, and the `heed` CLI command (`npm run heed`).                                                                                                                                                               | `src/server/mcp/gateway.ts`, `src/cli`, `package.json`, connection guides                                    | Highest for people: every agent that registered the server by its id, and every `CLAUDE.md` line that names its tools, must be added again. Announce it, and keep the old id answering for a while. |
 | 12    | Repository, package and host names: the repository and the npm package, both `heed`, and test hosts such as `heed.example.test`.                                                                                                                                                        | `package.json`, tests, `src/web/lib/docs.ts`                                                                 | Low for test hosts; the repository name is outside this plan.                                                                                                                                       |
 
-Developer documentation (`README.md`, `docs/ai-sign-in.md`,
+Developer documentation (`README.md`, `docs/ai-sign-in.md`, `docs/contributing`,
 `docs/connectors*`, `docs/requirements.md`, `docs/domain/core.md`, `docs/templates`) talks about
 the product by name and names the identifiers above; it changes with the step that changes what
 it describes, and its prose with a search and replace at the rename.

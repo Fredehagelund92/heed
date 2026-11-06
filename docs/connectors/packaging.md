@@ -31,7 +31,7 @@ repository is a change of where it is loaded and how its messages travel, not of
 3. At start, Heed reads the manifest from the package's `heed.connector` field in
    `package.json`, checks it like a built-in manifest, checks that the interface range is one this
    build supports, and checks the support level against what the operator allows.
-4. Heed runs it out of process (T2 in [Security and egress](security.md#where-connector-code-runs)):
+4. Heed runs it out of process (T2 in [Security and egress](../contributing/connector-security.md#where-connector-code-runs)):
    a child process per run, no network of its own, only an egress proxy that enforces the
    manifest's hosts and attaches credentials, and read access only to its own package.
 

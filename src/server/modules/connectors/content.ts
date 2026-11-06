@@ -18,11 +18,11 @@ import { scheduleOf } from './schedule.ts'
 import { SourceReadError, type SourceWarning } from './types.ts'
 
 /*
-  The content pipeline (docs/connectors.md, "The two pipelines", content; CON-601 to CON-611). A
-  connector only returns documents; this is the one place that turns them into suggestions, and
-  it has no way to accept, publish or change an item or an edition (CON-604): it writes as
-  nobody, in its own transaction, which row security lets write the suggestions of this source
-  and nothing else. Per document it keeps only what CON-605 allows, never the text.
+  The content pipeline (docs/contributing/connector-contract.md, "The two pipelines", content;
+  CON-601 to CON-611). A connector only returns documents; this is the one place that turns them
+  into suggestions, and it has no way to accept, publish or change an item or an edition (CON-604):
+  it writes as nobody, in its own transaction, which row security lets write the suggestions of this
+  source and nothing else. Per document it keeps only what CON-605 allows, never the text.
 
   For each document of a read, in the order the waiting ones first:
   1. its change mark; a mark it already handled means nothing to do;
@@ -55,7 +55,10 @@ export interface ContentResult {
   skipped: number
 }
 
-/** The share of a source's documents a full read may find gone at once (docs/connectors.md). */
+/**
+ * The share of a source's documents a full read may find gone at once
+ * (docs/contributing/connector-contract.md).
+ */
 export const REMOVAL_SHARE_MAX = 0.5
 /** A source this small may lose every document in one read. */
 export const REMOVAL_FLOOR = 5

@@ -44,7 +44,7 @@ const envSchema = z
     // person's agent (FR-121). Every instance needs the same file. Outside production a missing
     // file is created; in production a missing one turns those questions off.
     HEED_MCP_STATE_KEY_FILE: z.string().default('.heed-mcp-state.key'),
-    // The login server for a person's own AI client (FR-403, FR-404, docs/ai-sign-in.md).
+    // The login server for a person's own AI client (FR-403, FR-404, docs/contributing/sign-in.md).
     // `builtin` runs it in this service; `external` trusts another login server's tokens, read
     // by issuer and key set address; `off` leaves only dev tokens. Tools and items never change.
     HEED_LOGIN_SERVER: z.enum(['builtin', 'external', 'off']).default('builtin'),
@@ -430,7 +430,7 @@ export interface SessionLifetime {
   maxDays: number
 }
 
-/** Company sign-in with OpenID Connect (HEED_AUTH=oidc, FR-416, docs/ai-sign-in.md). */
+/** Company sign-in with OpenID Connect (HEED_AUTH=oidc, FR-416, docs/contributing/sign-in.md). */
 export interface OidcConfig {
   issuer: string
   clientId: string

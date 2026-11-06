@@ -54,7 +54,8 @@ interface Row {
 }
 
 /**
- * The connectors this server knows and the sources it reads (docs/connectors.md).
+ * The connectors this server knows and the sources it reads
+ * (docs/contributing/connector-contract.md).
  *
  * The connectors are checked once, at start: each built-in connector's manifest and runtime
  * (interface 3.0). A manifest that is not valid, an interface range this build does not speak, a

@@ -3,10 +3,10 @@ import { people } from './fixtures.ts'
 import { signInHarness } from './sign-in-harness.ts'
 
 /*
-  Access keys end to end on PostgreSQL (docs/ai-sign-in.md): an administrator creates a key for a
-  bot or a scheduled job that can't sign in; the key is in that answer only and kept as its digest;
-  it reads context under its own client label, names no person, so it can never suggest, and a
-  revoke ends it at its very next request. The key is never in a read, a record or a log line.
+  Access keys end to end on PostgreSQL (docs/contributing/sign-in.md): an administrator creates a
+  key for a bot or a scheduled job that can't sign in; the key is in that answer only and kept as
+  its digest; it reads context under its own client label, names no person, so it can never suggest,
+  and a revoke ends it at its very next request. The key is never in a read, a record or a log line.
 */
 
 const harness = await signInHarness()

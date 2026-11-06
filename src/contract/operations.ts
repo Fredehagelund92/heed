@@ -37,12 +37,12 @@ export const jobOverviewSchema = z.object({
 
 /**
  * What a definition source warns about in a read, with the file, view or member it names (the
- * connector contract, docs/connectors.md): a file it skipped or could not read, a view without a
- * domain or with one that is not a domain id, a domain taken from the server's list, a rename
- * that does not apply, and a member another source already reads. The rest say why a read
- * failed before anything was read, naming the repository, its ref, its folder or the secret:
- * the address could not be reached, the token was refused, no repository or ref is there, the
- * folder is not in it, the secret is not in the store, or the fetch failed otherwise. An
+ * connector contract, docs/contributing/connector-contract.md): a file it skipped or could not
+ * read, a view without a domain or with one that is not a domain id, a domain taken from the
+ * server's list, a rename that does not apply, and a member another source already reads. The rest
+ * say why a read failed before anything was read, naming the repository, its ref, its folder or the
+ * secret: the address could not be reached, the token was refused, no repository or ref is there,
+ * the folder is not in it, the secret is not in the store, or the fetch failed otherwise. An
  * interface 3 connector's read may also fail because it sent what the contract does not allow or
  * took longer than its limit, and is in part when it sent more records than its limit; its own
  * warnings are namespaced (`<connector>.<code>`) and worded in its manifest. A content source's

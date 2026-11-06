@@ -36,8 +36,8 @@ Anything that lets someone read, change or decide more than their role allows. F
 - a connector reaches a network address, a file or a secret it was not given;
 - personal data or a secret ends up in a fact, a log or an export.
 
-Two pages describe the design these rules come from: `docs/ai-sign-in.md` ("Threat notes" and
-"Out of scope") and `docs/connectors/security.md`.
+Two pages describe the design these rules come from: `docs/contributing/sign-in.md` ("Threat notes"
+and "Out of scope") and `docs/contributing/connector-security.md`.
 
 ## Supported versions
 

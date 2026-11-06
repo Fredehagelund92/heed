@@ -17,7 +17,10 @@ import {
 import { localKeys, type KeyRing } from './keys.ts'
 import { redirectMatches, redirectWith } from './redirects.ts'
 
-/** A sign-in code is used within a minute; an access token lives ten minutes (docs/ai-sign-in.md). */
+/**
+ * A sign-in code is used within a minute; an access token lives ten minutes
+ * (docs/contributing/sign-in.md).
+ */
 export const accessTokenSeconds = 600
 const codeSeconds = 60
 const requestSeconds = 600

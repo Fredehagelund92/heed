@@ -15,7 +15,7 @@ import type { CommentsService } from '../comments/index.ts'
 import { createReviewPath, createReviewService, loadProposal } from '../review/index.ts'
 
 /*
-  Publishing without review (FR-421; docs/ai-sign-in.md). An admin switches it on for the
+  Publishing without review (FR-421; docs/contributing/sign-in.md). An admin switches it on for the
   workspace; then an owner of a domain sets a policy that lets one app agent's
   suggestions publish there without a review round. The service publishes such a suggestion in the
   transaction that sent it, through the owner's own publish path and as the owner who set the

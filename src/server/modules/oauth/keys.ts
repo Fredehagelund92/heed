@@ -3,10 +3,11 @@ import { readFile, stat, writeFile } from 'node:fs/promises'
 import { calculateJwkThumbprint, createLocalJWKSet, exportJWK, type JWK } from 'jose'
 
 /**
- * The login server's signing keys (docs/ai-sign-in.md, "Keys"). One Ed25519 key signs; earlier
- * keys listed after a rotation only verify, until the tokens they signed have expired. A key's id
- * (`kid`) is its RFC 7638 thumbprint, so nobody picks or reuses one by hand. Key material never
- * appears in an error, a log line or the key set the service publishes, which holds public keys.
+ * The login server's signing keys (docs/ai-sign-in.md, "Rotate the signing key"). One Ed25519 key
+ * signs; earlier keys listed after a rotation only verify, until the tokens they signed have
+ * expired. A key's id (`kid`) is its RFC 7638 thumbprint, so nobody picks or reuses one by hand.
+ * Key material never appears in an error, a log line or the key set the service publishes, which
+ * holds public keys.
  */
 export interface KeyRing {
   active: { kid: string; privateKey: KeyObject }

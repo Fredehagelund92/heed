@@ -16,12 +16,12 @@ import {
 import { workerLimits } from './worker.ts'
 
 /*
-  The source the server's own configuration selects (docs/connectors/cube.md, "Configuration of
-  the server's model"): a Cube model folder on the server (`CUBE_MODEL_DIR`), read by the same
-  Cube connector an administrator adds a repository of, which gets the folder as `ctx.folder`.
-  What only whoever runs the server can say is applied here, the same for any definitions
-  connector: the domains of views the model names none for (`HEED_DOMAIN_OVERRIDES`), and the
-  members renamed (`CUBE_RENAMES_FILE`, CON-512).
+  The source the server's own configuration selects (docs/contributing/cube-connector.md,
+  "Configuration of the server's model"): a Cube model folder on the server (`CUBE_MODEL_DIR`), read
+  by the same Cube connector an administrator adds a repository of, which gets the folder as
+  `ctx.folder`. What only whoever runs the server can say is applied here, the same for any
+  definitions connector: the domains of views the model names none for (`HEED_DOMAIN_OVERRIDES`),
+  and the members renamed (`CUBE_RENAMES_FILE`, CON-512).
 
   Any other connector that declares `capabilities.serverFolder` is read the same way from the
   folder `HEED_SERVER_FOLDERS` names for it (CON-119).

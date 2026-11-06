@@ -6,7 +6,7 @@ import { SourceError } from '../../../domain/connector-runtime.ts'
 import { hostLibc, type Libc } from './libc.ts'
 
 /*
-  `ctx.worker` (T1, docs/connectors/security.md "Where connector code runs"): a built-in
+  `ctx.worker` (T1, docs/contributing/connector-security.md "Where connector code runs"): a built-in
   connector hands its risky parsing, such as Cube's compiler, to a worker module of its own
   folder, and the core runs that module in a child process of its own for one piece of work. The
   process runs under Node's permission model: no network, no writes, no programs, and it reads

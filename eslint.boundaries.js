@@ -112,7 +112,8 @@ const domainPurity = {
   ],
 }
 
-// A connector touches nothing but what its context hands it (docs/connectors/security.md).
+// A connector touches nothing but what its context hands it
+// (docs/contributing/connector-security.md).
 const connectorPurity = {
   'no-restricted-imports': [
     'error',

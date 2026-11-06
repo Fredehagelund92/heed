@@ -4,8 +4,9 @@ import { sourceWarningCodes, type SourceServerSettingKey } from '../../../contra
 import type { SourceErrorClass } from '../../../domain/connector-runtime.ts'
 
 /**
- * The interface of the definitions pipeline's snapshot (docs/connectors.md, "Interface 2"): the
- * demo source is written to it, and an interface 3 runtime's read is gathered into it.
+ * The interface of the definitions pipeline's snapshot (docs/contributing/connector-contract.md,
+ * "Interface 2"): the demo source is written to it, and an interface 3 runtime's read is gathered
+ * into it.
  */
 export const INTERFACE_VERSION = 2
 

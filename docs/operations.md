@@ -1,17 +1,16 @@
 ---
 title: Run and operate the service
-line: 'Run the service, set it up, and use its health checks, scheduled jobs, metrics and administration API.'
+line: Run the service, check it is healthy, run it in production, and read its jobs, limits and metrics.
 group: Run the service
 order: 3
-reviewed: 2026-11-03
+reviewed: 2026-11-05
 ---
 
-Running the Heed service on your own computer, its configuration, health checks, scheduled jobs and metrics, and the administration API, import and export. The [Quick start](../README.md#quick-start) runs all of it in containers with `docker compose up`, and [Self-host Heed on one computer](self-hosting.md) says how to back that up, restore, upgrade and roll back. [Where to run Heed](where-to-run.md) compares the ways to run it.
+Start the service, check it is healthy, and run it in production. To compare the ways to run it, see [Where to run Heed](where-to-run.md). In containers on one computer, see [Self-host Heed on one computer](self-hosting.md).
 
 ## Run the service locally
 
-The service (Heed) runs on Node 26 with PostgreSQL 18: in containers with `docker compose up`
-([Quick start](../README.md#quick-start)), or on your computer for working on it. On macOS with Homebrew:
+The service needs Node 26 and PostgreSQL 18. On macOS with Homebrew:
 
 ```sh
 brew install postgresql@18 && brew services start postgresql@18
@@ -20,222 +19,108 @@ npm run db:migrate                # creates the roles and the database, applies 
 npm run dev:server                # http://127.0.0.1:3000, restarts on change
 ```
 
-`npm run db:migrate` (`db/prepare.ts`) creates Heed's roles and the database as the local
-superuser (`DATABASE_URL_BOOTSTRAP`) when they are missing, then applies new migrations and the
-grants as `context_layer_owner` (`DATABASE_URL_MIGRATE`). It is safe to run again, and the container
-runs it before every start. The service itself starts empty: with `SEED_DEMO=on`, which
-`.env.example` and `compose.yaml` set and which is off otherwise, it also loads the demo into a
-database that holds nothing yet, as long as `CUBE_MODEL_DIR` is the demo's model. It is refused when
-`NODE_ENV=production`, so a real install never gets demo data by accident. `npm run seed` loads
-the demo, and the variants the tests use, by hand (db/README.md).
+`npm run db:migrate` is safe to run again.
 
-Check it: `curl localhost:3000/health` answers while the process runs, and
-`curl localhost:3000/health/ready` also asks the database and answers 503 when it cannot reach
-it. Both name the version that runs (`"version": "0.1.0"`), the one in `package.json`. Logs are JSON lines on stdout. Every line about a request carries its id (`reqId`), and the
-response returns the same id as `X-Request-Id`, so a person can quote it; the service makes its
-own ids and ignores one a client sends. Logs never hold a header, a body, a query string, a
-credential or a person.
-A history log entry written by a request carries the same id (`requestId` in the history
-search and export, `heed audit --request <id>`), so an entry and its log lines can be matched;
-an entry written by a scheduled job has none.
+The service starts empty. To load the demo, set `SEED_DEMO=on`, as `.env.example` does. It loads into a database that holds nothing yet, as long as `CUBE_MODEL_DIR` is the demo's model. Production refuses it, so a real install never gets demo data by accident.
 
-Every request under `/api` counts against a per-minute limit (FR-408): 600 for each signed-in
-person and 120 for each address before sign-in, the `limits.api_rate_per_minute` setting. Over
-it, the answer is 429 with `Retry-After` in seconds. The counts live in the process, so each
-instance counts on its own. An address is the connection's peer, unless the peer is a proxy named
-in `HEED_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
-`uniquelocal`, comma-separated): then it is the address that proxy forwards in `X-Forwarded-For`.
-The web image's nginx forwards the address of each caller, and drops one a caller sends, and
-`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. Behind
-any other proxy, name that proxy ([Where to run Heed](where-to-run.md#the-proxy-in-front) says
-what your host needs). Unset, the service believes no forwarded address. `/health`,
-`/health/ready` and `/metrics` are not limited.
+## Check that it runs
 
-The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
-(the weekly counts Observability keeps without limit, and what Heed caught each week, see [Observability](reference.md#observability)),
-`partitions.ensure`, `observability.snapshot` (the monthly snapshot of the withdrawn Summary, kept without limit) and
-`retention.run` each night (UTC), in that order, `outbox.relay` every minute (a backstop for the relay, see
-[The outbox](reference.md#the-outbox-and-inbox-items)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
-alert rules raise Inbox cards, see [Alerts](reference.md#alerts)), `connectors.sync` every five minutes (reads each source that is
-due on its own schedule, hourly for a definition source by default, see [Definition
-sources](reference.md#definition-sources)), `saved.check` every minute (checks the saved questions once what agents
-get has moved, see [Saved questions](reference.md#saved-questions)), `evals.work` and `evals.retrieval` every minute, `evals.weekly` on
-Mondays (see [Evaluations](evaluations.md)), and `jobs.watchdog` every five minutes. A schedule that came
-due while the service was stopped runs once when it starts again. `GET /api/v1/operations` shows each job's last success and last error, the queue, connectors and
-model spending. For each connector it also shows source health: the last read and its warnings,
-current and missing definitions, metric domain coverage, flagged items and stale links. `POST /api/v1/operations/jobs/retention.run/run` queues a job. Both require an
-administrator session; the POST also requires the session CSRF token and an allowed Origin. Problems are error log lines with an `alert` field: `job_failed` after the last
-retry, `job_overdue` and `connector_stale` from the watchdog.
+```sh
+curl localhost:3000/health         # answers while the process runs
+curl localhost:3000/health/ready   # also asks the database: 503 when it cannot reach it
+```
 
-`GET /metrics` serves the service's numbers in the Prometheus text format to a scraper that
-presents `Authorization: Bearer <HEED_METRICS_TOKEN>`; without the variable the endpoint is off
-(404), and a session never opens it. It counts HTTP requests and their time by route template or
-API operation, and MCP requests by tool, status and agent family (FR-410), and reads at scrape time what the operations
-view shows: each job's last success, overdue jobs, runs and queue, connector age, model spending
-for today and the month against its cap, the live edition's age and the database pool. Labels come from closed sets (routes, operations, tools, jobs, connectors, app
-families), never a path, a question, a person or an agent's own name. The MCP counter's `app_family`
-label counts exactly, for operators holding the metrics token, unlike Observability, which hides counts below `privacy.min_count` (FR-614).
+Both name the version that runs.
 
-Configuration comes from the environment, read once at start-up by
-`src/server/config/env.ts`; `.env.example` lists every variable. The service refuses to start
-and names each bad variable when one is wrong. `HEED_AUTH` is `oidc` (company sign-in with
-OpenID Connect, the default in production; set up as docs/ai-sign-in.md says), `dev` (the
-default elsewhere) or `demo`: both pick a person from `HEED_DEV_PEOPLE_FILE` (default
-`db/seed/people.local.yml`), and production refuses both. Requests need an explicit cookie
-sign-in; the old `CL_DEV_PERSON` setting no longer signs requests in. A browser session ends after
-`HEED_SESSION_IDLE_HOURS` unused (12) and `HEED_SESSION_MAX_DAYS` after sign-in (7).
-`HEED_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
-`HEED_PRODUCT_NAME` (default `Heed`) is the name the app and the help pages say; `docs/rename-checklist.md` covers what it does and does not rename. `HEED_SUPPORT_EMAIL` is
-the address the web app's Contact support and Report a problem write to, read when the app and
-the docs site are built: Report a problem opens a mail to it in the person's own mail app, with
-what they wrote and the page's address, and sends nothing through the service. Unset, an address
-that goes nowhere stands in (`support@heed.example`).
-`MODELS` is `mock` (scripted, the default) or `live`: live uses each role's provider and model
-from the `models.*` settings and the provider's key from `.env.local` (for example
-`ANTHROPIC_API_KEY` or `VERCEL_AI_GATEWAY_API_KEY`). The service refuses to start when a role's
-setting names a provider or model the registry does not have, or a provider whose key is missing,
-and the message names the setting. `MODEL_PROVIDER` is refused with a note on what replaced it. `HEED_METRICS_TOKEN` (at least 32 characters, for example
-`openssl rand -hex 32`) turns `/metrics` on. `CUBE_MODEL_DIR` names a folder of Cube model files (unset: invented demo
-definitions; the service image reads its own copy of the demo model `db/seed/cube` outside
-production, and `db/prepare.ts` refuses a folder that is missing or empty), with `HEED_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `HEED_EGRESS_PRIVATE_HOSTS` is a comma-separated list of hosts on a private network that connectors may reach over https, by name or address (unset: none), such as `artifacts.internal` for an internal artifact server: in production a source cannot reach one otherwise, and an administrator in the app cannot add one. It applies to files and APIs read over https, not to Git or figures ([connector security](connectors/security.md#egress)). `HEED_SERVER_FOLDERS` is a JSON object of connector ids to folders on the server, such as `{"dbt-metricflow":"/srv/dbt/target"}`: each is read by that connector as one of the server's own sources, with `HEED_DOMAIN_OVERRIDES`, and the demo definitions stop. Moving a project from a server folder to a Git source of the same refs is not supported yet: a server source that is taken out of the configuration keeps its refs, so a Git, address or object storage source added later cannot take them. A connector that cannot read a folder stops the service at start, and a folder that is not there shows as a failed read in Settings › Integrations. In Docker, share the folder into the container and name its path there. `HEED_SECRETS_DIR` names
-the local secret store, a folder outside the repository that only the server's user may open
-(mode 0700), where sources added in Settings › Integrations keep their tokens; unset, no secret
-is kept and a source that needs one cannot be added.
+Logs are JSON lines on stdout. Each line about a request carries its id (`reqId`), and the response returns the same id as `X-Request-Id`, so a person can quote it. A history log entry written by that request carries the id too.
 
-Database setup, migration rules, the bulk demo seed and isolated test databases are documented
-in [db/README.md](../db/README.md).
-
-## Settings named CL_ before 0.1.0
-
-Before Heed 0.1.0 each setting that now starts with `HEED_` started with `CL_` instead, and the
-rest of its name is the same: `CL_AUTH` is `HEED_AUTH`, `CL_WEB_ORIGINS` is `HEED_WEB_ORIGINS`.
-Heed 0.1 still reads an old name when the new one is unset (or empty), and a new name that is set
-always wins. Each process that reads an old name (the service, the command-line tool, the web build) prints
-one warning when it starts that names the old settings in use and their new names, never their
-values. The
-release after 0.1 reads the new names only, so rename them in `.env.local`, in your own compose
-file and wherever else the service runs. The old names: `CL_AUTH`, `CL_DEV_PEOPLE_FILE`, `CL_DOMAIN_OVERRIDES`, `CL_FIXED_TODAY`, `CL_LOGIN_SERVER`, `CL_MCP_STATE_KEY_FILE`, `CL_METRICS_TOKEN`, `CL_OAUTH_CONNECTION_DAYS`, `CL_OAUTH_CONSENT_URL`, `CL_OAUTH_DYNAMIC_REGISTRATION`, `CL_OAUTH_ISSUER`, `CL_OAUTH_PREVIOUS_KEY_FILES`, `CL_OAUTH_REFRESH_IDLE_HOURS`, `CL_OAUTH_SIGNING_KEY_FILE`, `CL_OIDC_ADMIN_GROUPS`, `CL_OIDC_CLIENT_ID`, `CL_OIDC_CLIENT_SECRET_FILE`, `CL_OIDC_GROUPS_CLAIM`, `CL_OIDC_ISSUER`, `CL_OIDC_MEMBER_GROUPS`, `CL_OIDC_NAME`, `CL_OIDC_REDIRECT_URL`, `CL_OIDC_SCOPES`, `CL_PRODUCT_NAME`, `CL_SECRETS_DIR`, `CL_SESSION_IDLE_HOURS`, `CL_SESSION_MAX_DAYS`, `CL_SUPPORT_EMAIL`, `CL_TRUSTED_PROXIES`, `CL_WEB_ORIGINS`, `CL_WEB_READ_LOOPBACK`
-(`src/domain/renamed-settings.ts` pairs each with its new name).
+Logs never hold a header, a body, a query string, a credential or a person.
 
 ## Run the image in production mode
 
-Heed 0.1 is for trying out on one computer. The service image starts in production mode unless
-told otherwise (`NODE_ENV=production`): people sign in with your company's OpenID Connect
-provider; the demo's people picker, dev tokens and the demo data are refused; and dynamic client
-registration is off unless `HEED_OAUTH_DYNAMIC_REGISTRATION=on`. With no sign-in set up it refuses
-to start, names the missing settings and says how to get the demo instead. `compose.yaml` sets `NODE_ENV=development`,
-the one setting the demo needs: the people picker, where anyone can sign in as anyone, an
-administrator included, and the service says so in its log when it starts.
+The service image starts in production mode unless told otherwise. People sign in with your company's provider, and the people picker, dev tokens and the demo are refused. With no sign-in set up, it refuses to start and names the missing settings.
 
-To run the image in production mode, beside a PostgreSQL 18 database (see `compose.yaml` for the
-database settings):
+`compose.yaml` sets `NODE_ENV=development`, the one setting the demo needs. That turns on the people picker, where anyone can sign in as anyone, an admin included.
 
-1. Register Heed with your provider as a web app, with the redirect address
-   `<your address>/api/v1/auth/oidc/callback` (`HEED_OIDC_REDIRECT_URL` to use another), and set
-   `HEED_OIDC_ISSUER` and `HEED_OIDC_CLIENT_ID`; a confidential client's secret goes in an owner-only
-   file named by `HEED_OIDC_CLIENT_SECRET_FILE`. `HEED_OIDC_ADMIN_GROUPS` and `HEED_OIDC_MEMBER_GROUPS`
-   let the members of those groups in without an invite. [How AI sign-in works](ai-sign-in.md)
-   has every sign-in setting.
-2. Make the keys production never makes on its own, once, in the volume that keeps them:
-   `docker run --rm -v heed-keys:/var/lib/heed <image> node src/server/create-keys.ts` (on your
-   computer: `npm run keys:create`). It makes the login server's signing key and the key that
-   seals suggest_context's questions, owner-only, and keeps a key that exists.
-3. Set `MCP_RESOURCE_URL` to the MCP server's https address, such as
-   `https://heed.example.com/mcp`, and `HEED_WEB_ORIGINS` to the web app's address on the same
-   host: the built-in login server for agents needs https in production. Put a TLS proxy in front
-   that sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly and
-   only the rest (the web app's files) to the web image, with the public host.
-4. Name that TLS proxy in `HEED_TRUSTED_PROXIES`, so each caller has a request limit of its own
-   ([The proxy in front](where-to-run.md#the-proxy-in-front)).
-   The web image's nginx overwrites `X-Forwarded-For` with its own peer's address, so it gives
-   per-caller limits only where it is the first proxy, as in `compose.yaml`.
+To run the image in production mode, beside a PostgreSQL 18 database:
 
-The CI job "Docker images: build, and boot the service in production mode" does all of this
-against a stand-in provider (`tests/image/production-boot.sh`): it signs a person in through the
-web image, makes an access key and calls the MCP server with it.
+1. **Set up sign-in.** Follow [Set up company sign-in](company-sign-in.md).
+2. **Make the keys, once.** They go in the volume that keeps them, and a key that exists is kept:
 
-## Administration, import and export
+   ```sh
+   docker run --rm -v heed-keys:/var/lib/heed <image> npm run keys:create
+   ```
 
-This part covers the administrator's settings, the tool switch and client policies, the history log's
-search and export, item import, edition export, the published item schema and `heed`, the
-command-line tool. Writes need the session cookie, allowed `Origin` and `x-heed-csrf`, as in
-[Run the web app on the service](development.md#run-the-web-app-on-the-service).
+3. **Set the database addresses.** `DATABASE_URL` is the service's own role and `DATABASE_URL_MIGRATE` is the owner, which the image needs to apply the schema at start. When the roles do not exist yet, also set `DATABASE_URL_BOOTSTRAP` to a superuser. See the [database guide](../db/README.md).
+4. **Set the addresses.** The login server for agents needs https in production:
 
-- **Settings** (FR-809): `GET /settings` lists the current version of each limit, threshold,
-  retention period, review time and model.
-  `PUT /settings/{key}` takes `{ version, value, reason }`: the version you read (409 when it
-  moved), a value the setting accepts (`settingSchemas` in `src/contract/admin.ts`, 422
-  otherwise) and a plain-text reason. A change is a new version and a `setting.changed` history
-  entry naming the administrator. The services read the current version, so it applies at once.
-- **Tool switch** (FR-407): `POST /tools/{tool}` with `{ enabled, reason }` switches an MCP tool
-  on or off for every client (`tool.switched_on` or `tool.switched_off`).
-- **Client policies** (FR-408), API only, with no screen in the web app: `GET /clients` and
-  `PUT /clients/{label}` with `displayName`,
-  `toolsAllowed` (null for every switched-on tool), `ratePerMinute` (null for the client rate in
-  `limits.mcp_requests_per_minute`), `maxResponseBytes`
-  (1,000 to 100,000), `enabled` and `reason` add a client label or change it. Labels are never
-  removed; switch one off instead.
-- **Domains** (FR-801): `POST /areas` creates one with an `id` that never changes, its name, hue
-  (`label`), review time in working days (`reviewDays`, 1 to 30), chat channel, owner team,
-  owners and approvers, its `summary` and `description`, and a reason; it is served from the start
-  (`area.created`).
-  `PUT /areas/{id}/description` (FR-813) lets the domain's owners
-  or an administrator write its `summary` (one line, at most 160 characters) and
-  `description` (light Markdown, at most 1,500) with the `revision` from `GET /areas`; it is
-  recorded as `area.changed`. Both need an `Idempotency-Key`. Who looks after the domain changes
-  with `/assignments/grant` and `/assignments/revoke` (API only, with no screen in the web app).
-- **Operations** (FR-810): `GET /operations` and `POST /operations/jobs/{job}/run` (API only,
-  with no screen in the web app), above.
-- **History log** (FR-806 to FR-808): `GET /audit` searches newest first by `action` (a full name
-  such as `setting.changed`, or a prefix such as `proposal`), `actorId`, `areaId`, `subjectType`,
-  `subjectId` and UTC days `from` and `to`, 50 at a time (`limit` up to 200, `before` the page's
-  `next`). `GET /audit/export` writes JSON Lines (one canonical JSON entry per line) or CSV
-  (`format=csv`; a cell starting with `=`, `+`, `-` or `@` is prefixed with `'`), oldest first, up
-  to 10,000 entries a call (`after` the export's `next`). Both report the hash chain of the whole
-  log; `GET /audit/verify` checks only that. Administrators and auditors only. Reading or
-  exporting the log is not itself logged (FR-807).
-- **Item import** (FR-120): `POST /imports` takes `{ content, dryRun, submit, sourceName }`. The
-  content is a YAML or JSON item file: a list of items, or an object with an `items` list, up to
-  5,000 items and 16 million characters. Each item is a draft in the item format; one with an `id`
-  proposes a change to that accepted item, and its unchanged fields need not be repeated. Every
-  entry runs the form's level 1 checks: format, vocabulary, sensitive text, the owner, and
-  mentions (syntax, live targets, the limit). An exported item's `mentions` must match its
-  markup, and a plain `summary` or `body` given with markup must equal its text. An entry equal
-  to its live version is `unchanged` and proposes nothing. A dry run (the default) changes
-  nothing. An apply needs an `Idempotency-Key`; it makes proposals only when no entry has an
-  error and there are at most 500 to make (unchanged entries do not count; split a larger change),
-  all in one transaction and one import batch, with the channel `import`, and submits them
-  for review unless `submit: false` keeps drafts. Nothing is ever accepted by an import.
-- **Edition export** (NFR-045, NFR-093): `GET /editions/{label}/export` (owners and
-  administrators) returns the edition as one document (`heed.edition/1`): every served item version in the item format with its version
-  number and digest, mention markup and mention rows included; the vocabulary terms with theirs;
-  the domain states; and the digest the edition was sealed with. A version the audience rule hides
-  from the reader, or one that names such an item, is listed under `withheld` by id and digest
-  only, so the edition digest still checks. `heed verify` recomputes every
-  digest offline, for written content and for the demo bulk seed alike. An export reads back as an
-  import.
-- **Item schema** (FR-124): `GET /schema/item` publishes the JSON Schema of the item format,
-  from the same definition that checks items. It needs no sign-in and is API only.
+   ```sh
+   MCP_RESOURCE_URL=https://heed.example.com/mcp
+   HEED_WEB_ORIGINS=https://heed.example.com
+   ```
 
-`heed` (`npm run heed -- <command>`) talks to the service through the typed contract client and
-signs in as a person from the dev people file (`--as` or `HEED_EMAIL`; `--url` or `HEED_URL`,
-else http://127.0.0.1:3000). For changes it presents the origin the service allows: `--origin` or
-`HEED_ORIGIN`, else the first of `HEED_WEB_ORIGINS`, else the service's default.
+5. **Put a TLS proxy in front.** It sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly, and only the rest to the web image, with the public host.
+6. **Name that proxy** in `HEED_TRUSTED_PROXIES`: see [The proxy in front](where-to-run.md#the-proxy-in-front).
 
-```sh
-npm run heed -- validate lessons.yaml                  # no service needed
-npm run heed -- import lessons.yaml --as per_maria@example.test           # dry run
-npm run heed -- import lessons.yaml --apply --as per_maria@example.test   # proposals, for review
-npm run heed -- draft item.yaml --as per_maria@example.test               # one draft
-npm run heed -- import-tests questions.yaml --as per_maria@example.test   # test questions, dry run
-npm run heed -- export --out edition.json --as per_maria@example.test     # the live edition
-npm run heed -- verify edition.json                    # recompute the digests
-npm run heed -- audit --format csv --as per_ravi@example.test
+See [Service settings](configuration.md) for every other setting, and the [database guide](../db/README.md) for the roles.
+
+## Request limits
+
+Every request under `/api` counts against a limit each minute, the setting `limits.api_rate_per_minute`.
+
+| Who                        | Limit a minute |
+| -------------------------- | -------------- |
+| A signed-in person         | 600            |
+| An address, before sign-in | 120            |
+
+Over a limit, the answer is 429 with `Retry-After` in seconds. Each instance counts on its own. `/health`, `/health/ready` and `/metrics` are not limited.
+
+The address is the one that connected, unless that is a proxy named in `HEED_TRUSTED_PROXIES`. Then it is the address the proxy forwards. Unset, the service believes no forwarded address.
+
+## Scheduled jobs
+
+The service runs its own jobs on the same database. A job that came due while the service was stopped runs once when it starts again.
+
+| Job                      | When (UTC)       | What it does                                                   |
+| ------------------------ | ---------------- | -------------------------------------------------------------- |
+| `observability.rollup`   | Each night       | Keeps the weekly counts, which are kept without limit          |
+| `partitions.ensure`      | Each night       | Makes the database partitions coming up                        |
+| `observability.snapshot` | Each night       | Keeps the last whole month's counts                            |
+| `retention.run`          | Each night       | Clears what has passed its retention period                    |
+| `outbox.relay`           | Every minute     | Delivers events the relay has not delivered yet                |
+| `saved.check`            | Every minute     | Checks saved questions once what agents get has moved          |
+| `evals.work`             | Every minute     | Works through queued evaluations                               |
+| `evals.retrieval`        | Every minute     | Runs the free retrieval checks                                 |
+| `evals.weekly`           | Mondays          | Runs the weekly evaluation                                     |
+| `connectors.sync`        | Every 5 minutes  | Reads each source that is due, on its own schedule             |
+| `jobs.watchdog`          | Every 5 minutes  | Raises an alert for a job that is late or a source out of date |
+| `gaps.detect`            | Every 15 minutes | Turns questions that found nothing into Not found cards        |
+| `alerts.raise`           | Every 15 minutes | Runs the alert rules, which raise Inbox cards                  |
+
+`GET /api/v1/operations` shows each job's last success and last error, the queue, the sources and model spending, for an admin session. To run a job now:
+
+```text
+POST /api/v1/operations/jobs/retention.run/run
 ```
 
-`heed import-tests` sends a test question file to `POST /evals/import` (a dry run unless
-`--apply`). [docs/templates](templates) has a template for each file, with three worked
-examples: `items.yaml` (items on the demo data) and `test-questions.yaml` (golden set cases).
+Problems are error log lines with an `alert` field: `job_failed` after the last retry, and `job_overdue` and `connector_stale` from the watchdog.
 
-`--json` prints the result as JSON for scripts and coding agents. The exit status is 0 when done,
-1 when the file has problems or the service refused, and 2 for wrong usage.
+## Metrics
+
+`GET /metrics` serves the service's numbers in the Prometheus text format. Turn it on by setting `HEED_METRICS_TOKEN`, a token of at least 32 characters, in the service's environment and restarting it. Without one, the address answers 404. Make a token with `openssl rand -hex 32`, then read the numbers:
+
+```sh
+curl -H "Authorization: Bearer <the token>" localhost:3000/metrics
+```
+
+It counts HTTP requests by route, MCP requests by tool, status and agent family, and what the operations view shows: jobs, queues, source age, model spending and the database pool.
+
+Labels come from fixed lists, never a path, a question, a person or an agent's own name. Counts here are exact for whoever holds the token, unlike Observability, which hides small counts.
+
+## Settings that started with CL_
+
+Every setting that now starts with `HEED_` used to start with `CL_`, and the rest of its name is the same.
+
+This version still reads an old name when the new one is unset or empty, and a new name that is set always wins. Each process that reads an old name prints one warning at start, with the old settings in use and their new names, never their values.
+
+The next version reads the new names only, so rename them in `.env.local`, in your own compose file and wherever else the service runs.

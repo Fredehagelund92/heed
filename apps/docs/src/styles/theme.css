@@ -279,6 +279,12 @@ h1#_top {
   .sl-markdown-content td + td {
     margin-top: 0.25rem;
   }
+
+  /* The heading row is gone, so each cell says its column (lib/remark-heed-docs.ts). */
+  .sl-markdown-content td + td[data-label]::before {
+    color: var(--muted-foreground);
+    content: attr(data-label) ': ';
+  }
 }
 
 /* A note: a quote whose first words are its title in bold (lib/remark-heed-docs.ts). */
