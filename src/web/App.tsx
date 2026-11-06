@@ -325,7 +325,7 @@ function Shell() {
         setOpen(o)
       }}
       data-fold={auto ? 'auto' : undefined}
-      className="h-svh overflow-hidden"
+      className="h-svh overflow-clip"
       style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
     >
       {/* The first stop for the keyboard: past the sidebar, straight to the page. A button, since a #link would change the address. */}
@@ -350,7 +350,7 @@ function Shell() {
           if (done) saveWidth('sidebar', next)
         }}
       />
-      <SidebarInset className="min-w-0 overflow-hidden">
+      <SidebarInset className="min-h-0 min-w-0 overflow-clip">
         {isMobile ? (
           <div className="h-full min-h-0">
             <SafeScreen />
