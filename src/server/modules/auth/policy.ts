@@ -111,6 +111,8 @@ export const policies = {
   'drafts.fromText': 'propose',
   // The Inbox of Heed v1: the service narrows every card to the domains the person owns.
   'inbox.feed': 'read',
+  'inbox.names': 'read',
+  'inbox.decideNames': 'propose',
   'cards.markRead': 'read',
   'cards.decide': 'propose',
   // Comments (FR-817): anyone signed in, on what they may read; the service and row security keep

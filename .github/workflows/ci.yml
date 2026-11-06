@@ -284,6 +284,67 @@ jobs:
             test-results/e2e-seed
           retention-days: 7
 
+  own-data:
+    # What a stranger does with their own semantic manifest, on an empty database with no demo:
+    # connect an invented dbt project through the app, accept the names its read made, write and
+    # publish a context item about one of its metrics, and get Checked from get_context and from
+    # Ask (tests/e2e-own). Every other journey starts from seeded names.
+    name: 'From an own manifest to a Checked answer (PostgreSQL 18, Playwright)'
+    needs: [scope, migrations]
+    if: needs.scope.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL_BOOTSTRAP: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_MIGRATE: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_owner
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_api
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_api
+      E2E_DATABASE_SERVE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_serve
+      SEED_DEMO: 'off'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Playwright's browser, cached by the lockfile
+        id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: An empty database, as a new install prepares it (roles and schema, no demo)
+        run: npm run db:migrate
+      - name: From an own manifest to a Checked answer
+        run: npm run test:e2e:own
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report-own-data
+          path: |
+            playwright-report/e2e-own
+            test-results/e2e-own
+          retention-days: 7
+
   docker:
     # The images docker compose up runs (Dockerfile, compose.yaml): the service, and the web app's
     # http build behind nginx. The web image is started on its own and checked as a browser meets
@@ -448,7 +509,21 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, migrations, check, unit, seal, service, seed, docker, web, golden-http, security]
+    needs:
+      [
+        scope,
+        migrations,
+        check,
+        unit,
+        seal,
+        service,
+        seed,
+        own-data,
+        docker,
+        web,
+        golden-http,
+        security,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -474,6 +549,7 @@ jobs:
           expect unit "$CHECK"
           expect service "$CODE"
           expect seed "$CODE"
+          expect own-data "$CODE"
           expect docker "$CODE"
           expect web "$CODE"
           expect golden-http "$CODE"

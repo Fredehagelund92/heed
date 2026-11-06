@@ -36,10 +36,13 @@ import {
   cardIdSchema,
   decideCardResultSchema,
   decideCardSchema,
+  decideNamesResultSchema,
+  decideNamesSchema,
   feedInputSchema,
   feedSchema,
   markCardsReadSchema,
   setupSchema,
+  namesSchema,
 } from './inbox.ts'
 import {
   closeInputSchema,
@@ -1510,6 +1513,25 @@ export const contract = {
       })
       .input(feedInputSchema)
       .output(feedSchema),
+    names: read
+      .route({
+        method: 'GET',
+        path: '/inbox/names',
+        tags: ['inbox'],
+        summary:
+          'The names the definition sources gave that no live term has yet, as far as the person may accept them, each ready, flagged for a look, or left out (FR-141)',
+      })
+      .output(namesSchema),
+    decideNames: review
+      .route({
+        method: 'POST',
+        path: '/inbox/names/decide',
+        tags: ['inbox'],
+        summary:
+          'Accepts names as one edition and leaves others out. A word with another meaning is refused, naming who has it, and a list that changed since it was read is refused (FR-138, FR-141)',
+      })
+      .input(decideNamesSchema)
+      .output(decideNamesResultSchema),
   },
   cards: {
     markRead: read
@@ -1644,7 +1666,7 @@ export const contract = {
         path: '/setup',
         tags: ['admin'],
         summary:
-          "A new workspace's setup checklist, read from what exists: About our business, a published context item, Ask used, an agent connected, definitions connected (FR-816)",
+          "A new workspace's setup checklist, read from what exists: About our business, a domain, names from definitions live, a published context item, Ask used, an agent connected (FR-816)",
       })
       .output(setupSchema),
   },

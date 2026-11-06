@@ -455,8 +455,8 @@ function ScopePicker({
                   {within ? ` in ${within.name}` : ''}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Applies to names only the metrics and dimensions your definitions source has, and
-                  their values.
+                  Applies to names only the metrics and dimensions that are live in Definitions, and
+                  their values. New names from your tools wait in the Inbox.
                 </p>
               </>
             ) : (

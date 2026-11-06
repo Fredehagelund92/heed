@@ -1116,7 +1116,14 @@ describe('the setup checklist (FR-816)', () => {
     const before = await ok<{ steps: { id: string; done: boolean }[]; done: boolean }>(
       call('GET', '/setup', 'admin'),
     )
-    expect(before.steps.map((s) => s.id)).toEqual(['about', 'fact', 'ask', 'agent', 'definitions'])
+    expect(before.steps.map((s) => s.id)).toEqual([
+      'about',
+      'domain',
+      'definitions',
+      'fact',
+      'ask',
+      'agent',
+    ])
     expect(before.steps.find((s) => s.id === 'fact')?.done).toBe(true)
     expect(before.steps.find((s) => s.id === 'ask')?.done).toBe(false)
     const asked = await call('POST', '/ask/lookup', 'author', {

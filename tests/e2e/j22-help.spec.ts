@@ -29,7 +29,7 @@ test('one Help row opens the menu; Documentation lives in it', async ({ page }) 
 test('Get started shows in the menu while setup is unfinished', async ({ page }) => {
   await go(page, '/inbox?demo=setup')
   await page.locator('[data-sidebar=sidebar]').first().getByRole('button', { name: 'Help' }).click()
-  await expect(page.getByRole('menuitem', { name: /Get started/ })).toContainText('0 of 5')
+  await expect(page.getByRole('menuitem', { name: /Get started/ })).toContainText('1 of 6')
 })
 
 test('? opens the keys from anywhere, and once in the review', async ({ page }) => {

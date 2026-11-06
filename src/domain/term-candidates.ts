@@ -1,8 +1,8 @@
 /**
- * The members of a definition source that are not vocabulary terms yet, each as the term an
- * administrator may propose for it (B1 of the pilot walk; FR-125, FR-136). Heed reads every
- * public member of the source, but scope, the catalogue and `get_context` only know terms, so a
- * member reaches people once a term names it and an owner or administrator accepts it.
+ * The members of a definition source that are not vocabulary terms yet, each as the term it would
+ * be (FR-125, FR-136, FR-141). Heed reads every public member of the source, but scope, the
+ * catalogue and `get_context` only know terms, so a member reaches people once a term names it and
+ * an owner or administrator accepts it (src/domain/source-names.ts).
  *
  * Pure: the service and the mock binding suggest the same terms from the same members.
  */
@@ -311,15 +311,20 @@ function withSynonyms(
       offeredBy.set(counted, (offeredBy.get(counted) ?? 0) + 1)
     }
   }
+  // Who goes by each name, once for all: a model has thousands of members.
+  const goesBy = new Map<string, Set<string>>()
+  for (const term of [...known, ...candidates])
+    for (const name of [term.name, ...term.aliases].map(normalizeName)) {
+      const counted = `${term.kind}|${name}`
+      goesBy.set(counted, (goesBy.get(counted) ?? new Set()).add(term.key))
+    }
+  const elsewhere = (candidate: TermCandidate, name: string) =>
+    [...(goesBy.get(`${candidate.kind}|${name}`) ?? [])].some((key) => key !== candidate.key)
   for (const candidate of candidates) {
-    const elsewhere = new Set(
-      [
-        ...known.filter((term) => term.kind === candidate.kind && term.key !== candidate.key),
-        ...candidates.filter((other) => other.kind === candidate.kind && other !== candidate),
-      ].flatMap((term) => [term.name, ...term.aliases].map(normalizeName)),
-    )
     const added = [...offered.get(candidate)!]
-      .filter(([name]) => offeredBy.get(`${candidate.kind}|${name}`) === 1 && !elsewhere.has(name))
+      .filter(
+        ([name]) => offeredBy.get(`${candidate.kind}|${name}`) === 1 && !elsewhere(candidate, name),
+      )
       .map(([, synonym]) => synonym)
     candidate.aliases = [...candidate.aliases, ...added].slice(0, ALIASES_MAX)
   }

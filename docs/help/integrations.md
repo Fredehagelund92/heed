@@ -4,14 +4,14 @@ line: Connect where metrics are defined and where documents live, and what is re
 group: Set up
 order: 2
 minutes: 4
-reviewed: 2026-10-30
+reviewed: 2026-11-06
 ---
 
 Connect where metrics are defined and where documents live, and what is read from each.
 
 ## Definitions
 
-Metric and dimension names arrive from the tool where they are defined, and stay read-only. When a definition changes there, the context that relies on it comes back to its owners to check.
+Metric and dimension names arrive from the tool where they are defined, and stay read-only. A read makes a name for each new one, and an owner publishes them on one card in the Inbox. Until then, Definitions doesn't list them. When a definition changes there, the context that relies on it comes back to its owners to check.
 
 ## Documents
 

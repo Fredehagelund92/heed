@@ -1,6 +1,7 @@
 import { expect, go, inHttpOnly, inMockUntil, test } from './go.ts'
 
-// J7: a new workspace reaches its first grounded answer: write first, connect later, about ten actions.
+// J7: a new workspace reaches its first grounded answer, in about ten actions. The way from a tool
+// the person connects to their own names is the own-data journey (tests/e2e-own).
 test('a new workspace gets its first grounded answer', async ({ page }) => {
   await go(page, '/inbox?demo=setup')
   // The checklist says where the first item goes, for this person: the service's new install has
@@ -15,7 +16,7 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
   await page.keyboard.insertText('We are an outdoor-gear retailer with a webshop and stores.')
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   // Back on the checklist, What the business is about counts as written.
-  await expect(page.getByText('1 of 5 done')).toBeVisible()
+  await expect(page.getByText(/^[12] of 6 done$/)).toBeVisible()
   // A new install on the service has no domain yet to write context in: Domains and owners in
   // Settings make the first one. The mock's new install keeps the demo's domains.
   await inHttpOnly('first domain, made in Settings, Domains and owners', async () => {
@@ -24,7 +25,7 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
     await page.getByRole('button', { name: 'Add the domain' }).click()
     await expect(page).toHaveURL(/\/settings\/domains\/sales$/)
     await go(page, '/inbox')
-    await expect(page.getByText('1 of 5 done')).toBeVisible()
+    await expect(page.getByText('2 of 6 done')).toBeVisible()
   })
   await expect(page.getByText(/Context goes to the domain Sales, /)).toBeVisible()
   // The first context item, complete as the service needs it: where it applies, and a source with
@@ -35,7 +36,7 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
     await expect(
       page.getByRole('button', { name: 'Publish', exact: true }),
     ).toHaveAccessibleDescription(
-      /Where it applies is named from your definitions: connect them in Settings, Integrations\.$/,
+      /Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox\.$/,
     )
   })
   await inMockUntil('a follow-up to this journey', 'the definitions connected first', async () => {
@@ -61,7 +62,7 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
     // Published in one step, the checklist counts the first context item written.
-    await expect(page.getByText('2 of 5 done')).toBeVisible()
+    await expect(page.getByText('3 of 6 done')).toBeVisible()
   })
   await inMockUntil('P10', 'Ask', async () => {
     await page.getByRole('button', { name: 'Ask', exact: true }).click()

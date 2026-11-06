@@ -23,6 +23,7 @@ import type { AskLive } from '@/model/ask-turn'
 import type { CommentAnchor, Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
+import type { DecideNames, NamesDecision, NamesRead } from '@contract/inbox'
 import type { Conflict, ConflictDecision, ConflictRow, SettleConflict } from '@/model/conflicts'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
@@ -440,6 +441,10 @@ export interface HeedApi {
   markReviewed: (input: { id: string }) => Promise<void>
   /** A decision on a card in the Inbox, with the change it makes to its item, if any. */
   decideCard: (input: { card: string; outcome: string; patch?: Partial<Fact> }) => Promise<Undoable>
+  /** The names a read made that the person may accept (FR-141). */
+  getNames: () => Promise<NamesRead>
+  /** Accepts names as one edition, and leaves others out. */
+  decideNames: (input: DecideNames) => Promise<NamesDecision>
   /** A card closed without a decision of its own (a report that is not a problem). */
   completeCard: (input: { card: string; outcome: string }) => Promise<Undoable>
   /**
@@ -573,15 +578,13 @@ export interface HeedApi {
   ) => Promise<ConnectTest>
   /**
    * Connects a tool with the form's settings, what was chosen to read with each one's domain, and
-   * why (kept in the history log). Nothing is published by a read. `setup`: from the setup
-   * checklist, whose last step it is.
+   * why (kept in the history log). Nothing is published by a read.
    */
   connectIntegration: (
     input: {
       connector: string
       chosen: ConnectChoice[]
       reason: string
-      setup?: boolean
     } & ConnectValues,
   ) => Promise<ConnectedSource>
   /** Change settings of a connected tool, on the revision its form read; a secret left empty stays. */
@@ -759,6 +762,8 @@ export const heedApiMethods = [
   'markOpened',
   'markReviewed',
   'decideCard',
+  'getNames',
+  'decideNames',
   'completeCard',
   'publishReview',
   'publishReviews',

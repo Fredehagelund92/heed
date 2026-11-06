@@ -84,6 +84,7 @@ import {
   type LookupDeps,
 } from '../modules/answer/index.ts'
 import {
+  createNamesService,
   createReviewPath,
   createReviewService,
   type ReviewService,
@@ -219,6 +220,7 @@ export function createRouter({
           await tx.query("select set_config('cl.person_id',$1,true)", [session?.person.id ?? ''])
           const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
           const review = createReviewService(tx, clock)
+          const names = createNamesService(tx)
           const gaps = createGapsService(tx)
           const comments = createCommentsService(tx)
           const reviewPath = createReviewPath(
@@ -262,7 +264,9 @@ export function createRouter({
                 path: reviewPath,
                 gaps,
                 comments,
+                names,
               }),
+              names,
               comments,
               reports: createReportsService(tx),
               gaps,
@@ -876,6 +880,15 @@ export function createRouter({
     },
     inbox: {
       feed: authorized.inbox.feed.handler(({ context, input }) => context.cards.feed(input.tab)),
+      names: authorized.inbox.names.handler(async ({ context }) => {
+        const { revision, names } = await context.names.read()
+        return { revision, names }
+      }),
+      decideNames: authorized.inbox.decideNames.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'inbox.decideNames', input, () =>
+          context.names.decide(input),
+        ),
+      ),
     },
     cards: {
       markRead: authorized.cards.markRead.handler(({ context, input }) =>

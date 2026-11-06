@@ -67,7 +67,7 @@ The Docs area and the docs site draw the list from its source in the app. What s
 
 | Include              | What it shows                              | Its source                    |
 | -------------------- | ------------------------------------------ | ----------------------------- |
-| `setup-steps`        | The setup checklist's five steps           | `src/web/lib/setup.ts`        |
+| `setup-steps`        | The setup checklist's six steps            | `src/web/lib/setup.ts`        |
 | `prompt`             | The prompt that connects an agent          | `src/web/lib/agents.ts`       |
 | `checks`             | What to check when nothing signs in        | `src/web/lib/agents.ts`       |
 | `kinds`              | The four kinds of context, with their hint | `src/web/model/items.ts`      |

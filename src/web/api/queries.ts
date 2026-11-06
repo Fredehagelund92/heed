@@ -48,6 +48,7 @@ export const queryKeys = {
   definitionHistories: ['getDefinitionHistory'] as const,
   inbox: ['getInbox'] as const,
   inboxPage: ['inboxPage'] as const,
+  names: ['getNames'] as const,
   reviews: ['getReviews'] as const,
   savedQuestions: ['getSavedQuestions'] as const,
   savedCheck: ['getSavedCheck'] as const,
@@ -199,6 +200,8 @@ export const definitionHistoryQuery = (name: string) =>
 export const inboxQuery = () =>
   queryOptions({ queryKey: queryKeys.inbox, queryFn: () => api.getInbox() })
 
+export const namesQuery = () =>
+  queryOptions({ queryKey: queryKeys.names, queryFn: () => api.getNames() })
 export const inboxPageQuery = () =>
   queryOptions({ queryKey: queryKeys.inboxPage, queryFn: () => api.inboxPage() })
 
@@ -415,6 +418,7 @@ type Read =
   | 'getInbox'
   | 'inboxPage'
   | 'getReviews'
+  | 'getNames'
   | 'getSavedQuestions'
   | 'getSavedCheck'
   | 'getAlerts'
@@ -543,6 +547,8 @@ export const invalidations: {
   markOpened: () => inbox,
   markReviewed: () => inbox,
   decideCard: () => [...inbox, ...items],
+  // The first names start the vocabulary: every page reads it.
+  decideNames: () => everything,
   completeCard: () => inbox,
   publishReview: () => decision,
   publishReviews: () => decision,

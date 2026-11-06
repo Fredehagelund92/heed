@@ -98,7 +98,9 @@ export function reduce(s: State, a: Action): State {
     case 'demo': {
       // A scenario in the address is a fresh start, so every link lands the same way whatever came before.
       const fresh = { ...start, user: s.user }
-      if (a.mode === 'setup') return { ...fresh, install: 'new', fresh: true, about: '' }
+      // The demo's domains stay, so that step is done; its names wait for a tool to be connected.
+      if (a.mode === 'setup')
+        return { ...fresh, install: 'new', fresh: true, about: '', setup: { domain: true } }
       if (a.mode === 'week') return fresh
       // One suggestion left in the review: the rest decided, so its decision is the last.
       if (a.mode === 'last')

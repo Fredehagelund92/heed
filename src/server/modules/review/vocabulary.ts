@@ -17,13 +17,14 @@ export const termRefs = (version: string) =>
  * `everyone`, only the members whose source shows them to every reader: a member its source
  * limits to some groups is left out, as serving leaves its definition out (groups are parked).
  */
-async function sourceVocabulary(tx: Queryable, everyone = false) {
+export async function sourceVocabulary(tx: Queryable, everyone = false) {
   const rows = await tx.query<CandidateMember & { type: string | null; sourceName: string | null }>(
     `select d.ref,d.connector_id as source,d.kind::text as kind,d.name,d.title,
             d.description_copy as description,d.value_type as "valueType",d.area_hint as "areaHint",
             d.synonyms,d.base_name as "baseName",c.type,c.name as "sourceName"
        from definitions d left join connectors c on c.id=d.connector_id
-      where d.missing_since_snapshot is null${everyone ? ' and d.visible_groups is null' : ''}`,
+      where d.missing_since_snapshot is null and c.type is distinct from 'demo'
+        ${everyone ? 'and d.visible_groups is null' : ''}`,
   )
   // Whether a source's same-named dimensions are one is its connector's to say (CON-201).
   const members = rows.map(({ type, sourceName, ...member }): CandidateMember => ({
@@ -72,24 +73,16 @@ export type WaitingMember = {
   kind: 'metric' | 'dimension'
   /** The name the term would take ("Avg rank"). */
   name: string
-  /** The source that reads it, by id, and the tool it comes from ("Cube"). */
-  source: string
+  /** The tool it comes from ("Cube"). */
   tool: string
-  /**
-   * An open proposal the reader may read makes it a term, waiting for review. A reader who is no
-   * administrator reads only their own proposals, so a member someone else proposed reads as
-   * not proposed to them; the next step they are told, that an administrator proposes it, holds.
-   */
-  proposed: boolean
 }
 
 /**
  * The members of the definition sources that belong to a domain and are no vocabulary term yet,
- * as the candidates an administrator would propose (`termCandidates`): never a date or an id,
+ * as the names a read made wait for an owner (`termCandidates`, FR-141): never a date or an id,
  * which items do not need, and never a dimension several domains share, which belongs to none.
- * Each says whether an open proposal already makes it a term. People are told of them so a
- * domain's metrics are never said to be missing when its source has them (the captain's pilot).
- * Only members every reader may see are named: never one its source limits to some groups.
+ * People are told of them so a domain's metrics are never said to be missing when its source has
+ * them. Only members every reader may see are named: never one its source limits to some groups.
  */
 export async function waitingMembers(tx: Queryable): Promise<WaitingMember[]> {
   const { members, known } = await sourceVocabulary(tx, true)
@@ -100,10 +93,6 @@ export async function waitingMembers(tx: Queryable): Promise<WaitingMember[]> {
     const source = sources.find((s) => s.id === id)
     return source ? connectorType(source.type, source.name).tool : id
   }
-  // The members no open proposal links yet: the candidates against live and open terms alike.
-  const unproposed = new Set(
-    termCandidates(members, known).flatMap((candidate) => candidate.definitionRefs),
-  )
   // A candidate that links more members to a live dimension is a term already, never missing.
   return termCandidates(
     members,
@@ -115,9 +104,7 @@ export async function waitingMembers(tx: Queryable): Promise<WaitingMember[]> {
             areaId: candidate.areaId,
             kind: candidate.kind,
             name: candidate.name,
-            source: candidate.source,
             tool: tool(candidate.source),
-            proposed: !candidate.definitionRefs.some((ref) => unproposed.has(ref)),
           },
         ]
       : [],

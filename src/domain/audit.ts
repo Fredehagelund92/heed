@@ -73,6 +73,7 @@ export type AuditWorld = {
 export type QueueLine = { group: string; count: number }
 
 const groupWords: Record<string, string> = {
+  names: 'Names to publish',
   gap: 'Not found',
   flag: 'Reported',
   look: 'Saved questions',

@@ -5,11 +5,13 @@
 */
 
 /**
- * The groups, in the order of need: what agents couldn't answer first, then what people reported,
+ * The groups, in the order of need: the names a read made first, since nothing can be written
+ * about a metric until it has one, then what agents couldn't answer, then what people reported,
  * saved questions that answer worse, what an alert rule raised, comments that mention the person,
  * items due for a check, and suggestions last. Under All: what the person sent that waits on others, and what is done.
  */
 export const cardGroups = [
+  'names',
   'gap',
   'flag',
   'look',
@@ -48,13 +50,16 @@ export const cardKey = {
   look: (areaId: string) => `look:${areaId}`,
   /** A raise of an alert rule that has a card of its own (FR-621). */
   alert: (raiseId: string) => `alert:${raiseId}`,
+  /** The names a read made, one card however many sources made them (FR-141). */
+  names: () => 'names:waiting',
 }
 
-type CardKind = 'proposal' | 'gap' | 'feedback' | 'report' | 'check' | 'mention' | 'look' | 'alert'
+type CardKind =
+  'proposal' | 'gap' | 'feedback' | 'report' | 'check' | 'mention' | 'look' | 'alert' | 'names'
 
 /** What a card's name says it is, or null for a name that is none of them. */
 export function parseCardKey(key: string): { kind: CardKind; id: string } | null {
-  const match = /^(proposal|gap|feedback|report|check|mention|look|alert):(.+)$/.exec(key)
+  const match = /^(proposal|gap|feedback|report|check|mention|look|alert|names):(.+)$/.exec(key)
   return match ? { kind: match[1] as CardKind, id: match[2]! } : null
 }
 
@@ -91,9 +96,10 @@ export function groupCounts<T extends { group: CardGroup; done: unknown }>(
 }
 
 /**
- * The setup checklist of a new workspace (FR-816): write first, connect later. Say what the
- * business is about, write one context item, ask about it in Ask, connect an agent, connect where
- * metrics are defined.
+ * The setup checklist of a new workspace (FR-816), in the order it can be done: say what the
+ * business is about, add a domain, connect where metrics are defined and accept their names, since
+ * a context item must say which metric it applies to, write one, ask about it in Ask, connect an
+ * agent.
  */
-export const setupSteps = ['about', 'fact', 'ask', 'agent', 'definitions'] as const
+export const setupSteps = ['about', 'domain', 'definitions', 'fact', 'ask', 'agent'] as const
 export type SetupStep = (typeof setupSteps)[number]

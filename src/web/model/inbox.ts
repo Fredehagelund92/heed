@@ -7,16 +7,42 @@ import type { DomainId, Fact } from './items'
 /** A decision taken on a card: its outcome in a word or two, and when. */
 export type Outcome = { label: string; at: string }
 
-export type CardType = 'suggestion' | 'gap' | 'flag' | 'check' | 'look' | 'alert'
+export type CardType = 'names' | 'suggestion' | 'gap' | 'flag' | 'check' | 'look' | 'alert'
 
 /** Each card by what happened, so the word explains itself. */
 export const cardTypeLabel: Record<CardType, string> = {
+  names: 'Names',
   suggestion: 'Suggestion',
   gap: 'Not found',
   flag: 'Reported',
   check: 'Due for a check',
   look: 'Needs a look',
   alert: 'Alert',
+}
+
+/** The card of the names a read made, in words: what to do, not how it was found. */
+export function namesWords({
+  ready,
+  flagged,
+  tools,
+}: {
+  ready: number
+  flagged: number
+  tools: readonly string[]
+}) {
+  const total = ready + flagged
+  return {
+    title: total
+      ? `${total === 1 ? '1 name' : `${total} names`} from ${tools.join(', ')}`
+      : 'Names left out',
+    line: !total
+      ? 'Left out of the names a read made.'
+      : flagged
+        ? `${ready} ready to publish, ${flagged} to look at first.`
+        : ready === 1
+          ? 'Ready to publish.'
+          : 'All ready to publish.',
+  }
 }
 
 export type FieldChange = { label: string; before: string; after: string }
@@ -64,6 +90,8 @@ export type InboxCard = {
    * goes (a topic's answer panel, Overview, Usage, or an integration).
    */
   alert?: { rule: AlertCardRule; name: string; href: string; pair?: string }
+  /** The names a read made: how many Publish all takes, how many need a look, and from what. */
+  names?: { ready: number; flagged: number; tools: string[] }
   /**
    * Created by a sync from a document, never by a person: the tool as people say it, and its
    * connector's id, which its logo is drawn by.

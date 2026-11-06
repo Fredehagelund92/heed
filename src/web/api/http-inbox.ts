@@ -19,7 +19,7 @@ import type { Inbox, Workspace } from './client'
 import { mentionIdOf, textFromService, type Words } from './http-context'
 import { commentWhen } from './http-map'
 import type { Subject } from '@/model/comments'
-import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
+import { namesWords, type InboxCard, type Outcome, type Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
 import { describe, type Domain, type Domains, type Person } from '@/model/people'
 import type { Block, ChangeKind, FieldSide, Relation, Review } from '@/model/review'
@@ -122,8 +122,19 @@ export const idOf = (card: NeedCard) =>
       : card.id
 
 function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => string): InboxCard {
-  const base = { id: idOf(card), domain: card.areaId, for: me, when: whenWords(card.at, now) }
+  // Names can belong to no domain; every other card belongs to one.
+  const base = { id: idOf(card), domain: card.areaId ?? '', for: me, when: whenWords(card.at, now) }
   switch (card.group) {
+    case 'names':
+      return {
+        ...base,
+        type: 'names',
+        ...namesWords(card),
+        detail: '',
+        primary: 'Review',
+        secondary: [],
+        names: { ready: card.ready, flagged: card.flagged, tools: card.tools },
+      }
     case 'suggestion': {
       const synced = card.synced
       const from = synced ? synced.source.tool : (card.from?.name ?? 'Someone')

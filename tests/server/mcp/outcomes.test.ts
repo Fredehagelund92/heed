@@ -412,15 +412,13 @@ describe('a domain with nothing yet, named by another spelling', () => {
       description: '',
     })
   }
-  const member = (name: string, kind: 'metric' | 'dimension', proposed = false) => ({
+  const member = (name: string, kind: 'metric' | 'dimension') => ({
     areaId: 'stores_suppliers',
     kind,
     name,
-    source: 'cube',
     tool: 'Cube',
-    proposed,
   })
-  const waiting = (canPropose: boolean): WaitingTerms => ({
+  const waiting: WaitingTerms = {
     members: [
       member('Purchase orders', 'metric'),
       member('Lead time days', 'metric'),
@@ -431,11 +429,10 @@ describe('a domain with nothing yet, named by another spelling', () => {
       member('Supplier', 'dimension'),
       { ...member('Refund fees', 'metric'), areaId: 'finance' },
     ],
-    canPropose,
-  })
+  }
 
   it('find_context reads the domain in the words, and says what it has and lacks', async () => {
-    const { out } = await setup(typo, waiting(true)).call('find_context', {
+    const { out } = await setup(typo, waiting).call('find_context', {
       query: 'Stores & Suppliers metrics and dimensions',
     })
     expect(out).toMatchObject({
@@ -455,6 +452,7 @@ describe('a domain with nothing yet, named by another spelling', () => {
     expect(out.why[0]).toMatch(
       /^Stores & Suplliers has no facts and no names of its own yet\. Cube has 5 metrics and 2 dimensions mapped to Stores & Suplliers/,
     )
+    expect(out.why[0]).toContain('They wait in the Inbox for an owner of the domain or an admin')
     expect(out.instructions).toContain('at most two sentences')
     expect(out.instructions).toContain('Do not repeat either in later answers')
   })

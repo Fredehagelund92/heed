@@ -19,6 +19,7 @@ const places = [
   '/inbox?card=check-returns',
   '/inbox?dock=review.sug-sofia-clash',
   '/inbox?demo=setup',
+  '/inbox?demo=names',
   '/inbox/sug-ines/review',
   '/inbox/sug-sofia-clash/review',
   '/inbox/gap-spain/review',

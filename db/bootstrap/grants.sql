@@ -254,3 +254,6 @@ grant execute on function cl_conflicts_kept() to :api;
 -- the serving or the analytics role.
 grant select, insert, update (ended_at, ended_by, ended_reason) on agent_policies to :api;
 grant execute on function cl_auto_publish_on() to :api;
+-- The names a read makes (FR-141): an owner or an administrator leaves a member out and takes it back. Nothing
+-- here is granted to the serving or the analytics role.
+grant select, insert, delete on names_left_out to :api;

@@ -2616,10 +2616,10 @@ function ChoiceSteps({
         navigate(`/settings/integrations/${form.source.id}`)
         return
       }
-      const done = await connect({ connector: c.id, ...input, ...(setup ? { setup } : {}) })
+      const done = await connect({ connector: c.id, ...input })
       toast(`${c.name} connected`, {
         description: isDefinitions
-          ? 'First read now. Definitions show in Definitions as a read-only copy.'
+          ? 'First read now. Its names wait for you in the Inbox.'
           : `First read ${done.firstRead ? `at ${done.firstRead}` : 'now'}. Documents become suggestions; nothing is published by a read.`,
       })
       if (setup) navigate('/inbox')
