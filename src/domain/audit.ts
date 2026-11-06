@@ -30,6 +30,8 @@ export type AuditTerm = {
   areaId: string | null
   /** What the source says now: `changed` and `gone` are CON-209 and CON-210. */
   state: 'current' | 'changed' | 'gone'
+  /** When the source last changed it after Heed first read it; null when it never did. */
+  changedAt?: string | null
   /** The source's own words; null when it gives none. */
   words: string | null
   /** Live context items about it, by kind. */
@@ -155,6 +157,10 @@ type Part = {
   ranked?: string | null
   /** How many it found, for the lead of an analysis of several parts. */
   found: number
+  /** What it counted with its denominator, also when it found nothing: "0 of 1 metrics". */
+  tally?: string
+  /** The domain a ranking puts first, alone. */
+  top?: { id: string; name: string } | null
 }
 
 /** Where a term's or a domain's list lives. */
@@ -246,7 +252,7 @@ function readingOf(
     const what = kind ? `no ${kindWord[kind]}` : 'no context written'
     const have = listed.filter((t) => !none.includes(t))
     const named = kind && have.length > 0 && have.length <= SECTION_ROWS
-    const rest = `${count(total - n)} of ${count(total)} ${kind ? (total - n === 1 ? 'has one' : 'have one') : 'have some'}`
+    const rest = `${count(total - n)} of ${count(total)} ${kind ? (total - n === 1 ? 'has one' : 'have one') : total - n === 1 ? 'has some' : 'have some'}`
     return {
       sentence: `${count(n)} of ${count(total)} ${word}${where} ${n === 1 ? 'has' : 'have'} ${what}, so ${rest}${named ? `: ${list(have.map((t) => t.name))}` : ''}.`,
       section: n
@@ -262,6 +268,7 @@ function readingOf(
       clear: `All ${count(total)} ${word}${where} have ${kind ? `a ${kindWord[kind]}` : 'context written'}.`,
       note: `A ${(read.of ?? 'metric') === 'dimension' ? 'dimension' : 'metric'} is covered when at least one live context item names it.`,
       found: n,
+      tally: `${count(n)} of ${count(total)} ${word}`,
     }
   }
 
@@ -357,7 +364,9 @@ function readingOf(
   /** What changed or went at the source. */
   const sourceChanged = (): Part => {
     const listed = terms()
-    const moved = listed.filter((t) => t.state !== 'current')
+    const moved = listed
+      .filter((t) => t.state !== 'current' || t.changedAt)
+      .sort((a, b) => (b.changedAt ?? '').localeCompare(a.changedAt ?? '') || byName(a, b))
     const n = moved.length
     const lastRead = audit.readAt ? ` The source was last read on ${dayWords(audit.readAt)}.` : ''
     return {
@@ -368,10 +377,15 @@ function readingOf(
         ? {
             title: 'Changed at the source',
             count: `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)}`,
-            columns: [nameColumns()[0]!, 'What'],
+            columns: [nameColumns()[0]!, 'What', 'When'],
             rows: moved
               .slice(0, SECTION_ROWS)
-              .map((t) => termRow(t, [t.state === 'gone' ? 'Gone' : 'Changed'])),
+              .map((t) =>
+                termRow(t, [
+                  t.state === 'gone' ? 'Gone' : 'Changed',
+                  t.changedAt ? dayWords(t.changedAt) : 'Not recorded',
+                ]),
+              ),
             shown: showing(n),
             more: definitionsMore(),
           }
@@ -485,39 +499,7 @@ function readingOf(
   }
 
   const duePart = (): Part => {
-    const items = liveItems()
-    const due = items
-      .filter((i) => i.status === 'due')
-      .sort(
-        (a, b) =>
-          (a.reviewDate ?? '9999').localeCompare(b.reviewDate ?? '9999') ||
-          a.title.localeCompare(b.title),
-      )
-    const n = due.length
-    const total = `${count(n)} of ${count(items.length)} ${noun(items.length, 'context item', 'context items')}`
-    return {
-      sentence: `${total}${where} ${n === 1 ? 'is' : 'are'} due for a check.`,
-      section: n
-        ? {
-            title: 'Due for a check',
-            count: total,
-            columns: ['Context item', 'Due since'],
-            rows: due.slice(0, SECTION_ROWS).map((i) => ({
-              type: 'item' as const,
-              id: i.id,
-              kind: i.kind,
-              title: i.title,
-              areaId: i.areaId,
-              cells: [i.reviewDate ? dayWords(i.reviewDate) : 'Not recorded'],
-            })),
-            shown: n > SECTION_ROWS ? `Showing the ${SECTION_ROWS} oldest` : null,
-            more: contextLink(`Show all ${count(n)} in Context`, domain?.id ?? null, 'due'),
-          }
-        : null,
-      clear: `Nothing${where} is due for a check.`,
-      ranked: n ? 'Oldest check date first.' : null,
-      found: n,
-    }
+    return dueRead(liveItems(), { where, domainId: domain?.id ?? null })
   }
 
   const conflictsPart = (): Part => {
@@ -659,17 +641,18 @@ function readingOf(
       more,
     })
     const rows = [
-      line('No context written', context.section?.count ?? 'None', scoped.definitionsMore()),
-      line('Due for a check', due.section?.count ?? 'None', due.section?.more ?? null),
+      line('No context written', context.tally!, scoped.definitionsMore()),
+      line('Due for a check', due.tally!, due.section?.more ?? null),
       line('Conflicts', conflicts.section?.count ?? 'None', conflicts.section?.more ?? null),
       line('Written twice', twice.section?.count ?? 'None', null),
       line('Agents found nothing', nothing.section?.count ?? 'None', null),
     ]
+    const metrics = scoped.terms().length
     return {
       sentence: `This is what the records show for ${area.name}.`,
       section: {
         title: area.name,
-        count: `${count(scoped.terms().length)} metrics`,
+        count: `${count(metrics)} ${noun(metrics, 'metric', 'metrics')}`,
         columns: ['What', 'How many'],
         rows,
         shown: null,
@@ -681,36 +664,55 @@ function readingOf(
     }
   }
 
+  /** Every domain on a line, the largest share of metrics with nothing written first, or last for the best. */
   const libraryReview = (): Part => {
-    const rows = world.areas.map((a): RecordsRow => {
+    // A domain with no metrics has nothing to count, so it takes no line.
+    const lines = world.areas.flatMap((a) => {
       const scoped = readingOf({ ...read, of: 'metric', kind: null }, world, a)
-      const none = scoped.noContext()
-      const due = scoped.duePart().found
-      const conflicts = scoped.conflictsPart().found
-      return {
-        type: 'area',
-        id: a.id,
-        name: a.name,
-        cells: [
-          `${count(none.found)} of ${count(scoped.terms().length)}`,
-          count(due),
-          count(conflicts),
-        ],
+      const none = scoped.noContext().found
+      const total = scoped.terms().length
+      if (!total) return []
+      const line = {
+        area: a,
+        share: none / total,
+        row: {
+          type: 'area' as const,
+          id: a.id,
+          name: a.name,
+          cells: [
+            `${count(none)} of ${count(total)}`,
+            count(scoped.duePart().found),
+            count(scoped.conflictsPart().found),
+          ],
+        },
       }
+      return [line]
     })
+    const way = read.best ? -1 : 1
+    const ranked = [...lines].sort(
+      (a, b) => way * (b.share - a.share) || a.area.name.localeCompare(b.area.name, 'en'),
+    )
+    const [first, second] = ranked
+    const alone =
+      first && (read.best ? true : first.share > 0) && (!second || first.share !== second.share)
+    const rule = read.best
+      ? 'Ranked by the share of metrics with no context written, the smallest first'
+      : 'Ranked by the share of metrics with no context written'
     return {
       sentence: 'This is what the records show, a line a domain.',
       section: {
         title: 'Domains',
-        count: `${count(rows.length)} ${noun(rows.length, 'domain', 'domains')}`,
+        count: `${count(lines.length)} ${noun(lines.length, 'domain', 'domains')}`,
         columns: ['Domain', 'No context', 'Due for a check', 'Conflicts'],
-        rows: rows.slice(0, SECTION_ROWS),
+        rows: ranked.slice(0, SECTION_ROWS).map((l) => l.row),
         shown:
-          rows.length > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(rows.length)}` : null,
+          lines.length > SECTION_ROWS ? `Showing ${SECTION_ROWS} of ${count(lines.length)}` : null,
         more: null,
       },
       clear: null,
-      found: rows.length,
+      ranked: alone ? `${rule}, so ${first.area.name} comes first.` : `${rule}.`,
+      found: lines.length,
+      top: alone ? { id: first.area.id, name: first.area.name } : null,
     }
   }
 
@@ -754,6 +756,71 @@ function readingOf(
     duplicates,
     askedNothing,
     definitionsMore,
+  }
+}
+
+/** Why an item is due, by the field that says so: never a date the item has not reached. */
+const dueWhy = (i: RecordsItem) =>
+  i.checkFlag === 'source_missing'
+    ? 'Source missing'
+    : i.checkFlag === 'needs_check'
+      ? 'Definition changed'
+      : i.reviewDate
+        ? `Check date ${dayWords(i.reviewDate)}`
+        : 'Not recorded'
+
+/**
+ * What is due for a check, the one read every answer about it gives: of the items that are not
+ * archived, each with the field that makes it due and the day it was last checked, the oldest check
+ * date first and what its source changed after. `items` is what the question scoped them to.
+ */
+export function dueRead(
+  items: readonly RecordsItem[],
+  c: { where: string; domainId: string | null; things?: string; one?: string },
+): Part {
+  const open = items.filter((i) => i.status !== 'archived')
+  const due = open
+    .filter((i) => i.status === 'due')
+    .sort(
+      (a, b) =>
+        Number(!!a.checkFlag) - Number(!!b.checkFlag) ||
+        (a.reviewDate ?? '9999').localeCompare(b.reviewDate ?? '9999') ||
+        a.title.localeCompare(b.title),
+    )
+  const n = due.length
+  const word = open.length === 1 ? (c.one ?? 'context item') : (c.things ?? 'context items')
+  const total = `${count(n)} of ${count(open.length)} ${word}`
+  const flagged = due.some((i) => i.checkFlag)
+  const dated = due.some((i) => !i.checkFlag)
+  const clear = `Nothing${c.where} is due for a check.`
+  return {
+    sentence: n ? `${total}${c.where} ${n === 1 ? 'is' : 'are'} due for a check.` : clear,
+    section: n
+      ? {
+          title: 'Due for a check',
+          count: total,
+          columns: ['Context item', 'Why it is due', 'Last checked'],
+          rows: due.slice(0, SECTION_ROWS).map((i) => ({
+            type: 'item' as const,
+            id: i.id,
+            kind: i.kind,
+            title: i.title,
+            areaId: i.areaId,
+            cells: [dueWhy(i), i.checkedAt ? dayWords(i.checkedAt) : 'Never'],
+          })),
+          shown: n > SECTION_ROWS ? `Showing the ${SECTION_ROWS} oldest` : null,
+          more: contextLink(`Show all ${count(n)} in Context`, c.domainId, 'due'),
+        }
+      : null,
+    clear,
+    ranked:
+      n > 1
+        ? dated && flagged
+          ? 'Oldest check date first, then what changed at its source.'
+          : 'Oldest check date first.'
+        : null,
+    found: n,
+    tally: total,
   }
 }
 
@@ -972,6 +1039,7 @@ export function auditAnswer(
     ranked,
     notSeen: notSeen.length ? `Not seen: ${notSeen.join('; ')}.` : null,
     audit: read,
+    ...(only?.top ? { top: only.top } : {}),
   }
 }
 
@@ -1000,8 +1068,14 @@ export function auditedTerms(
  * contradicts, how much is covered, a domain's review, and the person's own Inbox. A question that
  * names a metric or a market stays a question about the business.
  */
-export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?: true } | null {
-  const of = /\bdimensions?\b/.test(t) ? 'dimension' : /\bmetrics?\b/.test(t) ? 'metric' : null
+export function readAudit(
+  t: string,
+  scoped: boolean,
+  /** The tools the source is read from, lower case, as people name them: "cube". */
+  tools: readonly string[] = [],
+): { read: AuditRead; queue?: true } | null {
+  const metric = /\b(?:metrics?|kpis?|measures?)\b/
+  const of = /\bdimensions?\b/.test(t) ? 'dimension' : metric.test(t) ? 'metric' : null
   const read = (facets: AuditFacet[], kind: RecordsKind | null = null) => ({
     read: { facets, of, kind, value: null } satisfies AuditRead,
   })
@@ -1017,11 +1091,30 @@ export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?
   if (/\bcontradict(?:s|ing|ions?|ory)?\b/.test(t) && !/\bdefinitions?\b/.test(t))
     return read(['conflicts'])
   if (
-    /\bhealth check\b|\bhow complete\b|\bneeds? attention\b|\bhow (?:is|are) (?:the |our )?(?:library|context)\b/.test(
+    /\bhealth check\b|\bhow (?:complete|healthy)\b|\bneeds? attention\b|\bhow (?:is|are) (?:the |our )?(?:library|context)\b/.test(
       t,
     )
   )
     return read(['review'])
+  // A ranking across domains by how well each is covered is the review, ordered, with its rule said.
+  // Any other measure ("the most conflicts") is not this ranking, and is left to the planner.
+  const high = 'best|strongest|most|highest'
+  const low = 'worst|weakest|thinnest|poorest|least|lowest'
+  const measure =
+    'cover(?:ed|age)|document(?:ed|ation)|context|written|healthy|health|complete(?:ness)?'
+  const ranking = new RegExp(
+    `\\bdomains?\\b.*\\b(?:${high}|${low})\\b|\\b(?:${high}|${low})\\b.*\\bdomains?\\b`,
+  )
+  if (ranking.test(t)) {
+    const sure =
+      /\b(?:best|strongest|worst|weakest|thinnest|poorest)\b/.test(t) &&
+      !/\b(?:conflicts?|duplicat\w*|overlap\w*|due|owners?|asked|agents?|stale|outdated)\b/.test(t)
+    if (sure || new RegExp(`\\b(?:${measure})\\b`).test(t)) {
+      const best =
+        new RegExp(`\\b(?:${high})\\b`).test(t) && !new RegExp(`\\b(?:${low})\\b`).test(t)
+      return { read: { ...read(['review']).read, ...(best ? { best } : {}) } }
+    }
+  }
   if (/\bcovers? everything\b|\b(?:biggest |main )?gaps? in\b.*\bcontext\b/.test(t))
     return read(['no_context', 'asked_nothing'])
   if (/\bagents?\b.*\b(?:most|most often)\b|\bmost asked\b|\basked (?:about )?most\b/.test(t))
@@ -1030,12 +1123,13 @@ export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?
     return read(['asked_nothing'])
   if (/\bsource\b/.test(t) && /\b(?:not|n t) (?:yet )?(?:added|linked|in definitions)\b/.test(t))
     return read(['unlinked'])
-  if (/\b(?:changed?|gone|removed|renamed)\b.*\bat (?:the|our) source\b/.test(t))
+  const source = ['(?:at|in) (?:the|our) source', ...tools.map((tool) => `(?:at|in) ${tool}`)]
+  if (new RegExp(`\\b(?:changed?|gone|removed|renamed)\\b.*\\b(?:${source.join('|')})\\b`).test(t))
     return read(['source_changed'])
-  const thing = /\b(?:definitions?|metrics?|dimensions?)\b/
+  const thing = /\b(?:definitions?|metrics?|kpis?|measures?|dimensions?)\b/
   if (thing.test(t) && /\bmissing\b/.test(t)) return read(MISSING)
   const none = '(?:no|without|missing|lacks?|lacking)'
-  if (/\b(?:metrics?|dimensions?)\b/.test(t)) {
+  if (/\b(?:metrics?|kpis?|measures?|dimensions?)\b/.test(t)) {
     if (new RegExp(`\\b${none} (?:an? )?owners?\\b`).test(t)) return read(['no_domain'])
     if (new RegExp(`\\b${none} (?:a )?domains?\\b`).test(t)) return read(['no_domain'])
     if (new RegExp(`\\b${none} (?:a |any )?(?:definition|description|words)s?\\b`).test(t))
@@ -1049,6 +1143,8 @@ export function readAudit(t: string, scoped: boolean): { read: AuditRead; queue?
   }
   if (
     new RegExp(`\\b${none} (?:any )?context\\b|\\bnothing (?:is )?written\\b`).test(t) ||
+    /\b(?:nobody|no one|noone)\b.*\b(?:written|wrote|documented|described|explained)\b/.test(t) ||
+    /\b(?:not|never) (?:yet )?(?:documented|described|explained)\b|\bundocumented\b/.test(t) ||
     /\b(?:metrics?|dimensions?) (?:have|has|with) context\b/.test(t) ||
     /\bcoverage\b|\bcovered\b/.test(t)
   )

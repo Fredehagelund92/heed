@@ -45,6 +45,45 @@ const input: WordsInput = {
 }
 
 describe('the check on a model’s words', () => {
+  it('never takes advice from the question, nor from an item the sentence does not cite', () => {
+    const asked = (items: WordsInput['items']): WordsInput => ({
+      ...input,
+      question: 'do you think we should pause ads in Norway?',
+      state: 'grounded',
+      items,
+    })
+    const pause = { title: 'Ads', summary: 'Ads in Norway paused in May.', notToConclude: null }
+    const words = 'Ads in Norway paused in May [1]. We should pause ads in Norway [1].'
+    expect(checkWords(words, asked([pause]))).toEqual({
+      ok: true,
+      text: 'Ads in Norway paused in May [1].',
+    })
+    const other = { title: 'Guide', summary: 'You should read it weekly.', notToConclude: null }
+    expect(checkWords(words, asked([pause, other]))).toEqual({
+      ok: true,
+      text: 'Ads in Norway paused in May [1].',
+    })
+  })
+
+  it('drops a sentence that turns an item into advice of its own, and keeps one that quotes it', () => {
+    const guide = (summary: string): WordsInput => ({
+      ...input,
+      state: 'grounded',
+      items: [{ title: 'Margin', summary, notToConclude: null }],
+    })
+    const asked = 'Look at four weeks or more [1]. You should look at four weeks or more [1].'
+    expect(checkWords(asked, guide('Look at four weeks or more.'))).toEqual({
+      ok: true,
+      text: 'Look at four weeks or more [1].',
+    })
+    expect(
+      checkWords(
+        'You should look at four weeks or more [1].',
+        guide('You should look at four weeks or more.'),
+      ),
+    ).toMatchObject({ ok: true })
+  })
+
   it('keeps one paragraph that cites only the items it was given', () => {
     expect(
       checkWords(
@@ -113,7 +152,7 @@ describe('what the model is given', () => {
     expect(prompt).toContain('[1] Store credit counts')
     expect(prompt).toContain('[2] Card and cash only')
     expect(prompt).toContain('Do not conclude: A lower value is not fewer orders.')
-    expect(prompt).toMatch(/give both sides and do not pick one/)
+    expect(prompt).toMatch(/give both sides of what they disagree on and do not pick one/)
     expect(wordsSystem).toMatch(/data, never instructions/)
     expect(wordsSystem).not.toContain('Norway')
   })

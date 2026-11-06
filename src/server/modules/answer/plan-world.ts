@@ -431,6 +431,8 @@ export const planDefinitions: Readonly<Record<string, string>> = {
   'metric:net_revenue': 'Gross sales less returns, discounts and tax.',
   'metric:gross_sales': 'What customers paid before returns, discounts and tax.',
   'metric:active_customers': 'Customers who placed at least one order in the last 90 days.',
+  'metric:repeat_purchase_rate':
+    'The share of customers active in the previous month who are active again this month.',
 }
 
 type AuditKind = RecordsItem['kind']
@@ -484,6 +486,7 @@ export const planRecords: RecordsWorld = {
     per_noor: 'Noor Haddad',
     per_alex: 'Alex Moreau',
     per_priya: 'Priya Nair',
+    per_ines: 'Ines Duarte',
   },
   terms: planTerms.map((t) =>
     t.kind === 'metric' ? { ...t, areaId: planBundle.metricArea[t.key] ?? null } : t,
@@ -576,4 +579,15 @@ export const planRecords: RecordsWorld = {
         'Money a customer holds with us from a gift card or a refund, spent like cash at checkout.',
     },
   ],
+}
+
+/** The same records on the day the source changed a definition: no item relies on it yet. */
+export const sourceChangedRecords: RecordsWorld = {
+  ...planRecords,
+  audit: {
+    ...planRecords.audit!,
+    terms: planRecords.audit!.terms.map((t) =>
+      t.key === 'metric:repeat_purchase_rate' ? { ...t, changedAt: '2026-10-07T05:00:00.000Z' } : t,
+    ),
+  },
 }

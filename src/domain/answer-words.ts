@@ -32,6 +32,9 @@ export type WordsInput = {
   limit?: string
 }
 
+/** Advice in Ask's own voice. A cited item may say so; Ask's own sentences may not (FR-720). */
+export const OWN_VOICE = /\b(?:I recommend|I suggest|you should|we should|I would)\b/i
+
 /** The longest answer kept, in characters: a few short sentences. */
 export const WORDS_MAX = 1200
 
@@ -43,7 +46,8 @@ const stateAsks: Record<AnswerState, string> = {
   grounded: 'The items cover the question.',
   partial:
     'The items cover only part of the question: say plainly which part has nothing written down.',
-  conflict: 'The items disagree: give both sides and do not pick one.',
+  conflict:
+    'Some items disagree: first say what the items do settle, then give both sides of what they disagree on and do not pick one.',
   stale: 'An item may be out of date: say so plainly.',
   missing: 'Nothing is written down.',
   failed: 'The check could not run.',
@@ -54,7 +58,7 @@ export const wordsSystem = [
   "You write the words of an answer in a company's Ask page. You get a person's question, what the answer must say about how sure it is, and the context items that apply, numbered.",
   'Write two to four short sentences in plain English that answer from these items only.',
   'End every sentence that states a fact with the number of each item it uses, each in its own square brackets, such as [1] or [1][2], never [1, 2]: on each sentence, not only the last. Use only the numbers given. Only a short first sentence may have no number.',
-  "Never add a fact, a number, a date or a cause that no item gives, and use the items' own words. If the question asks why something changed and no item says why, say that the context does not say what caused it.",
+  "Never add a fact, a number, a date, a cause or a conclusion of your own that no item gives, such as what can or cannot be relied on, and use the items' own words. If the question asks why something changed and no item says why, say that the context does not say what caused it.",
   'A definition, when one is given, is what the metric means: you may say it in its own words, with no number.',
   'Do not name the product, and do not talk about items, editions, tools, states or agents: talk about what is true for the business.',
   'Write no lists, headings, links or quotation marks: one short paragraph.',
@@ -203,7 +207,7 @@ function supportOf(input: WordsInput) {
  * none may restate the question or what agents are told, or say what a definition says; before
  * any sentence that cites an item, one short lead may also say what the items say, and it waits
  * until a sentence that cites an item, or says what a definition says, has passed. A sentence that
- * says more than that is dropped, and the words go on (`dropped`). A sentence that fails
+ * says more than that, or advises in Ask's own voice, is dropped, and the words go on (`dropped`). A sentence that fails
  * `checkSentence` ends the words there, and nothing after it is shown. Altogether at most
  * `WORDS_MAX` characters. With no sentence let through, the engine's own words stand.
  */
@@ -220,16 +224,15 @@ export function wordsGate(input: WordsInput) {
   const waiting: string[] = []
   const dropped: string[] = []
 
-  /** Whether a sentence that cites items says only what they, the definitions and the question say. */
-  const cites = (text: string) => {
-    const cited = [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))]
-    return supportedBy(
-      text,
-      [...cited.map((n) => support.items[n - 1] ?? ''), support.definitions, support.frame].join(
-        ' ',
-      ),
+  /** The text of the items a sentence cites. */
+  const citedItems = (text: string) =>
+    [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].map(
+      (n) => support.items[n - 1] ?? '',
     )
-  }
+
+  /** Whether a sentence that cites items says only what they, the definitions and the question say. */
+  const cites = (text: string) =>
+    supportedBy(text, [...citedItems(text), support.definitions, support.frame].join(' '))
 
   /** One complete sentence: what it lets through, nothing once the words have failed. */
   const sentence = (raw: string): string[] => {
@@ -237,6 +240,12 @@ export function wordsGate(input: WordsInput) {
     const check = checkSentence(splitCitations(raw), input.items.length, known)
     if (!check.ok) {
       failed = check.why
+      return []
+    }
+    // An item's own "you should" may be quoted by a sentence that cites that item; a model turning
+    // its words into advice may not, and the question never lets it.
+    if (OWN_VOICE.test(check.text) && !OWN_VOICE.test(citedItems(check.text).join(' '))) {
+      dropped.push('advises in its own voice')
       return []
     }
     const defined = !!support.definitions && supportedBy(check.text, support.definitions)

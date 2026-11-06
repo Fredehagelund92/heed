@@ -25,6 +25,7 @@ export {
   type PlanOutcome,
   type PlanRoute,
 } from './plan-cases.ts'
+export { gateCases } from './gate-cases.ts'
 export { stewardCases } from './steward-cases.ts'
 export {
   classOf,

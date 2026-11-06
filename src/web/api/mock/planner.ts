@@ -3,16 +3,17 @@ import { nothingAskedSaid } from '@domain/ask-again'
 import { checkPlan, limitOf, readsAsFollowUp, type AskPlan } from '@domain/ask-plan'
 import { fixturePlan } from '@domain/ask-plan-fixture'
 import type { ChatTurn } from '@domain/ask-chat'
-import { chatOf, planContextOf, routeHeld, type RouteBundle } from '@domain/ask-route'
+import {
+  chatOf,
+  limitOfReason,
+  planContextOf,
+  routeHeld,
+  type RouteBundle,
+} from '@domain/ask-route'
 import type { AnswerSource } from '@domain/answer'
 import { plannedAnswer, workingWords, type PlannedAnswer } from '@domain/planned-answer'
-import {
-  limitSaid,
-  type RecordsAnswer,
-  type RecordsAsk,
-  type RecordsRecognition,
-} from '@domain/records'
-import { cannotSaid, offTopicSaid } from '@domain/say'
+import { type RecordsAnswer, type RecordsAsk, type RecordsRecognition } from '@domain/records'
+import { cannotSaid, generalSaid, offTopicSaid } from '@domain/say'
 import type { Term } from '@domain/vocabulary'
 import { answerOf, type Names } from '@/api/http-ask'
 import type { Definition } from '@/lib/definitions'
@@ -179,17 +180,21 @@ export function plannedFor(
       carried: plan.carried,
       ...(plan.standalone ? { standalone: plan.standalone } : {}),
     })
+  const reason = plan.limit ?? limitOf(question)
   const planned = plannedAnswer(bundle, plan.reads, {
     question,
     today: TODAY,
     previous: last,
     turns,
+    limited: !!reason,
     ...(plan.standalone ? { standalone: plan.standalone } : {}),
     ...(plan.left ? { left: plan.left } : {}),
   })
   const answer = answerOf(resultOf(planned), question, namesOf(bundle.terms))
-  const reason = plan.limit ?? limitOf(question)
-  const limit = reason ? { limit: { reason, sentence: limitSaid[reason] } } : {}
+  const said = planned.general
+    ? { reason: 'general' as const, sentence: generalSaid(planned.general) }
+    : limitOfReason(reason, planned.answer)
+  const limit = said ? { limit: said } : {}
   return answer.reading
     ? {
         ...answer,

@@ -2,7 +2,7 @@ import type { HeedApi, HeedApiMethod, Inbox } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
 import { asksUndefinedWords, limitOf, readsBeyond } from '@domain/ask-plan'
-import { limitSaid } from '@domain/records'
+import { limitAlone, limitSaid } from '@domain/records'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
 import { mentionNotesOf, type Subject } from '@/model/comments'
@@ -56,7 +56,7 @@ import {
 } from './integrations'
 import { figureFor, figureTryFor } from './data/figures'
 import { recordsAnswer, replyAnswer, reportedOn, type AskInput } from '@/model/ask'
-import { queueOf, recognisedFor, recordsFor, recordsOf } from './records'
+import { queueOf, readsPlainlyFor, recognisedFor, recordsFor, recordsOf } from './records'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
@@ -249,7 +249,12 @@ export function createMockApi() {
       }
     }
     // A word with more than one meaning is asked about by the fixed rules, as on the service.
-    const world = { pool, definitions: definitions.list(), domains: workspace.domains() }
+    const world = {
+      pool,
+      definitions: definitions.list(),
+      domains: workspace.domains(),
+      people: workspace.people().map((p) => p.name),
+    }
     const recognised = recognisedFor(question, world)
     const held = heldFor(question, turns, world, recognised)
     if (held) return held
@@ -307,11 +312,21 @@ export function createMockApi() {
     // Read nothing, or a market alone: the planner reads it. The mock's reader finds every
     // metric's items for a market alone, where the service's finds none, so it asks first.
     const unread = ruled.state === null || (!ruled.metric && ruled.markets.length > 0)
-    const reason = limitOf(question)
+    const scoped = !!ruled.metric || ruled.markets.length > 0
+    const reason =
+      limitOf(question) ??
+      (scoped && !readsPlainlyFor(question, world.definitions) ? ('partly' as const) : null)
     return (
       (unread && planned()) || {
         ...ruled,
-        ...(reason ? { limit: { reason, sentence: limitSaid[reason] } } : {}),
+        ...(reason
+          ? {
+              limit: {
+                reason,
+                sentence: (ruled.state !== null ? limitSaid : limitAlone)[reason],
+              },
+            }
+          : {}),
         parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
       }
     )

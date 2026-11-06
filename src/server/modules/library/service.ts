@@ -78,10 +78,10 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
        select coalesce(jsonb_agg(l.entry || jsonb_build_object(
                 'lastChecked', case when c.version_id is null then null else jsonb_build_object(
                   'on', to_char(c.day, 'YYYY-MM-DD'), 'personId', c.decided_by::text) end,
-                'trust', case when l.entry->>'status' = 'retired'
-                                or (l.entry->'validity'->>'end')::date <= $1::date then 'ended'
+                'trust', case when l.entry->>'status' = 'retired' then 'ended'
                               when l.entry->>'checkFlag' is not null
                                 or (l.entry->>'reviewDate')::date < $1::date then 'needs_check'
+                              when (l.entry->'validity'->>'end')::date <= $1::date then 'ended'
                               else 'current' end,
                 'chips', coalesce(ch.names, '[]'),
                 'owners', coalesce(o.ids, '[]'),

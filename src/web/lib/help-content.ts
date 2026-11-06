@@ -105,7 +105,7 @@ export const WORDS: [string, string][] = [
   ['Reported', 'Someone said a context item is wrong or unclear. The owner sees it in the Inbox.'],
   [
     'Due for a check',
-    'A context item whose check date has passed. The owner confirms it is still true, or edits it.',
+    'A context item whose check date has passed, or whose definition changed at its source. The owner confirms it is still true, or edits it.',
   ],
   ["Don't conclude", 'A line on a context item that stops an agent from reading a cause into it.'],
 ]

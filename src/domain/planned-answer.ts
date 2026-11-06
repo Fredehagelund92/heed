@@ -17,7 +17,7 @@ import { canRead } from './links.ts'
 import { compareIds, metricsOf } from './resolver.ts'
 import { scopeWords } from './say.ts'
 import { readQuestion, type ResolvedScope } from './scope.ts'
-import { isAnyDate, overlaps, type DateWindow } from './validity.ts'
+import { anyDate, isAnyDate, overlaps, type DateWindow } from './validity.ts'
 
 /*
   The answer to a planned question (FR-719): each read the planner chose, run by Ask's own
@@ -205,6 +205,8 @@ function itemsAnswer(
   say: (n: number) => string,
   today: string,
   now: () => number,
+  /** Values asked that no item is written for. */
+  values: readonly string[] = [],
 ): Answer {
   const start = now()
   const ids = new Set(found.map((item) => item.id))
@@ -220,7 +222,7 @@ function itemsAnswer(
   })
   const uncovered = {
     metrics: [...new Set(metrics)].filter((m) => !found.some((item) => covers(item, m))).sort(),
-    values: [],
+    values: [...values],
   }
   const status = !items.length
     ? 'no_match'
@@ -268,6 +270,12 @@ function aboutScope(bundle: AnswerBundle, item: AnswerSource, scope: ResolvedSco
 
 type ExploreRead = Extract<PlannedRead, { kind: 'explore' }>
 
+/** How a search reads under a limit: only what names what was asked, and only its words. */
+type Strict = { names?: boolean; words?: boolean }
+
+/** A read, run: its answer, the reads as they ran, and the values only general items cover. */
+type ReadRun = { answer: Answer; reads: PlannedRead[]; general: string[] }
+
 /**
  * A search of the context (`explore`): the items an agent would be given, of the kinds asked,
  * that apply to some of the period and to what the scope names, and that match the words, ranked
@@ -280,24 +288,27 @@ export function explore(
   asked: ExploreRead,
   today: string,
   now: () => number = () => 0,
-): { answer: Answer; reads: ExploreRead[] } {
-  const first = searchOnce(bundle, asked, today, now)
+  strict: Strict = {},
+): { answer: Answer; reads: ExploreRead[]; general: string[] } {
+  const first = searchOnce(bundle, asked, today, now, strict)
   // A kind none of whose items has the words is read whole, apart: a word for guides ("jump")
   // never hides the events asked beside them, and the read says which had the words.
   const found = new Set(first.answer.items.map((item) => item.kind))
   const rest = asked.kinds.filter((kind) => !found.has(kind))
   if (!first.read.words || !found.size || !rest.length)
-    return { answer: first.answer, reads: [first.read] }
+    return { answer: first.answer, reads: [first.read], general: first.general }
   const matched = searchOnce(
     bundle,
     { ...asked, kinds: asked.kinds.filter((kind) => found.has(kind)) },
     today,
     now,
+    strict,
   )
-  const whole = searchOnce(bundle, { ...asked, kinds: rest, words: '' }, today, now)
+  const whole = searchOnce(bundle, { ...asked, kinds: rest, words: '' }, today, now, strict)
   return {
     answer: combined([matched.answer, whole.answer]),
     reads: [matched.read, whole.read],
+    general: matched.general.filter((value) => whole.general.includes(value)),
   }
 }
 
@@ -307,7 +318,8 @@ function searchOnce(
   asked: ExploreRead,
   today: string,
   now: () => number,
-): { answer: Answer; read: ExploreRead } {
+  strict: Strict = {},
+): { answer: Answer; read: ExploreRead; general: string[] } {
   const { scope } = asked
   const { window } = scope
   const candidates = bundle.items.filter(
@@ -321,9 +333,20 @@ function searchOnce(
   const query = readQuery(asked.words, bundle.terms, bundle.areas ?? [])
   const matched = query.concepts.length ? rankItems(query, candidates, bundle.terms) : []
   const read = matched.length ? asked : { ...asked, words: '' }
-  const ranked = matched.length
+  const every = matched.length
     ? matched
-    : candidates.map((item) => ({ item, score: 0, all: true }))
+    : strict.words && asked.words.trim()
+      ? []
+      : candidates.map((item) => ({ item, score: 0, all: true }))
+  // An item for no value applies to every one, so it says nothing of the value asked: it is read
+  // only when nothing names that value, and then as what it is, general.
+  const values = Object.values(scope.filters).flat()
+  const own = every.filter(({ item }) =>
+    item.scope.dimensionValues.some((row) => values.includes(row.value)),
+  )
+  const ranked =
+    own.length || !values.length || strict.names ? (values.length ? own : every) : every
+  const general = ranked.length && values.length && !own.length ? values : []
   const starts = (item: AnswerSource) =>
     Number(item.validity.start >= window.start && (!window.end || item.validity.start < window.end))
   // An item that names what was asked comes before one that applies to every value of it.
@@ -355,8 +378,9 @@ function searchOnce(
         : `No context item matches: ${what}. A search that finds nothing does not prove nothing applies.`,
     today,
     now,
+    general,
   )
-  return { answer, read }
+  return { answer, read, general }
 }
 
 /** The sources of the last answer, read again by id: those an agent would still be given. */
@@ -394,10 +418,73 @@ export function runRead(
   bundle: PlannedBundle,
   read: PlannedRead,
   c: { today: string; previous: ChatTurn | null; now?: () => number },
-): { answer: Answer; reads: PlannedRead[] } {
+  strict: Strict = {},
+): ReadRun {
   const now = c.now ?? (() => 0)
-  if (read.kind === 'explore') return explore(bundle, read, c.today, now)
-  return { answer: engineRead(bundle, read, c, now), reads: [read] }
+  if (read.kind === 'explore') return explore(bundle, read, c.today, now, strict)
+  return { answer: engineRead(bundle, read, c, now), reads: [read], general: [] }
+}
+
+/**
+ * What a read under a limit reads next when it finds nothing: the same names in everything written,
+ * at any date, and last the value alone with the question's own words, for a question that named
+ * the wrong metric for it. Each says what it read, and none reads an item that is not about what
+ * was asked, so nothing fills an answer that has nothing to say.
+ */
+function widerReads(
+  bundle: PlannedBundle,
+  read: PlannedRead,
+  question: string,
+): { read: ExploreRead; strict: Strict }[] {
+  if (read.kind !== 'lookup' && read.kind !== 'explore') return []
+  const scoped = read.scope.metrics.length > 0 || Object.keys(read.scope.filters).length > 0
+  // A name holds a wider read to the question. With none, only the kinds asked can, and with no
+  // kinds either there is nothing it could be about.
+  const kinds = !scoped && read.kind === 'explore' ? read.kinds : []
+  if (!scoped && !kinds.length) return []
+  const every = { ...read.scope, window: anyDate }
+  const widest = {
+    kind: 'explore' as const,
+    words: '',
+    kinds,
+    scope: every,
+    period: 'any' as const,
+  }
+  const values = Object.keys(read.scope.filters).length > 0
+  // The question's own words, without the names read from it: a name would match all it names.
+  const words = readQuery(question, bundle.terms, bundle.areas ?? []).used.words.join(' ')
+  return [
+    { read: widest, strict: { names: true } },
+    ...(values && read.scope.metrics.length && words
+      ? [
+          {
+            read: { ...widest, words, scope: { ...every, metrics: [] } },
+            strict: { names: true, words: true },
+          },
+        ]
+      : []),
+  ]
+}
+
+/** A read under a limit: only what is about what was asked, widened until something is. */
+function limitedRead(
+  bundle: PlannedBundle,
+  read: PlannedRead,
+  c: { question: string; today: string; previous: ChatTurn | null; now?: () => number },
+): ReadRun {
+  // Words alone are all a search with no scope is about, so words that match nothing read nothing.
+  const wordsAlone =
+    read.kind === 'explore' &&
+    read.words.trim() !== '' &&
+    !read.scope.metrics.length &&
+    !Object.keys(read.scope.filters).length
+  const first = runRead(bundle, read, c, { names: true, words: wordsAlone })
+  if (first.answer.items.length) return first
+  for (const wider of widerReads(bundle, read, c.question)) {
+    const run = runRead(bundle, wider.read, c, wider.strict)
+    if (run.answer.items.length) return run
+  }
+  return first
 }
 
 function engineRead(
@@ -496,6 +583,8 @@ export type PlannedAnswer = {
   answer: Answer
   reading: PlanReading
   defines: string[]
+  /** The names nothing is written about, when what was read applies to everything. */
+  general?: string[]
 }
 
 /** Runs every read of a plan and says how the question was read (FR-719). */
@@ -512,14 +601,24 @@ export function plannedAnswer(
     left?: string
     settled?: PlanReading['settled']
     now?: () => number
+    /** A limit sentence leads the answer: only what is about what was asked may follow it. */
+    limited?: boolean
   },
 ): PlannedAnswer {
-  const runs = reads.map((read) => runRead(bundle, read, c))
+  const runs = reads.map((read) =>
+    c.limited ? limitedRead(bundle, read, c) : runRead(bundle, read, c),
+  )
   const ran = runs.flatMap((r) => r.reads)
   const dated = ran.find((r) => r.kind === 'lookup' || r.kind === 'explore')
+  const answered = combined(runs.map((r) => r.answer))
+  // A metric with nothing written is still defined: its definition is the whole answer.
+  const asked = answered.items.length
+    ? []
+    : ran.flatMap((r) => (r.kind === 'lookup' || r.kind === 'explore' ? r.scope.metrics : []))
+  const general = runs.every((r) => r.general.length) ? runs.flatMap((r) => r.general) : []
   return {
     reads: ran,
-    answer: combined(runs.map((r) => r.answer)),
+    answer: answered,
     reading: {
       words: readsWords(bundle, ran, c.today),
       carried: carriedNames(
@@ -534,7 +633,10 @@ export function plannedAnswer(
       ...(c.left ? { left: c.left } : {}),
       ...(c.settled ? { settled: c.settled } : {}),
     },
-    defines: [...new Set(ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])))],
+    defines: [
+      ...new Set([...ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])), ...asked]),
+    ],
+    ...(general.length ? { general: [...new Set(general)].map((key) => nameOf(bundle, key)) } : {}),
   }
 }
 

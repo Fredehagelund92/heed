@@ -262,7 +262,7 @@ export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
         ...(datedOf(a) ? { dated: true } : {}),
         ...(a.records && !a.records.refused
           ? {
-              domain: a.records.domain?.id ?? null,
+              domain: a.records.domain?.id ?? a.records.top?.id ?? null,
               period: a.records.period?.assumed === false ? a.records.period.words : null,
               ...(a.records.audit
                 ? { audit: a.records.audit, rows: rowKeysOf(a.records).slice(0, CHAT_SOURCES) }

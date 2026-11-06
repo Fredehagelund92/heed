@@ -5,7 +5,7 @@
  * the mock binding compute the same answer from the same rules.
  */
 import { itemKinds, type ContextItem, type ItemKind } from './item.ts'
-import { itemDisplayStatus, needsALook } from './status.ts'
+import { itemDisplayStatus, itemTrust } from './status.ts'
 
 export const catalogueTermKinds = ['metric', 'dimension'] as const
 export type CatalogueTermKind = (typeof catalogueTermKinds)[number]
@@ -156,7 +156,7 @@ export function shelfOf(
     const status = itemDisplayStatus(item, today)
     shelf.items += 1
     shelf.byKind[item.kind] += 1
-    if (needsALook(status)) shelf.needsALook += 1
+    if (itemTrust(item, today) === 'needs_check') shelf.needsALook += 1
     if (status === 'active_issue') shelf.activeIssues += 1
     if (status === 'expired') shelf.ended += 1
     if (shelf.lastUpdated === null || item.updatedAt > shelf.lastUpdated)

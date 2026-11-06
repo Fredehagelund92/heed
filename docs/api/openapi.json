@@ -90444,6 +90444,9 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "best": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -92554,7 +92557,9 @@
                                             "advice",
                                             "forecast",
                                             "outside",
-                                            "numbers"
+                                            "numbers",
+                                            "partly",
+                                            "general"
                                           ],
                                           "type": "string"
                                         },
@@ -93778,6 +93783,28 @@
                                             }
                                           ]
                                         },
+                                        "top": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
                                         "limit": {
                                           "anyOf": [
                                             {
@@ -93788,7 +93815,9 @@
                                                     "advice",
                                                     "forecast",
                                                     "outside",
-                                                    "numbers"
+                                                    "numbers",
+                                                    "partly",
+                                                    "general"
                                                   ],
                                                   "type": "string"
                                                 },
@@ -93871,6 +93900,9 @@
                                                       "type": "null"
                                                     }
                                                   ]
+                                                },
+                                                "best": {
+                                                  "type": "boolean"
                                                 }
                                               },
                                               "required": [
@@ -101792,7 +101824,9 @@
                                 "advice",
                                 "forecast",
                                 "outside",
-                                "numbers"
+                                "numbers",
+                                "partly",
+                                "general"
                               ],
                               "type": "string"
                             },

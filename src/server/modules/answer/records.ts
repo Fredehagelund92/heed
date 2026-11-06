@@ -72,38 +72,35 @@ const wordsOnly = (input: LookupInput) =>
   !input.metrics?.length && !input.dimension_filters?.length && !input.window
 
 /**
- * The service's own moment, and how far its day is from the clock's: a demo or a test may pin the
- * day (`HEED_FIXED_TODAY`), and then every time the database stamped is moved by the same days, as
- * the web app moves them, so "the last 24 hours" ends now on the day it keeps.
+ * The service's own moment, and what moves a stamp to it: a demo or a test may pin the day
+ * (`HEED_FIXED_TODAY`), and then every time the database stamped while it runs is moved by the same
+ * days, so "the last 24 hours" ends now on the day it keeps. A stamp already on or before that
+ * moment is the day it says, as the Context list shows it: it is left alone.
  */
-function momentOf(clock: Clock): { now: string; shift: number } {
+export function momentOf(clock: Clock): { now: string; moved: (iso: string) => string } {
   const real = clock.now()
-  const shift = Date.parse(clock.today()) - Date.parse(real.toISOString().slice(0, 10))
+  const gap = Date.parse(clock.today()) - Date.parse(real.toISOString().slice(0, 10))
+  const shift = Math.round(gap / DAY) * DAY
+  const now = new Date(real.getTime() + gap).toISOString()
   return {
-    now: new Date(real.getTime() + shift).toISOString(),
-    shift: Math.round(shift / DAY) * DAY,
+    now,
+    moved: (iso) =>
+      shift > 0 || Date.parse(iso) > Date.parse(now)
+        ? new Date(Date.parse(iso) + shift).toISOString()
+        : iso,
   }
 }
 
-/** When each listed item was first served, last left service, and its version last confirmed. */
+/** When each listed item was first served and last left service. */
 async function timesOf(
   tx: Queryable,
   items: readonly { id: string; version: number }[],
-): Promise<
-  Map<string, { published: string | null; ended: string | null; checked: string | null }>
-> {
+): Promise<Map<string, { published: string | null; ended: string | null }>> {
   if (!items.length) return new Map()
   const iso = (column: string) =>
     `to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
-  // Only the items the person's index listed; the rule of each column is the index's own: an
-  // edition's time is when it was made, and a check is the last acceptance of the version that is
-  // not an approver's (cl_version_review).
-  const rows = await tx.query<{
-    id: string
-    published: string | null
-    ended: string | null
-    checked: string | null
-  }>(
+  // Only the items the person's index listed; an edition's time is when it was made.
+  const rows = await tx.query<{ id: string; published: string | null; ended: string | null }>(
     `with listed as materialized (
        select * from unnest($1::text[], $2::int[]) as l(id, version)),
      served as (
@@ -112,17 +109,9 @@ async function timesOf(
          join listed l on l.id = s.item_id
          join editions lo on lo.seq = lower(s.editions)
          left join editions up on up.seq = upper(s.editions)
-        group by s.item_id),
-     checked as (
-       select l.id, max(d.decided_at) as at
-         from listed l
-         join item_versions v on v.item_id = l.id and v.version_no = l.version
-         join decisions d on d.item_version_id = v.id
-        where d.outcome = 'accept' and d.capacity <> 'approver'
-        group by l.id)
-     select l.id, ${iso('s.published')} as published, ${iso('s.ended')} as ended,
-            ${iso('c.at')} as checked
-       from listed l left join served s on s.id = l.id left join checked c on c.id = l.id`,
+        group by s.item_id)
+     select l.id, ${iso('s.published')} as published, ${iso('s.ended')} as ended
+       from listed l left join served s on s.id = l.id`,
     [items.map((i) => i.id), items.map((i) => i.version)],
   )
   return new Map(rows.map((r) => [r.id, r]))
@@ -131,17 +120,20 @@ async function timesOf(
 const isRecordsKind = (kind: string): kind is RecordsKind =>
   (recordsKinds as readonly string[]).includes(kind)
 
-/** The Context list's items as the records keep them, with their times moved to the service's day. */
+/**
+ * The Context list's items as the records keep them, with their times moved to the service's day.
+ * Each date is the field the list shows: the last check is its `lastChecked`, and an item is due
+ * when its `trust` says so.
+ */
 async function itemsOf(
   tx: Queryable,
   index: LibraryIndex,
-  shift: number,
+  moment: Pick<ReturnType<typeof momentOf>, 'moved'>,
   dated = true,
 ): Promise<RecordsItem[]> {
   const listed = index.items.filter((i) => isRecordsKind(i.kind))
   const times = await timesOf(tx, dated ? listed : [])
-  const moved = (iso: string | null | undefined) =>
-    iso ? new Date(Date.parse(iso) + shift).toISOString() : null
+  const moved = (iso: string | null | undefined) => (iso ? moment.moved(iso) : null)
   return listed.map((i) => {
     const t = times.get(i.id)
     return {
@@ -154,7 +146,7 @@ async function itemsOf(
       checkFlag: i.checkFlag,
       publishedAt: moved(t?.published),
       changedAt: moved(i.updatedAt),
-      checkedAt: moved(t?.checked),
+      checkedAt: i.lastChecked ? moved(`${i.lastChecked.on}T00:00:00.000Z`) : null,
       archivedAt: i.status === 'retired' ? moved(t?.ended) : null,
       owners: i.owners,
     }
@@ -202,6 +194,7 @@ const auditTermOf = (t: Catalogue['terms'][number]): AuditTerm => ({
       : t.definition?.state === 'changed'
         ? 'changed'
         : 'current',
+  changedAt: t.definition?.changedAt ?? null,
   words: t.definition?.descriptionCopy ?? null,
   shelf: {
     event: t.shelf.byKind.event,
@@ -276,7 +269,7 @@ export async function recogniseRecordsOf(
   clock: Clock,
   bundle: ServingBundle,
   input: LookupInput,
-  reads: Pick<RecordsReads, 'areas' | 'glossary'>,
+  reads: Pick<RecordsReads, 'areas' | 'glossary' | 'people'>,
 ): Promise<RecordsRecognition | null> {
   if (!wordsOnly(input)) return null
   const read = readQuestion(input.question, bundle.terms, clock.today())
@@ -288,6 +281,8 @@ export async function recogniseRecordsOf(
     terms: bundle.terms,
     domains: await reads.areas(),
     now: momentOf(clock).now,
+    people: (await reads.people()).map((person) => person.name),
+    tools: [...new Set(bundle.terms.flatMap((term) => term.described?.tool ?? []))],
     ...(glossary ? { glossary } : {}),
   })
 }
@@ -303,11 +298,12 @@ export async function answerRecordsOf(
   found: RecordsRecognition,
   reads: RecordsReads,
 ): Promise<RecordsAnswer> {
-  const { now, shift } = momentOf(clock)
+  const moment = momentOf(clock)
   const areas = await reads.areas()
   await countIntent(tx, found.type === 'refused' ? 'refused' : found.ask.intent, clock.today())
   if (found.type === 'refused') return refusedAnswer({ areas })
-  return answerRecords(found.ask, await worldFor(tx, found.ask, reads, areas, bundle, shift), now)
+  const world = await worldFor(tx, found.ask, reads, areas, bundle, moment)
+  return answerRecords(found.ask, world, moment.now)
 }
 
 async function worldFor(
@@ -316,12 +312,12 @@ async function worldFor(
   reads: RecordsReads,
   areas: Awaited<ReturnType<RecordsReads['areas']>>,
   bundle: ServingBundle,
-  shift: number,
+  moment: Pick<ReturnType<typeof momentOf>, 'moved'>,
 ): Promise<RecordsWorld> {
   const need = needs(ask)
   const [items, people, asked, hidden, conflicts] = await Promise.all([
     // An analysis reads an item's state and its check date, never when it was served.
-    need.items ? reads.index().then((index) => itemsOf(tx, index, shift, !need.audit)) : [],
+    need.items ? reads.index().then((index) => itemsOf(tx, index, moment, !need.audit)) : [],
     reads.people(),
     need.asked ? reads.asked() : null,
     need.terms ? reads.hidden().then((refs) => new Set(refs)) : new Set<string>(),

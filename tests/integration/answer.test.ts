@@ -552,7 +552,9 @@ describe('Ask with a real model (FR-701)', () => {
         ).rows[0]!.n,
       )
     const spent = await calls()
-    const sent = await lookup(`What were orders in Norway in August 2026 after the ${marker} sale?`)
+    const sent = await lookup(
+      `Why were orders in Norway low in August 2026 after the ${marker} sale?`,
+    )
     expect(sent.at(-1)?.type).toBe('words-end')
     expect(await calls()).toBe(spent + 1)
     const after = await tableContents(client, ['auth.sessions', 'public.setup_marks'])

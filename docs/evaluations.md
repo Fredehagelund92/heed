@@ -180,8 +180,10 @@ Ask's promises (FR-720) are held by cases, not by reading answers. The planner c
 (`src/server/modules/answer/plan-cases.ts`) keep working as they did. Beside them,
 `src/server/modules/answer/steward-cases.ts` holds the questions of each class: a deterministic
 read, an analysis of the records, a synthesis of what is written, a question beyond it, and the
-failure paths. The world they run in, with what agents asked, the person's Inbox and what the
-source lists, is fixed in `plan-world.ts`, so what a case must say never drifts.
+failure paths. `gate-cases.ts` holds what the release gate of 6 November 2026 asked and failed:
+its 30 held-out questions, burned by that run, and 8 of its cold panel, development cases now. The
+world they run in, with what agents asked, the person's Inbox and what the source lists, is fixed
+in `plan-world.ts`, so what a case must say never drifts.
 
 | Layer            | When                                                              | Proves                                                                                                                                   |
 | ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |

@@ -4,6 +4,7 @@ import {
   auditAnswer,
   auditedTerms,
   dayWords,
+  dueRead,
   foundNothing,
   readAudit,
   type AuditWorld,
@@ -20,6 +21,7 @@ import {
   type RecordsRow,
   type RecordsAnswer,
 } from './records-answer.ts'
+import { reachesBeyond } from './plain-read.ts'
 import { asksDefinition } from './scope.ts'
 import { normalizeName, type Term } from './vocabulary.ts'
 
@@ -121,6 +123,10 @@ export type RecordsReading = {
   now: string
   /** The words people wrote in Definitions, when the question asks what a word means. */
   glossary?: readonly { name: string }[]
+  /** The workspace's people, by name: a question that names one is about that person. */
+  people?: readonly string[]
+  /** The tools the source is read from, as people name them: "Cube". */
+  tools?: readonly string[]
 }
 
 export type RecordsRecognition =
@@ -178,16 +184,42 @@ const PLAIN_NOUN =
 
 /** Who may be the subject of "what did X write" without it being one person's work. */
 const NOT_A_PERSON =
-  'agents?|anyone|anybody|someone|somebody|people|everyone|everybody|we|the|owners|administrators|admins|heed|been|it|this|that|there|they|you|no|any|some|all|none|nothing|anything|something|our|their|these|those|a|an|not|most|many|few'
+  'agents?|anyone|anybody|someone|somebody|nobody|noone|people|everyone|everybody|we|the|owners|administrators|admins|heed|been|it|this|that|there|they|you|no|any|some|all|none|nothing|anything|something|everything|our|their|these|those|a|an|not|most|many|few|was|were|is|are|has|have|had|got|just|recently|lately|already|ever|still|yet|context|items?|entries|entry|records?|facts?|notes?|guides?|rules?|warnings?|events?|metrics?|dimensions?|definitions?|domains?|sources?|values?|kpis?|things?|questions?|topics?'
 const PERSON_VERBS =
   'write|wrote|written|add|added|change|changed|edit|edited|check|checked|create|created|publish|published|archive|archived|suggest|suggested|review|reviewed|do|done|work on|worked on'
+const PERSON_PAST =
+  'wrote|written|added|changed|edited|checked|created|published|archived|suggested|reviewed|worked on'
 
-/** A question about what one person did: refused, since no read here filters by a person. */
-function aboutAPerson(t: string): boolean {
+/**
+ * A question about what one named or implied person did: refused, since no read here filters by a
+ * person. It turns on who the question is about, never on words like "nobody" or "who": an
+ * indefinite word names no one, and "who owns" asks for a domain's owners.
+ */
+function aboutAPerson(t: string, words: string, people: readonly string[]): boolean {
   if (
     new RegExp(
       `\\b(?:what|which|how many)\\b(?: [a-z]+){0,3} (?:did|has|have|does) (?!(?:${NOT_A_PERSON})\\b)[a-z]+(?: [a-z]+)? (?:${PERSON_VERBS})\\b`,
     ).test(t)
+  )
+    return true
+  // "everything Ines wrote", "all Tomas published": no question word, the person is the subject.
+  // Only a capitalised word, or one a workspace person is called, can be a person, so "what else changed" and "all terms changed" are not.
+  const subject = new RegExp(
+    `\\b(?:everything|anything|all|whatever|what)(?: that)? ([\\p{L}]+)(?: has| have| had)? (?:${PERSON_PAST})\\b`,
+    'giu',
+  )
+  const known = new Set(people.flatMap((name) => name.toLowerCase().split(/\s+/)))
+  for (const m of words.matchAll(subject)) {
+    const who = m[1]!
+    if (new RegExp(`^(?:${NOT_A_PERSON})$`, 'i').test(who)) continue
+    if (/^\p{Lu}/u.test(who) || known.has(who.toLowerCase())) return true
+  }
+  // A ranking of people: "who is furthest behind", "who reviews the slowest".
+  if (
+    /\bwho\b.*\b(?:behind|furthest|slowest|fastest|latest|most|least|best|worst)\b/.test(t) &&
+    !/\bwho (?:owns|is the owner|are the owners|is responsible for|are responsible for|looks? after|manages|maintains|is in charge of)\b/.test(
+      t,
+    )
   )
     return true
   if (
@@ -201,9 +233,24 @@ function aboutAPerson(t: string): boolean {
   return /\b(?:my|[a-z]+'s) (?:work|changes|edits|checks|suggestions|drafts)\b/.test(t)
 }
 
+/**
+ * Whether the words name someone in the workspace, once the vocabulary's names are out of them: no
+ * read here filters by a person. A whole name of two or more words reads in any case; one word of
+ * a name only with its capital and not as the first word, so "Will orders rise?" names nobody.
+ */
+function namesAPerson(words: string, dateless: string, people: readonly string[]): boolean {
+  const said = dateless.trim()
+  const capitalised = (part: string) =>
+    /^\p{Lu}/u.test(part) &&
+    new RegExp(`(?<=\\S\\s+)${escape(part)}(?![\\p{L}\\p{N}])`, 'u').test(said)
+  return people.some((name) => {
+    const parts = name.trim().split(/\s+/)
+    return (parts.length > 1 && findName(words, name) !== null) || parts.some(capitalised)
+  })
+}
+
 /** Words that ask for a judgement, not a read: the rules leave these to the planner. */
-const JUDGEMENT =
-  /\b(?:think|thinks|believe|opinion|would you|should|could you|improve|better definition)\b|^(?:please )?(?:write|draft|rewrite|compose)\b/
+const JUDGEMENT = /\b(?:think|thinks|believe|improve|better definition)\b/
 /** Words that say a read is not the whole of it, when the read is not itself an analysis. */
 const LOOSE_READ = /\b(?:missing|complete|enough|covers?|covered|and who owns)\b/
 
@@ -425,7 +472,7 @@ export function recogniseRecords(
   if (found?.type !== 'records') return found
   const t = plain(question)
   const analysis = found.ask.intent === 'audit' || found.ask.intent === 'queue'
-  return JUDGEMENT.test(t) || (!analysis && LOOSE_READ.test(t))
+  return JUDGEMENT.test(t) || reachesBeyond(question) || (!analysis && LOOSE_READ.test(t))
     ? { ...found, loose: true, judgement: true }
     : found
 }
@@ -445,10 +492,18 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   let words = question
   for (const at of [...named, ...(domain ? [domain.at!] : [])].sort((a, b) => b.start - a.start))
     words = `${words.slice(0, at.start)} ${words.slice(at.end)}`
+  let dateless = question
+  const cut = [...named, ...reading.spans.filter((s) => s.dates), ...(domain ? [domain.at!] : [])]
+  for (const at of cut.sort((a, b) => b.start - a.start))
+    dateless = `${dateless.slice(0, at.start)} ${dateless.slice(at.end)}`
   const t = plain(words)
   const scoped = named.length > 0
   const noun = RECORDS_NOUN.test(t) || (!named.length && PLAIN_NOUN.test(t))
-  if (aboutAPerson(t)) return { type: 'refused' }
+  if (
+    namesAPerson(words, dateless, reading.people ?? []) ||
+    aboutAPerson(t, words, reading.people ?? [])
+  )
+    return { type: 'refused' }
 
   const ask = (intent: RecordsIntent, extra: Partial<RecordsAsk> = {}): RecordsRecognition => ({
     type: 'records',
@@ -468,7 +523,7 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
       ? reading.glossary?.find((g) => findName(question, g.name))
       : undefined
   if (word) return ask('glossary', { word: word.name })
-  const audit = readAudit(t, scoped)
+  const audit = readAudit(t, scoped, (reading.tools ?? []).map(plain))
   if (audit)
     return audit.queue
       ? ask('queue', audit.read.facets.length ? { audit: audit.read } : {})
@@ -492,11 +547,16 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   )
     return ask('owner', { noOwner: true })
   if (
-    /\bwho (?:owns|is the owner|are the owners|is responsible|are responsible|looks after|look after|is in charge)\b|\bowners? of\b|\bwhose\b|\bwho checks\b|\bwho reviews\b/.test(
+    /\bwho (?:owns|is the owner|are the owners|is responsible|are responsible|looks after|look after|is in charge)\b|\bwho's (?:the owner|responsible|in charge)\b|\bowners? of\b|\bwhose\b|\bwho checks\b|\bwho reviews\b/.test(
       t,
     )
-  )
-    return ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+  ) {
+    const owner = ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+    // Who owns something the words name and no read knows: never every domain's owners.
+    return owner.type === 'records' && !domain && !metric && namesSomethingElse(t)
+      ? { ...owner, loose: true, judgement: true }
+      : owner
+  }
   if (!(scoped && !noun) && CONFLICTS.test(t) && !VOCABULARY.test(t)) return ask('conflicts')
   const catalogue = catalogueAsk(t, named, terms)
   if (catalogue)
@@ -511,7 +571,7 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   )
     return ask('archived', { kind: kindOrNull(t) })
   if (
-    /\b(?:due for (?:a )?(?:check|review)s?|overdue|out of date|outdated|stale|needs? (?:a )?(?:check|review|look|rechecking|checking)|past (?:its|their) check date|check date (?:has )?passed|need (?:to be )?checked)\b/.test(
+    /\b(?:due for (?:a )?(?:check|review)s?|overdue|out of date|outdated|stale|needs? (?:a )?(?:check|review|look|rechecking|checking)|past (?:its|their|the) (?:check|review) dates?|(?:check|review) dates? (?:has |have )?passed|need (?:to be )?checked)\b/.test(
       t,
     )
   )
@@ -533,6 +593,14 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
   }
   return null
 }
+
+/** What an owner question is about, past its own words, once the names read are out of them. */
+const OWNER_OF =
+  /\b(?:owns?|owners? of|responsible for|in charge of|looks? after|checks|reviews)\b(.*)$/
+const NO_SUBJECT =
+  /\b(?:the|a|an|our|this|that|these|those|it|them|each|every|all|any|what|domains?|metrics?)\b/g
+const namesSomethingElse = (t: string) =>
+  (OWNER_OF.exec(t)?.[1] ?? '').replace(NO_SUBJECT, ' ').trim().length > 0
 
 /** A kind of context item the words name; definitions are no context items. */
 const kindOrNull = (t: string): RecordsKind | null => {
@@ -625,6 +693,17 @@ export const limitSaid: Record<LimitReason, string> = {
   forecast: 'What happens next is not written down. Here is what is.',
   outside: 'Ask knows only what is written here, not what others do. Here is what is.',
   numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out. Here is what is written.`,
+  partly: 'Ask could read only part of this question. Here is what is written about what it names.',
+  general: 'Nothing is written about this in particular. Here is what is written in general.',
+}
+/** A limit's sentence when nothing was read: there is nothing to go on to. */
+export const limitAlone: Record<LimitReason, string> = {
+  advice: 'What to do is not written down.',
+  forecast: 'What happens next is not written down.',
+  outside: 'Ask knows only what is written here, not what others do.',
+  numbers: `${DEFAULT_PRODUCT_NAME} keeps no numbers, so Ask cannot work this out.`,
+  partly: 'Ask could read only part of this question.',
+  general: 'Nothing is written about this in particular.',
 }
 const itemsWords = (n: number, kind: RecordsKind | null = null) =>
   `${count(n)} ${kind ? (n === 1 ? kindWords[kind].one : kindWords[kind].many) : n === 1 ? 'context item' : 'context items'}`
@@ -635,6 +714,10 @@ const list = (names: readonly string[]) =>
 const since = (iso: string | null) => (iso ? Date.parse(iso) : Number.NaN)
 const within = (iso: string | null, p: RecordsPeriod) =>
   iso !== null && since(iso) >= since(p.start) && since(iso) < since(p.end)
+
+/** A check is dated by its day, so it counts when any of that day is in the period. */
+const checkedWithin = (iso: string | null, p: RecordsPeriod) =>
+  iso !== null && since(iso) < since(p.end) && since(iso) + DAY > since(p.start)
 
 const NOTE =
   'Live means published and in use. Due for a check means its check date passed or its source changed.'
@@ -716,13 +799,13 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
       const p = ask.period ?? assumedPeriod(nowIso)
       const changes = inScope
         .flatMap((i) => {
-          const what: [string, string | null][] = [
-            ['Archived', i.archivedAt],
-            ['Added', i.publishedAt],
-            ['Changed', i.changedAt],
-            ['Checked', i.checkedAt],
+          const what: [string, string | null, boolean][] = [
+            ['Archived', i.archivedAt, false],
+            ['Added', i.publishedAt, false],
+            ['Changed', i.changedAt, false],
+            ['Checked', i.checkedAt, true],
           ]
-          const hit = what.find(([, at]) => within(at, p))
+          const hit = what.find(([, at, day]) => (day ? checkedWithin(at, p) : within(at, p)))
           return hit ? [{ item: i, what: hit[0], at: hit[1]! }] : []
         })
         .sort((a, b) => since(b.at) - since(a.at))
@@ -753,54 +836,35 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
       }
     }
     case 'due': {
-      const due = inScope
-        .filter((i) => i.status === 'due')
-        .sort(
-          (a, b) =>
-            (a.reviewDate ?? '9999').localeCompare(b.reviewDate ?? '9999') ||
-            a.title.localeCompare(b.title),
-        )
-      const n = due.length
       const owners = area ? ownersOf(area) : []
-      const reason = (i: RecordsItem) =>
-        i.checkFlag === 'source_missing'
-          ? 'Source missing'
-          : i.checkFlag === 'needs_check'
-            ? 'Definition changed'
-            : i.reviewDate
-              ? dayWords(i.reviewDate)
-              : 'Not recorded'
+      const read = dueRead(inScope, {
+        where,
+        domainId: domain?.id ?? null,
+        ...(kind ? { things: kindWords[kind].many, one: kindWords[kind].one } : {}),
+      })
+      const open = inScope.filter((i) => i.status !== 'archived').length
       return {
         ...base,
         understood: `Due for a check${kind ? `, ${kindWords[kind].many}` : ''}${domain ? `, in ${domain.name}` : ''}`,
-        sentence: n
-          ? `${itemsWords(n, kind)}${where} ${is(n)} due for a check.`
-          : `${kind ? `No ${things}` : 'Nothing'}${where} ${kind ? 'are' : 'is'} due for a check.`,
+        read: `Read ${itemsWords(open, kind)}${where}`,
+        sentence: read.sentence,
         detail:
           area && owners.length
             ? `${domain!.name} is owned by ${list(owners)}.`
             : area
               ? `${domain!.name} has no owner to check them. An administrator can add one.`
               : null,
-        columns: ['Context item', 'Due since', 'Last checked'],
-        rows: due
-          .slice(0, RECORDS_ROWS)
-          .map((i) => itemRow(i, [reason(i), i.checkedAt ? dayWords(i.checkedAt) : 'Never'])),
-        total: n,
-        shown: n > RECORDS_ROWS ? `Showing the ${RECORDS_ROWS} oldest` : null,
-        ranked: n > 1 ? 'Oldest check date first.' : null,
-        more: n
-          ? {
-              label: `Show all ${count(n)} in Context`,
-              to: 'context',
-              domain: domain?.id ?? null,
-              status: 'due',
-            }
-          : null,
+        columns: read.section?.columns ?? [],
+        rows: read.section?.rows ?? [],
+        total: read.found,
+        shown: read.section?.shown ?? null,
+        ranked: read.ranked ?? null,
+        more: read.section?.more ?? null,
         note:
           ask.kind === 'definition'
             ? 'A definition needs no check: the context written about it does. Context whose definition changed is due for a check too.'
             : null,
+        notSeen: 'Not seen: an item that is wrong before its check date.',
       }
     }
     case 'archived': {

@@ -652,7 +652,7 @@ export function ContextPage() {
                       {sortTh(
                         'checked',
                         'w-19 min-w-19 px-1.5 text-center @max-xl/main:hidden',
-                        'Checked: fresh up to 30 days, ageing up to 90, then overdue',
+                        'Checked: fresh up to 30 days, then ageing, and overdue once it is due for a check',
                       )}
                       <Th className="hidden w-10 @max-xl/main:table-cell @max-xl/main:pr-4">
                         <span className="sr-only">Checked</span>

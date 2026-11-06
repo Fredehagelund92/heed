@@ -193,6 +193,146 @@ describe('a plan as the model writes it', () => {
   })
 })
 
+describe('a plan that does not answer the question asked', () => {
+  const plan = (raw: unknown, over: Partial<PlanContext>) => checkPlan(raw, ctx(over))
+
+  it.each([
+    'how healthy is our documentation?',
+    'how covered are we?',
+    'which domain has the worst coverage?',
+    'what changed at the source?',
+  ])('fails a search that names nothing for "%s"', (question) => {
+    expect(plan({ reads: [{ kind: 'explore', kinds: ['event'] }] }, { question })).toEqual({
+      ok: false,
+      why: 'does not fit',
+    })
+  })
+
+  it('stops at the sentence when values are ranked by a figure', () => {
+    const got = plan(
+      { reads: [{ kind: 'explore', metrics: ['metric:net_revenue'] }], limit: 'numbers' },
+      { question: 'which campaign made the most money?' },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'cannot', reason: 'numbers' } })
+  })
+
+  it('reads a limit written as an exit as that limit, whatever key it came in', () => {
+    const named = plan({ cannot: 'advice' }, { question: 'what would you do about orders?' })
+    expect(named).toMatchObject({ ok: true, plan: { kind: 'reads', limit: 'advice' } })
+    const nothing = plan({ cannot: 'advice' }, { question: 'what should we add?' })
+    expect(nothing).toMatchObject({ ok: true, plan: { kind: 'records', ask: { limit: 'advice' } } })
+  })
+
+  it('reads what has no owner from the metrics, unless it asks about domains', () => {
+    const no_owner = { records: { intent: 'owner', no_owner: true } }
+    expect(plan(no_owner, { question: 'what is nobody responsible for?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'audit', audit: { facets: ['no_domain'] } } },
+    })
+    expect(plan(no_owner, { question: 'which domains are unclaimed?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'owner' } },
+    })
+  })
+
+  const listed = { question: 'which metrics have no context?', sources: [], rows: ['a', 'b'] }
+
+  it('asks which one when "that one" could be any of several rows', () => {
+    const got = plan(
+      { records: { intent: 'owner', metric: 'metric:orders' } },
+      { question: 'who owns that one?', previous: listed },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'clarify' } })
+  })
+
+  it('takes "that one" as the domain a ranking put first', () => {
+    const got = plan(
+      { records: { intent: 'owner' } },
+      {
+        question: 'who owns that one?',
+        previous: { ...listed, rows: [], domain: 'area_sales' },
+      },
+    )
+    expect(got).toMatchObject({ ok: true, plan: { kind: 'records' } })
+  })
+
+  it('keeps a plan with a word that is no kind, and a question back with a colon', () => {
+    const search = { reads: [{ kind: 'explore', kinds: ['rule', 'definition'] }] }
+    expect(plan(search, { question: 'what do we know about VAT?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'reads', reads: [{ kinds: ['note'] }] },
+    })
+    const back = { clarify: 'Which metric do you mean: Orders or Net revenue?' }
+    expect(plan(back, { question: 'how is Sweden doing?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'clarify', question: 'Which metric do you mean, Orders or Net revenue?' },
+    })
+  })
+
+  it('searches for a market alone, and keeps a look-up when a metric carries over', () => {
+    const value = { reads: [{ kind: 'lookup', values: ['val:market/sweden'] }] }
+    const alone = plan(value, { question: 'is Sweden doing better?', previous: null })
+    expect(alone).toMatchObject({ ok: true, plan: { reads: [{ kind: 'explore' }] } })
+    const carried = plan(value, { question: 'and in Sweden?' })
+    expect(carried).toMatchObject({ ok: true, plan: { reads: [{ kind: 'lookup' }] } })
+  })
+
+  it('gives a ranking of metrics the facet its rule comes from', () => {
+    const got = plan(
+      { audit: { facets: ['no_context', 'no_words'] } },
+      { question: 'what are our weakest metrics?', previous: null },
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { ask: { audit: { facets: ['no_context', 'no_words', 'asked_nothing'] } } },
+    })
+  })
+
+  it('lets an exit stand over "the first one", and keeps the limit of a read', () => {
+    const exit = plan({ cannot: 'write' }, { question: 'rewrite the first one' })
+    expect(exit).toMatchObject({ ok: true, plan: { kind: 'cannot', reason: 'write' } })
+    const limited = plan(
+      { reads: [{ kind: 'definition', metrics: ['metric:orders'] }], limit: 'advice' },
+      { question: 'tell me more about the first one' },
+    )
+    expect(limited).toMatchObject({
+      ok: true,
+      plan: { reads: [{ kind: 'about_previous' }], limit: 'advice' },
+    })
+  })
+
+  it('reads "the first one" of an answer with sources as that source', () => {
+    const got = plan(
+      { reads: [{ kind: 'definition', metrics: ['metric:orders'] }] },
+      { question: 'tell me more about the first one' },
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { reads: [{ kind: 'about_previous', ids: ['evt_norway_stop'] }] },
+    })
+  })
+
+  it('reads a queue narrowed to a domain as what is due there', () => {
+    const narrowed = { queue: true, audit: { facets: ['due'], domain: 'area_paid_media' } }
+    expect(plan(narrowed, { question: 'I am in Paid media, what needs checking?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'records', ask: { intent: 'due', domain: 'area_paid_media' } },
+    })
+  })
+
+  it('never shows a key as a name in how the question reads alone', () => {
+    const got = plan(
+      {
+        standalone: 'Who owns on_time_shipping_rate?',
+        records: { intent: 'owner', metric: 'metric:orders' },
+      },
+      { question: 'who owns it?' },
+    )
+    expect(got).toMatchObject({ ok: true })
+    expect(got.ok && got.plan.kind === 'records' && got.plan.standalone).toBeFalsy()
+  })
+})
+
 describe('the question Ask asks back', () => {
   const back = (text: string) => checkedQuestionBack(text, ctx())
 
@@ -227,6 +367,7 @@ describe('when the planner reads a question', () => {
       question,
       previous: null,
       scoped: false,
+      plain: true,
       records: null,
       rules: rules('matched', ['metric:orders']),
       ...over,
@@ -371,6 +512,45 @@ describe('what the planner is told', () => {
     expect(plannerVocabulary(many, [])).toContain(
       `dim:campaign Campaign: ${PLANNER_VALUES + 1} values, not listed`,
     )
+  })
+})
+
+describe('a read under a limit', () => {
+  const window = recentWindow(PLAN_TODAY)
+  const read = (reads: Parameters<typeof plannedAnswer>[1]) =>
+    plannedAnswer(planBundle, reads, {
+      question: 'what should we do about the zebra stripes?',
+      today: PLAN_TODAY,
+      previous: null,
+      turns: [],
+      limited: true,
+    })
+
+  it('shows nothing when the words match nothing, never every recent item', () => {
+    const got = read([
+      {
+        kind: 'explore',
+        words: 'zebra stripes',
+        kinds: [],
+        scope: { metrics: [], filters: {}, window },
+        period: 'recent',
+      },
+    ])
+    expect(got.answer.items).toEqual([])
+  })
+
+  it('keeps to the kinds asked when no name holds a wider read to the question', () => {
+    const got = read([
+      {
+        kind: 'explore',
+        words: '',
+        kinds: ['event'],
+        scope: { metrics: [], filters: {}, window },
+        period: 'recent',
+      },
+    ])
+    expect(got.answer.items.length).toBeGreaterThan(0)
+    expect(got.answer.items.every((item) => item.kind === 'event')).toBe(true)
   })
 })
 

@@ -114,20 +114,23 @@ async function main() {
     const tries = values.gate ? 3 : 1
     const estimate =
       tries *
-      cases.reduce((sum, c) => {
-        const input = plannerInputOf(bundle, c.question, [], PLAN_TODAY)
-        const plan = costMicros(choice.prices, {
-          inputTokens: tokens(input.system) + tokens(input.vocabulary) + tokens(input.prompt),
-          outputTokens: PLAN_MAX_TOKENS,
-          cacheReadTokens: 0,
-        })
-        const words = costMicros(choice.prices, {
-          inputTokens: tokens(wordsSystem) + 700,
-          outputTokens: 400,
-          cacheReadTokens: 0,
-        })
-        return sum + plan + words
-      }, 0)
+      // A question the rules read makes neither call: the rule-read bar of the gate holds it to that.
+      cases
+        .filter((c) => c.expect.route === 'planner')
+        .reduce((sum, c) => {
+          const input = plannerInputOf(bundle, c.question, [], PLAN_TODAY)
+          const plan = costMicros(choice.prices, {
+            inputTokens: tokens(input.system) + tokens(input.vocabulary) + tokens(input.prompt),
+            outputTokens: PLAN_MAX_TOKENS,
+            cacheReadTokens: 0,
+          })
+          const words = costMicros(choice.prices, {
+            inputTokens: tokens(wordsSystem) + 700,
+            outputTokens: 400,
+            cacheReadTokens: 0,
+          })
+          return sum + plan + words
+        }, 0)
     const ceiling = Number(values['max-cost-usd'] ?? Number.NaN) * 1_000_000
     console.log(
       `Ask's planner, ${cases.length} cases, with ${choice.id}. Estimated cost ${usd(estimate)}.`,

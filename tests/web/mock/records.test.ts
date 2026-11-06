@@ -11,6 +11,12 @@ describe('records answers on the mock binding', () => {
     }
   })
 
+  it('refuses a question a name alone makes about a person, as the service does', async () => {
+    const { api } = createMockApi()
+    const answer = await api.ask({ question: 'is Tomas behind on the checks?' })
+    expect(answer.records).toMatchObject({ refused: true })
+  })
+
   it('lists the conflicts as Context does, and the other words for them', async () => {
     const { api } = createMockApi()
     const conflicts = await api.conflicts({ whose: 'all' })

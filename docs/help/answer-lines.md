@@ -47,7 +47,7 @@ Ask also reads the records to say what is missing, out of date, in conflict or w
 - Synonym: Another name for a metric or a dimension, such as GMV for Gross sales. Agents read it as that definition.
 - Not found: A question agents asked several times and found nothing written down for. Its card brings a draft.
 - Reported: Someone said a context item is wrong or unclear. The owner sees it in the Inbox.
-- Due for a check: A context item whose check date has passed. The owner confirms it is still true, or edits it.
+- Due for a check: A context item whose check date has passed, or whose definition changed at its source. The owner confirms it is still true, or edits it.
 - Don't conclude: A line on a context item that stops an agent from reading a cause into it.
 
 <!-- /include -->

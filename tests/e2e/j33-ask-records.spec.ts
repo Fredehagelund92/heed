@@ -41,12 +41,12 @@ test('a question about the records gets a records answer, never Not found', asyn
   // An answer suggests nothing to ask next: the next question is typed, in the same chat.
   await expect(log.getByRole('button', { name: 'What is due for a check?' })).toHaveCount(0)
   await ask(page, 'What is due for a check?')
-  const due = log.getByText(/^[\d,]+ context items? (is|are) due for a check\.$/)
+  const due = log.getByText(/^[\d,]+ of [\d,]+ context items? (is|are) due for a check\.$/)
   await expect(due).toBeVisible()
   // At most five rows, each opening its context item in the right panel.
   const table = log.getByRole('table').last()
   const rows = table.getByRole('row')
-  await expect(rows.first()).toContainText('Due since')
+  await expect(rows.first()).toContainText('Why it is due')
   expect(await rows.count()).toBeLessThanOrEqual(6)
   const first = table.getByRole('rowheader').first().getByRole('button')
   const title = (await first.textContent())!

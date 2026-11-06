@@ -44,8 +44,16 @@ export const auditFacets = [
 ] as const
 export type AuditFacet = (typeof auditFacets)[number]
 
-/** Why Ask leads with a limit sentence, then what is written (FR-720). */
-export const limitReasons = ['advice', 'forecast', 'outside', 'numbers'] as const
+/** The limits a plan may choose: what a question reaches for beyond what is written (FR-720). */
+export const planLimits = ['advice', 'forecast', 'outside', 'numbers'] as const
+export type PlanLimit = (typeof planLimits)[number]
+
+/**
+ * Why Ask leads with a limit sentence, then what is written (FR-720). Beside a plan's limits, two
+ * that code says: `partly`, a question no read plainly answers when nothing could read it, and
+ * `general`, a name nothing is written about, when what was read applies to everything.
+ */
+export const limitReasons = [...planLimits, 'partly', 'general'] as const
 export type LimitReason = (typeof limitReasons)[number]
 
 /**
@@ -178,6 +186,8 @@ export const auditReadSchema = z.object({
   kind: z.nullable(z.enum(recordsKinds)),
   /** One dimension value, by key, for what agents asked about it. */
   value: z.nullable(z.string()),
+  /** A ranking of domains the best first, when the question asks for the best covered. */
+  best: z.optional(z.boolean()),
 })
 export type AuditRead = z.infer<typeof auditReadSchema>
 
@@ -221,6 +231,8 @@ export const recordsAnswerSchema = z.union([
     ranked: z.optional(z.nullable(z.string())),
     /** What the read cannot see: "Not seen: a definition your source does not hold." */
     notSeen: z.optional(z.nullable(z.string())),
+    /** The domain a ranking of domains puts first, alone: what "that one" means next. */
+    top: z.optional(z.nullable(z.object({ id: z.string(), name: z.string() }))),
     /** The sentence it leads with when the question reaches beyond what is written. */
     limit: z.optional(z.nullable(limitSchema)),
     /** The analysis it was read as, for the next question to carry. */

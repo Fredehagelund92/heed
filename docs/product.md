@@ -213,7 +213,7 @@ A context item has one of four statuses, each a circle icon with a word on hover
 | **Needs checking** | Alert         | Published, and its check date has passed. Agents get it and are told it may be old. |
 | **Archived**       | Minus         | Retired. Agents no longer get it. Its history stays.                                |
 
-**Freshness** is one dot in the Checked column: filled up to 30 days since the last check, half full up to 90 days, hollow after that. A suggestion shows its state in words (waiting, published, returned, withdrawn).
+**Freshness** is one dot in the Checked column: filled up to 30 days since the last check, half full after that, and a hollow ring while the item is Needs checking (its check date passed or its source changed, checked or never). Age alone never makes an item due. A suggestion shows its state in words (waiting, published, returned, withdrawn).
 
 ## 9. Privacy
 
