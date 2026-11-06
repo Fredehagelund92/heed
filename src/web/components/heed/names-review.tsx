@@ -42,7 +42,13 @@ function ReadyRow({
         )}
         {name.areaId && <Domain id={name.areaId} />}
         {name.linked.length === 0 && (
-          <Button variant="ghost" size="sm" className="ml-auto" disabled={busy} onClick={onLeaveOut}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            disabled={busy}
+            onClick={onLeaveOut}
+          >
             Leave out
           </Button>
         )}
@@ -188,7 +194,8 @@ export default function NamesReview({
               Look at these first
             </h3>
             <p className="text-xs text-muted-foreground">
-              One word has one meaning here. Keep the name below, change it, or leave it out. A name that is live already keeps the one it has.
+              One word has one meaning here. Keep the name below, change it, or leave it out. A name
+              that is live already keeps the one it has.
             </p>
             <ul>
               {flagged.map((name) => (

@@ -234,7 +234,11 @@ describe('the names a read makes', () => {
     }
     const term: WordHolder = { origin: 'term', id: 't1', name: 'Sales', sameAs: null, by: 'Maria' }
     const members = [
-      member('cube:orders.market', { kind: 'dimension', valueType: 'string', mergeDimensions: 'by-name' }),
+      member('cube:orders.market', {
+        kind: 'dimension',
+        valueType: 'string',
+        mergeDimensions: 'by-name',
+      }),
       member('cube:returns.market', {
         kind: 'dimension',
         valueType: 'string',

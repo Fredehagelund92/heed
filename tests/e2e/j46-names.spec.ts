@@ -40,7 +40,9 @@ test('an owner accepts the ready names with one press, and looks at the rest', a
     .click()
   await expect(flagged).toBeHidden()
   await main.getByRole('button', { name: /Left out/ }).click()
-  await expect(main.getByRole('textbox', { name: 'Name for orders.paid_at' })).toHaveValue('Paid at')
+  await expect(main.getByRole('textbox', { name: 'Name for orders.paid_at' })).toHaveValue(
+    'Paid at',
+  )
 })
 
 test('an owner leaves one ready name out, and can still edit and publish it from the fold', async ({

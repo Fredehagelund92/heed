@@ -138,7 +138,11 @@ describe('a read of a Cube model', () => {
     const { revision, names } = await readNames()
     const gaining = names.find((name) => name.key === key)!
     expect(gaining.linked.length).toBeGreaterThan(0)
-    const left = await call('POST', '/inbox/names/decide', { revision, accept: [], leaveOut: [key] })
+    const left = await call('POST', '/inbox/names/decide', {
+      revision,
+      accept: [],
+      leaveOut: [key],
+    })
     expect(left.statusCode, left.body).toBe(422)
     const renamed = await call('POST', '/inbox/names/decide', {
       revision,
