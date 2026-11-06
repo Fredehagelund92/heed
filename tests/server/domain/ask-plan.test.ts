@@ -277,6 +277,17 @@ describe('a plan that does not answer the question asked', () => {
     expect(carried).toMatchObject({ ok: true, plan: { reads: [{ kind: 'lookup' }] } })
   })
 
+  it('gives a ranking of metrics the facet its rule comes from', () => {
+    const got = plan(
+      { audit: { facets: ['no_context', 'no_words'] } },
+      { question: 'what are our weakest metrics?', previous: null },
+    )
+    expect(got).toMatchObject({
+      ok: true,
+      plan: { ask: { audit: { facets: ['no_context', 'no_words', 'asked_nothing'] } } },
+    })
+  })
+
   it('reads "the first one" of an answer with sources as that source', () => {
     const got = plan(
       { reads: [{ kind: 'definition', metrics: ['metric:orders'] }] },

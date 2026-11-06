@@ -381,6 +381,9 @@ const ASKS_WHAT_IS_NOT = /\b(?:missing|gaps?|complete|enough|covers?|covered|lac
 /** Words that ask about the records themselves: their coverage, their health, or the source. */
 const ASKS_ABOUT_RECORDS =
   /\b(?:documented|undocumented|documentation|coverage|covered|healthy|health check)\b|\bwhich domains?\b|\b(?:changed?|gone|removed|renamed)\b.*\b(?:at|in) (?:the |our )?source\b/
+/** A ranking of the metrics themselves, which an analysis answers by its rule. */
+const RANKS_METRICS =
+  /\b(?:weakest|thinnest|worst|strongest|best)\b.*\b(?:metrics?|kpis?|measures?)\b/
 /** A ranking of values by how they did: only figures can answer it. */
 const RANKS_BY_FIGURE =
   /^which\b.*\b(?:most|least|best|worst|highest|lowest|biggest|smallest|fastest|slowest)\b/
@@ -433,6 +436,9 @@ function auditAskOf(
   if (domain !== null && !ctx.areas.some((a) => a.id === domain)) throw new Miss('unknown domain')
   const value = raw.value ? termOf(ctx, raw.value, ['dimension_value']).key : null
   const kind = raw.of ? (recordsKindOf[raw.of] as AuditRead['kind']) : null
+  // A ranking says its rule, and what agents found nothing for is the rule that ranks metrics.
+  const ranks = RANKS_METRICS.test(normalizeName(ctx.question)) && !raw.facets.includes('review')
+  const facets = ranks ? [...raw.facets, 'asked_nothing' as const] : raw.facets
   return {
     intent,
     domain,
@@ -440,7 +446,7 @@ function auditAskOf(
     metric: null,
     period: null,
     noOwner: false,
-    audit: { facets: [...new Set(raw.facets)], of: raw.kind ?? null, kind, value },
+    audit: { facets: [...new Set(facets)], of: raw.kind ?? null, kind, value },
   }
 }
 
