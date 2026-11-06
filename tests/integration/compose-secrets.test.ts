@@ -72,7 +72,7 @@ async function adminOf(app: ReturnType<typeof buildApp>) {
     cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
     'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
   }
-  return (method: 'GET' | 'POST', path: string, payload?: object) =>
+  return (method: 'GET' | 'POST' | 'PUT', path: string, payload?: object) =>
     app.inject({
       method,
       url: '/api/v1' + path,
@@ -175,6 +175,48 @@ describe('a server with no secret store', () => {
       expect(response.body).not.toContain('y'.repeat(10))
     }
   })
+
+  it('says it once on a field, not again that the secret is missing', async () => {
+    const call = await adminOf(without.app)
+    const response = await call('POST', '/sources', {
+      type: 'dbt-metricflow',
+      name: 'Shop metrics',
+      config: { location: 'address' },
+      secrets: {},
+      reason: 'Our pipeline uploads the file',
+    })
+    expect(response.statusCode, response.body).toBe(422)
+    expect(response.body).toContain('HEED_SECRETS_DIR')
+    expect(response.body).not.toContain('Give the')
+  })
+
+  it('still lets a source that keeps its secret be renamed', async () => {
+    const call = await adminOf(first.app)
+    const added = await call('POST', '/sources', {
+      ...addressRoute(),
+      name: 'Shop metrics, kept',
+      reason: 'Our pipeline uploads the file',
+    })
+    expect(added.statusCode, added.body).toBe(201)
+    const saved = added.json<SourceSettings>()
+    const reading = await openLocalSecretStore(secretsDir)
+    const readOnly = serviceWith({ ...reading, available: false, read: (ref) => reading.read(ref) })
+    try {
+      const renamed = await (
+        await adminOf(readOnly.app)
+      )('PUT', `/sources/${saved.id}`, {
+        revision: saved.revision,
+        name: 'Shop metrics, renamed',
+        config: { location: 'address' },
+        secrets: {},
+        reason: 'A clearer name',
+      })
+      expect(renamed.statusCode, renamed.body).toBe(200)
+      expect(renamed.json<SourceSettings>().name).toBe('Shop metrics, renamed')
+    } finally {
+      await readOnly.app.close()
+    }
+  }, 120_000)
 
   it('does not stand in the way of a route with no secret', async () => {
     const call = await adminOf(without.app)

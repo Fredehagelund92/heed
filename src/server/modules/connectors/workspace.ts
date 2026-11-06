@@ -226,11 +226,12 @@ export function createWorkspaceSources({
     connector: RegisteredConnector,
     config: SourceConfig,
     given: Record<string, string>,
+    kept: Readonly<Record<string, string>> | null = null,
   ): FieldProblem[] =>
     secrets.available
       ? []
       : secretsInUse(connector.manifest, config)
-          .filter((secret) => secret.required || given[secret.key])
+          .filter((secret) => given[secret.key] || (secret.required && !kept?.[secret.key]))
           .map((secret) => ({ field: secret.key, message: noSecretStoreWords }))
 
   /** The settings checked by the connector, the secrets checked against its slots, the reason. */
@@ -250,10 +251,17 @@ export function createWorkspaceSources({
       ...secretProblems(connector, 'config' in parsed ? parsed.config : null, input.secrets),
     )
     if ('config' in parsed) {
-      problems.push(...storeProblems(connector, parsed.config, input.secrets))
+      const kept = keeps(parsed.config)
+      const noStore = storeProblems(connector, parsed.config, input.secrets, kept)
+      problems.push(...noStore)
       const inUse = secretsInUse(connector.manifest, parsed.config)
       for (const secret of inUse)
-        if (secret.required && !input.secrets[secret.key] && !keeps(parsed.config)?.[secret.key])
+        if (
+          secret.required &&
+          !input.secrets[secret.key] &&
+          !kept?.[secret.key] &&
+          !noStore.some((problem) => problem.field === secret.key)
+        )
           problems.push({ field: secret.key, message: `Give the ${secret.label.toLowerCase()}.` })
     }
     // A secret pasted into another field would be kept in plain text and in the history log.
