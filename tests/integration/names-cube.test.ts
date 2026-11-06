@@ -47,6 +47,12 @@ const call = (method: 'GET' | 'POST', path: string, payload?: object) =>
     ...(payload ? { payload } : {}),
   })
 
+const readNames = async () => {
+  const response = await call('GET', '/inbox/names')
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json<NamesRead>()
+}
+
 beforeAll(async () => {
   await foundation(client)
   const response = await app.inject({
@@ -68,6 +74,28 @@ beforeAll(async () => {
 afterAll(() => app.close())
 
 describe('a read of a Cube model', () => {
+  it('refuses a name that another name picked with it goes by', async () => {
+    const { names: before } = await readNames()
+    const [a, b] = before.filter((name) => name.state === 'ready' && name.kind === 'metric')
+    await client.query('update definitions set synonyms = array[$2]::text[] where ref = $1', [
+      a!.definitionRefs[0],
+      'Zeta',
+    ])
+    const { revision, names } = await readNames()
+    expect(names.find((name) => name.key === a!.key)!.aliases).toContain('Zeta')
+    const refused = await call('POST', '/inbox/names/decide', {
+      revision,
+      accept: [{ key: a!.key }, { key: b!.key, name: 'Zeta' }],
+      leaveOut: [],
+    })
+    expect(refused.statusCode, refused.body).toBe(422)
+    expect(refused.json<{ message: string }>().message).toContain('“Zeta”')
+    await client.query('update definitions set synonyms = $2::text[] where ref = $1', [
+      a!.definitionRefs[0],
+      '{}',
+    ])
+  })
+
   it('makes names that one press makes live, with a shared dimension as one name', async () => {
     const read = await call('GET', '/inbox/names')
     expect(read.statusCode, read.body).toBe(200)
@@ -91,5 +119,32 @@ describe('a read of a Cube model', () => {
       shared?.definitionRefs.length,
     )
     expect(live.rows.some((row) => row.refs > 1)).toBe(true)
+  })
+
+  it('keeps a live name as it is when a view is added, and refuses to rename or leave it out', async () => {
+    const live = await client.query<{ key: string; refs: string[] }>(
+      `select key,definition_refs as refs from serving_vocabulary((select seq from live_edition))
+        where cardinality(definition_refs) > 1 and key like 'dim:%' limit 1`,
+    )
+    const { key, refs } = live.rows[0]!
+    const member = refs[0]!.slice(refs[0]!.lastIndexOf('.') + 1)
+    await client.query(
+      `insert into definitions
+       select (jsonb_populate_record(null::definitions, to_jsonb(d) ||
+                 jsonb_build_object('ref', 'cube:extra_view.' || $2::text, 'name', 'extra_view.' || $2::text))).*
+         from definitions d where d.ref = $1`,
+      [refs[0], member],
+    )
+    const { revision, names } = await readNames()
+    const gaining = names.find((name) => name.key === key)!
+    expect(gaining.linked.length).toBeGreaterThan(0)
+    const left = await call('POST', '/inbox/names/decide', { revision, accept: [], leaveOut: [key] })
+    expect(left.statusCode, left.body).toBe(422)
+    const renamed = await call('POST', '/inbox/names/decide', {
+      revision,
+      accept: [{ key, name: 'Revenue' }],
+      leaveOut: [],
+    })
+    expect(renamed.statusCode, renamed.body).toBe(422)
   })
 })

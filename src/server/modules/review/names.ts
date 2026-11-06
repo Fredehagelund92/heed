@@ -6,7 +6,13 @@ import type {
   SourceNameRead,
 } from '../../../contract/inbox.ts'
 import { contentDigest } from '../../../domain/canonical.ts'
-import { nameRefusal, sourceNames, wordsOf, type SourceName } from '../../../domain/source-names.ts'
+import {
+  nameRefusal,
+  sourceNames,
+  wordsOf,
+  type SourceName,
+  type WordHolders,
+} from '../../../domain/source-names.ts'
 import { memberName } from '../../../domain/term-candidates.ts'
 import { termName, termWord } from '../../../domain/terms.ts'
 import { termDigestContent } from '../../../domain/vocabulary.ts'
@@ -73,8 +79,15 @@ export function createNamesService(tx: Queryable) {
   }
 
   async function namesNow() {
-    const { members, known } = await sourceVocabulary(tx)
     const who = await mine()
+    if (!who.admin && !who.owned.size)
+      return {
+        names: [] as SourceName[],
+        tool: (id: string) => id,
+        holders: new Map() as WordHolders,
+        who,
+      }
+    const { members, known } = await sourceVocabulary(tx)
     const live = known.filter((term) => !term.open)
     // A hint never makes a domain (CON-206): one with no domain yet reads as none, for now.
     const mapped = members.map((member) => ({
@@ -114,19 +127,32 @@ export function createNamesService(tx: Queryable) {
     leftByOwner: name.leftByOwner,
   })
 
-  async function read(): Promise<NamesView> {
+  /** The names and when the newest was read, or left out when none waits: no digest of the list. */
+  async function waiting() {
     const { names, tool } = await namesNow()
     const shown = names.map((name) => asRead(name, tool))
     const looking = shown.filter((name) => name.state !== 'left_out')
+    const stamp = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`
     const [newest] = looking.length
       ? await tx.query<{ at: string | null }>(
-          `select to_char(max(s.fetched_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') as at
+          `select to_char(max(s.fetched_at) at time zone 'UTC',${stamp}) as at
              from definitions d join connector_snapshots s on s.id=d.first_seen_snapshot
             where d.ref=any($1::text[])`,
           [looking.flatMap((name) => name.definitionRefs)],
         )
-      : [{ at: null }]
-    return { revision: await revisionOf(shown), names: shown, at: newest?.at ?? null }
+      : shown.some((name) => name.leftByOwner)
+        ? await tx.query<{ at: string | null }>(
+            `select to_char(max(left_at) at time zone 'UTC',${stamp}) as at
+               from names_left_out where definition_ref=any($1::text[])`,
+            [shown.flatMap((name) => name.definitionRefs)],
+          )
+        : [{ at: null }]
+    return { names: shown, at: newest?.at ?? null }
+  }
+
+  async function read(): Promise<NamesView> {
+    const { names, at } = await waiting()
+    return { revision: await revisionOf(names), names, at }
   }
 
   /** Stores accepted names as terms, versions, accepted proposals and decisions, and their edition. */
@@ -200,10 +226,12 @@ export function createNamesService(tx: Queryable) {
     )
     const decisions = await tx.query<{ id: string; proposalId: string; capacity: string }>(
       `insert into decisions(proposal_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason)
-       select p.id,p.vocab_version_id,p.area_id,cl_person(),
-              (select (row->>'capacity')::decision_capacity ${each}
-                where (($3::jsonb)->>(row->>'key'))::uuid=p.vocab_version_id),'accept',$2
-         from proposals p where p.id=any($4::uuid[])
+       select p.id,p.vocab_version_id,p.area_id,cl_person(),c.capacity,'accept',$2
+         from proposals p
+         join (select (($3::jsonb)->>(e.row->>'key'))::uuid as version_id,
+                      (e.row->>'capacity')::decision_capacity as capacity
+                 from jsonb_array_elements($1::jsonb) as e(row)) c on c.version_id=p.vocab_version_id
+        where p.id=any($4::uuid[])
        returning id::text,proposal_id::text as "proposalId",capacity::text`,
       [rows, REASON, versionOf, proposals.map((p) => p.id)],
     )
@@ -311,5 +339,5 @@ export function createNamesService(tx: Queryable) {
     return { edition: edition?.label ?? null, accepted: picked.length, leftOut: left.length }
   }
 
-  return { read, decide }
+  return { read, waiting, decide }
 }

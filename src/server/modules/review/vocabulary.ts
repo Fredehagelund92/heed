@@ -94,12 +94,21 @@ export async function waitingMembers(tx: Queryable): Promise<WaitingMember[]> {
     const source = sources.find((s) => s.id === id)
     return source ? connectorType(source.type, source.name).tool : id
   }
-  // A candidate that links more members to a live dimension is a term already, never missing.
+  const left = new Set(
+    (await tx.query<{ ref: string }>('select definition_ref as ref from names_left_out')).map(
+      (row) => row.ref,
+    ),
+  )
+  // A candidate that links more members to a live dimension is a term already, never missing, and
+  // a name an owner left out is no longer waiting.
   return termCandidates(
     members,
     known.filter((term) => !term.open),
   ).flatMap((candidate) =>
-    candidate.suggested && candidate.areaId && !candidate.linked.length
+    candidate.suggested &&
+    candidate.areaId &&
+    !candidate.linked.length &&
+    !candidate.definitionRefs.every((ref) => left.has(ref))
       ? [
           {
             areaId: candidate.areaId,

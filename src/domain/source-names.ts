@@ -5,7 +5,8 @@
  * a word a second meaning is flagged, never picked: it stays out of Accept all, with the name
  * `termCandidates` offers for it, until an owner accepts or changes it. A date or an id stays out
  * by itself, since an item's dates and its scope cover those, and so does a member an owner left
- * out; either can still be accepted one by one.
+ * out; while the card is open, either can still be accepted one by one. Dates and ids alone never
+ * raise the card.
  *
  * Pure: the service and the mock binding make the same names from the same members.
  */
@@ -140,7 +141,7 @@ export function sourceNames(
         ? [
             {
               code: 'titles_differ',
-              message: `Its new views call it ${quoted(views)}, not “${candidate.name}”. Keep the name or leave it.`,
+              message: `Its new views call it ${quoted(views)}, not “${candidate.name}”. It keeps the name it has.`,
             },
           ]
         : []

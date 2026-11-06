@@ -960,9 +960,11 @@ function Setup() {
   const write = useWrite()
   // A read ends a moment after a tool is connected: its names show here by themselves. Any left
   // for a look stay on their step, as the Inbox's cards wait for the checklist to end.
+  const canPublish = me.admin || me.owns.length > 0
   const names = useQuery({
     ...namesQuery(),
-    refetchInterval: setupDone.definitions ? false : 3000,
+    enabled: canPublish,
+    refetchInterval: setupDone.definitions || !canPublish ? false : 3000,
   }).data?.names.filter((name) => name.state !== 'left_out')
   const [reviewing, setReviewing] = React.useState(false)
   const first = setupSteps.find((s) => !setupDone[s.id])

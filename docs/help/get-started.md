@@ -28,7 +28,7 @@ Each read of your definitions makes a name for every metric and dimension that h
 
 - **Publish all** makes the ready names live at once, so context can apply to them and agents can use them.
 - **Look at these first** holds a name that would give a word a second meaning, such as two metrics both called Revenue. Keep it, change it, or leave it out. Nothing is picked for you.
-- **Left out** holds dates and ids, which a context item's dates and Applies to already cover, and what you left out. You can still publish any of them.
+- **Left out** holds dates and ids, which a context item's dates and Applies to already cover, and what you left out. While the card is open you can still publish any of them. Dates and ids alone never raise the card.
 
 ## Your first answer
 

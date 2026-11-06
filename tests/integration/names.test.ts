@@ -18,6 +18,7 @@ import { createLogger } from '../../src/server/observability/logger.ts'
 import { legacyManifest, type Manifest } from '../server/connectors/dbt-metricflow-fixture.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
+import { waitingMembers } from '../../src/server/modules/review/index.ts'
 import { foundation, people } from './fixtures.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
@@ -261,6 +262,9 @@ describe('later reads', () => {
   })
 
   it('remember a name an owner left out, and an owner can still accept it', async () => {
+    const waitingNames = async () =>
+      (await database.transaction(null, (tx) => waitingMembers(tx))).map((member) => member.name)
+    expect(await waitingNames()).toContain('Refunds')
     const { revision } = await names('admin')
     const left = await ok<NamesDecision>(
       decide('admin', { revision, accept: [], leaveOut: ['metric:refunds'] }),
@@ -274,9 +278,13 @@ describe('later reads', () => {
     })
     // The card goes under Done, where it can be reached: never in Needs me.
     expect(await namesCard('admin')).toBeUndefined()
+    expect(await waitingNames()).not.toContain('Refunds')
     const all = await ok<Feed>(call('GET', '/inbox/feed?tab=all', 'admin'))
+    const stamped = await client.query<{ at: string }>(
+      `select to_char(max(left_at) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') as at from names_left_out`,
+    )
     expect(all.cards.find((card) => card.group === 'names')).toMatchObject({
-      done: { outcome: 'Left out' },
+      done: { outcome: 'Left out', at: stamped.rows[0]!.at },
     })
     const decided = await ok<NamesDecision>(
       decide('admin', { revision: next, accept: [{ key: 'metric:refunds' }], leaveOut: [] }),

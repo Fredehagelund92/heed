@@ -82,6 +82,7 @@ function FlaggedRow({
         <Input
           id={id}
           value={chosen}
+          readOnly={name.linked.length > 0}
           aria-invalid={problem ? true : undefined}
           aria-label={`Name for ${member}`}
           className="min-w-48 flex-1"
@@ -187,7 +188,7 @@ export default function NamesReview({
               Look at these first
             </h3>
             <p className="text-xs text-muted-foreground">
-              One word has one meaning here. Keep the name below, change it, or leave it out.
+              One word has one meaning here. Keep the name below, change it, or leave it out. A name that is live already keeps the one it has.
             </p>
             <ul>
               {flagged.map((name) => (

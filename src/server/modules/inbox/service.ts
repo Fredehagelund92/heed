@@ -111,7 +111,7 @@ export function createInboxFeedService(
     path: ReviewPath
     gaps: GapsService
     comments: Pick<CommentsService, 'mentionCards' | 'markMentionsRead'>
-    names: Pick<NamesService, 'read'>
+    names: Pick<NamesService, 'waiting'>
   },
 ) {
   async function liveBundle(): Promise<ServingBundle | null> {
@@ -675,7 +675,7 @@ export function createInboxFeedService(
 
   /** The one card of the names a read made; none when nothing is left to look at. */
   async function namesCard(): Promise<Card[]> {
-    const { names, at } = await deps.names.read()
+    const { names, at } = await deps.names.waiting()
     const looking = names.filter((name) => name.state !== 'left_out')
     const left = names.filter((name) => name.leftByOwner)
     if (!looking.length && !left.length) return []
