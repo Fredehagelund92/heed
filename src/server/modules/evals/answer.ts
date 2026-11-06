@@ -224,7 +224,7 @@ export const contextTools: readonly string[] = ['get_context', 'find_context']
 
 /**
  * What the tool calls of one answer gave the agent: the items and statuses of its context calls,
- * the items they gave as applying to the scope, and the items it reached by following a link. Any other tool (read_item alone, say) delivers
+ * the items they gave as applying to the scope, and the items it reached by following a link. Any other tool (read_context alone, say) delivers
  * nothing, so an answer that never asked for context still fails the checks.
  */
 export function observed(

@@ -68,8 +68,8 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'getSession', 'signOut'))(
       'signs in, keeps the session, and signs out',
       async () => {
-        const session = await api().signIn({ name: person, fresh: false })
-        expect(session).toMatchObject({ user: person, fresh: false })
+        const session = await api().signIn({ name: person })
+        expect(session).toMatchObject({ user: person })
         expect((await api().getSession()).user).toBe(person)
         await api().signOut()
         expect((await api().getSession()).user).toBeNull()
@@ -78,7 +78,7 @@ export function describeHeedApi(
 
     /** Signed in as the person, the reads every screen makes. */
     const signedIn = async () => {
-      await api().signIn({ name: person, fresh: false })
+      await api().signIn({ name: person })
       return api()
     }
 
@@ -718,7 +718,7 @@ export function describeHeedApi(
     )(
       "sends a suggestion to an item's owners, which waits for them until it is withdrawn",
       async () => {
-        await api().signIn({ name: colleague, fresh: false })
+        await api().signIn({ name: colleague })
         const live = api()
         const { domains, people } = await live.getWorkspace()
         const them = people.find((p) => p.name === colleague)!
@@ -741,7 +741,7 @@ export function describeHeedApi(
         expect((await live.itemPage({ id: item.id }))!.item.title).toBe(full.title)
         await live.withdrawSuggestion({ id })
         expect((await live.getInbox()).sent.map((x) => x.id)).not.toContain(id)
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
       },
     )
 
@@ -1626,7 +1626,7 @@ export function describeHeedApi(
 
     /** The first undecided card of this type in the person's own Inbox. */
     async function cardOf(type: CardType): Promise<InboxCard> {
-      await api().signIn({ name: person, fresh: false })
+      await api().signIn({ name: person })
       const inbox = await api().inboxPage()
       const card = inbox.cards.find((c) => c.type === type && c.for === person && !inbox.done[c.id])
       expect(card, `a ${type} card for ${person}`).toBeDefined()
@@ -1665,7 +1665,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'publishReview', 'undo'))(
       'publishes a suggestion, and Undo puts it back to wait',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const inbox = await api().inboxPage()
         const reviews = await api().getReviews()
         const plain = reviews.find(
@@ -1749,7 +1749,7 @@ export function describeHeedApi(
     })
     /** A live item's thread, signed in as `who`, and words of this run so a case finds its own. */
     async function threadAs(who: string) {
-      await api().signIn({ name: who, fresh: false })
+      await api().signIn({ name: who })
       const item = (await api().getLibrary()).items.find((f) => f.status === 'Live')!
       return { subject: `context:${item.id}` as Subject, mark: Math.random().toString(36).slice(2) }
     }
@@ -1763,7 +1763,7 @@ export function describeHeedApi(
       async () => {
         const { subject, mark } = await threadAs(person)
         const { id } = await api().postComment({ subject, content: said(`Still true? ${mark}`) })
-        await api().signIn({ name: colleague, fresh: false })
+        await api().signIn({ name: colleague })
         const reply = await api().postComment({
           subject,
           content: said(`Yes ${mark}`),
@@ -1785,7 +1785,7 @@ export function describeHeedApi(
       async () => {
         const { subject, mark } = await threadAs(person)
         const { id } = await api().postComment({ subject, content: said(`First ${mark}`) })
-        await api().signIn({ name: colleague, fresh: false })
+        await api().signIn({ name: colleague })
         await expect(
           api().editComment({ subject, id, content: said(`Mine ${mark}`) }),
         ).rejects.toMatchObject({ kind: 'forbidden' })
@@ -1793,7 +1793,7 @@ export function describeHeedApi(
           kind: 'forbidden',
         })
         await api().postComment({ subject, content: said(`Agreed ${mark}`), parentId: id })
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         await api().editComment({ subject, id, content: said(`Second ${mark}`) })
         const edited = await find(subject, id)
         expect(edited).toMatchObject({ edited: true })
@@ -1835,7 +1835,7 @@ export function describeHeedApi(
           subject,
           content: said(`Can you check? ${mark} `, colleague),
         })
-        await api().signIn({ name: colleague, fresh: false })
+        await api().signIn({ name: colleague })
         const notes = mentionNotesOf(await api().getComments()).get(colleague) ?? []
         expect(notes.find((n) => n.id === id)).toMatchObject({ subject, from: person })
         await api().markMentionSeen({ subject })
@@ -1864,7 +1864,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'markReviewed', 'publishReviews', 'undo'))(
       'publishes the plain changes the person read together, and Undo puts all back',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const inbox = await api().inboxPage()
         const plain = (await api().getReviews())
           .filter(
@@ -1887,7 +1887,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'archiveReview', 'undo'))(
       'archives what a suggestion to archive names, and Undo brings it back',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const inbox = await api().inboxPage()
         const retire = (await api().getReviews()).find(
           (r) =>
@@ -1910,7 +1910,7 @@ export function describeHeedApi(
 
     /** A change waiting for the person, and its thread, with words of this run. */
     async function changeFor() {
-      await api().signIn({ name: person, fresh: false })
+      await api().signIn({ name: person })
       const inbox = await api().inboxPage()
       const r = (await api().getReviews()).find(
         (x) =>
@@ -1989,7 +1989,7 @@ export function describeHeedApi(
 
     /** The person's suggestion to archive that its sender took back, still waiting. */
     async function withdrawnRetirement() {
-      await api().signIn({ name: person, fresh: false })
+      await api().signIn({ name: person })
       const inbox = await api().inboxPage()
       return (await api().getReviews()).find(
         (r) =>
@@ -2023,7 +2023,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'closeReview'))(
       'closes nothing its sender did not take back',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const inbox = await api().inboxPage()
         const plain = (await api().getReviews()).find(
           (r) =>
@@ -2041,7 +2041,7 @@ export function describeHeedApi(
     it.skipIf(lacks(...comments, 'getReviews', 'removeComment', 'withdrawWithComment'))(
       "takes a suggestion back with a comment only for its sender: not with the owner's words",
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const r = (await api().getReviews()).find((x) => x.mode === 'retire' && x.from !== person)
         expect(r, `someone else's suggestion to archive for ${person}`).toBeDefined()
         const subject = `review:${r!.id}` as Subject
@@ -2058,7 +2058,7 @@ export function describeHeedApi(
     it.skipIf(!sender || lacks(...comments, 'getReviews', 'removeComment', 'withdrawWithComment'))(
       'lets its sender take their suggestion to archive back with a comment, and the mark back again',
       async () => {
-        await api().signIn({ name: sender!, fresh: false })
+        await api().signIn({ name: sender! })
         const all = await api().getComments()
         const subject = (Object.keys(all.withdrawable) as Subject[]).find(
           (s) => all.withdrawable[s],
@@ -2080,11 +2080,11 @@ export function describeHeedApi(
             .map((c) => c.id),
         ).toEqual([id])
         // Its owner reads the sender's words in the review.
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const review = (await api().getReviews()).find((x) => `review:${x.id}` === subject)
         expect(review?.retire?.withdrawn).toMatchObject({ by: sender, quote: words })
         // The mark goes back, and so does the comment.
-        await api().signIn({ name: sender!, fresh: false })
+        await api().signIn({ name: sender! })
         await api().withdrawWithComment({ subject: subject!, id, withdrew: false })
         expect((await find(subject!, id))?.withdrew).toBeFalsy()
         if (before)
@@ -2505,7 +2505,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'observabilityPage'))(
       'counts what agents asked as topics and counts, never one under 5 nor one worked out from the rest',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         for (const range of [7, 30, 90] as const) {
           const page = await api().observabilityPage({ section: 'overview', range })
           expect(page.state, `${range} days`).toBe('normal')
@@ -2529,7 +2529,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'observabilityPage', 'getWorkspace'))(
       'narrows the numbers to a domain, and keeps every topic the person sees for Questions',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const all = await api().observabilityPage({ section: 'overview', range: 7 })
         const owned = (await api().getWorkspace()).domains.find((d) => d.owners.includes(person))!
         const one = await api().observabilityPage({
@@ -2547,7 +2547,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'observabilityPage', 'getWorkspace'))(
       "lists what was reported about answers, an agent's by its kind and never by a person's name",
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const page = await api().observabilityPage({ section: 'feedback', range: 7 })
         const names = (await api().getWorkspace()).people.map((p) => p.name)
         expect(page.feedback?.reports.length).toBeGreaterThan(0)
@@ -2561,7 +2561,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'observabilityPage'))(
       'counts tool calls by tool and by kind of agent, and the spend against its cap',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const page = await api().observabilityPage({ section: 'usage', range: 7 })
         const usage = page.usage!
         expect(usage.tools.length).toBeGreaterThan(0)
@@ -2575,7 +2575,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'getSavedViews', 'saveView', 'removeView'))(
       'saves a view of Overview with its chips for everyone, and removes it',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const name = `Found nothing ${Date.now()}`
         // Its chips, in their order: is, and a market left out.
         const filters = [
@@ -2752,7 +2752,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'observabilityPage', 'replayTopic'))(
       'replays a topic step by step, on what agents get now and before the last publish',
       async () => {
-        await api().signIn({ name: person, fresh: false })
+        await api().signIn({ name: person })
         const page = await api().observabilityPage({ section: 'questions', range: 7 })
         const topic = page.topics.find((t) => t.total !== null)!
         const now = await api().replayTopic({ topic: topic.id, when: 'now' })
@@ -2775,7 +2775,7 @@ export function describeHeedApi(
     )
 
     it.skipIf(lacks('signIn'))('refuses someone the sign-in does not offer', async () => {
-      await expect(api().signIn({ name: 'Nobody Here', fresh: false })).rejects.toMatchObject({
+      await expect(api().signIn({ name: 'Nobody Here' })).rejects.toMatchObject({
         kind: 'not-found',
       })
     })

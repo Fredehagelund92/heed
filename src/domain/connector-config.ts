@@ -232,6 +232,10 @@ export function connectorConfigDomains(
   return [...new Set(named)]
 }
 
+/** What a person is told when settings need a secret and the server has nowhere to keep one. */
+export const noSecretStoreWords =
+  "There's no secret store, so we can't keep a secret. The data team sets one up with HEED_SECRETS_DIR."
+
 /** The secrets a source with these settings uses: the others are not asked for or kept. */
 export const secretsInUse = (
   manifest: Pick<ConnectorManifest, 'config' | 'secrets'>,

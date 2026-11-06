@@ -53,7 +53,7 @@ describe('access keys', () => {
 
     const wire = await mcpClient(created.key)
     const reply = await wire.callTool({
-      name: 'get_facts',
+      name: 'get_context',
       arguments: { question: 'Orders in Norway, August 2026' },
     })
     expect(reply.isError).not.toBe(true)
@@ -110,19 +110,16 @@ describe('access keys', () => {
     const before = await proposals()
     const wire = await mcpClient(key)
     const names = (await wire.listTools()).tools.map((t) => t.name)
-    expect(names).toContain('get_facts')
+    expect(names).toContain('get_context')
     expect(names).not.toContain('suggest_context')
-    expect(names).not.toContain('draft_context')
     await wire.close()
-    for (const name of ['suggest_context', 'draft_context']) {
-      const refused = await call(key, {
-        method: 'tools/call',
-        params: { name, arguments: { text: 'Returns are not part of Orders.' } },
-      })
-      // A key never holds the propose scope, so the gateway refuses it before the tool runs.
-      expect(refused.status).toBe(403)
-      expect(refused.headers.get('www-authenticate')).toContain('error="insufficient_scope"')
-    }
+    const refused = await call(key, {
+      method: 'tools/call',
+      params: { name: 'suggest_context', arguments: { text: 'Returns are not part of Orders.' } },
+    })
+    // A key never holds the propose scope, so the gateway refuses it before the tool runs.
+    expect(refused.status).toBe(403)
+    expect(refused.headers.get('www-authenticate')).toContain('error="insufficient_scope"')
     expect(await proposals()).toBe(before)
   })
 

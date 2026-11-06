@@ -11,7 +11,7 @@ import type {
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
 import { builtInManifests } from '../../../connectors/manifests.ts'
-import { secretsInUse } from '../../../domain/connector-config.ts'
+import { noSecretStoreWords, secretsInUse } from '../../../domain/connector-config.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
 import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
 import { durationText } from '../../../domain/source-schedule.ts'
@@ -218,6 +218,22 @@ export function createWorkspaceSources({
     })
   }
 
+  /**
+   * A secret these settings need or were given, on a server with no store to keep it in. Test
+   * connection says it too: a test keeps nothing, so it would pass and only the last step fail.
+   */
+  const storeProblems = (
+    connector: RegisteredConnector,
+    config: SourceConfig,
+    given: Record<string, string>,
+    kept: Readonly<Record<string, string>> | null = null,
+  ): FieldProblem[] =>
+    secrets.available
+      ? []
+      : secretsInUse(connector.manifest, config)
+          .filter((secret) => given[secret.key] || (secret.required && !kept?.[secret.key]))
+          .map((secret) => ({ field: secret.key, message: noSecretStoreWords }))
+
   /** The settings checked by the connector, the secrets checked against its slots, the reason. */
   async function checkInput(
     tx: Queryable,
@@ -235,18 +251,19 @@ export function createWorkspaceSources({
       ...secretProblems(connector, 'config' in parsed ? parsed.config : null, input.secrets),
     )
     if ('config' in parsed) {
+      const kept = keeps(parsed.config)
+      const noStore = storeProblems(connector, parsed.config, input.secrets, kept)
+      problems.push(...noStore)
       const inUse = secretsInUse(connector.manifest, parsed.config)
       for (const secret of inUse)
-        if (secret.required && !input.secrets[secret.key] && !keeps(parsed.config)?.[secret.key])
+        if (
+          secret.required &&
+          !input.secrets[secret.key] &&
+          !kept?.[secret.key] &&
+          !noStore.some((problem) => problem.field === secret.key)
+        )
           problems.push({ field: secret.key, message: `Give the ${secret.label.toLowerCase()}.` })
     }
-    if (Object.keys(input.secrets).length && !secrets.available)
-      for (const key of Object.keys(input.secrets))
-        problems.push({
-          field: key,
-          message:
-            "There's no secret store, so we can't keep a secret. The data team sets one up with HEED_SECRETS_DIR.",
-        })
     // A secret pasted into another field would be kept in plain text and in the history log.
     const plain = JSON.stringify([input.name, input.config, input.reason])
     for (const [key, value] of Object.entries(input.secrets))
@@ -407,6 +424,7 @@ export function createWorkspaceSources({
       return addable().map(({ manifest, writtenTo }) => ({
         writtenTo,
         manifest: structuredClone(manifest),
+        secretStore: secrets.available,
       }))
     },
 
@@ -638,11 +656,11 @@ export function createWorkspaceSources({
       if (!connector) invalid([{ field: 'type', message: "We can't read a source of this type." }])
       const parsed = connector!.parse(input.config)
       if ('problems' in parsed) invalid(parsed.problems)
-      const unusable = secretProblems(
-        connector!,
-        (parsed as { config: SourceConfig }).config,
-        input.secrets,
-      )
+      const { config } = parsed as { config: SourceConfig }
+      const unusable = [
+        ...secretProblems(connector!, config, input.secrets),
+        ...storeProblems(connector!, config, input.secrets),
+      ]
       if (unusable.length) invalid(unusable)
       let stored: Readonly<Record<string, string>> | null = {}
       if (input.id !== undefined) {
@@ -652,15 +670,13 @@ export function createWorkspaceSources({
             message: "We couldn't find this source among the ones an admin added.",
           })
         // Stored secrets are tried only at the address they were given for.
-        stored = rebinds(connector!, row.config, (parsed as { config: SourceConfig }).config)
-          ? {}
-          : await held(row.secret_ref)
+        stored = rebinds(connector!, row.config, config) ? {} : await held(row.secret_ref)
       }
       const given = Object.keys(input.secrets).length > 0
       const settings = {
         id: input.id ?? 'test',
         name: 'Test',
-        config: (parsed as { config: SourceConfig }).config,
+        config,
         secrets: stored === null && !given ? null : { ...stored, ...input.secrets },
       }
       // The connector's own steps first; a read follows only when none of them failed.

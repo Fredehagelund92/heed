@@ -29,9 +29,11 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
 }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/signin$/)
-  // The invented administrator first, and the way to an empty workspace in view at 1440 by 900.
+  // The invented administrator first, and nobody out of view at 1440 by 900. There is no switch to
+  // an empty workspace: the service has one workspace, the demo's.
   await expect(page.getByRole('listitem').first()).toContainText('Ravi Kapoor')
-  await expect(page.getByRole('switch', { name: 'Start as a new install' })).toBeInViewport()
+  await expect(page.getByRole('listitem').last()).toBeInViewport()
+  await expect(page.getByRole('switch')).toHaveCount(0)
   await page.getByRole('button', { name: /Jon Abara/ }).click()
   await expect(page).toHaveURL(/\/inbox$/)
   // Signed out, the sign-in page's reads are refused as they should be; from here none may be.

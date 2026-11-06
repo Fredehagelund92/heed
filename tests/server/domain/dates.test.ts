@@ -5,7 +5,7 @@ import { shiftDate } from '../../../src/domain/validity.ts'
 import { normalizeName } from '../../../src/domain/vocabulary.ts'
 
 /*
-  The date reader behind get_facts, find_facts, report_gap and Ask (stage 0 of the composer, the
+  The date reader behind get_context, find_context, report and Ask (stage 0 of the composer, the
   captain's option B, 14 October 2026). Before it, get_facts read "this year" and "last quarter"
   as today and asked for dates on "in 2026". A named period is the whole
   period, a "this" period runs to today, a "last" one is the last complete one, and a day, month

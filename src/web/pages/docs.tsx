@@ -31,7 +31,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { AGENT_TOOLS, CHECKS, PROMPT } from '@/lib/agents'
 import { setupSteps } from '@/lib/setup'
 import { kindHint, kindLabel, type Kind } from '@/model/items'
-import { ANSWER_LINES, supportMail, WORDS } from '@/lib/help-content'
+import { ANSWER_LINES, supportHref, supportTarget, WORDS } from '@/lib/help-content'
 import {
   CHANGELOG_SLUG,
   CHANGES,
@@ -564,7 +564,8 @@ function Article({ page }: { page: DocPage }) {
           <p className="mt-6 text-sm text-muted-foreground">
             Something wrong or missing on this page?{' '}
             <a
-              href={supportMail(`The docs: ${page.title}`, `Page: ${guideHref(page.slug)}`)}
+              href={supportHref(`The docs: ${page.title}`, `Page: ${guideHref(page.slug)}`)}
+              {...supportTarget}
               className="underline underline-offset-4 hover:text-foreground"
             >
               Tell support
@@ -674,7 +675,11 @@ function Landing({ onSearch }: { onSearch: () => void }) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 text-sm text-muted-foreground md:px-6 lg:px-8">
         <span>
           Need a person?{' '}
-          <a className="underline underline-offset-4 hover:text-foreground" href={supportMail()}>
+          <a
+            className="underline underline-offset-4 hover:text-foreground"
+            href={supportHref()}
+            {...supportTarget}
+          >
             Contact support
           </a>
         </span>

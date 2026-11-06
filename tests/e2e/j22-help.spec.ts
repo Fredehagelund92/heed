@@ -3,7 +3,8 @@ import { expect, go, inMockUntil, test } from './go.ts'
 // J22, help: one Help row opens a small menu; ? opens the keys from anywhere; the Help page has the
 // answer lines, words and how agents use it, and sends a "how do I" to the documentation, which is
 // its own site, drawn from docs/help, with a search and an index for agents; the answer line
-// explains itself; Report a problem is one box, sent as a mail to support.
+// explains itself; Report a problem is one box, sent as an issue on GitHub when the install names no
+// support address.
 
 test('one Help row opens the menu; Documentation lives in it', async ({ page }) => {
   await go(page, '/inbox')
@@ -80,7 +81,7 @@ test('the answer line explains itself', async ({ page }) => {
   })
 })
 
-test('Report a problem is one box, sent as a mail to support with the page it came from', async ({
+test('Report a problem is one box, sent as an issue with the page it came from', async ({
   page,
 }) => {
   await go(page, '/inbox?open=report')
@@ -89,29 +90,50 @@ test('Report a problem is one box, sent as a mail to support with the page it ca
   await dialog
     .getByRole('textbox', { name: 'What happened' })
     .fill('The review jumped to another item.')
-  // A mail to the support address, written in the person's own mail app: nothing goes through
-  // the service, and the page's address goes without its query.
+  // An issue the person writes on GitHub: nothing goes through the service, and the page goes
+  // without its query or where this install is. A real address is the build's to set.
   const send = dialog.getByRole('link', { name: 'Send' })
-  const mail = new URL((await send.getAttribute('href'))!)
-  expect(mail.protocol).toBe('mailto:')
-  expect(mail.pathname).toMatch(/^support@/)
-  expect(mail.searchParams.get('subject')).toBe('Report a problem')
-  expect(mail.searchParams.get('body')).toBe(
-    `The review jumped to another item.\n\nPage: ${new URL(page.url()).origin}/inbox`,
+  const issue = new URL((await send.getAttribute('href'))!)
+  expect(issue.origin).toBe('https://github.com')
+  expect(issue.pathname).toMatch(/\/issues\/new$/)
+  expect(issue.searchParams.get('what-happened')).toBe(
+    'The review jumped to another item.\n\nPage: /inbox',
   )
   // The Inbox under the dialog marks its cards read on its own; on the service that can take a
   // moment, so the page goes quiet first and only what sending does is counted.
   await page.waitForLoadState('networkidle')
   const writes: string[] = []
   page.on('request', (r) => r.method() !== 'GET' && writes.push(`${r.method()} ${r.url()}`))
-  // The mail app is the browser's to open; the page only needs to let it.
+  // GitHub is the browser's to open; the page only needs to let it.
   await page.evaluate(() =>
     document.addEventListener('click', (e) => e.preventDefault(), { capture: true, once: true }),
   )
   await send.click()
-  await expect(page.getByText('Support will reply by email.')).toBeVisible()
+  await expect(page.getByText('Finish it there. Replies come on the issue.')).toBeVisible()
   await expect(dialog).toHaveCount(0)
   expect(writes).toEqual([])
+})
+
+test('Contact support goes to GitHub issues, and asks for a connector the same way', async ({
+  page,
+}) => {
+  await go(page, '/inbox')
+  await page.locator('[data-sidebar=sidebar]').first().getByRole('button', { name: 'Help' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Contact support' })).toHaveAttribute(
+    'href',
+    /github\.com\/.+\/issues\/new\/choose$/,
+  )
+  await page.keyboard.press('Escape')
+  await go(page, '/settings/integrations')
+  for (const link of [
+    page.getByRole('link', { name: 'Request a connector' }),
+    page.getByRole('link', { name: 'Open an issue' }),
+  ])
+    await expect(link).toHaveAttribute(
+      'href',
+      /github\.com\/.+\/issues\/new\?template=connector\.yml$/,
+    )
+  await expect(page.getByRole('button', { name: 'Tell us' })).toHaveCount(0)
 })
 
 test("the documentation is its own site, with the app's prompt and an index for agents", async ({

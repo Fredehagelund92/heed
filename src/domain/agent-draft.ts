@@ -20,7 +20,7 @@ import { normalizeName, resolveTerm, suggestTerms, type Term } from './vocabular
   audience, an owner or a link to another item.
 */
 
-/** What an agent passes for a draft, in the MCP tool's words (`draft_context`). */
+/** What an agent passes for a draft, in the MCP tool's words (`suggest_context`). */
 export type AgentDraftInput = {
   text: string
   title?: string
@@ -471,7 +471,7 @@ export function deriveAgentDraft(
 }
 
 /**
- * A name matched to the vocabulary, as `draft_context` matches it: a key, a name or another name
+ * A name matched to the vocabulary, as `suggest_context` matches it: a key, a name or another name
  * of exactly one term. A name it cannot match goes on `unresolved` with the nearest terms.
  */
 function resolveName(

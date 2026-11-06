@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -11,7 +10,7 @@ import { people } from './fixtures.ts'
 import { signInHarness } from './sign-in-harness.ts'
 
 /*
-  draft_context's second slice (FR-121) end to end on PostgreSQL: when the person's agent can
+  suggest_context's second slice (FR-121) end to end on PostgreSQL: when the person's agent can
   show forms (MCP 2026-07-28, multi round-trip elicitation), the open questions are asked there
   before anything is saved, and the draft is saved once with the answers marked confirmed; the
   person still submits it in Heed. An app that cannot show forms, whatever its family, gets the
@@ -26,7 +25,7 @@ const text =
   'Orders in every market are booked in their own currency and turned into euros at the rate of the day.'
 // The agent says event; the words read as a note. No date and no source: three questions.
 const call = {
-  name: 'draft_context',
+  name: 'suggest_context',
   arguments: { text, kind: 'event', scope: { metrics: ['Orders'] } },
 }
 const answers = {
@@ -139,8 +138,8 @@ async function resultOf(response: Response) {
 }
 
 describe('the open questions, asked in the agent of a person who can answer them there', () => {
-  it('asks once, saves once with the answers confirmed, and the person still submits in Heed', async () => {
-    await admin.query("update tool_config set enabled=true where tool='draft_context'")
+  it('asks once, and sends it once with the answers confirmed', async () => {
+    await admin.query("update tool_config set enabled=true where tool='suggest_context'")
     const asked: ElicitRequestFormParams[] = []
     const token = await personToken()
     const { reply, out } = await draftWith(token, {
@@ -164,9 +163,9 @@ describe('the open questions, asked in the agent of a person who can answer them
     expect(asked[0]!.message).toContain('Nothing is sent')
     expect(asked[0]!.message).not.toMatch(/https?:/)
     expect(out).toMatchObject({
-      status: 'draft_saved',
+      status: 'suggestion_sent',
       saved: true,
-      submitted: false,
+      submitted: true,
       answered: ['kind', 'start', 'evidence'],
       questions: [],
     })
@@ -189,14 +188,13 @@ describe('the open questions, asked in the agent of a person who can answer them
     })
     const saved = await agentDrafts()
     expect(saved).toHaveLength(1)
-    expect(saved[0]).toMatchObject({ id: out.draft_id, state: 'draft' })
+    expect(saved[0]).toMatchObject({ id: out.draft_id, state: 'submitted' })
     expect(saved[0]!.answers_round).toMatch(/^[0-9a-f-]{36}$/)
 
-    // The person opens it in Heed, sees what they confirmed, and submits it themselves.
+    // The person opens it in Heed and sees what they confirmed.
     const author = browser()
     await author.signIn('author')
     const draft = (await (await author.api(`/proposals/${out.draft_id}`)).json()) as {
-      revision: number
       proposerId: string
       provenance: { fields: Record<string, string> }
     }
@@ -207,12 +205,6 @@ describe('the open questions, asked in the agent of a person who can answer them
       evidence: 'confirmed',
       summary: 'prefilled',
     })
-    const submitted = await author.api(
-      `/proposals/${out.draft_id}/submit`,
-      { revision: draft.revision },
-      { 'idempotency-key': randomUUID() },
-    )
-    expect(submitted.status).toBe(200)
     const owner = browser()
     await owner.signIn('owner')
     const review = (await (await owner.api(`/proposals/${out.draft_id}`)).json()) as {
@@ -360,7 +352,7 @@ describe('a request state that is not this round of this call, for this person, 
         sent = { url: resource, headers, body: structuredClone(body) }
       }),
     })
-    expect(out.status).toBe('draft_saved')
+    expect(out.status).toBe('suggestion_sent')
     const before = await agentDrafts()
     const again = await fetch(sent!.url, {
       method: 'POST',

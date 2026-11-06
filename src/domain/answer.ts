@@ -97,7 +97,7 @@ export type AnswerOptions = {
   maxItems?: number
   /** A clock in milliseconds, to time the steps; without it every step takes 0 ms. */
   now?: () => number
-  /** Whose words `say` is in; get_facts's without it. */
+  /** Whose words `say` is in; the words of get_facts without it, the reply a draft's preview reads. */
   voice?: Voice
 }
 

@@ -1,6 +1,6 @@
 /**
  * Reporting a gap (FR-604, FR-606 cases 2 and 5, FR-611): the topic a resolved scope names, why a
- * scope names none, and what an anonymous note may not hold. The gateway's report_gap, a person's
+ * scope names none, and what an anonymous note may not hold. The gateway's report, a person's
  * report and the mock binding share them. Apart from gaps.ts, so the shell's first load, which
  * reads the gap statuses and types, does not carry the text check.
  */
@@ -76,7 +76,7 @@ const words = (text: string) =>
 /**
  * FR-611: what an anonymous note may not hold. It passes the text check of FR-117 and the
  * stricter words above, and must not carry the question either (FR-602), so a note that repeats
- * it is refused. report_gap, give_feedback and a person's report (case 5) all apply it.
+ * it is refused. report and a person's report (case 5) both apply it.
  */
 export function noteFindings(note: string, question?: string): FormatFinding[] {
   const findings = textFindings(note, 'note')

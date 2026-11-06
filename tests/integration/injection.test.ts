@@ -234,11 +234,11 @@ describe('SQL and control characters in MCP tool arguments', () => {
       try {
         for (const payload of payloads) {
           const calls = [
-            { name: 'get_facts', arguments: { question: payload } },
-            { name: 'get_facts', arguments: { question: 'Orders', metrics: [payload] } },
-            { name: 'search_facts', arguments: { query: payload } },
-            { name: 'read_item', arguments: { id: payload } },
-            { name: 'report_gap', arguments: { question: payload } },
+            { name: 'get_context', arguments: { question: payload } },
+            { name: 'get_context', arguments: { question: 'Orders', metrics: [payload] } },
+            { name: 'find_context', arguments: { query: payload } },
+            { name: 'read_context', arguments: { id: payload } },
+            { name: 'report', arguments: { kind: 'missing', question: payload } },
           ]
           for (const call of calls) {
             const result = await wire.callTool(call).catch((error: unknown) => ({

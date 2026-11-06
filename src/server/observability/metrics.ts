@@ -17,7 +17,7 @@ export interface Sample {
   values: { labels?: Labels; value: number }[]
 }
 
-/** Seconds. The 0.3 bucket is the `get_facts` p95 budget (NFR-051). */
+/** Seconds. The 0.3 bucket is the `get_context` p95 budget (NFR-051). */
 const buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.3, 0.5, 1, 2.5, 5, 10]
 
 function escape(value: string): string {

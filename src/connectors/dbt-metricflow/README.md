@@ -22,7 +22,8 @@ it. Step 2 of connecting asks where, and each place shows its own recipe:
 | Server folder  | Nothing here: whoever runs the server names the folder | A pipeline that drops the file on the machine that runs Heed                              |
 
 **An address.** Upload the file and make a link to it. A link is read as it is, with no key added,
-so it holds whatever it needs. A signed link is as good as a key: it goes in the secret store, is
+so it holds whatever it needs. A signed link is as good as a key: it goes in the secret store
+(`docker compose up` sets one up; elsewhere, `HEED_SECRETS_DIR` does), is
 shown only as set, and a failure names its host and never its path or signature. Links signed by S3
 or Google Cloud Storage last 7 days at most, so a source that lasts needs Object storage, or a link
 that does not expire. Test connection says when a link stops working, and warns in its last 14

@@ -7,22 +7,16 @@ import {
   lenientInputSchema,
   problemOf,
 } from '../../../src/server/mcp/invalid-input.ts'
-import {
-  deprecatedToolAliases,
-  listedTool,
-  toolNames,
-  type ListedName,
-} from '../../../src/server/mcp/tools.ts'
+import { tools, toolNames } from '../../../src/server/mcp/tools.ts'
 
-it('shows each tool and each old id a call that its own schema accepts', () => {
-  const listed = [...toolNames, ...Object.keys(deprecatedToolAliases)] as ListedName[]
-  expect(Object.keys(exampleCalls).sort()).toEqual([...listed].sort())
-  for (const name of listed)
-    expect(listedTool(name).inputSchema.safeParse(exampleCalls[name]).success, name).toBe(true)
+it('shows each tool a call that its own schema accepts', () => {
+  expect(Object.keys(exampleCalls).sort()).toEqual([...toolNames].sort())
+  for (const name of toolNames)
+    expect(tools[name].inputSchema.safeParse(exampleCalls[name]).success, name).toBe(true)
 })
 
 it('lets arguments that fit through as they are, and marks the rest with their issues', async () => {
-  const schema = lenientInputSchema('get_facts')['~standard']
+  const schema = lenientInputSchema('get_context')['~standard']
   const fits = await schema.validate({ question: 'Orders' })
   expect(fits).toMatchObject({ value: { question: 'Orders' } })
   expect(invalidInputOf((fits as { value: unknown }).value)).toBeUndefined()
@@ -32,13 +26,13 @@ it('lets arguments that fit through as they are, and marks the rest with their i
 })
 
 it('names the field and what it needs, never the value sent', async () => {
-  const schema = lenientInputSchema('get_facts')['~standard']
+  const schema = lenientInputSchema('get_context')['~standard']
   const secret = 'Alice asked about orders'
   const marked = (await schema.validate({ question: 42, metrics: secret, note: secret })) as {
     value: unknown
   }
   const issues = invalidInputOf(marked.value)!
-  const result = invalidInputResult('get_facts', issues)
+  const result = invalidInputResult('get_context', issues)
   // One problem per field: a list sent as a string is not also "too long".
   expect(result.structuredContent.problems.map((p) => p.problem)).toEqual([
     'question: expected string, received number',
@@ -52,7 +46,7 @@ it('names the field and what it needs, never the value sent', async () => {
   expect(JSON.stringify(result)).not.toContain('Alice')
   expect(result).toMatchObject({
     isError: true,
-    structuredContent: { status: 'invalid_input', example: exampleCalls.get_facts },
+    structuredContent: { status: 'invalid_input', example: exampleCalls.get_context },
   })
   // The person hears that nothing was looked up; the model reads what to fix, in the same text.
   expect(result.structuredContent.say).toBe(
@@ -61,13 +55,9 @@ it('names the field and what it needs, never the value sent', async () => {
   expect(result.content[0]!.text).toBe(
     `${result.structuredContent.say} ${result.structuredContent.next}`,
   )
-  expect(result.structuredContent.next).toMatch(/^get_facts could not read its arguments: /)
+  expect(result.structuredContent.next).toMatch(/^get_context could not read its arguments: /)
 })
 
 it('lists the required fields first', () => {
-  expect(fieldsOf('give_feedback')).toEqual([
-    'delivery_id (required)',
-    'verdict (required)',
-    'note',
-  ])
+  expect(fieldsOf('read_context')[0]).toBe('id (required)')
 })

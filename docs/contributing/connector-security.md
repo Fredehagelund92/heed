@@ -131,8 +131,11 @@ server's user may open (mode 0700; the server refuses to start with a folder oth
 added source's secrets are one file in it (mode 0600), named by a random id the database keeps as
 `local:<id>`; a name that is not of that form never becomes a path. A replaced secret is written
 under a new name and the old file is removed once the change commits; a refused change removes the
-new one. Unset, the server keeps no secret, and a source that needs one cannot be added (the form
-says so). A hosted service with several servers moves to a managed store behind the same
+new one. `compose.yaml` sets it to `/var/lib/heed/secrets`, a folder of its own in the keys volume,
+because the volume's top may be read by others. Unset, the server keeps no secret: `sources.types`
+says so (`secretStore`), the form says it at its first step, and `sources.test` refuses a source
+that needs one, as `sources.add` does, so a test never passes for a source that cannot be added. A
+hosted service with several servers moves to a managed store behind the same
 interface (`SecretStore` in `secrets.ts`).
 
 A secret goes in once and comes out only to the source's reader, and only toward the address it

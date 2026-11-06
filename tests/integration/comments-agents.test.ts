@@ -6,7 +6,6 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import type { Comment } from '../../src/contract/comments.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { Draft } from '../../src/domain/draft.ts'
-import { deprecatedTools } from '../../src/domain/mcp-text.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
@@ -284,14 +283,9 @@ it('gives agents the item, and no word of a comment, from every tool', async () 
     { name: 'find_context', arguments: { query: canary } },
     { name: 'read_context', arguments: { id: item } },
     { name: 'get_related', arguments: { id: item, depth: 2 } },
-    { name: 'get_facts', arguments: question },
-    { name: 'find_facts', arguments: { query: 'test accounts Norway' } },
-    { name: 'search_facts', arguments: { query: 'test accounts' } },
-    { name: 'search_context', arguments: { query: 'test accounts' } },
-    { name: 'read_item', arguments: { id: item } },
   ]
   // Every read tool an agent is offered is called here; report and the suggestion tools write.
-  const writes = ['report', 'report_gap', 'give_feedback', 'suggest_context', 'draft_context']
+  const writes = ['report', 'suggest_context']
   expect(listed.filter((t) => !writes.includes(t)).sort()).toEqual(
     [...new Set(calls.map((c) => c.name))].filter((t) => listed.includes(t)).sort(),
   )
@@ -321,12 +315,6 @@ it('gives agents the item, and no word of a comment, from every tool', async () 
   })
   expect(reported.isError).not.toBe(true)
   expect(JSON.stringify(reported)).not.toContain(canary)
-  for (const name of Object.keys(deprecatedTools))
-    if (listed.includes(name) && !writes.includes(name))
-      expect(
-        calls.map((c) => c.name),
-        name,
-      ).toContain(name)
 })
 
 it("gives people's Ask and Try it, built on the same answers, no word of a comment", async () => {

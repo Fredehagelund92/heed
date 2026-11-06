@@ -40,7 +40,7 @@ export async function connectInfo(
 
 /**
  * A question read as a scope with the live edition's vocabulary (Home's "Try it" and the Ask
- * composer's "Heed reads" line): the same words get_facts reads, answered with the scope's keys,
+ * composer's "Heed reads" line): the same words get_context reads, answered with the scope's keys,
  * names and days, how the dates were read, the words that name more than one term, and the day a
  * question without dates is read at. The question stays in this call: it is not stored or logged,
  * and only the words the reader took go back to the person who asked (FR-602).

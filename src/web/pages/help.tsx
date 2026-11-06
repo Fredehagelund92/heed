@@ -19,7 +19,13 @@ import { Kbd } from '@/components/ui/kbd'
 import { open } from '@/lib/events'
 import { pageKey } from '@/lib/keys'
 import { DOCS_HOME, docHref } from '@/lib/docs'
-import { ANSWER_LINES, HOW_AGENTS_USE_IT, supportMail, WORDS } from '@/lib/help-content'
+import {
+  ANSWER_LINES,
+  HOW_AGENTS_USE_IT,
+  supportHref,
+  supportTarget,
+  WORDS,
+} from '@/lib/help-content'
 import { setQuery, useRoute } from '@/lib/router'
 
 // Help: the product's own words, short enough to read in a minute: the six answer lines, ten words
@@ -203,7 +209,11 @@ function Nothing({ q, onTry }: { q: string; onTry: (q: string) => void }) {
             Search the documentation
             <ArrowUpRightIcon />
           </a>
-          <a href={supportMail()} className={cn(buttonVariants({ variant: 'outline' }))}>
+          <a
+            href={supportHref()}
+            {...supportTarget}
+            className={cn(buttonVariants({ variant: 'outline' }))}
+          >
             Contact support
           </a>
         </div>
@@ -296,7 +306,8 @@ export function HelpPage() {
                   <span className="text-sm text-muted-foreground">Can't find it?</span>
                   <span className="flex flex-wrap items-center gap-2">
                     <a
-                      href={supportMail()}
+                      href={supportHref()}
+                      {...supportTarget}
                       className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                     >
                       Contact support

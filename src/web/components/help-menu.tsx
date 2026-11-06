@@ -20,7 +20,7 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import { CHANGELOG_SLUG, DOCS_HOME, docHref } from '@/lib/doc-links'
-import { supportMail } from '@/lib/help-content'
+import { supportHref, supportTarget } from '@/lib/help-content'
 import { open } from '@/lib/events'
 import { navigate, useRoute } from '@/lib/router'
 import { useSession, useWorkspace } from '@/api/queries'
@@ -112,9 +112,10 @@ export function HelpMenu({ place }: { place: string }) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem render={<a href={supportMail()} />}>
+            <DropdownMenuItem render={<a href={supportHref()} {...supportTarget} />}>
               <LifeBuoyIcon />
               Contact support
+              <ArrowUpRightIcon className="ml-auto text-muted-foreground" />
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {

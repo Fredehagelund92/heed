@@ -92,7 +92,7 @@ export const deliveryQuestionSchema = z.object({
 })
 /** Level 3: the candidate through the live reply's code (FR-507). */
 export const deliveryDetailsSchema = z.object({
-  /** The get_facts input of the item's own probe. */
+  /** The get_context input of the item's own probe. */
   probe: z.optional(
     z.object({
       question: z.string(),

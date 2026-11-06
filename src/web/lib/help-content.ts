@@ -1,6 +1,6 @@
 import type { AnswerState } from '@/model/ask'
-import { SLUG } from '@/lib/brand'
 import { CONFLICT_KEYS } from '@/lib/conflict'
+import { REPOSITORY_URL } from '@domain/brand'
 import { answerLines } from '@domain/words'
 
 // One source for what Help and the docs say about the product's own words. The in-app Help page, the
@@ -202,27 +202,51 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
   },
 ]
 
-/**
- * Where people write to support: Contact support and Report a problem open a mail to it. Set
- * HEED_SUPPORT_EMAIL when the app is built; without it, an address that goes nowhere stands in.
- */
-const configured = (import.meta as { env?: { HEED_SUPPORT_EMAIL?: string } }).env
-  ?.HEED_SUPPORT_EMAIL
-export const SUPPORT_EMAIL = configured?.trim() || `support@${SLUG}.example`
+// Mail apps read %20, not +, as a space.
+const queryOf = (params: Record<string, string | undefined>) =>
+  new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => !!entry[1]),
+  )
+    .toString()
+    .replace(/\+/g, '%20')
 
-/** A mail to support, with its subject and words filled in. */
-export const supportMail = (subject?: string, body?: string) => {
-  const q = new URLSearchParams()
-  if (subject) q.set('subject', subject)
-  if (body) q.set('body', body)
-  // Mail apps read %20, not +, as a space.
-  const s = q.toString().replace(/\+/g, '%20')
-  return `mailto:${SUPPORT_EMAIL}${s ? `?${s}` : ''}`
+/**
+ * Where people go for help: a mail to the install's support address, or without one the project's
+ * GitHub issues, which someone reads, rather than an address that goes nowhere.
+ */
+export function supportAt(email: string | null) {
+  /** Where to tell support something, with its subject and words filled in. */
+  const href = (subject?: string, body?: string) => {
+    if (email) {
+      const q = queryOf({ subject, body })
+      return `mailto:${email}${q ? `?${q}` : ''}`
+    }
+    if (!subject && !body) return `${REPOSITORY_URL}/issues/new/choose`
+    // The issue form (.github/ISSUE_TEMPLATE/bug.yml) fills in a field by its id.
+    const q = queryOf({ template: 'bug.yml', title: subject, 'what-happened': body })
+    return `${REPOSITORY_URL}/issues/new?${q}`
+  }
+  return {
+    supportByMail: email !== null,
+    /** A mail stays on the page for the mail app to open; GitHub opens beside it. */
+    supportTarget: email ? {} : ({ target: '_blank', rel: 'noreferrer' } as const),
+    supportHref: href,
+    /**
+     * Report a problem: what happened, and the page it happened on. Only the page's address goes
+     * with it, never its query, which can hold the words of a question; and an issue, which anyone
+     * can read, leaves out where this install is.
+     */
+    reportHref: (what: string, page: { origin: string; pathname: string }) =>
+      href(
+        'Report a problem',
+        `${what.trim()}\n\nPage: ${email ? page.origin : ''}${page.pathname}`,
+      ),
+  }
 }
 
-/**
- * Report a problem, as a mail to support: what happened, and the page it happened on. Only the
- * page's address goes with it, never its query, which can hold the words of a question.
- */
-export const reportMail = (what: string, page: { origin: string; pathname: string }) =>
-  supportMail('Report a problem', `${what.trim()}\n\nPage: ${page.origin}${page.pathname}`)
+/** HEED_SUPPORT_EMAIL, read when the app is built. */
+const configured = (import.meta as { env?: { HEED_SUPPORT_EMAIL?: string } }).env
+  ?.HEED_SUPPORT_EMAIL
+export const { supportByMail, supportTarget, supportHref, reportHref } = supportAt(
+  configured?.trim() || null,
+)

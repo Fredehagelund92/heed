@@ -10,6 +10,7 @@ import type {
   SetFiguresInput,
   TryFigureInput,
 } from '../../../contract/figures.ts'
+import { noSecretStoreWords } from '../../../domain/connector-config.ts'
 import type { FigureQuery, FigureResult } from '../../../domain/connector-runtime.ts'
 import { comparisonDays, queryWords, type Days } from '../../../domain/figures.ts'
 import { memberName } from '../../../domain/term-candidates.ts'
@@ -252,11 +253,7 @@ export function createFigureSources({
         next.endpoint !== undefined && originOf(next.endpoint) !== originOf(before.endpoint)
       if (input.token !== undefined || (rebound && before.secretRef)) {
         if (input.token !== undefined) {
-          if (!secrets.available)
-            invalid(
-              'token',
-              "There's no secret store, so we can't keep a token. The data team sets one up with HEED_SECRETS_DIR.",
-            )
+          if (!secrets.available) invalid('token', noSecretStoreWords)
           const ref = await secrets.write({ token: input.token })
           hooks.onRollback(() => secrets.remove(ref))
           next.secretRef = ref

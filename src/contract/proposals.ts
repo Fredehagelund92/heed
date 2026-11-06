@@ -133,7 +133,7 @@ export const overlapSchema = z.object({
 })
 
 /*
-  The reply of get_facts for a draft, as proposals.preview returns it (FR-108, FR-214): the
+  The reply of get_context for a draft, as proposals.preview returns it (FR-108, FR-214): the
   same reply an agent would get if the draft were accepted. The field names are the MCP tool's.
 */
 const replyStatuses = [
@@ -197,7 +197,7 @@ export const replyItemSchema = z.object({
 })
 /**
  * What a metric means, for a definition question (FR-338): the source's own words (at most 500
- * characters), where they come from, and what Heed adds. The same as find_facts gives.
+ * characters), where they come from, and what Heed adds. The same as find_context gives.
  */
 export const replyDefinitionSchema = z.object({
   term: z.string(),

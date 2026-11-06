@@ -27,6 +27,7 @@ import {
   sourcePageOf,
   whenOf,
 } from '@/api/http-integrations'
+import { lacksSecretStore } from '@/model/integrations'
 
 const now = new Date(2026, 9, 23, 10, 0)
 const at = (day: number, hour = 6, minute = 0) => new Date(2026, 9, day, hour, minute).toISOString()
@@ -479,6 +480,18 @@ describe('the connect flow, on the manifests', () => {
     expect(form.secrets).toEqual([
       expect.objectContaining({ key: 'token', label: 'Read-only token', set: false }),
     ])
+  })
+
+  it('says a secret has nowhere to go only when these settings need one or hold one', () => {
+    const form = connectFormOf(dbtManifest, null, false)!
+    const values = (config: Record<string, string>, secrets = {}) => ({ config, secrets })
+    expect(form.secretStore).toBe(false)
+    // The address route needs its link kept; the Git route needs a token only for a private one.
+    expect(lacksSecretStore(form, values({ location: 'address' }))).toBe(true)
+    expect(lacksSecretStore(form, values({ location: 'git' }))).toBe(false)
+    expect(lacksSecretStore(form, values({ location: 'git' }, { token: 'a-token' }))).toBe(true)
+    const kept = connectFormOf(dbtManifest, null)!
+    expect(lacksSecretStore(kept, values({ location: 'address' }))).toBe(false)
   })
 
   it("draws a source's form from what it has: its settings, its choices, whether its secret is set", () => {

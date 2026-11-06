@@ -24,7 +24,7 @@ import { anyDate, isAnyDate, overlaps, type DateWindow } from './validity.ts'
   deterministic code. A look-up and a definition are the answer engine's, as for a question the
   rules read. A search reads the items an agent would be given, of the kinds asked, whose dates
   overlap the period and that are about the metrics and values asked, ranked by the words as
-  search_facts ranks them, at most seven. The last answer's sources are read again by id. The
+  find_context ranks them, at most seven. The last answer's sources are read again by id. The
   state comes from the items read, by the engine's own rules: Conflict when two of them disagree,
   Partial when a metric asked has no item, Outdated when one may be out of date, else Checked, and
   Not found when nothing was read. The model chose the reads, and the answer says so; it decides
@@ -279,7 +279,7 @@ type ReadRun = { answer: Answer; reads: PlannedRead[]; general: string[] }
 /**
  * A search of the context (`explore`): the items an agent would be given, of the kinds asked,
  * that apply to some of the period and to what the scope names, and that match the words, ranked
- * as search_facts ranks them, those that start in the period first among equals, at most
+ * as find_context ranks them, those that start in the period first among equals, at most
  * `EXPLORE_MAX_ITEMS`. When no item matches the words, every item of the kinds is read, and the
  * read says so by dropping its words: never items that match nothing under words they do not have.
  */

@@ -36,9 +36,6 @@ import { productName } from '../brand.ts'
   policy for this agent and domain (FR-421, agents/policies.ts). Under a policy that covers it, the
   suggestion is published in the same transaction, as that owner's decision; otherwise it waits.
 
-  `draft_context`, its deprecated id, keeps what it did for one release: it saves the draft and
-  never sends it; the person checks and sends it in Heed.
-
   It is the MCP write that names a person, as the proposer, on the proposal only. The request
   record keeps the shared client label and no person (FR-410); nothing here logs.
 
@@ -84,13 +81,10 @@ export type DraftQuestions = {
   ask: { message: string; requestedSchema: Record<string, unknown> }
   requestState: string
 }
-/** What a call does with the draft it saves: send it to the owner, or keep it as a draft. */
-export type DraftMode = 'suggest' | 'draft'
 export type DraftTool = (
   input: unknown,
   principal: Principal,
   round?: DraftRound,
-  mode?: DraftMode,
 ) => Promise<ToolResult | DraftQuestions>
 
 const firstCall: DraftRound = { canAsk: false, seal: () => Promise.reject(new Error('no key')) }
@@ -196,8 +190,8 @@ export function createDraftTool(options: {
     if (!outcome?.published || !outcome.itemId) return
     await adoptPublished(database, clock, cache, outcome.setBy.id, [outcome.itemId]).catch(() => 0)
   }
-  return async (input, principal, round = firstCall, mode = 'suggest') => {
-    const tool = mode === 'suggest' ? 'suggest_context' : 'draft_context'
+  return async (input, principal, round = firstCall) => {
+    const tool = 'suggest_context'
     // A dev token or an access key names no person, so there is nobody to own or submit the draft.
     if (!principal.subject)
       return refusal(
@@ -325,22 +319,20 @@ export function createDraftTool(options: {
         // refusal by the review checks keeps it as their draft, with why.
         let kept: { message: string; findings?: { code: string; field: string }[] } | null = null
         let sent = false
-        if (mode === 'suggest') {
-          await tx.query('savepoint suggest_submit')
-          try {
-            await proposals.submit(saved.id, saved.revision)
-            await tx.query('release savepoint suggest_submit')
-            sent = true
-          } catch (error) {
-            await tx.query('rollback to savepoint suggest_submit')
-            if (!(error instanceof ORPCError)) throw error
-            const data = error.data as { findings?: { code: string; field: string }[] } | undefined
-            kept = {
-              message: `It was kept as your draft and not sent: ${error.message.replace(/\.$/, '')}.`,
-              ...(data?.findings
-                ? { findings: data.findings.map(({ code, field }) => ({ code, field })) }
-                : {}),
-            }
+        await tx.query('savepoint suggest_submit')
+        try {
+          await proposals.submit(saved.id, saved.revision)
+          await tx.query('release savepoint suggest_submit')
+          sent = true
+        } catch (error) {
+          await tx.query('rollback to savepoint suggest_submit')
+          if (!(error instanceof ORPCError)) throw error
+          const data = error.data as { findings?: { code: string; field: string }[] } | undefined
+          kept = {
+            message: `It was kept as your draft and not sent: ${error.message.replace(/\.$/, '')}.`,
+            ...(data?.findings
+              ? { findings: data.findings.map(({ code, field }) => ({ code, field })) }
+              : {}),
           }
         }
         // An owner may have let this agent publish without review in this domain (FR-421).

@@ -7,7 +7,7 @@ import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createDevVerifier, devIssuer } from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
-import { deprecatedToolAliases, tools as mcpTools, toolNames } from '../../src/server/mcp/tools.ts'
+import { tools as mcpTools, toolNames } from '../../src/server/mcp/tools.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -417,24 +417,9 @@ describe('the audience rule on every read path', () => {
       ['read_context', { id: linking.id }],
       ['get_related', { id: linking.id }],
       ['get_related', { id: `item:${hidden.id}` }],
-      // The deprecated ids answer with their old code, so they are swept too.
-      ['get_facts', { question: 'Orders on holidays', metrics: ['Orders'] }],
-      ['find_facts', { query: 'Vaultsunrise harbour Zephyrledger' }],
-      ['search_facts', { query: 'Zephyrledger' }],
-      ['search_facts', { query: '', mentions: `item:${hidden.id}` }],
-      ['search_context', { query: 'Zephyrledger' }],
-      ['read_item', { id: hidden.id }],
-      ['read_item', { id: linking.id }],
     ]
-    // Every tool and every old id that reads is swept.
-    const reads = [
-      ...toolNames.filter((name) => mcpTools[name].scope === 'read'),
-      ...Object.keys(deprecatedToolAliases).filter(
-        (old) =>
-          mcpTools[deprecatedToolAliases[old as keyof typeof deprecatedToolAliases]].scope ===
-          'read',
-      ),
-    ]
+    // Every tool that reads is swept.
+    const reads = toolNames.filter((name) => mcpTools[name].scope === 'read')
     expect(new Set(calls.map(([name]) => name))).toEqual(new Set(reads))
     for (const groups of claims) {
       const token = await new SignJWT({

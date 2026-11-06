@@ -1831,10 +1831,14 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       ])
       const row = rows.find((r) => r.id === id)
       const type = row ? row.type : id
-      const manifest = types.find((t) => t.manifest.id === type)?.manifest
-      if (!manifest || row?.origin === 'server') return null
+      const listing = types.find((t) => t.manifest.id === type)
+      if (!listing || row?.origin === 'server') return null
       const settings = row ? await read(() => client.sources.get({ id })) : null
-      return (await integrationWords()).connectFormOf(manifest, settings)
+      return (await integrationWords()).connectFormOf(
+        listing.manifest,
+        settings,
+        listing.secretStore,
+      )
     },
     // Keeps nothing and changes nothing: a POST only because the settings hold secrets.
     testIntegration: async ({ connector, source, config, secrets }) => {

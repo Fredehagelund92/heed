@@ -1,6 +1,8 @@
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
+import { REPOSITORY_URL } from '@domain/brand'
 import { stateLabel } from '@/model/ask'
-import { ANSWER_LINES, reportMail, SHORTCUTS, supportMail, WORDS } from '@/lib/help-content'
+import { ANSWER_LINES, SHORTCUTS, supportAt, WORDS } from '@/lib/help-content'
 import { CONFLICT_KEYS } from '@/lib/conflict'
 import { kindLabel } from '@/model/items'
 import { PRODUCT } from '@/lib/brand'
@@ -34,9 +36,38 @@ describe('the shared help lists', () => {
     for (const k of Object.values(kindLabel)) expect(item).toContain(k.toLowerCase())
   })
 
-  it('write to support by mail, and send a problem with its page but never its query', () => {
-    expect(supportMail()).toMatch(/^mailto:support@[a-z]+\.example$/)
-    const mail = reportMail('  The review jumped.  ', {
+  it('go to GitHub issues on an install with no support address, never a dead one', () => {
+    const support = supportAt(null)
+    expect(support.supportByMail).toBe(false)
+    expect(support.supportTarget).toEqual({ target: '_blank', rel: 'noreferrer' })
+    expect(support.supportHref()).toBe(`${REPOSITORY_URL}/issues/new/choose`)
+    const issue = new URL(
+      support.reportHref('  The review jumped.  ', {
+        origin: 'https://context.example.org',
+        pathname: '/ask',
+      }),
+    )
+    expect(issue.pathname).toBe(new URL(`${REPOSITORY_URL}/issues/new`).pathname)
+    expect(issue.searchParams.get('template')).toBe('bug.yml')
+    expect(issue.searchParams.get('title')).toBe('Report a problem')
+    // An issue anyone can read says where in the app, and never where this install is.
+    expect(issue.searchParams.get('what-happened')).toBe('The review jumped.\n\nPage: /ask')
+  })
+
+  it('name a real field of the issue form they fill in', async () => {
+    const form = await readFile(
+      new URL('../../../.github/ISSUE_TEMPLATE/bug.yml', import.meta.url),
+      'utf8',
+    )
+    expect(form).toContain('id: what-happened')
+  })
+
+  it('write to support by mail on an install that names an address, with the page but never its query', () => {
+    const support = supportAt('help@acme.example')
+    expect(support.supportByMail).toBe(true)
+    expect(support.supportTarget).toEqual({})
+    expect(support.supportHref()).toBe('mailto:help@acme.example')
+    const mail = support.reportHref('  The review jumped.  ', {
       origin: 'https://context.example.org',
       pathname: '/ask',
     })

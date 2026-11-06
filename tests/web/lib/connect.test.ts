@@ -129,7 +129,7 @@ describe('access keys on Connected agents', () => {
 
   it('lists named keys in the mock, renames one, revokes it alone, and keeps the agents', async () => {
     const { api } = createMockApi()
-    await api.signIn({ name: 'Jon Abara', fresh: false })
+    await api.signIn({ name: 'Jon Abara' })
     const before = await api.listAgentConnections()
     await api.createAccessKey({ name: 'Weekly sales digest' })
     await api.createAccessKey({ name: 'Nightly export' })
@@ -149,7 +149,7 @@ describe('access keys on Connected agents', () => {
 
   it('switches one tool per agent, never wider than what it was allowed', async () => {
     const { api } = createMockApi()
-    await api.signIn({ name: 'Jon Abara', fresh: false })
+    await api.signIn({ name: 'Jon Abara' })
     const kofi = (await api.listAgentConnections()).find((r) => r.who === 'Kofi Mensah')!
     expect(toolsLine(kofi)).toBe('All 6 tools')
     await api.setAgentTool({ id: kofi.id, tool: 'suggest_context', on: false })
@@ -176,7 +176,7 @@ describe('access keys on Connected agents', () => {
 
   it('lets only an admin change an agent, and shows anyone else only their own apps', async () => {
     const { api } = createMockApi()
-    await api.signIn({ name: 'Ines Duarte', fresh: false })
+    await api.signIn({ name: 'Ines Duarte' })
     const mine = await api.listAgentConnections()
     expect(mine.map((r) => r.who)).toEqual(['Ines Duarte'])
     await expect(

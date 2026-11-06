@@ -439,6 +439,7 @@ export function connectFormOf(
     'id' | 'kind' | 'config' | 'secrets' | 'schedule' | 'staleAfter' | 'limits'
   >,
   settings: SourceSettings | null,
+  secretStore = true,
 ): ConnectForm | null {
   const connector = inCatalog(manifest.id)?.id
   if (!connector || !formTakes(manifest)) return null
@@ -489,6 +490,7 @@ export function connectFormOf(
       title: scope.title,
       domain: scope.domain,
     })),
+    secretStore,
   }
 }
 

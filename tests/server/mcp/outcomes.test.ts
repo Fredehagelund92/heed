@@ -19,7 +19,7 @@ type Reply = {
   status: string
   metrics: unknown
   items: Line[]
-  item: Line
+  context: Line[] & Line
   definitions: (Line & { origin_words: string; source: { state: string } })[]
   why: string[]
   try: string[]
@@ -57,7 +57,8 @@ function setup(change: (data: ServingBundle) => void = () => {}, waiting?: Waiti
   const call = async (name: ServedToolName, input: unknown, canSelectEdition = false) => {
     const result = await execute(
       name,
-      input,
+      // find_context is short by default; these tests read every source detail.
+      name === 'find_context' ? { response_format: 'full', ...(input as object) } : input,
       { client: 'claude-code', scopes: ['read'], caller: 'agent', canSelectEdition },
       100000,
       () => {},
@@ -80,8 +81,8 @@ describe('W3: what must not be concluded reaches agents (FR-104, FR-326)', () =>
     expect(out.instructions).toContain(
       'When an item has not_to_conclude, never conclude what it rules out.',
     )
-    const read = await s.call('read_item', { id: 'itm_norway01' })
-    expect(read.out.item.not_to_conclude).toBe('Do not read lower orders as fewer customers.')
+    const read = await s.call('read_context', { id: 'itm_norway01' })
+    expect(read.out.context.not_to_conclude).toBe('Do not read lower orders as fewer customers.')
   })
 
   it('leaves the default out: it says what the claim level already says', async () => {
@@ -92,17 +93,17 @@ describe('W3: what must not be concluded reaches agents (FR-104, FR-326)', () =>
   })
 })
 
-describe('find_facts (FR-338)', () => {
+describe('find_context (FR-338)', () => {
   it('matches the names people use, other names included, and says what the source defines', async () => {
     const s = setup((data) => {
       data.terms[0]!.aliases = ['cash in']
     })
-    const { out, result } = await s.call('find_facts', { query: 'cash in Norway' })
+    const { out, result } = await s.call('find_context', { query: 'cash in Norway' })
     expect(result.isError).not.toBe(true)
     expect(out).toMatchObject({
       status: 'matched',
       found_by: 'words',
-      items: [{ id: 'itm_norway01', title: 'Norway closure', domain: 'Finance', match: 'all' }],
+      context: [{ id: 'itm_norway01', title: 'Norway closure', match: 'all' }],
       definitions: [
         {
           term: 'Orders',
@@ -119,9 +120,8 @@ describe('find_facts (FR-338)', () => {
     expect(out.definitions[0]!.origin_words).toMatch(
       /^Cube defines it, read through Sources \(Cube local model, cube:finance\.orders\)\./,
     )
-    // A finder: titles and summaries, the body stays for read_item; the default caveat is left out.
-    expect(out.items[0]).not.toHaveProperty('body')
-    expect(out.items[0]).not.toHaveProperty('not_to_conclude')
+    // A finder: titles and summaries, the body stays for read_context.
+    expect(out.context[0]).not.toHaveProperty('body')
   })
 
   it('counts the items about a term as the catalogue does, and says how many agents get', async () => {
@@ -136,7 +136,7 @@ describe('find_facts (FR-338)', () => {
       )
     })
     for (const input of [{ query: 'Orders' }, { query: 'Orders', domain: 'Finance' }]) {
-      const { out } = await s.call('find_facts', input)
+      const { out } = await s.call('find_context', input)
       expect(out.definitions[0]!.heed_adds).toBe(
         'AI agents get 1 checked fact about Orders with their data: 1 event. The library holds 3 facts about Orders, the count its catalogue shows; AI agents get 1 of them, not the other 2 yet: they are high risk and wait for a check.',
       )
@@ -148,7 +148,7 @@ describe('find_facts (FR-338)', () => {
     const s = setup((data) => {
       data.terms[0]!.described!.description = long
     })
-    const { out } = await s.call('find_facts', { query: 'Orders' })
+    const { out } = await s.call('find_context', { query: 'Orders' })
     const words = out.definitions[0]!.definition as string
     expect([...words].length).toBeLessThanOrEqual(definitionChars)
     // Shortened at a word: what is left is the start of the words, then "...".
@@ -163,12 +163,12 @@ describe('find_facts (FR-338)', () => {
       data.terms.push({ ...data.terms[0]!, key: 'metric:deposit_count', name: 'Order count' })
     })
     // "order" is in two names, so it names neither; "count" is in one.
-    const shared = await s.call('find_facts', { query: 'what is a order' })
+    const shared = await s.call('find_context', { query: 'what is a order' })
     expect(shared.out.definitions ?? []).toEqual([])
-    const one = await s.call('find_facts', { query: 'how do we count' })
+    const one = await s.call('find_context', { query: 'how do we count' })
     expect(one.out.definitions).toMatchObject([{ key: 'metric:deposit_count', named: 'in part' }])
     expect(one.out.definitions[0]!.named_note).toMatch(/^The words name Order count only in part\./)
-    const alone = await setup().call('find_facts', { query: 'what is a order' })
+    const alone = await setup().call('find_context', { query: 'what is a order' })
     expect(alone.out.definitions.map((d) => d.key)).toEqual(['metric:orders'])
   })
 
@@ -176,13 +176,13 @@ describe('find_facts (FR-338)', () => {
     const changed = setup((data) => {
       data.refMarks.itm_norway01 = { 'cube:finance.orders': '0' }
     })
-    const first = (await changed.call('find_facts', { query: 'orders' })).out.definitions[0]!
+    const first = (await changed.call('find_context', { query: 'orders' })).out.definitions[0]!
     expect(first.source.state).toBe('changed')
     expect(first.origin_words).toContain('Cube changed this definition')
     const missing = setup((data) => {
       data.terms[0]!.definitions[0]!.missing = true
     })
-    const gone = (await missing.call('find_facts', { query: 'orders' })).out.definitions[0]!
+    const gone = (await missing.call('find_context', { query: 'orders' })).out.definitions[0]!
     expect(gone.source.state).toBe('missing')
     expect(gone.origin_words).toContain('Cube no longer lists this definition')
   })
@@ -198,7 +198,7 @@ describe('find_facts (FR-338)', () => {
         scope: { metrics: [], dimensions: ['dim:market'], dimensionValues: [] },
       })
     })
-    const market = (await s.call('find_facts', { query: 'what is a market' })).out.definitions[0]!
+    const market = (await s.call('find_context', { query: 'what is a market' })).out.definitions[0]!
     expect(market).toMatchObject({
       term: 'Market',
       kind: 'dimension',
@@ -207,18 +207,18 @@ describe('find_facts (FR-338)', () => {
       library: [{ id: 'itm_marketnote1', kind: 'note' }],
     })
     const none = setup()
-    const bare = (await none.call('find_facts', { query: 'market' })).out.definitions[0]!
+    const bare = (await none.call('find_context', { query: 'market' })).out.definitions[0]!
     expect(bare).toMatchObject({ origin: 'none', definition: null })
     expect(bare.origin_words).toBe('Neither a definition source nor the library describes Market.')
   })
 
   it('never answers with a bare absence: it says why and what to try', async () => {
-    const { out } = await setup().call('find_facts', { query: 'ordres stock rumours' })
+    const { out } = await setup().call('find_context', { query: 'ordres stock rumours' })
     expect(out.status).toBe('no_match')
-    expect(out.items).toEqual([])
+    expect(out.context).toEqual([])
     expect(out.why[0]).toBe('The query was read as the words "ordres", "stock" and "rumours".')
     expect(out.try).toContain(`"ordres" isn't a name here. Did you mean Orders?`)
-    expect(out.try.at(-1)).toMatch(/report it as a gap/)
+    expect(out.try.at(-1)).toMatch(/call report with kind missing/)
     expect(out.check_report.statements).toEqual(['No match does not prove that no caveat exists.'])
   })
 
@@ -226,7 +226,7 @@ describe('find_facts (FR-338)', () => {
     const s = setup((data) => {
       data.stopped = { all: false, areas: ['finance'], items: [] }
     })
-    const { out } = await s.call('find_facts', { query: 'Norway closure', domain: 'Finance' })
+    const { out } = await s.call('find_context', { query: 'Norway closure', domain: 'Finance' })
     expect(out.status).toBe('no_match')
     expect(out.why).toContain(
       "1 fact matches, but AI agents don't get it: 1 because sharing it with AI agents is paused for now.",
@@ -247,12 +247,12 @@ describe('find_facts (FR-338)', () => {
       })
     })
     // Words found only in hidden text: nothing counted, nothing said about them.
-    const probe = await s.call('find_facts', { query: 'restructuring' })
+    const probe = await s.call('find_context', { query: 'restructuring' })
     expect(probe.out.status).toBe('no_match')
     expect(probe.out.check_report.withheld).toBe(0)
     expect(JSON.stringify(probe.out)).not.toMatch(/agents do not get (it|them)/)
     // By name, only the item for everyone is counted; the one for a group counts as absent.
-    const named = await s.call('find_facts', { query: 'Norway' })
+    const named = await s.call('find_context', { query: 'Norway' })
     expect(named.out.check_report.withheld).toBe(1)
   })
 
@@ -260,7 +260,7 @@ describe('find_facts (FR-338)', () => {
     const s = setup((data) => {
       data.terms[0]!.described = null
     })
-    const { out } = await s.call('find_facts', { query: 'orders' })
+    const { out } = await s.call('find_context', { query: 'orders' })
     expect(out.definitions[0]).toMatchObject({ origin: 'none', definition: null })
     expect(out.definitions[0]).not.toHaveProperty('source')
   })
@@ -279,14 +279,14 @@ describe('find_facts (FR-338)', () => {
       data.refMarks = {}
       data.links = []
     })
-    const { out } = await s.call('find_facts', {
+    const { out } = await s.call('find_context', {
       query: 'orders Norway',
       window: { from: '2026-10-01', to: '2026-10-01' },
     })
     expect(out).toMatchObject({
       status: 'matched',
       found_by: 'scope',
-      items: [{ id: 'itm_everything', match: 'scope' }],
+      context: [{ id: 'itm_everything', match: 'scope' }],
       scope_used: {
         metrics: ['metric:orders'],
         filters: { 'dim:market': ['val:market/norway'] },
@@ -296,7 +296,7 @@ describe('find_facts (FR-338)', () => {
     expect(out).not.toHaveProperty('assumed_date')
     expect(out.instructions).not.toContain('assumed')
     // Without dates it reads today's, and says it assumed today.
-    const today = await s.call('find_facts', { query: 'orders Norway' })
+    const today = await s.call('find_context', { query: 'orders Norway' })
     expect(today.out).toMatchObject({
       status: 'no_match',
       found_by: 'scope',
@@ -315,7 +315,7 @@ describe('find_facts (FR-338)', () => {
       'Say so in your answer: "I assumed today, 7 October 2026. Tell me if you meant a different period."',
     )
     // Dates the words give are read as get_facts reads them, and said: never today.
-    const week = await s.call('find_facts', { query: 'orders Norway this past week' })
+    const week = await s.call('find_context', { query: 'orders Norway this past week' })
     expect(week.out).toMatchObject({
       found_by: 'scope',
       scope_used: { window: { start: '2026-10-01', end: '2026-10-08' } },
@@ -326,21 +326,21 @@ describe('find_facts (FR-338)', () => {
     })
     expect(week.out).not.toHaveProperty('assumed_date')
     expect(week.out.say).toContain('Norway from 1 to 7 October 2026 (the 7 days to today)')
-    const august = await s.call('find_facts', { query: 'orders Norway in August' })
+    const august = await s.call('find_context', { query: 'orders Norway in August' })
     expect(august.out).toMatchObject({
       found_by: 'scope',
       scope_used: { window: { start: '2026-08-01', end: '2026-09-01' } },
       dates_read: { reads_as: '1-31 Aug 2026 (year not given, so 2026; UTC)' },
     })
     // Words Heed cannot read as dates are never read as today.
-    const launch = await s.call('find_facts', { query: 'orders Norway since the launch' })
+    const launch = await s.call('find_context', { query: 'orders Norway since the launch' })
     expect(launch.out).toMatchObject({ status: 'no_match' })
     expect(launch.out).not.toHaveProperty('found_by', 'scope')
     expect(launch.out).not.toHaveProperty('assumed_date')
   })
 
   it('recovers from an unknown domain with the closest one and every valid choice', async () => {
-    const { out, result } = await setup().call('find_facts', {
+    const { out, result } = await setup().call('find_context', {
       query: 'orders',
       domain: 'Finanzen',
     })
@@ -363,14 +363,14 @@ describe('find_facts (FR-338)', () => {
           summary: 'Online sales stopped on 4 August. '.repeat(8),
         })
     })
-    const { result, out } = await s.call('find_facts', {
+    const { result, out } = await s.call('find_context', {
       query: 'Norway',
       limit: 30,
       max_bytes: 6000,
     })
     expect(byteSize(result)).toBeLessThanOrEqual(6000)
-    expect(out.items.length).toBeGreaterThan(0)
-    expect(out.items.length).toBeLessThan(30)
+    expect(out.context.length).toBeGreaterThan(0)
+    expect(out.context.length).toBeLessThan(30)
     expect(out.cut).toBe(true)
     expect(s.memory.gaps).toEqual([])
   })
@@ -386,18 +386,18 @@ describe('the size limit of an outcome tool', () => {
           title: `Sample note ${n} about Norway`,
         })
     })
-    const whole = await s.call('find_facts', { query: 'Norway', limit: 50 })
-    const { result, out } = await s.call('find_facts', {
+    const whole = await s.call('find_context', { query: 'Norway', limit: 50 })
+    const { result, out } = await s.call('find_context', {
       query: 'Norway',
       limit: 50,
       max_bytes: 8_000,
     })
     expect(byteSize(result)).toBeLessThanOrEqual(8_000)
     expect(out.cut).toBe(true)
-    expect(out.items.length).toBeGreaterThan(0)
-    expect(out.items.length).toBeLessThan(whole.out.items.length)
-    expect(out.items.map((i) => i.id)).toEqual(
-      whole.out.items.slice(0, out.items.length).map((i) => i.id),
+    expect(out.context.length).toBeGreaterThan(0)
+    expect(out.context.length).toBeLessThan(whole.out.context.length)
+    expect(out.context.map((i) => i.id)).toEqual(
+      whole.out.context.slice(0, out.context.length).map((i) => i.id),
     )
   })
 })
@@ -434,8 +434,8 @@ describe('a domain with nothing yet, named by another spelling', () => {
     canPropose,
   })
 
-  it('find_facts reads the domain in the words, and says what it has and lacks', async () => {
-    const { out } = await setup(typo, waiting(true)).call('find_facts', {
+  it('find_context reads the domain in the words, and says what it has and lacks', async () => {
+    const { out } = await setup(typo, waiting(true)).call('find_context', {
       query: 'Stores & Suppliers metrics and dimensions',
     })
     expect(out).toMatchObject({
@@ -467,7 +467,7 @@ describe('terms of a domain agents do not get (FR-333)', () => {
 
   it('gives no definition or counts for a metric of a stopped domain', async () => {
     const hidden = setup(stopped)
-    const found = await hidden.call('find_facts', { query: 'what is Orders' })
+    const found = await hidden.call('find_context', { query: 'what is Orders' })
     expect(found.out.definitions ?? []).toEqual([])
     expect(JSON.stringify(found.out)).not.toContain('The value of paid orders')
     const asked = await hidden.call('get_facts', { question: definitionQuestion })
@@ -475,7 +475,7 @@ describe('terms of a domain agents do not get (FR-333)', () => {
     expect(JSON.stringify(asked.out)).not.toContain('The value of paid orders')
 
     const live = setup()
-    const shown = await live.call('find_facts', { query: 'what is Orders' })
+    const shown = await live.call('find_context', { query: 'what is Orders' })
     expect(shown.out.definitions[0]).toMatchObject({
       term: 'Orders',
       definition: 'The value of paid orders, in euros.',
@@ -486,7 +486,7 @@ describe('terms of a domain agents do not get (FR-333)', () => {
     const s = setup((data) => {
       data.stopped = { all: true, areas: [], items: [] }
     })
-    const found = await s.call('find_facts', { query: 'what is Orders' })
+    const found = await s.call('find_context', { query: 'what is Orders' })
     expect(found.out.definitions ?? []).toEqual([])
   })
 })

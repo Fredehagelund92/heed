@@ -58339,11 +58339,15 @@
                           "markVersion"
                         ],
                         "additionalProperties": false
+                      },
+                      "secretStore": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
                       "writtenTo",
-                      "manifest"
+                      "manifest",
+                      "secretStore"
                     ]
                   }
                 }

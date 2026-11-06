@@ -35,7 +35,7 @@ import { version } from './domain/fixtures.ts'
 
 /*
   The alignment guard (CONTRIBUTING.md, "Proposal attributes"): the Add context and Suggest a
-  change form and the agent tool draft_context write the same proposal, so they must not drift
+  change form and the agent tool suggest_context write the same proposal, so they must not drift
   apart silently. Every attribute of the proposal schema is classified once, in
   src/domain/proposal-attributes.ts, and this suite fails until a new or changed attribute, tool
   input, limit or question is decided there. Each failure says what to do.
@@ -86,7 +86,7 @@ describe('every attribute of the proposal schema is classified for the form and 
     }
     expect(treatmentProblems(widened as never)).toEqual([
       '"riskLevel" is defaulted but may carry the mark "prefilled". A defaulted attribute carries only default.',
-      'draft_context asks the person for "riskLevel", which it treats as defaulted. Only a derived or prefilled attribute may be asked.',
+      'suggest_context asks the person for "riskLevel", which it treats as defaulted. Only a derived or prefilled attribute may be asked.',
       '"riskLevel" may be asked, so its marks must include "confirmed".',
     ])
   })
@@ -137,14 +137,14 @@ describe('the agent tool takes and returns the classified attributes only', () =
     const inputs = Object.keys(draftInput.shape)
     expect(toolInputMismatch(inputs)).toEqual([])
     expect(toolInputMismatch([...inputs, 'risk'])[0]).toContain(
-      'draft_context takes "risk", which src/domain/proposal-attributes.ts does not list',
+      'suggest_context takes "risk", which src/domain/proposal-attributes.ts does not list',
     )
     const widened = {
       ...proposalAttributes,
       riskLevel: { ...spec('riskLevel'), agent: { ...spec('riskLevel').agent, inputs: ['kind'] } },
     }
     expect(toolInputMismatch(inputs, widened as never)).toContain(
-      'The tool input "kind" suggests "riskLevel", which draft_context treats as defaulted: an agent must never set it. Remove the input, or change the treatment on purpose (a product decision, FR-121).',
+      'The tool input "kind" suggests "riskLevel", which suggest_context treats as defaulted: an agent must never set it. Remove the input, or change the treatment on purpose (a product decision, FR-121).',
     )
   })
   it('returns each field with a mark of the provenance table', () => {
@@ -223,7 +223,7 @@ describe('what the agent tool derives stays inside its classification', () => {
         const allowed: readonly string[] = spec(field as ProposalAttribute).agent.marks
         expect(
           allowed,
-          `draft_context marks "${field}" ${mark}, which its row does not allow.`,
+          `suggest_context marks "${field}" ${mark}, which its row does not allow.`,
         ).toContain(mark)
       }
       for (const key of Object.keys(derived.draft)) {
@@ -232,7 +232,7 @@ describe('what the agent tool derives stays inside its classification', () => {
         const asks = (spec(name).agent as { asks?: readonly string[] }).asks ?? []
         expect(
           treatment === 'prefilled' || asks.length > 0,
-          `draft_context sets "${key}", which it treats as ${treatment}. Only the service fills it.`,
+          `suggest_context sets "${key}", which it treats as ${treatment}. Only the service fills it.`,
         ).toBe(true)
       }
       for (const q of derived.questions) {

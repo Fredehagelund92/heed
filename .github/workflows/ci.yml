@@ -329,6 +329,8 @@ jobs:
           docker compose logs heed | grep -q 'Sign-in is the people picker'
           # The demo from the image's own model, with no folder shared from the host.
           docker compose logs heed | grep -q 'Loaded the demo'
+      - name: A connector's secret is kept across a new container, in both compose forms
+        run: bash tests/image/compose-secrets.sh
       - name: The demo's logs
         if: failure()
         run: docker compose logs --no-color | tail -n 300

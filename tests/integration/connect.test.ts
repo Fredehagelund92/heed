@@ -73,7 +73,6 @@ const august = {
 }
 
 let wire: Client
-let servedItem = ''
 
 beforeAll(async () => {
   await foundation(client)
@@ -94,7 +93,6 @@ beforeAll(async () => {
   await transaction(client, async () => {
     const served = await servingEdition(client)
     expect(served.item).toBeTruthy()
-    servedItem = served.item
   })
   const base = await app.listen({ host: '127.0.0.1', port: 0 })
   wire = new Client({ name: 'connect', version: '1.0.0' }, { versionNegotiation: { mode: 'auto' } })
@@ -179,29 +177,18 @@ describe('reviewed before served (FR-326)', () => {
   it('tells an agent by role how each fact was reviewed, and never a name', async () => {
     // An owner with a real name: what an agent receives must not carry it.
     await client.query("update people set display_name='Jon Abara' where id=$1", [people.owner])
-    const edition = (
-      await client.query<{ label: string }>(
-        'select e.label from editions e join item_version_service s on s.editions @> e.seq join item_versions v on v.id = s.version_id where v.item_id = $1 order by e.seq limit 1',
-        [servedItem],
-      )
-    ).rows[0]!.label
     const today = new Date().toISOString().slice(0, 10)
-    const reviewed = {
-      accepted_on: today,
-      accepted_by: 'the owner of Finance',
-      in_edition: edition,
-    }
     for (const response_format of ['full', 'concise'] as const) {
       const agent = await wire.callTool({
-        name: 'get_facts',
+        name: 'get_context',
         arguments: { question: '', ...august, response_format },
       })
-      const item = (agent.structuredContent as { items: Record<string, unknown>[] }).items[0]!
-      expect(item.reviewed).toEqual(reviewed)
+      const item = (agent.structuredContent as { context: Record<string, unknown>[] }).context[0]!
+      expect(item.checked).toEqual({ role: 'the owner of Finance', date: today })
       if (response_format === 'full')
         expect(item.owner).toEqual({ team: null, role: 'the owner of Finance' })
       const text = (agent.content as { text: string }[]).map((part) => part.text).join('\n')
-      expect(text).toContain('by the owner of Finance, in edition ' + edition)
+      expect(text).toContain(`by the owner of Finance`)
       expect(JSON.stringify(agent)).not.toContain('Jon Abara')
       expect(JSON.stringify(agent)).not.toContain(people.owner)
     }

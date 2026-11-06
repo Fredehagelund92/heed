@@ -51,6 +51,8 @@ To run the image in production mode, beside a PostgreSQL 18 database:
    docker run --rm -v heed-keys:/var/lib/heed <image> npm run keys:create
    ```
 
+   Set `HEED_SECRETS_DIR=/var/lib/heed/secrets` too, so the tokens and signed links of the tools you connect are kept in the same volume. Without it, a tool that needs a secret can't be connected.
+
 3. **Set the database addresses.** `DATABASE_URL` is the service's own role and `DATABASE_URL_MIGRATE` is the owner, which the image needs to apply the schema at start. When the roles do not exist yet, also set `DATABASE_URL_BOOTSTRAP` to a superuser. See the [database guide](../db/README.md).
 4. **Set the addresses.** The login server for agents needs https in production:
 

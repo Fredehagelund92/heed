@@ -224,7 +224,7 @@ One rule everywhere: **from agents, Heed keeps only what a question was about an
 3. **Words are kept only when a person sends them on purpose, and then with their name.** That means a suggestion, a named report, a saved question and a comment.
 4. **Ask chats are the person's own.** They stay in the person's browser and are seen only by them. Ask says so, and its empty state says what is kept.
 5. **Agents never read comments, reports or saved questions.** An agent's answer is built from published context only.
-6. **Report a problem** sends the page address and the reporter's name, never an agent's words.
+6. **Report a problem** opens a mail with the page's address when `HEED_SUPPORT_EMAIL` is set; unset, it opens a GitHub issue with the page's path only. A person's name goes with neither, and never an agent's words.
 7. **Figures are read when asked and kept nowhere.** No person's identity is passed to the data source.
 8. **No tracking.** Heed sends nothing to anyone about how it is used. To learn which questions about the records people use, Ask counts which of its seven was asked each week, by its fixed name only: never the words, never who asked.
 9. **No promise of anonymity.** Copy says what is kept, not that nobody can see.
@@ -243,8 +243,6 @@ Six tools. Each is described in one list in the code (`AGENT_TOOLS`), which Sett
 | `get_related`     | Follow a link between items, definitions and domains, one step at a time. It has its own switch.                                                   |
 
 The default reply holds the answer state, one sentence to relay (`say`), what was asked, the items that apply, a reply id and the edition. Where two items disagree, the reply says so. A mention in an item is only its words in `get_context`. Following it is a separate, read-only tool, `get_related`, at most 50 nodes, in a fixed order. It never changes what an answer includes.
-
-The earlier tool ids (`get_facts`, `find_facts`, `search_facts`, `read_item`, `report_gap`, `give_feedback`, `draft_context`) stay for one release as deprecated ids: each answers with its old arguments and its old reply, and a note that names the tool to use.
 
 ## 11. Roles
 

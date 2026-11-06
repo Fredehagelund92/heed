@@ -1,5 +1,4 @@
 import * as z from 'zod'
-import * as mini from 'zod/mini'
 import { replyStatuses } from '../../domain/answer-state.ts'
 import { kindFilters } from '../../domain/mcp-text.ts'
 import { isCalendarDate } from '../../domain/validity.ts'
@@ -48,15 +47,15 @@ const scopeFields = {
     .optional(),
 }
 /**
- * FR-342: how much a reply of get_facts or find_facts says. `concise` keeps what an answer
+ * FR-342: how much a reply of get_context or find_context says. `concise` keeps what an answer
  * needs (each item's title, summary, dates, claim level, freshness and what not to conclude) and
- * leaves out bodies, evidence, owners and links, which read_item gives for one item; `full`
+ * leaves out bodies, evidence, owners and links, which read_context gives for one item; `full`
  * carries every source detail of FR-326 and FR-331.
  */
 const responseFormat = z
   .enum(['concise', 'full'])
   .describe(
-    "concise: a shorter reply, about half the size, each item without its body, evidence, owner and links (read_item gives them). full: every source detail and link. Ask for concise when you only need what applies; full when you will cite an item's evidence or follow its links.",
+    "concise: a shorter reply, about half the size, each item without its body, evidence, owner and links (read_context gives them). full: every source detail and link. Ask for concise when you only need what applies; full when you will cite an item's evidence or follow its links.",
   )
 export type ResponseFormat = z.infer<typeof responseFormat>
 export const contextInput = z.strictObject({
@@ -91,20 +90,6 @@ export const readInput = z.strictObject({
   cursor: z.string().max(2000).optional(),
   max_bytes: z.number().int().min(1000).max(100000).default(100000),
 })
-export const searchInput = z.strictObject({
-  query: z.string().max(2000).default(''),
-  kind: z.enum(itemKinds).optional(),
-  area: z
-    .string()
-    .max(80)
-    .optional()
-    .describe('A domain by its id or its name, such as area_sales or Sales.'),
-  mentions: z.string().max(160).optional(),
-  edition,
-  cursor: z.string().max(2000).optional(),
-  limit: z.number().int().min(1).max(50).default(20),
-  max_bytes: z.number().int().min(1000).max(100000).default(100000),
-})
 const domainName = z
   .string()
   .min(1)
@@ -133,7 +118,7 @@ export const findInput = z.strictObject({
   response_format: responseFormat.default('full'),
 })
 /**
- * find_context (FR-338, merging find_facts and search_facts): what is written down about a few
+ * find_context (FR-338, merging the tools that found facts): what is written down about a few
  * words, by the names people use. A kind is named as agents read it (event, warning, rule, guide).
  */
 export const findContextInput = z.strictObject({
@@ -155,7 +140,7 @@ export const findContextInput = z.strictObject({
 })
 export type FindContextInput = z.infer<typeof findContextInput>
 /**
- * report (replacing report_gap and give_feedback): the person says something is missing, wrong or
+ * report: the person says something is missing, wrong or
  * unclear, or that it helped, about a reply, an item, or a question's scope. It records
  * what and where, never who: the reply's topic or the item's domain, and a short note checked
  * for sensitive text (FR-611).
@@ -206,15 +191,6 @@ export const relatedInput = z.strictObject({
   edition,
   cursor: z.string().max(2000).optional(),
   max_bytes: z.number().int().min(1000).max(100000).default(100000),
-})
-export const gapInput = z.strictObject({
-  ...scopeFields,
-  note: z.string().min(1).max(500).optional(),
-})
-export const feedbackInput = mini.strictObject({
-  delivery_id: mini.string().check(mini.uuid()),
-  verdict: mini.enum(['helpful', 'wrong', 'missing', 'unclear']),
-  note: mini.optional(mini.string().check(mini.minLength(1), mini.maxLength(500))),
 })
 /**
  * FR-121: what an agent passes to draft context for the person. Every field is a suggestion the
@@ -323,10 +299,10 @@ const question = z.strictObject({
   options: z.array(z.string()).optional(),
 })
 /**
- * What `suggest_context` and `draft_context` return (their MCP output schema), field names and
+ * What `suggest_context` returns (their MCP output schema), field names and
  * marks from the attribute table (src/domain/proposal-attributes.ts). `status` says which parts
  * are present: a suggestion sent to the owner, one published under an owner's policy (FR-421), a
- * saved draft (draft_context's, or one the review checks kept back), a domain to choose, possible
+ * saved draft (suggest_context's, or one the review checks kept back), a domain to choose, possible
  * duplicates, or a refusal, which saves nothing.
  */
 export const draftOutput = z
@@ -395,19 +371,6 @@ export const draftOutput = z
     instructions: z.string().optional(),
   })
   .loose()
-/** A delivered item, with its page in Heed (FR-347). The rest is the tool's own. */
-const citedItem = z
-  .object({
-    id: z.string(),
-    url: z.string().describe("The fact's page, for the person: link it where you cite the fact."),
-    reviewed: z
-      .object({ accepted_on: z.string(), accepted_by: z.string(), in_edition: z.string() })
-      .optional()
-      .describe(
-        'How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.',
-      ),
-  })
-  .loose()
 const said = {
   say: z
     .string()
@@ -431,11 +394,6 @@ const said = {
  * which an output schema does not describe.
  */
 export const readOutput = z.object(said).loose()
-/** A read tool that delivers items: each with its page in Heed (FR-347). */
-export const deliveryOutput = z.object({ ...said, items: z.array(citedItem).optional() }).loose()
-/** read_item: the one item, with its page in Heed (FR-347). */
-export const readItemOutput = z.object({ ...said, item: citedItem.optional() }).loose()
-
 /** An item as the agent contract gives it: its page in Heed, and how it was checked. */
 const contextEntry = z
   .object({
