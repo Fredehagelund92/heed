@@ -801,8 +801,9 @@ and `next` as before.
   back), `off_topic`, `nothing_asked` or `cannot` (FR-720, with its `reason`, `numbers`, `source`,
   `write`, `person`, `not_yet` or `unread`, the `definitions` a `source` reply shows and what a
   `write` reply starts from), with nothing looked up. An `answer`'s `limit` is the fixed sentence
-  it leads with when the question reaches beyond what is written, and its `reading.left` names a
-  part of the question its reads do not answer. A message with no subject of its
+  it leads with when the question reaches beyond what is written, or, with its `reason` `partly` or
+  `general`, when only part could be read or a name has nothing of its own, and its `reading.left`
+  names a part of the question its reads do not answer. A message with no subject of its
   own and no question that fits ("hmm", or "try again" with nothing to repeat) gets `nothing_asked`
   with no model call. A message that only asks again never reaches the service as such: the browser
   sends the last question instead (`src/domain/ask-again.ts`). A plan that fails the check, a limit,
@@ -823,7 +824,7 @@ and `next` as before.
   member of the source, a line of a review or the Inbox, or a kind's counts) with
   `columns`, up to four `sections` of them for an analysis (`src/domain/audit.ts`), with what came
   up empty (`clear`), the rule behind a ranking (`ranked`), what the read cannot see (`notSeen`), the
-  `limit` it leads with and the `audit` it was read as, the exact `total`, and where the full list lives (`more`, with `page` for one
+  `limit` it leads with, the `audit` it was read as and the domain a ranking puts first alone (`top`), the exact `total`, and where the full list lives (`more`, with `page` for one
   Definitions page, and `status: conflicts` for Context's Conflicts filter). A
   question about one person's work gets `refused: true` with its sentence and what to ask
   instead. Everything is counted in the request's own transaction from the items `GET /library`

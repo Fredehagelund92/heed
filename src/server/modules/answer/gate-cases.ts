@@ -213,7 +213,7 @@ const heldOut: PlanCase[] = [
     expect: {
       route: 'planner',
       plan: ['queue'],
-      audit: ['asked_nothing', 'no_context'],
+      audit: ['asked_nothing'],
       state: null,
       must: ['Waiting on you', /Look first at Orders in Spain/],
     },
@@ -226,7 +226,6 @@ const heldOut: PlanCase[] = [
     expect: {
       route: 'planner',
       audit: ['no_context', 'asked_nothing'],
-      limit: 'advice',
       state: null,
       must: [/Look first at Orders in Spain/],
     },

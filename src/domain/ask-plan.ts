@@ -58,7 +58,8 @@ const readSchema = z.union([
   z.object({
     kind: z.literal('explore'),
     words: z.optional(z.nullable(z.string())),
-    kinds: z.optional(z.nullable(z.array(z.enum(['event', 'warning', 'rule', 'guide'])))),
+    // A word that is no kind is left out when the read is made: it never loses the plan.
+    kinds: z.optional(z.nullable(z.array(z.string()))),
     metrics: keysSchema,
     values: keysSchema,
     dates: datesSchema,
@@ -281,7 +282,8 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   if (!('clarify' in raw) && !('cannot' in raw) && pointsAtOneOfSeveral(ctx))
     return { kind: 'clarify', question: WHICH_ONE }
   if ('clarify' in raw) {
-    const question = checkedQuestionBack(raw.clarify, ctx)
+    // A choice after a colon reads the same after a comma: one question either way.
+    const question = checkedQuestionBack(raw.clarify.replace(/:\s+/, ', '), ctx)
     if (!question) throw new Miss('question back not checked')
     return { kind: 'clarify', question }
   }
@@ -337,11 +339,11 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   // Ranking values by a figure takes the figures: what is written about one metric does not help.
   if (raw.limit === 'numbers' && ranksByFigure(ctx.question) && !namesValue(raw.reads))
     return { kind: 'cannot', reason: 'numbers', metrics: [], filters: {} }
-  // Under a limit, a market alone is a search of what is written about it: a look-up of a value
-  // with no metric finds nothing on its own.
+  // A market alone is a search of what is written about it: a look-up of a value with no metric,
+  // here or from the last question, finds nothing on its own.
   const reads = raw.reads
     .map((read) =>
-      raw.limit && read.kind === 'lookup' && !read.metrics?.length
+      read.kind === 'lookup' && !read.metrics?.length && !open?.metrics.length
         ? { kind: 'explore' as const, values: read.values, dates: read.dates }
         : read,
     )
@@ -566,7 +568,11 @@ function readOf(read: RawRead, ctx: PlanContext): PlannedRead {
       return {
         kind: 'explore',
         words: searchWords(read.words ?? '', ctx),
-        kinds: [...new Set((read.kinds ?? []).map((k: KindName) => kindNames[k]))].sort(),
+        kinds: [
+          ...new Set(
+            (read.kinds ?? []).flatMap((k) => (k in kindNames ? [kindNames[k as KindName]] : [])),
+          ),
+        ].sort(),
         scope: { ...parts, window: window! },
         period,
       }
@@ -904,7 +910,7 @@ export const plannerSystem = [
   'The other shapes:',
   '- records: one plain question about the written context itself: what was created or changed in it, what is due for a check, archived, who owns something or who to talk to about it, how many items there are, what agents asked that found nothing, which items conflict, which metrics, dimensions or values exist.',
   '- audit: an analysis of the records, when the answer must join, compare or rank them: what is missing, covered, complete, weakest, first or next. Ask computes it from facets: no_context (nothing written), no_words (the source gives no words), no_domain (no domain, so no owner), unlinked (in the source, not in Definitions), source_changed (what changed or went at the source, or in the tool it is read from, such as Cube or dbt), asked_nothing (what found nothing, what has no answer, Not found cards), asked_most (what agents asked, also about one value), due (oldest first), conflicts, duplicates (written twice), overlaps, review (all of these for one domain, for how healthy or complete it is; with no domain a line a domain, ranked: which domain is worst, thinnest or best covered). Also: domain; kind (metric, dimension, or definition to compare definitions); of (event, warning, rule or guide, for what has none of that kind); value (a dimension value key, for what agents asked about it).',
-  '- queue: what waits for the person asking, in their own Inbox: what is waiting on them, what they should work on. Add audit for what else they should see: due for what needs doing. What is due for a check is records due, also as "what do I need to go through".',
+  '- queue: what waits for the person asking, in their own Inbox: what is waiting on them, what they should work on. Add audit for what else they should see: asked_nothing, with due for what needs doing. What is due for a check is records due, also as "what do I need to go through".',
   '- clarify: one short question back, with no colon, only when the question could mean two different things and the last question does not settle it.',
   '- off_topic: the question is not about the business, its numbers or what is written about them.',
   '- nothing_asked: the message has no subject of its own and nothing in the chat fits it, such as a word of thanks or "do the thing". Never search for it and never ask back. A request for something else, such as a poem, is off_topic.',
@@ -953,7 +959,7 @@ export const plannerSystem = [
   'where is our thinnest context? {"audit":{"facets":["no_context","asked_nothing"]}}',
   'what should be written first? {"audit":{"facets":["asked_nothing","no_context"]}}',
   'what comes first on my list today? {"queue":true,"audit":{"facets":["asked_nothing"]}}',
-  'a Friday round-up of what needs doing {"queue":true,"audit":{"facets":["due"]}}',
+  'a Friday round-up of what needs doing {"queue":true,"audit":{"facets":["asked_nothing","due"]}}',
   'which of our metrics ought to be added? {"audit":{"facets":["unlinked","asked_nothing"]},"limit":"advice"}',
   'what is unclaimed by anyone? {"audit":{"facets":["no_domain"]}}',
   'what should we do about France? {"reads":[{"kind":"explore","kinds":[],"values":["val:market/france"]}],"limit":"advice"}',
@@ -977,6 +983,8 @@ export const plannerSystem = [
   'are returns about to settle down? {"reads":[{"kind":"lookup","metrics":["metric:returns"]}],"limit":"forecast"}',
   'is 3% returns usual for a shop like ours? {"reads":[{"kind":"lookup","metrics":["metric:returns"]}],"limit":"outside"}',
   'which channel earned the most? {"cannot":"numbers"}',
+  'should we fold Returns into Orders? {"reads":[{"kind":"definition","metrics":["metric:returns"]},{"kind":"definition","metrics":["metric:orders"]}],"limit":"advice"}',
+  'what is the largest worry in our data? {"reads":[{"kind":"explore","kinds":["warning"]}],"limit":"advice"}',
   'what do we have on France? {"reads":[{"kind":"explore","kinds":[],"values":["val:market/france"]}]}',
   'which terms have no meaning written down? {"cannot":"not_yet"}',
   'what did agents ask about France? {"audit":{"facets":["asked_most"],"value":"val:market/france"}}',

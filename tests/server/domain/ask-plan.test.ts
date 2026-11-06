@@ -256,6 +256,27 @@ describe('a plan that does not answer the question asked', () => {
     expect(got).toMatchObject({ ok: true, plan: { kind: 'records' } })
   })
 
+  it('keeps a plan with a word that is no kind, and a question back with a colon', () => {
+    const search = { reads: [{ kind: 'explore', kinds: ['rule', 'definition'] }] }
+    expect(plan(search, { question: 'what do we know about VAT?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'reads', reads: [{ kinds: ['note'] }] },
+    })
+    const back = { clarify: 'Which metric do you mean: Orders or Net revenue?' }
+    expect(plan(back, { question: 'how is Sweden doing?' })).toMatchObject({
+      ok: true,
+      plan: { kind: 'clarify', question: 'Which metric do you mean, Orders or Net revenue?' },
+    })
+  })
+
+  it('searches for a market alone, and keeps a look-up when a metric carries over', () => {
+    const value = { reads: [{ kind: 'lookup', values: ['val:market/sweden'] }] }
+    const alone = plan(value, { question: 'is Sweden doing better?', previous: null })
+    expect(alone).toMatchObject({ ok: true, plan: { reads: [{ kind: 'explore' }] } })
+    const carried = plan(value, { question: 'and in Sweden?' })
+    expect(carried).toMatchObject({ ok: true, plan: { reads: [{ kind: 'lookup' }] } })
+  })
+
   it('never shows a key as a name in how the question reads alone', () => {
     const got = plan(
       {
