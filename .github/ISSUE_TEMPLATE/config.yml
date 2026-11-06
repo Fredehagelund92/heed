@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: A security problem
+    url: https://github.com/Fredehagelund92/heed/security/advisories/new
+    about: Please tell us privately, not in an issue. SECURITY.md says what happens next.
+  - name: How to use Heed
+    url: https://github.com/Fredehagelund92/heed/blob/main/docs/help/README.md
+    about: The help pages, also in the app under Help.

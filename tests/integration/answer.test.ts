@@ -432,8 +432,8 @@ describe('Ask with a real model (FR-701)', () => {
       untimed(engine({ kind: 'live' }, live, { question }, { today })),
     )
     const words = sentencesOf(sent)
-    // Each sentence on its own: the scripted writer's, one for each item, in order.
-    expect(words).toHaveLength(answer.items.length)
+    // Each sentence on its own: the scripted writer's, one for each item the person sees, in order.
+    expect(words).toHaveLength(answer.items.filter((i) => i.kind !== 'example').length)
     expect(words.join(' ')).toMatch(/\[1\]/)
     for (const [i, sentence] of words.entries())
       expect(sentence).toMatch(new RegExp(`\\[${i + 1}\\]\\.$`))

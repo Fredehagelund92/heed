@@ -117,13 +117,13 @@ describe("Ask's answer from the engine", () => {
     ).toBe('Online sales stopped. [1]')
   })
 
-  it('says what an example answers, not the question it opens with, so the answer reads as sentences', () => {
+  it('says no example, as the app shows none: its number would shift the sources after it', () => {
     const a = answerOf(
       result({
         items: [
           item(
             'itm_a',
-            'How did Returns change in France in September 2024? A good answer compares Returns in France with the month before and a year earlier.',
+            'How did Returns change in France in September 2024? A good answer compares Returns in France with the month before.',
             { kind: 'example' },
           ),
           item('itm_b', 'Cube gets Returns a day late. Leave out the last day.', { kind: 'note' }),
@@ -133,9 +133,19 @@ describe("Ask's answer from the engine", () => {
       'What should I know about Returns in France?',
       names,
     )
-    expect(a.text).toBe(
-      'A good answer compares Returns in France with the month before and a year earlier. [1] Cube gets Returns a day late. [2] Which markets moved most against France? [3]',
+    expect(a.text).toBe('Cube gets Returns a day late. [1]')
+  })
+
+  it('says what agents are told when an answer holds only examples', () => {
+    const a = answerOf(
+      result({
+        say: '1 context item applies to Returns in France.',
+        items: [item('itm_a', 'Which markets moved most?', { kind: 'example' })],
+      }),
+      'What should I know about Returns in France?',
+      names,
     )
+    expect(a.text).toBe('1 context item applies to Returns in France.')
   })
 
   it("takes a real model's words when the service sent them, and keeps the engine's state, note and sources", () => {
@@ -326,6 +336,31 @@ describe("Ask's answer from the engine", () => {
     const failed = answerOf(result({ state: 'failed', status: 'check_failed' }), 'Orders?', names)
     expect(failed.text).toBe('')
     expect(failed.note).toMatch(/^The check couldn't run just now/)
+  })
+
+  it('counts only the sources shown in the stale note', () => {
+    const old = { unverified: true, unverifiedReason: 'past_review_date' as const }
+    const withExample = answerOf(
+      result({
+        state: 'stale',
+        items: [
+          item('itm_a', 'Returns count refunds.', old),
+          item('itm_b', 'Which markets moved most?', { kind: 'example' }),
+        ],
+      }),
+      'Returns in Norway?',
+      names,
+    )
+    expect(withExample.note).toMatch(/^Based on 1 context item that may be out of date/)
+    const onlyExample = answerOf(
+      result({
+        state: 'stale',
+        items: [item('itm_b', 'Which markets moved most?', { kind: 'example', ...old })],
+      }),
+      'Returns in Norway?',
+      names,
+    )
+    expect(onlyExample.note).toMatch(/^Based on 1 context item that may be out of date/)
   })
 
   it('says why an item may be out of date, and what was left out', () => {

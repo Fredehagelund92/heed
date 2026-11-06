@@ -27,8 +27,8 @@ body:
       label: How to see it
       description: The steps from a fresh start, one per line.
       placeholder: |
-        1. Run `npm run dev`
-        2. Open the library
+        1. Run `docker compose up`
+        2. Sign in as Jon Abara
         3. ...
     validations:
       required: true
@@ -50,14 +50,15 @@ body:
     attributes:
       label: What the web app ran on
       options:
+        - The demo in Docker (`docker compose up`)
         - The mock API (`npm run dev`)
         - The service (`npm run dev:http`)
         - Not the web app
   - type: input
     id: commit
     attributes:
-      label: Commit
-      description: The output of `git rev-parse --short HEAD`.
+      label: Version or commit
+      description: What `curl localhost:3000/health` names, or the output of `git rev-parse --short HEAD`.
   - type: input
     id: environment
     attributes:
