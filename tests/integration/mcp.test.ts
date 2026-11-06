@@ -98,13 +98,16 @@ it('delivers accepted PostgreSQL content over MCP using only serving-role privil
     (await pool.query<{ current_user: string }>('select current_user')).rows[0]!.current_user,
   ).toBe('context_layer_serve')
   const reply = await wire.callTool({
-    name: 'get_facts',
-    arguments: { question: 'CANARY-private@example.test orders August 2026' },
+    name: 'get_context',
+    arguments: {
+      question: 'CANARY-private@example.test orders August 2026',
+      response_format: 'full',
+    },
   })
   expect(reply.isError).not.toBe(true)
   expect(reply.structuredContent).toMatchObject({
     status: 'matched',
-    items: [
+    context: [
       {
         id: item,
         evidence: [{ url: 'https://example.test/law' }],
@@ -115,8 +118,8 @@ it('delivers accepted PostgreSQL content over MCP using only serving-role privil
     ],
   })
   expect(
-    (await wire.callTool({ name: 'read_item', arguments: { id: item } })).structuredContent,
-  ).toMatchObject({ item: { id: item } })
+    (await wire.callTool({ name: 'read_context', arguments: { id: item } })).structuredContent,
+  ).toMatchObject({ context: { id: item } })
   await gateway.flush()
   const delivered = (await admin.query('select * from deliveries')).rows
   expect(delivered).toHaveLength(1)
@@ -147,7 +150,7 @@ it('refreshes a cached edition immediately for a stop switch and fails closed on
   expect(stopped).not.toBe(first)
   expect(stopped.stopped.items).toContain(item)
   expect(
-    (await wire.callTool({ name: 'read_item', arguments: { id: item } })).structuredContent,
+    (await wire.callTool({ name: 'read_context', arguments: { id: item } })).structuredContent,
   ).toMatchObject({ message: 'Not found' })
   await admin.query(
     "insert into overlay_events (kind,scope,item_id,reason) values ('stop_off','item',$1,'Resume')",
@@ -156,9 +159,9 @@ it('refreshes a cached edition immediately for a stop switch and fails closed on
 })
 
 it('persists anonymous feedback and atomically counts simultaneous reports for one topic', async () => {
-  const scope = { question: 'Orders August 2026' }
+  const scope = { kind: 'missing', question: 'Orders August 2026' }
   for (let i = 0; i < 2; i++)
-    expect((await wire.callTool({ name: 'report_gap', arguments: scope })).isError).not.toBe(true)
+    expect((await wire.callTool({ name: 'report', arguments: scope })).isError).not.toBe(true)
   expect((await admin.query('select reports from gap_weekly_counts')).rows).toEqual([
     { reports: 2 },
   ])
@@ -167,8 +170,8 @@ it('persists anonymous feedback and atomically counts simultaneous reports for o
   expect(
     (
       await wire.callTool({
-        name: 'give_feedback',
-        arguments: { delivery_id: delivery, verdict: 'helpful' },
+        name: 'report',
+        arguments: { kind: 'helped', reply_id: delivery },
       })
     ).isError,
   ).not.toBe(true)
@@ -212,7 +215,7 @@ it('answers the agent contract over PostgreSQL: the short reply, the item, and a
   ).toEqual([{ status: 'matched' }])
 })
 
-it('refuses a batch of report_gap calls whole: no report counted, one refusal logged (FR-408)', async () => {
+it('refuses a batch of report calls whole: no report counted, one refusal logged (FR-408)', async () => {
   const before = (
     await admin.query<{ reports: number }>(
       'select coalesce(sum(reports),0)::int as reports from gap_weekly_counts',
@@ -234,7 +237,7 @@ it('refuses a batch of report_gap calls whole: no report counted, one refusal lo
         jsonrpc: '2.0',
         id: n + 1,
         method: 'tools/call',
-        params: { name: 'report_gap', arguments: { question: 'Orders August 2026' } },
+        params: { name: 'report', arguments: { kind: 'missing', question: 'Orders August 2026' } },
       })),
     ),
   })

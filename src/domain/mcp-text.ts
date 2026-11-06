@@ -5,7 +5,7 @@ import { concepts } from './words-v1.ts'
 
 /*
   What the MCP server tells an agent in words, in one place: the six tools as people read them,
-  the old tool ids and the tools that replaced them, and the rules an agent follows. The service
+  and the rules an agent follows. The service
   (src/server/mcp/tools.ts) serves them as the server instructions and the tool descriptions, and
   the web app's Agents and access, its setup prompt and its agent steps (src/web/lib/agents.ts)
   show the same sentences, so they never disagree. This is the one source of the agent rules text.
@@ -31,29 +31,6 @@ export const agentToolNames = [
   'get_related',
 ] as const
 export type AgentToolName = (typeof agentToolNames)[number]
-
-/**
- * The ids tools had before the agent contract (decided 25 October 2026, from the Heed v1 mockup),
- * each with the tool that replaced it. For one release each still answers with its old arguments
- * and its old reply, plus a note that names the tool to use; the instructions, the titles and the
- * Connect page name the new tools only. search_context is the id get_context's old alias had for
- * search_facts (21 October 2026).
- */
-export const deprecatedTools = {
-  get_facts: 'get_context',
-  find_facts: 'find_context',
-  search_facts: 'find_context',
-  search_context: 'find_context',
-  read_item: 'read_context',
-  report_gap: 'report',
-  give_feedback: 'report',
-  draft_context: 'suggest_context',
-} as const satisfies Record<string, AgentToolName>
-export type DeprecatedToolName = keyof typeof deprecatedTools
-
-/** The note a deprecated id answers with, beside its old reply. */
-export const deprecatedNote = (old: DeprecatedToolName) =>
-  `${old} is deprecated and stops answering after this release: use ${deprecatedTools[old]}.`
 
 /** The glossary's words the tools use with people. */
 const fact = concepts.fact.name

@@ -29,8 +29,8 @@ export type Said = { say: string; next?: string }
  * The words a reply speaks in: what one written thing is called, and the tools it points to. The
  * six tools of the agent contract point at each other and start with the answer line
  * (`contextVoice`), and call a written thing by the glossary's name (src/domain/words.ts), so they
- * follow when it changes; the deprecated ids, and the assistant and the preview that still call
- * them by those ids, keep the words they had (`factVoice`) until they go.
+ * follow when it changes. The reply a draft's preview and the evals read (`get_facts`, which is no
+ * tool any more) keeps the words it had (`factVoice`).
  */
 export type Voice = {
   /** One written thing, and several. */
@@ -515,29 +515,7 @@ export function contextSaid(bundle: Names, c: ContextSay, voice = factVoice): Sa
   return { say: say.join(' '), ...(next.length ? { next: next.join(' ') } : {}) }
 }
 
-/** search_facts's two sentences: a search matches words, so finding nothing proves nothing. */
-export function searchSaid(c: {
-  status: string
-  query: string
-  total: number
-  shown: number
-  area: string | null
-}): Said {
-  const where = c.area ? ` in ${c.area}` : ''
-  // The words are the caller's own: the sentence never repeats them, nor what they may probe.
-  const words = c.query.trim() ? 'these words' : 'these filters'
-  if (c.status === 'matched')
-    return {
-      say: `${sentence(count(c.total, 'fact', 'facts'))}${where} ${c.total === 1 ? 'matches' : 'match'} ${words}.${c.shown < c.total ? ` ${c.shown} are on this page.` : ''}`,
-      next: `A search matches words: it doesn't say what applies to a metric, market or dates. Call get_facts for that.${c.shown < c.total ? ' next_cursor gives the next page.' : ''}`,
-    }
-  return {
-    say: `No fact${where} matches ${words}.`,
-    next: `${notProof}: a search that finds nothing may only have missed the words. Try a metric, market or domain name, fewer words, or get_facts with the metrics, markets and dates.`,
-  }
-}
-
-/** find_context's two sentences (find_facts's in the fact voice): found by words, by what the words name, or nothing, and why. */
+/** find_context's two sentences: found by words, by what the words name, or nothing, and why. */
 export function findSaid(
   bundle: Names,
   c: {
@@ -552,9 +530,9 @@ export function findSaid(
     definitions: readonly string[]
     area: string | null
   },
-  voice = factVoice,
 ): Said {
   // The words are the caller's own: the sentence never repeats them, nor what they may probe.
+  const voice = contextVoice
   const [one, many] = voice.item
   const where = c.area ? ` in ${c.area}` : ''
   const scope = c.scope
@@ -597,15 +575,12 @@ export function findSaid(
 }
 
 /**
- * read_context's two sentences (read_item's in the fact voice): the one item it gives, or that no
+ * read_context's two sentences: the one item it gives, or that no
  * item by that id may be read, in the same words for one the caller may not see as for one that
  * does not exist (FR-334). `kind` is the kind as the reply names it.
  */
-export const readSaid = (
-  item: { kind: string; version: number } | null,
-  voice = factVoice,
-): Said => {
-  const [one, many] = voice.item
+export const readSaid = (item: { kind: string; version: number } | null): Said => {
+  const [one, many] = contextVoice.item
   return item
     ? {
         say: `This is the full ${item.kind}, version ${item.version}.`,
@@ -613,7 +588,7 @@ export const readSaid = (
       }
     : {
         say: `There's no ${one} by that id that you can read.`,
-        next: `That says nothing about what else is written down: find ${many} with ${voice.find} or ${voice.get}.`,
+        next: `That says nothing about what else is written down: find ${many} with ${contextVoice.find} or ${contextVoice.get}.`,
       }
 }
 
@@ -628,11 +603,6 @@ export const relatedSaid = (c: { shown: number; total: number; depth: number } |
         say: "There's nothing by that id that you can read.",
         next: 'That says nothing about what else is written down.',
       }
-
-/** report_gap's sentence: the gap is recorded for its owners, never who asked. */
-export const gapSaid = (scope: string, assumed: string | null): Said => ({
-  say: `Gap reported for ${scope}. The owners of the domain will see it was asked.${assumed ? ` ${assumed}` : ''}`,
-})
 
 /**
  * report's sentence: what was sent, and to which owner when the report names a context item or a

@@ -24,14 +24,11 @@ offers six tools, described in one list (`AGENT_TOOLS` in `src/domain/mcp-text.t
 `improve_question`, `domain_overview`, `what_changed` and `search_help` left the list, and left
 the service with the in-app assistant (30 Oct 2026).
 
-The earlier ids stay for one release as deprecated ids: `get_facts` (now `get_context`),
+The earlier ids answered for one release and went in 0.2.0: `get_facts` (now `get_context`),
 `find_facts`, `search_facts` and `search_context` (now `find_context`), `read_item` (now
 `read_context`), `report_gap` and `give_feedback` (now `report`) and `draft_context` (now
-`suggest_context`). Each is listed beside the tool that replaced it, with a description that says
-`Deprecated: use <tool>.`, and answers with its old arguments and its old reply, plus a `note`
-first in it and a last line of text that names the tool to use. A call by an old id is checked,
-limited and recorded as the tool that replaced it, so it needs that tool's switch and scope.
-`draft_context` keeps what it did: it saves a draft and never sends it.
+`suggest_context`). A call by one of them is refused as an unknown tool. Inside the service
+`get_facts` is still the name of the reply a draft's preview and the evals read; no agent can call it.
 
 Heed's server instructions (FR-343) tell the agent what Heed holds and what the data tool holds,
 to call `get_context` first, how to read each status and its answer state (FR-349), to pass on a
@@ -126,7 +123,7 @@ on a reply about more than one metric each item names the ones it is about in `a
 never gives them as one figure. Agent replies never carry a comment, a report or a saved question:
 they are built from the served edition only.
 
-**`find_context`** (FR-338, merging `find_facts` and `search_facts`) finds what is written down
+**`find_context`** (FR-338) finds what is written down
 about a few words: names and other names (Net sales), domains, member names and words in an item's
 title, summary or text. It falls back to the items that apply to the scope the words name, gives
 each named metric's or dimension's definition with where it comes from and what Heed adds, and says
@@ -146,8 +143,8 @@ words of its title, summary and text that a person defined come back in `terms`,
 one item, and an optional short note checked for sensitive text (FR-611). It is recorded as
 anonymous feedback on the reply, with the item's domain when it names one, and the gap job turns
 missing, wrong and unclear into a gap for the reply's topic (FR-606, case 3). Something missing with
-no reply takes the question's metrics, markets and dates instead and is recorded as a gap, as
-`report_gap` did. The reply says who will see it (`to`, "the owner of Sales") and never keeps who
+no reply takes the question's metrics, markets and dates instead and is recorded as a gap.
+The reply says who will see it (`to`, "the owner of Sales") and never keeps who
 asked (FR-602).
 
 `get_related` (FR-332) follows links from an item id, a vocabulary key such as `metric:orders`,

@@ -125,7 +125,7 @@ export async function signInHarness(options: { dynamicRegistration?: boolean } =
         resource,
         authorizationServers: [issuer],
         now,
-        // Seals draft_context's question rounds (tests/integration/draft-questions.test.ts).
+        // Seals suggest_context's question rounds (tests/integration/draft-questions.test.ts).
         stateKey,
         // Access keys, and what each agent may do, are checked as the service checks them: on the
         // serving role, at every request.

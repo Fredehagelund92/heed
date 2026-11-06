@@ -2,7 +2,7 @@ import { limits } from './proposal-rules.ts'
 
 /*
   How to write a context item, for any AI that drafts one for a person. The assistant's
-  instructions, its create_draft tool and the MCP tool draft_context all carry these same words,
+  instructions, its create_draft tool and the MCP tool suggest_context all carry these same words,
   so what the three ask for cannot drift apart. The limits are the attribute table's
   (./proposal-rules.ts). Each tool says in its own input how to flag uncertain dates.
 */

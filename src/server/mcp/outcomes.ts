@@ -32,7 +32,7 @@ import type { ServingBundle, ServingItem, ServingTerm } from '../modules/edition
 import type { WaitingTerms } from './reads.ts'
 import type * as z from 'zod'
 import type { findInput } from './schemas.ts'
-import { factVoice, refusedSaid, unknownDomainWords, type Voice } from '../../domain/say.ts'
+import { contextVoice, refusedSaid, unknownDomainWords } from '../../domain/say.ts'
 
 /*
   The outcome tools (FR-338 to FR-340): a few task-shaped reads that each answer one thing
@@ -75,7 +75,7 @@ export function domainAbout(area: Area, full: boolean) {
 }
 
 /**
- * The domains a get_facts question is about: the domain of each asked metric, by name, with
+ * The domains a get_context question is about: the domain of each asked metric, by name, with
  * what it is. A concise reply names them only: what a domain is does not answer the question,
  * and the full reply gives it. None when the question names no metric with a domain.
  */
@@ -579,9 +579,8 @@ function nothingFound(
     vocabulary: { metrics: number; dimensions: number }
     waiting_in_source?: { words: string }
   }[] = [],
-  voice: Voice = factVoice,
 ) {
-  const [one, many] = voice.item
+  const [one, many] = contextVoice.item
   const why: string[] = []
   // A domain the words name that holds nothing yet: what it has and what is missing, first.
   for (const d of domains)
@@ -638,19 +637,17 @@ function nothingFound(
   if (examples.length)
     tries.push(`Name a metric or a domain known here, such as ${list(examples)}.`)
   tries.push(
-    `For what applies to a question with dates, call ${voice.get} with the metrics, the markets and the dates.`,
+    `For what applies to a question with dates, call ${contextVoice.get} with the metrics, the markets and the dates.`,
   )
   tries.push(
-    voice === factVoice
-      ? 'If nothing is written down about it, say so plainly and report it as a gap, so the owners see it was asked.'
-      : 'If nothing is written down about it, say so plainly and, if the person agrees, call report with kind missing, so the owners see it was asked.',
+    'If nothing is written down about it, say so plainly and, if the person agrees, call report with kind missing, so the owners see it was asked.',
   )
   return { why, try: tries }
 }
 
 /**
- * find_facts (FR-338): the items whose words or names match, best first; when no words match,
- * the items that apply to the scope the words name (as get_facts matches them), on the dates
+ * find_context (FR-338): the items whose words or names match, best first; when no words match,
+ * the items that apply to the scope the words name (as get_context matches them), on the dates
  * given or today. It also says what the definition source gives for each metric or dimension the
  * words name, where that definition comes from, and what Heed adds. When nothing is found it says
  * why and what to try.
@@ -661,10 +658,8 @@ export function findContext(
   today: string,
   /** The source members domains have that are no term yet, when the caller reads them. */
   waiting: WaitingTerms | null = null,
-  /** The words of the reply: find_context's, or find_facts's (src/domain/say.ts). */
-  voice: Voice = factVoice,
 ) {
-  const [one, many] = voice.item
+  const [one, many] = contextVoice.item
   const domain = domainOf(args.domain, bundle)
   if ('refusal' in domain) return domain.refusal
   const area = domain.area
@@ -703,7 +698,7 @@ export function findContext(
         ...(assumed ? { assumed_date: assumed.note } : {}),
         ...(scope.dates ? { dates_read: scope.dates } : {}),
         note: found.length
-          ? `No ${one}'s words matched, so these are the ${many} that apply to what the words name${assumed ? `, today (${today})` : ''}, as ${voice.get} finds them.`
+          ? `No ${one}'s words matched, so these are the ${many} that apply to what the words name${assumed ? `, today (${today})` : ''}, as ${contextVoice.get} finds them.`
           : `No ${one}'s words matched, and no ${one} applies to what the words name${assumed ? ` today (${today})` : ''}.`,
       }
     }
@@ -753,7 +748,7 @@ export function findContext(
   }))
   const status = found.length ? 'matched' : 'no_match'
   // What agents do not get is counted by the names the words hold (domains, metrics, markets),
-  // as get_facts counts by scope: never by the text of an item an agent cannot read, which
+  // as get_context counts by scope: never by the text of an item an agent cannot read, which
   // would let words probe it. An item for a narrower audience counts as absent (groups are parked).
   // Nor by the item's title: the query's own words never rank an item an agent does not get.
   const named = { ...read, title: '', concepts: read.concepts.filter((c) => c.kind === 'named') }
@@ -782,9 +777,7 @@ export function findContext(
     ...(definitions.length ? { definitions } : {}),
     ...(domains.length ? { domains } : {}),
     ...(readAs.length ? { domain_read_as: readAs.map((r) => r.note) } : {}),
-    ...(status === 'no_match'
-      ? nothingFound(bundle, read, area, withheld, members, domains, voice)
-      : {}),
+    ...(status === 'no_match' ? nothingFound(bundle, read, area, withheld, members, domains) : {}),
     check_report: {
       status,
       matched: found.length,
@@ -795,6 +788,6 @@ export function findContext(
       checked: ['edition', 'audience', 'stop_switch', 'freshness'],
       statements: [coverageStatement, ...(assumed ? [assumed.statement] : [])],
     },
-    instructions: `${agentInstructions} Read an item in full with ${voice.read}. Quote a definition only as the source words it, and say where it comes from.${assumed ? ` ${assumed.instruction}` : ''}${items.some((item) => 'not_to_conclude' in item) ? ` ${caveatInstruction}` : ''}${readAs.length || domains.some((d) => 'name_note' in d) ? ` ${domainReadAsInstruction}` : ''}${status === 'no_match' && domains.some((d) => !d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions) ? ` ${emptyDomainInstruction}` : ''}`,
+    instructions: `${agentInstructions} Read an item in full with ${contextVoice.read}. Quote a definition only as the source words it, and say where it comes from.${assumed ? ` ${assumed.instruction}` : ''}${items.some((item) => 'not_to_conclude' in item) ? ` ${caveatInstruction}` : ''}${readAs.length || domains.some((d) => 'name_note' in d) ? ` ${domainReadAsInstruction}` : ''}${status === 'no_match' && domains.some((d) => !d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions) ? ` ${emptyDomainInstruction}` : ''}`,
   }
 }

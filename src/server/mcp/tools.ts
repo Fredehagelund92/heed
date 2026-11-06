@@ -5,34 +5,25 @@ import { draftingGuide } from '../../domain/drafting-guide.ts'
 import {
   INSTRUCTIONS_READ_BY_ALL,
   agentToolNames,
-  deprecatedTools,
   instructionRules as rulesFor,
   instructionsFor,
   toolWords,
   type AgentToolName,
-  type DeprecatedToolName,
 } from '../../domain/mcp-text.ts'
 import { agentTreatmentSentence } from '../../domain/proposal-attributes.ts'
 import {
-  contextInput,
   contextOutput,
-  deliveryOutput,
   draftInput,
   draftOutput,
-  feedbackInput,
   findContextInput,
   findContextOutput,
-  findInput,
-  gapInput,
   getContextInput,
   readContextOutput,
   readInput,
-  readItemOutput,
   readOutput,
   relatedInput,
   reportInput,
   reportOutput,
-  searchInput,
 } from './schemas.ts'
 import { productName } from '../brand.ts'
 
@@ -147,65 +138,12 @@ export const tools = {
 export type ToolName = AgentToolName
 export const toolNames: ToolName[] = [...agentToolNames]
 
-/**
- * The deprecated ids (src/domain/mcp-text.ts), each with the arguments and the reply it had, so a
- * client that learned it from an earlier connection, a skill file or a saved instruction keeps
- * working for one release. The server lists each beside the tool that replaced it, with a
- * description that names that tool, and its reply carries a note that does too. A call by an old
- * id is checked, limited and logged as the tool that replaced it.
- */
-export const deprecatedSchemas = {
-  get_facts: { inputSchema: contextInput, outputSchema: deliveryOutput },
-  find_facts: { inputSchema: findInput, outputSchema: deliveryOutput },
-  search_facts: { inputSchema: searchInput, outputSchema: deliveryOutput },
-  search_context: { inputSchema: searchInput, outputSchema: deliveryOutput },
-  read_item: { inputSchema: readInput, outputSchema: readItemOutput },
-  report_gap: { inputSchema: gapInput },
-  give_feedback: { inputSchema: feedbackInput },
-  draft_context: { inputSchema: draftInput, outputSchema: draftOutput },
-} as const satisfies Record<DeprecatedToolName, unknown>
-export type DeprecatedToolAlias = DeprecatedToolName
-export const deprecatedToolAliases = deprecatedTools
-
-/** What the old ids did, in a line, after the tool that replaced them. */
-const oldLines: Record<DeprecatedToolName, string> = {
-  get_facts:
-    'It takes the arguments it took before and gives the reply it gave, with items and delivery_id.',
-  find_facts: 'It takes the arguments it took before and gives the reply it gave, with items.',
-  search_facts:
-    'It takes the arguments it took before (query, kind, area, mentions, cursor) and gives the reply it gave.',
-  search_context:
-    'It takes the arguments search_facts took (query, kind, area, mentions, cursor) and gives the reply it gave.',
-  read_item: 'It takes the arguments it took before and gives the reply it gave, with item.',
-  report_gap: "It takes a question's scope and records a gap, as before.",
-  give_feedback: 'It takes a delivery_id and a verdict, as before.',
-  draft_context: 'It saves a draft for the person and never sends it, as before.',
-}
-
-/** A tool, or a deprecated id, as the server lists it. */
-export type ListedName = ToolName | DeprecatedToolName
-export const isDeprecated = (name: string): name is DeprecatedToolName =>
-  Object.hasOwn(deprecatedTools, name)
-/** What the server lists for a name: its title, description, schemas and annotations. */
-export function listedTool(name: ListedName) {
-  if (!isDeprecated(name)) return tools[name]
-  const { scope, title, annotations } = tools[deprecatedTools[name]]
-  // Its own schemas only: an old id that had no output schema declares none.
-  return {
-    scope,
-    title,
-    annotations,
-    ...deprecatedSchemas[name],
-    description: `Deprecated: use ${deprecatedTools[name]}. ${oldLines[name]}`,
-  }
-}
-
-const outputOf = (name: ListedName) => {
-  const listed = listedTool(name)
+const outputOf = (name: ToolName) => {
+  const listed = tools[name]
   return 'outputSchema' in listed ? (listed.outputSchema as z.ZodType) : null
 }
-const definitionOf = (name: ListedName) => {
-  const listed = listedTool(name)
+const definitionOf = (name: ToolName) => {
+  const listed = tools[name]
   const output = outputOf(name)
   return {
     name,
@@ -217,12 +155,9 @@ const definitionOf = (name: ListedName) => {
   }
 }
 export const toolDefinitions = toolNames.map(definitionOf)
-export const deprecatedDefinitions = (Object.keys(deprecatedTools) as DeprecatedToolName[]).map(
-  definitionOf,
-)
-/** One digest of everything the server lists: the six tools and the deprecated ids. */
+/** One digest of everything the server lists. */
 export const toolSchemaDigest = createHash('sha256')
-  .update(canonicalJson({ tools: toolDefinitions, deprecated: deprecatedDefinitions }))
+  .update(canonicalJson({ tools: toolDefinitions }))
   .digest('hex')
 /** A tool only a person a login server signed in may call: it writes as that person (FR-121). */
 export function personOnly(name: ToolName): boolean {
@@ -232,31 +167,14 @@ export function isToolName(value: unknown): value is ToolName {
   return typeof value === 'string' && Object.hasOwn(tools, value)
 }
 
-/** The tool a name calls: the tool itself, or the tool an old id stands for. Null for no tool. */
-export function toolCalledBy(value: unknown): ToolName | null {
-  if (isToolName(value)) return value
-  return typeof value === 'string' && isDeprecated(value) ? deprecatedTools[value] : null
-}
-
-/** The old ids of a tool, listed beside it as deprecated. */
-export const aliasesOf = (name: ToolName): DeprecatedToolName[] =>
-  (Object.keys(deprecatedTools) as DeprecatedToolName[]).filter(
-    (alias) => deprecatedTools[alias] === name,
-  )
-
 /**
- * What the tool service runs, by name: the six tools but suggest_context (the draft tool writes
- * it), and the deprecated ids by the code they had (search_context runs search_facts).
+ * What the tool service runs, by name: the six tools but suggest_context, which the draft tool
+ * writes, and get_facts, no tool any more, the reply a draft's preview and the evals read.
  */
-export type ServedToolName =
-  | Exclude<ToolName, 'suggest_context'>
-  | Exclude<DeprecatedToolName, 'search_context' | 'draft_context'>
-/** The service name a deprecated id runs. */
-export const servedNameOf = (old: Exclude<DeprecatedToolName, 'draft_context'>): ServedToolName =>
-  old === 'search_context' ? 'search_facts' : old
+export type ServedToolName = Exclude<ToolName, 'suggest_context'> | 'get_facts'
 
 /** A tool's output schema for the MCP server, when it declares one. */
-export function toolOutputSchema(name: ListedName) {
+export function toolOutputSchema(name: ToolName) {
   const schema = outputOf(name)
   return schema
     ? {
@@ -272,8 +190,8 @@ export function toolOutputSchema(name: ListedName) {
 }
 
 // Zod Mini exposes Standard Schema validation but needs an explicit JSON Schema adapter.
-export function toolInputSchema(name: ListedName) {
-  const schema = listedTool(name).inputSchema
+export function toolInputSchema(name: ToolName) {
+  const schema = tools[name].inputSchema
   return {
     '~standard': {
       ...schema['~standard'],

@@ -1,6 +1,6 @@
 /*
   The attributes of a proposal, in one place (FR-101, FR-121). Two write paths fill them: the
-  Add context and Suggest a change form a person types into, and the MCP tool `draft_context` an
+  Add context and Suggest a change form a person types into, and the MCP tool `suggest_context` an
   AI agent calls for the person (with the assistant's `create_draft` behind the same service
   function). This file is what keeps the two from drifting apart:
 
@@ -65,14 +65,14 @@ export const formFields = [
 export type FormField = (typeof formFields)[number]
 /**
  * Form fields that edit no attribute of the item, with why. They are the proposal's own, so
- * draft_context never sets them.
+ * suggest_context never sets them.
  */
 export const proposalOnlyFields: Partial<Record<FormField, string>> = {
   reason:
     "What is wrong with the current version, on Suggest a change: the proposal's reason for its reviewers, not part of the item.",
 }
 
-/** The inputs of `draft_context` (`draftInput`, src/server/mcp/schemas.ts). */
+/** The inputs of `suggest_context` (`draftInput`, src/server/mcp/schemas.ts). */
 export const toolInputs = [
   'text',
   'title',

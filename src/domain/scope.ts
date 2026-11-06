@@ -181,8 +181,8 @@ export function termsInText(
 }
 
 /**
- * The names and the period of a question, read once for every reader: get_facts, find_facts,
- * report_gap and Ask. The dates are read in the words the names did not take
+ * The names and the period of a question, read once for every reader: get_context, find_context,
+ * report and Ask. The dates are read in the words the names did not take
  * (`readDates`).
  */
 function readWords(
@@ -391,9 +391,9 @@ export function extractScope(
 /**
  * A question read as a scope, so Try it opens on what was asked (FR-602: the question is read in
  * memory and never kept). The metrics, dimensions and values come from the same whole, longest
- * phrases get_facts reads, and a phrase that names several terms chooses none and is said
- * (`issues`). The dates are get_facts's own (`readDates`), with how they were read (`dates`).
- * Unlike get_facts, a question that names only part of a scope still gives that part: the person
+ * phrases get_context reads, and a phrase that names several terms chooses none and is said
+ * (`issues`). The dates are get_context's own (`readDates`), with how they were read (`dates`).
+ * Unlike get_context, a question that names only part of a scope still gives that part: the person
  * sees it and completes it. `spans` says where each name and the dates are in the question.
  */
 export function readQuestion(

@@ -175,7 +175,7 @@ it('refuses timestamp-bearing ids, precise times and other verdicts on a rating'
       "insert into assistant_ratings (verdict,created_hour) values ('helpful',date_trunc('hour',now())+interval '1 second')",
     ),
   ).rejects.toMatchObject({ code: '23514' })
-  // Thumbs up and down only: give_feedback's other verdicts are not a person's rating.
+  // Thumbs up and down only: report's other kinds are not a person's rating.
   for (const verdict of ['missing', 'unclear'])
     await expect(
       client.query('insert into assistant_ratings (verdict) values ($1)', [verdict]),

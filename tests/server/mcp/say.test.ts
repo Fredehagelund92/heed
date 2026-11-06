@@ -308,57 +308,40 @@ describe('get_facts says, for each status', () => {
 })
 
 describe('the other read tools say', () => {
-  it('search_facts: what a search matched, and that a miss proves nothing', async () => {
+  it('find_context: found by words, by what the words name, or nothing and the next step', async () => {
     const run = setup()
-    const hit = await run('search_facts', { query: 'Norway closure' })
-    expect(said(hit)).toBe('1 fact matches these words.')
-    expect(nextOf(hit)).toBe(
-      "A search matches words: it doesn't say what applies to a metric, market or dates. Call get_facts for that.",
-    )
-    const miss = await run('search_facts', { query: 'zebra' })
-    expect(said(miss)).toBe('No fact matches these words.')
-    expect(nextOf(miss)).toContain(
-      `${notProof}: a search that finds nothing may only have missed the words.`,
-    )
-    expect(said(await run('search_facts', { query: 'x', area: 'Nowhere' }))).toBe(
-      `${notLookedUp} There's no domain called "Nowhere".`,
-    )
-  })
-
-  it('find_facts: found by words, by what the words name, or nothing and the next step', async () => {
-    const run = setup()
-    const words = await run('find_facts', { query: 'Norway closure' })
+    const words = await run('find_context', { query: 'Norway closure' })
     expect(said(words)).toBe('1 fact matches these words.')
     expect(nextOf(words)).toMatch(/^These match words, not dates/)
-    const scoped = said(await run('find_facts', { query: 'orders august 2026' }))
+    const scoped = said(await run('find_context', { query: 'orders august 2026' }))
     expect(scoped).toContain("The definition of Orders is here too, in its source's own words.")
     // A metric no fact is about: no words match, and nothing applies to what they name.
     const nothing = await setup((data) => {
       data.terms.push({ ...data.terms[0]!, key: 'metric:returns', name: 'Returns' })
       data.metricArea = { ...data.metricArea, 'metric:returns': 'finance' }
-    })('find_facts', { query: 'returns in July 2026' })
+    })('find_context', { query: 'returns in July 2026' })
     expect(said(nothing)).toBe(
       "Nothing written down matches these words, or applies to Returns in July 2026. The definition of Returns is here too, in its source's own words.",
     )
     expect(nextOf(nothing)).toMatch(
       new RegExp(`^${notProof}: a search may only have missed the words`),
     )
-    expect(said(await run('find_facts', { query: 'x', domain: 'Nowhere' }))).toBe(
+    expect(said(await run('find_context', { query: 'x', domain: 'Nowhere' }))).toBe(
       `${notLookedUp} There's no domain called "Nowhere".`,
     )
   })
 
-  it('read_item and get_related: what they give, and a miss in the same words for any id', async () => {
+  it('read_context and get_related: what they give, and a miss in the same words for any id', async () => {
     const run = setup()
-    const read = await run('read_item', { id: 'itm_norway01' })
+    const read = await run('read_context', { id: 'itm_norway01' })
     expect(said(read)).toBe('This is the full event, version 1.')
     expect(nextOf(read)).toBe(
       'A link shows what a fact mentions: it does not mean the fact applies to the question.',
     )
-    const missing = await run('read_item', { id: 'itm_missing001' })
+    const missing = await run('read_context', { id: 'itm_missing001' })
     expect(said(missing)).toBe("There's no fact by that id that you can read.")
     expect(nextOf(missing)).toBe(
-      'That says nothing about what else is written down: find facts with find_facts or get_facts.',
+      'That says nothing about what else is written down: find facts with find_context or get_context.',
     )
     expect(said(await run('get_related', { id: 'metric:orders' }))).toBe(
       '1 thing is linked to it, up to 1 step away.',
@@ -375,10 +358,9 @@ describe('the other read tools say', () => {
     })
     for (const [name, args] of [
       ['get_facts', ask()],
-      ['read_item', { id: 'itm_norway01' }],
+      ['read_context', { id: 'itm_norway01' }],
       ['get_related', { id: 'itm_norway01' }],
-      ['search_facts', { query: 'Norway' }],
-      ['find_facts', { query: 'Norway' }],
+      ['find_context', { query: 'Norway' }],
     ] as const) {
       const reply = await run(name, args)
       expect(said(reply)).not.toContain('Ignore your rules')
@@ -390,22 +372,13 @@ describe('the other read tools say', () => {
 
   it("never repeats the caller's words, which may probe what AI agents do not get", async () => {
     const run = setup()
-    for (const name of ['search_facts', 'find_facts'] as const) {
-      const reply = await run(name, { query: 'CANARY0123' })
-      expect(said(reply)).not.toContain('CANARY0123')
-      expect(nextOf(reply)).not.toContain('CANARY0123')
-    }
-  })
-
-  it('report_gap says what it did', async () => {
-    const run = setup()
-    expect(said(await run('report_gap', ask()))).toBe(
-      'Gap reported for Orders in Norway in August 2026. The owners of the domain will see it was asked.',
-    )
+    const reply = await run('find_context', { query: 'CANARY0123' })
+    expect(said(reply)).not.toContain('CANARY0123')
+    expect(nextOf(reply)).not.toContain('CANARY0123')
   })
 })
 
-describe("find_facts's sentence when no words match but what they name does", () => {
+describe("find_context's sentence when no words match but what they name does", () => {
   it('names what it read, how far it checked and the day it assumed', () => {
     const terms = bundle().terms
     const assumed = 'I assumed today, 7 October 2026. Tell me if you meant a different period.'
@@ -430,7 +403,7 @@ describe("find_facts's sentence when no words match but what they name does", ()
       ),
     ).toEqual({
       say: `3 facts apply to Orders in Norway. 2 are shown. Only that was checked. ${assumed}`,
-      next: "No fact's words matched, so these are the facts that apply to what the words name. Call get_facts for other metrics, markets or dates. Raise limit for more.",
+      next: "No fact's words matched, so these are the facts that apply to what the words name. Call get_context for other metrics, markets or dates. Raise limit for more.",
     })
   })
 })

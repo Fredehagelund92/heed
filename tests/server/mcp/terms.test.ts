@@ -10,7 +10,7 @@ import { bundle, memoryStore, withRevenue } from './fixtures.ts'
   Definitions (FR-138), on the tool service's own code: the words used, what they mean as a
   person wrote them, who wrote them as a role and when, and the page. The reply's state, items and
   sentences are those the same question gets without them; a synonym of a metric reads as that
-  metric. The deprecated ids keep their replies.
+  metric. A draft's preview, which reads get_facts, names none.
 */
 
 const peak = '0190f3a2-0000-7000-8000-000000000001'
@@ -164,7 +164,7 @@ it('never makes a term on its own checked', async () => {
   )
 })
 
-it('names the terms of a query and of an item, and keeps the deprecated replies', async () => {
+it('names the terms of a query and of an item, and none in a preview', async () => {
   const data = withTerms(bundle())
   data.items[0] = { ...data.items[0]!, body: 'Sales in Peak Season are at risk.' }
   const call = setup(data)
@@ -179,15 +179,11 @@ it('names the terms of a query and of an item, and keeps the deprecated replies'
   expect(content(bought).definitions).toEqual([
     expect.objectContaining({ key: 'metric:orders', other_names: ['Purchases'] }),
   ])
-  for (const [name, input] of [
-    ['get_facts', { question: 'Why did purchases in Norway drop in peak season 2026?' }],
-    ['find_facts', { query: 'peak season' }],
-    ['read_item', { id: 'itm_norway01' }],
-  ] as const) {
-    const reply = content(await call(name, input))
-    expect(reply, name).not.toHaveProperty('terms')
-    expect(JSON.stringify(reply), name).not.toContain('never give a term')
-  }
+  const preview = content(
+    await call('get_facts', { question: 'Why did purchases in Norway drop in peak season 2026?' }),
+  )
+  expect(preview).not.toHaveProperty('terms')
+  expect(JSON.stringify(preview)).not.toContain('never give a term')
   expect(content(await call('get_facts', { question: 'Purchases in Norway 2026' })).items).toEqual([
     expect.objectContaining({ id: 'itm_norway01' }),
   ])

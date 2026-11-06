@@ -190,7 +190,7 @@ describe('the switches', () => {
           { tool: 'get_context', enabled: true },
           { tool: 'suggest_context', enabled: false },
           { tool: 'get_related', enabled: true },
-          { tool: 'get_facts', enabled: true },
+          { tool: 'a_retired_tool', enabled: true },
         ],
         [{ scope: 'area', areaId: 'area_marketing' }],
       ),

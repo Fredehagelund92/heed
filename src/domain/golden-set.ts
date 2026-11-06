@@ -68,7 +68,7 @@ const text = z.string().check(z.minLength(3), z.maxLength(500))
 const ids = z.array(itemId).check(z.maxLength(20))
 
 /**
- * What get_facts must give for the case's scope at its as-of date (L1). `rank_max` is the
+ * What get_context must give for the case's scope at its as-of date (L1). `rank_max` is the
  * lowest place a must-deliver item may take (default 5, L1.4); `versions` the version each named
  * item must be served at (L1.5); `unverified` the items that must come flagged as not verified
  * (L1.6); `text` phrases that must be in what is delivered (L1.7: a caveat the answer needs, or a
@@ -130,7 +130,7 @@ const rubrics = z._default(
 /** A follow-up the person sends after the first answer, with what it must get on its own. */
 export const turnSchema = z.object({
   text: z.string().check(z.minLength(2), z.maxLength(2000)),
-  /** The scope a good agent asks get_facts for at this turn; none when it needs no call. */
+  /** The scope a good agent asks get_context for at this turn; none when it needs no call. */
   scope: z.optional(questionScopeSchema),
   behaviour: z.enum(behaviours),
   delivery: z.optional(deliverySchema),
@@ -151,14 +151,14 @@ export const goldenCaseSchema = z
     // Strict: a wording with a comma and no quotes reads in YAML as a cut text and a stray key.
     wordings: z.array(z.strictObject(wordingSchema.shape)).check(z.minLength(2), z.maxLength(6)),
     /**
-     * The scope a good agent asks get_facts for; none when no call is right (out of remit).
+     * The scope a good agent asks get_context for; none when no call is right (out of remit).
      * Metric and dimension names may be the data tool's member names, as an agent that just
      * queried it passes them (CON-517).
      */
     scope: z.optional(questionScopeSchema),
-    /** How much get_facts says (FR-342): full when left out, as for an MCP client. */
+    /** How much get_context says (FR-342): full when left out, as for an MCP client. */
     response_format: z.optional(z.enum(['concise', 'full'])),
-    /** L1: what get_facts gives for the case's scope. */
+    /** L1: what get_context gives for the case's scope. */
     delivery: z._default(deliverySchema, { must_deliver: [], must_not_deliver: [] }),
     answer: z._default(answerSchema, {
       must_cite: [],

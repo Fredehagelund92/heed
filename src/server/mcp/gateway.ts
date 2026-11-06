@@ -29,23 +29,17 @@ import { invalidInputOf, invalidInputResult, lenientInputSchema } from './invali
 import { createLimiter } from '../http/rate-limit.ts'
 import type { Metrics } from '../observability/metrics.ts'
 import { ROUND_SECONDS, type DraftRound, type DraftTool, type QuestionRound } from './draft-tool.ts'
-import { byteSize, createToolService, failure, withNote } from './service.ts'
+import { byteSize, createToolService, failure } from './service.ts'
 import type { ServingReads } from './reads.ts'
 import { resolverStatusOf } from '../../domain/answer-state.ts'
-import { deprecatedNote } from '../../domain/mcp-text.ts'
 import {
-  toolCalledBy,
-  aliasesOf,
-  isDeprecated,
-  listedTool,
+  isToolName,
   personOnly,
-  servedNameOf,
   serverInstructions,
   toolNames,
   tools,
   toolSchemaDigest,
   toolOutputSchema,
-  type ListedName,
   type ToolName,
 } from './tools.ts'
 
@@ -68,8 +62,7 @@ export interface McpDependencies {
   wallClock?: () => Date
   /**
    * `suggest_context` (FR-121), which writes a suggestion as the signed-in person through the
-   * application's database, and `draft_context`, its deprecated id, which saves a draft. Without
-   * it neither is offered.
+   * application's database. Without it the tool is not offered.
    */
   drafts?: DraftTool
   /**
@@ -178,8 +171,8 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     const started = performance.now()
     const body = request.body as
       { id?: unknown; method?: unknown; params?: { name?: unknown } } | undefined
-    // An old tool id counts as the tool that replaced it, so it is checked, limited and logged as that.
-    const name = body?.method === 'tools/call' ? toolCalledBy(body.params?.name) : null
+    const called = body?.method === 'tools/call' ? body.params?.name : null
+    const name = isToolName(called) ? called : null
     const pending: AnonymousRecord[] = []
     const family = appFamilyOfBody(body)
     let client = 'unknown',
@@ -351,16 +344,15 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
       return deny(429, 'Request limit reached; retry after the indicated seconds', 'rate_limited')
     }
     const maxBytes = Math.max(1000, Math.min(policy.client.max_response_bytes ?? 100000, 100000))
-    // A question round of suggest_context (or draft_context) is sealed for this tool, this person
+    // A question round of suggest_context is sealed for this tool, this person
     // and this app only (MCP basic/patterns/mrtr, server requirements 4 and 5): signed with the
     // shared key, bound to all three, and expiring; the tool also binds it to the call's arguments
     // and uses it once.
-    const called = typeof body?.params?.name === 'string' ? body.params.name : ''
     const codec = deps.stateKey
       ? createRequestStateCodec<QuestionRound>({
           key: deps.stateKey,
           ttlSeconds: ROUND_SECONDS,
-          bind: () => `${called}\0${principal.subject ?? ''}\0${principal.client}`,
+          bind: () => `${name ?? ''}\0${principal.subject ?? ''}\0${principal.client}`,
         })
       : null
     const roundOf = async (ctx: ServerContext): Promise<DraftRound> => {
@@ -412,20 +404,17 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
             },
           },
         )
-        // A tool is listed by its id, and each old id (src/domain/mcp-text.ts) beside it, which
-        // answers with its old arguments and reply for one release, plus a note naming the tool.
-        const list = (listed: ListedName, tool: ToolName) => {
-          const deprecated = isDeprecated(listed)
-          const definition = listedTool(listed)
-          const outputSchema = toolOutputSchema(listed)
+        const list = (tool: ToolName) => {
+          const definition = tools[tool]
+          const outputSchema = toolOutputSchema(tool)
           server.registerTool(
-            listed,
+            tool,
             {
               // The title is what people see when their agent calls the tool.
               title: definition.title,
               description: definition.description,
               // Arguments that do not fit reach the tool marked, so it answers them itself.
-              inputSchema: lenientInputSchema(listed),
+              inputSchema: lenientInputSchema(tool),
               ...(outputSchema ? { outputSchema } : {}),
               annotations: definition.annotations,
             },
@@ -436,22 +425,12 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
               if (issues) {
                 status = 'invalid_input'
                 return {
-                  ...invalidInputResult(listed, issues),
+                  ...invalidInputResult(tool, issues),
                   _meta: { tool_schema_digest: toolSchemaDigest },
                 }
               }
-              // An old id's reply says which tool to use instead.
-              const noted = (result: Parameters<typeof withNote>[0]) =>
-                deprecated ? withNote(result, deprecatedNote(listed)) : result
               if (tool === 'suggest_context') {
-                // draft_context saves a draft and never sends it, as it did; suggest_context sends
-                // the suggestion to the owner.
-                const outcome = await deps.drafts!(
-                  args,
-                  principal,
-                  await roundOf(ctx),
-                  deprecated ? 'draft' : 'suggest',
-                )
+                const outcome = await deps.drafts!(args, principal, await roundOf(ctx))
                 if ('ask' in outcome) {
                   status = 'ok'
                   return inputRequired({
@@ -464,19 +443,15 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
                     requestState: outcome.requestState,
                   })
                 }
-                const result = noted(
+                const result =
                   byteSize(outcome) > maxBytes
                     ? failure('The result cannot fit the client response limit.')
-                    : outcome,
-                )
+                    : outcome
                 status = result.isError ? 'error' : 'ok'
                 return { ...result, _meta: { tool_schema_digest: toolSchemaDigest } }
               }
               let result = await execute(
-                // An old id runs the code it had (search_context runs search_facts).
-                isDeprecated(listed)
-                  ? servedNameOf(listed as Exclude<typeof listed, 'draft_context'>)
-                  : tool,
+                tool,
                 args,
                 principal,
                 maxBytes,
@@ -487,7 +462,6 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
                   edition = seq
                 },
               )
-              result = noted(result)
               if (byteSize(result) > maxBytes)
                 result = failure('The result cannot fit the client response limit.')
               status = result.isError ? 'error' : 'ok'
@@ -497,10 +471,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
             }) as never,
           )
         }
-        for (const tool of allowed) {
-          list(tool, tool)
-          for (const alias of aliasesOf(tool)) list(alias, tool)
-        }
+        for (const tool of allowed) list(tool)
         return server
       },
       {

@@ -23,8 +23,8 @@ import { apiDatabase, servingPool, testDatabase, transaction } from './support.t
   (Purchases, for Orders). Then get_context, find_context and read_context name each word used,
   with its meaning as written, who wrote it as a role and when, and its page: a synonym of a
   metric reads as the metric, and the answer states and items are those the same question gets
-  without the terms. No reply names a person or holds a word of a comment, the deprecated ids keep
-  their replies, and a term a person deletes is no longer served, from the next call on.
+  without the terms. No reply names a person or holds a word of a comment, and a term
+  a person deletes is no longer served, from the next call on.
 */
 
 const canary = 'CANARY-COMMENT-4410'
@@ -309,22 +309,6 @@ it('names the terms of a query and of an item', async () => {
   const read = (await tool('read_context', { id: item })).reply
   expect((read.context as { id: string }).id).toBe(item)
   expect(read.terms).toEqual([peakEntry('peak season')])
-})
-
-it('keeps the deprecated ids answering with their replies', async () => {
-  for (const [name, args] of [
-    ['get_facts', { question: questions.bought }],
-    ['find_facts', { query: 'peak season' }],
-    ['search_facts', { query: 'peak season' }],
-    ['read_item', { id: item }],
-  ] as const) {
-    const { reply, text } = await tool(name, args)
-    expect(reply, name).not.toHaveProperty('terms')
-    expect(text, name).toContain('use ')
-  }
-  // get_facts reads the synonym as the metric too: one word, one meaning.
-  const { reply } = await tool('get_facts', { question: questions.bought })
-  expect(reply.items!.map((i) => i.id)).toEqual([item])
 })
 
 it('serves a deleted term no more, from the next call on, and a restored one again', async () => {

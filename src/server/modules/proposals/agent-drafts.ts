@@ -15,7 +15,7 @@ import { productName } from '../../brand.ts'
 
 /*
   The one write path for a draft that someone other than the person wrote for them: an AI agent
-  through the MCP tool `draft_context` (FR-121) and the built-in assistant's `create_draft`
+  through the MCP tool `suggest_context` (FR-121) and the built-in assistant's `create_draft`
   (FR-707). Both save an unsubmitted draft owned by the person through proposals.create, with a
   mark on every field; neither ever submits (FR-102, FR-122).
 */
@@ -115,7 +115,7 @@ export async function saveAgentDraft(
     ? retryWrite(
         tx,
         request.retryKey,
-        request.channel === 'mcp' ? 'mcp.draft_context' : 'assistant.create_draft',
+        request.channel === 'mcp' ? 'mcp.suggest_context' : 'assistant.create_draft',
         input,
         create,
       )

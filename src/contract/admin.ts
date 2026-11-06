@@ -51,10 +51,10 @@ export const settingSchemas = {
   // Web API requests per minute: per signed-in person, and per address before sign-in (FR-408).
   'limits.api_rate_per_minute': z.strictObject({ person: perMinute, ip: perMinute }),
   // Gaps a signed-in person reports from Try it or the assistant, per minute (FR-408): tighter
-  // than every other request, like report_gap's own limit.
+  // than every other request, like report's own limit.
   'limits.gap_reports_per_minute': z.strictObject({ person: perMinute }),
   // Ratings a signed-in person gives the assistant's answers, per minute (FR-408, FR-712), like
-  // give_feedback's own limit.
+  // report's own limit.
   'limits.assistant_ratings_per_minute': z.strictObject({ person: perMinute }),
   // Drafts that the AI agents of one person may save in a day, and their agent drafts still
   // open, with the draft tool (FR-121).

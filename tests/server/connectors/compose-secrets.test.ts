@@ -47,7 +47,7 @@ describe('the secret store in compose', () => {
 
   it('comes with the images form, which sets no environment of its own', async () => {
     const images = await read('compose.images.yaml')
-    expect(images.services['heed']).toEqual({ image: expect.any(String) })
+    expect(images.services['heed']).toEqual({ image: expect.any(String) as string })
   })
 
   it('saves a secret and reads it back after the service starts again', async () => {

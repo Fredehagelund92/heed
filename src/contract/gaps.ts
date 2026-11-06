@@ -38,7 +38,7 @@ export const gapSchema = z.object({
   lastSeen: z.string(),
   statusSince: z.string(),
   /**
-   * report_gap calls, people's reports and negative feedback. Hidden below the minimum for readers
+   * report calls, people's reports and negative feedback. Hidden below the minimum for readers
    * who cannot manage the gap.
    */
   reports: shownCount,

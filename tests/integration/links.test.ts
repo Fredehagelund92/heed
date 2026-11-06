@@ -167,11 +167,6 @@ it('follows visible links and shows a retired target only as the author’s word
 
 it('never names a hidden target, nor shows a canary, through any tool', async () => {
   const replies = await Promise.all([
-    ask('get_facts', { question: 'Orders in August 2026' }),
-    ask('read_item', { id: ids.closure }),
-    ask('read_item', { id: ids.hidden }),
-    ask('search_facts', { query: canary }),
-    ask('search_facts', { mentions: ids.hidden }),
     ask('get_related', { id: ids.closure, depth: 2 }),
     ask('get_related', { id: ids.mentioning, depth: 2 }),
     ask('get_related', { id: 'metric:orders', depth: 2, max_nodes: 50 }),
@@ -190,7 +185,7 @@ it('never names a hidden target, nor shows a canary, through any tool', async ()
     expect(text).not.toContain(retiredText)
   }
   // The delivery itself is unchanged by links: the hidden and retired items are not in it (FR-335).
-  const delivered = (replies[0].reply.structuredContent as { items: { id: string }[] }).items
+  const delivered = (replies[6].reply.structuredContent as { context: { id: string }[] }).context
   expect(delivered.map((i) => i.id).sort()).toEqual([ids.closure, ids.mentioning].sort())
 })
 

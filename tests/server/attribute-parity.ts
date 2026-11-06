@@ -17,7 +17,7 @@ import {
 
 type Registry = Record<string, (typeof proposalAttributes)[ProposalAttribute]>
 const how =
-  'Add it to proposalAttributes in src/domain/proposal-attributes.ts: its words, whether it is required, the form fields that edit it (or why there are none), and how draft_context treats it (derived, defaulted, prefilled or never_inferred), with the marks its drafts may carry and, if the tool asks for it, its question. See CONTRIBUTING.md, "Proposal attributes".'
+  'Add it to proposalAttributes in src/domain/proposal-attributes.ts: its words, whether it is required, the form fields that edit it (or why there are none), and how suggest_context treats it (derived, defaulted, prefilled or never_inferred), with the marks its drafts may carry and, if the tool asks for it, its question. See CONTRIBUTING.md, "Proposal attributes".'
 
 /** Every attribute of the item version schema is classified, and nothing else is. */
 export function unclassified(
@@ -49,7 +49,7 @@ export function requiredMismatch(
     .filter(([name, spec]) => spec.required === optional(name))
     .map(
       ([name, spec]) =>
-        `"${name}" is ${spec.required ? 'required' : 'optional'} in src/domain/proposal-attributes.ts but ${spec.required ? 'optional' : 'required'} in the item version schema. Change one so they agree, and check what the form and draft_context do when it is missing.`,
+        `"${name}" is ${spec.required ? 'required' : 'optional'} in src/domain/proposal-attributes.ts but ${spec.required ? 'optional' : 'required'} in the item version schema. Change one so they agree, and check what the form and suggest_context do when it is missing.`,
     )
 }
 
@@ -66,17 +66,17 @@ export function toolInputMismatch(
   for (const input of inputs) {
     if (!(toolInputs as readonly string[]).includes(input))
       problems.push(
-        `draft_context takes "${input}", which src/domain/proposal-attributes.ts does not list in toolInputs. List it, and name it in the inputs of the attributes it suggests.`,
+        `suggest_context takes "${input}", which src/domain/proposal-attributes.ts does not list in toolInputs. List it, and name it in the inputs of the attributes it suggests.`,
       )
     else if (!suggests.has(input) && !Object.hasOwn(toolControls, input))
       problems.push(
-        `draft_context takes "${input}", but no attribute names it in its inputs and it is no tool control. Name it in the inputs of the attributes it suggests in src/domain/proposal-attributes.ts.`,
+        `suggest_context takes "${input}", but no attribute names it in its inputs and it is no tool control. Name it in the inputs of the attributes it suggests in src/domain/proposal-attributes.ts.`,
       )
   }
   for (const input of [...suggests.keys(), ...Object.keys(toolControls)])
     if (!inputs.includes(input))
       problems.push(
-        `src/domain/proposal-attributes.ts names the tool input "${input}", which draft_context no longer takes. Remove it there.`,
+        `src/domain/proposal-attributes.ts names the tool input "${input}", which suggest_context no longer takes. Remove it there.`,
       )
   // The tool may suggest only what it is classified to suggest: never a default or what people decide.
   for (const [input, names] of suggests)
@@ -85,7 +85,7 @@ export function toolInputMismatch(
       const asks = (spec as { asks?: readonly string[] }).asks ?? []
       if (spec.treatment === 'defaulted' || spec.treatment === 'never_inferred')
         problems.push(
-          `The tool input "${input}" suggests "${name}", which draft_context treats as ${spec.treatment}: an agent must never set it. Remove the input, or change the treatment on purpose (a product decision, FR-121).`,
+          `The tool input "${input}" suggests "${name}", which suggest_context treats as ${spec.treatment}: an agent must never set it. Remove the input, or change the treatment on purpose (a product decision, FR-121).`,
         )
       else if (spec.treatment === 'derived' && !asks.length)
         problems.push(
@@ -123,7 +123,7 @@ export function treatmentProblems(registry: Registry = proposalAttributes): stri
     const asks = (spec.agent as { asks?: readonly string[] }).asks ?? []
     if (asks.length && (treatment === 'defaulted' || treatment === 'never_inferred'))
       problems.push(
-        `draft_context asks the person for "${name}", which it treats as ${treatment}. Only a derived or prefilled attribute may be asked.`,
+        `suggest_context asks the person for "${name}", which it treats as ${treatment}. Only a derived or prefilled attribute may be asked.`,
       )
     if (asks.length && !(marks as readonly string[]).includes('confirmed'))
       problems.push(`"${name}" may be asked, so its marks must include "confirmed".`)
