@@ -513,7 +513,8 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     (facts.includes('owner') && /\b(?:owns?|owners?|responsible)\b/i.test(left)) ||
     (facts.includes('due') && /\b(?:due|check|review)/i.test(left))
   // A search reads no domain, so one the question names is said, whatever the model noticed.
-  const homes = domainsNamed(ctx, reads).map((d) => d.name)
+  const searches = reads.filter((r) => r.kind === 'lookup' || r.kind === 'explore')
+  const homes = searches.length ? domainsNamed(ctx, searches).map((d) => d.name) : []
   const left =
     said && !again && !about(said)
       ? said

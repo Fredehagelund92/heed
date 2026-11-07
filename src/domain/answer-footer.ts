@@ -1,6 +1,6 @@
 import type { Answer, AnswerBundle } from './answer.ts'
-import type { AnswerFooter, RecordsFound, RecordsRow } from './records-answer.ts'
-import type { RecordsAsk, RecordsWorld } from './records.ts'
+import type { AnswerFooter, RecordsAbout, RecordsFound, RecordsRow } from './records-answer.ts'
+import type { RecordsAsk, RecordsItem, RecordsWorld } from './records.ts'
 import { windowWords } from './dates.ts'
 import { shiftDate } from './validity.ts'
 
@@ -60,6 +60,12 @@ export function readsFooter(
   return footer.denominator || footer.notSeen || footer.stale ? footer : null
 }
 
+/** Whether an item is about what the question narrowed a read to: each part, when it names one. */
+export const isAbout = (i: RecordsItem, about: RecordsAbout | undefined) =>
+  !about ||
+  ((!about.metrics.length || about.metrics.some((m) => i.metrics?.includes(m))) &&
+    (!about.values.length || about.values.some((v) => i.values?.includes(v))))
+
 /** The reads whose sentence counts rows with nothing to measure them against. */
 const OUT_OF_LIVE: readonly RecordsAsk['intent'][] = ['created', 'changed', 'conflicts']
 /** The facets that do the same in an analysis. */
@@ -78,16 +84,20 @@ export function recordsFooter(
 ): AnswerFooter {
   const area = ask.domain ? world.areas.find((a) => a.id === ask.domain) : undefined
   const scope = world.items.filter(
-    (i) => (!area || i.areaId === area.id) && (!ask.kind || i.kind === ask.kind),
+    (i) =>
+      (!area || i.areaId === area.id) &&
+      (!ask.kind || ask.kind === 'definition' || i.kind === ask.kind) &&
+      isAbout(i, ask.about),
   )
-  const live = scope.filter((i) => i.status !== 'archived').length
+  const overAll = ask.intent === 'changed'
+  const live = overAll ? scope.length : scope.filter((i) => i.status !== 'archived').length
   const facets = ask.audit?.facets ?? []
   const asked =
     ask.intent === 'asked_nothing' ||
     facets.some((f) => f === 'asked_nothing' || f === 'asked_most' || f === 'review')
   const denominators = [
     OUT_OF_LIVE.includes(ask.intent) || facets.some((f) => LIVE_FACETS.includes(f))
-      ? `Out of ${live.toLocaleString('en-GB')} live context ${live === 1 ? 'item' : 'items'}${area ? ` in ${area.name}` : ''}.`
+      ? `Out of ${live.toLocaleString('en-GB')} ${overAll ? '' : 'live '}context ${live === 1 ? 'item' : 'items'}${area ? ` in ${area.name}` : ''}.`
       : null,
     asked && world.asked?.start
       ? `This week here is ${askedDays(world.asked.start)}, as Observability counts it.`

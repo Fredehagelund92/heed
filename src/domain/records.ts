@@ -1,5 +1,5 @@
 import type { AnswerState } from './answer.ts'
-import { notSeen, recordsFooter } from './answer-footer.ts'
+import { isAbout, notSeen, recordsFooter } from './answer-footer.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import {
   auditAnswer,
@@ -14,6 +14,7 @@ import {
 import { periodWords, readDates, wholePeriod } from './dates.ts'
 import {
   recordsKinds,
+  type AnswerFooter,
   type AuditRead,
   type LimitReason,
   type RecordsAbout,
@@ -1062,7 +1063,7 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
   const apart = ask.otherDays ? otherDaysSaid(ask.otherDays) : null
   const said = [stands, apart, found.note].filter(Boolean).join(' ')
   const whole = said ? { ...found, note: said } : found
-  return { ...whole, footer: recordsFooter(whole, ask, world) }
+  return { ...whole, footer: ask.parts?.length ? whole.footer : recordsFooter(whole, ask, world) }
 }
 
 /** Who owns the domains of what an answer lists: the second part of "what is due and who owns it". */
@@ -1098,11 +1099,29 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
     found: recordsAnswerOf({ ...whole, ...part }, world, nowIso),
   }))
   const first = reads[0]!.found
+  const once = (lines: readonly (string | null | undefined)[]) => [
+    ...new Set(lines.filter(Boolean)),
+  ]
+  const footers = reads.map(({ found }, i) =>
+    recordsFooter(found, { ...whole, ...parts[i]!, parts: undefined }, world),
+  )
+  const joined = (pick: (f: AnswerFooter) => string | null) =>
+    once(footers.map(pick)).join(' ') || null
+  const clear = reads.flatMap(({ label, found }) =>
+    (found.clear ?? []).map((l) => `${label}: ${l}`),
+  )
   return {
     ...first,
+    domain: new Set(reads.map((r) => r.found.domain?.id ?? null)).size === 1 ? first.domain : null,
+    clear: clear.length ? clear : undefined,
+    footer: {
+      denominator: joined((f) => f.denominator),
+      notSeen: joined((f) => f.notSeen),
+      stale: joined((f) => f.stale),
+    },
     understood: reads.map((r) => r.found.understood).join(', and '),
     read: reads[0]!.found.read,
-    sentence: reads.map((r) => r.found.sentence).join(' '),
+    sentence: once(reads.map((r) => r.found.sentence)).join(' '),
     detail: null,
     detailItem: null,
     columns: [],
@@ -1128,12 +1147,6 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
     ]),
   }
 }
-
-/** Whether an item is about what the question narrowed a read to: each part, when it names one. */
-const isAbout = (i: RecordsItem, about: RecordsAbout | undefined) =>
-  !about ||
-  ((!about.metrics.length || about.metrics.some((m) => i.metrics?.includes(m))) &&
-    (!about.values.length || about.values.some((v) => i.values?.includes(v))))
 
 function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): RecordsFound {
   const area = ask.domain ? (world.areas.find((a) => a.id === ask.domain) ?? null) : null
