@@ -237,6 +237,52 @@ describe('reading a records question', () => {
     })
   })
 
+  describe('overlapping domain names', () => {
+    const overlapping = [...domains, { id: 'sales_ops', name: 'Sales Ops' }]
+    const read = (question: string) => {
+      const reading = readQuestion(question, terms, today)
+      return recogniseRecords(question, {
+        spans: reading.spans,
+        terms: terms,
+        domains: overlapping,
+        now,
+      })
+    }
+
+    it('reads a domain whose name holds another as that one domain', () => {
+      expect(read('who owns Sales Ops')).toMatchObject({
+        ask: { intent: 'owner', domain: 'sales_ops' },
+      })
+      expect(read('who owns Sales Ops')).not.toHaveProperty('ask.parts')
+      const due = read('what is due for a check in Sales Ops')
+      expect(due).toMatchObject({ ask: { intent: 'due', domain: 'sales_ops' } })
+      expect(due).not.toHaveProperty('unfit')
+    })
+  })
+
+  it('reads a part or a side of a period as that, never as the whole of it', () => {
+    const whole = recogniseRecords('what is due for a check this year', {
+      spans: readQuestion('what is due for a check this year', terms, today).spans,
+      terms,
+      domains,
+      now,
+    })
+    expect(whole).toMatchObject({ ask: { period: { words: 'this year' } } })
+    for (const question of [
+      'what is due for a check by the end of this year',
+      'what is due for a check before this month',
+    ]) {
+      const got = recogniseRecords(question, {
+        spans: readQuestion(question, terms, today).spans,
+        terms,
+        domains,
+        now,
+      })
+      expect(got, question).toMatchObject({ type: 'records' })
+      if (got?.type === 'records') expect(got.ask.period?.words).not.toBe('this year')
+    }
+  })
+
   it.each(negatives)('leaves "%s" to the answer engine', (question) => {
     expect(intentOf(question)).toBeNull()
   })

@@ -185,6 +185,19 @@ export function findName(question: string, name: string): { start: number; end: 
   return found ? { start: found.index, end: found.index + found[0].length } : null
 }
 
+/** The domains a question names; a name inside a longer name found at the same place is no second one. */
+export function namedDomains<T extends { name: string }>(question: string, domains: readonly T[]) {
+  const found = domains.flatMap((d) => {
+    const at = findName(question, d.name)
+    return at ? [{ d, at }] : []
+  })
+  const width = (x: { at: { start: number; end: number } }) => x.at.end - x.at.start
+  return found.filter(
+    (x) =>
+      !found.some((y) => y.at.start <= x.at.start && x.at.end <= y.at.end && width(y) > width(x)),
+  )
+}
+
 const overlaps = (a: { start: number; end: number }, b: { start: number; end: number }) =>
   a.start < b.end && b.start < a.end
 
@@ -613,7 +626,7 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
     )
   ) {
     const owner = ask('owner', { metric: domain ? null : (metric?.key ?? null) })
-    const several = reading.domains.filter((d) => findName(question, d.name))
+    const several = namedDomains(question, reading.domains).map((x) => x.d)
     if (owner.type === 'records' && several.length > 1)
       return {
         ...owner,
@@ -690,10 +703,24 @@ export function aboutOf(
   terms: readonly RecordsTerm[],
 ): RecordsAbout | null {
   const named = [...new Set(keys)].flatMap((key) => terms.find((t) => t.key === key) ?? [])
-  const metrics = named.filter((t) => t.kind === 'metric')
+  const groups = named.filter((t) => t.kind === 'metric_group')
+  const metrics = [
+    ...named.filter((t) => t.kind === 'metric'),
+    ...terms.filter(
+      (t) =>
+        t.kind === 'metric' &&
+        groups.some((g) => g.key === t.parentKey) &&
+        !named.some((n) => n.key === t.key),
+    ),
+  ]
   const values = named.filter((t) => t.kind === 'dimension_value')
   if (!metrics.length && !values.length) return null
-  const said = [list(metrics.map((t) => t.name)), list(values.map((t) => t.name))]
+  const said = [
+    list(
+      [...named.filter((t) => t.kind === 'metric' || t.kind === 'metric_group')].map((t) => t.name),
+    ),
+    list(values.map((t) => t.name)),
+  ]
   return {
     metrics: metrics.map((t) => t.key),
     values: values.map((t) => t.key),
@@ -706,7 +733,8 @@ export function duePeriod(text: string, nowIso: string): RecordsPeriod | null {
   const t = plain(text)
   if (/\b(?:today|now)\b/.test(t)) return null
   const unit = /\bthis (week|month|quarter|year)\b/.exec(t)?.[1]
-  if (!unit) return spokenPeriod(text, nowIso, true)
+  if (!unit || PART_OF_A_PERIOD.test(t) || /\b(?:next|last|previous)\b/.test(t))
+    return spokenPeriod(text, nowIso, true)
   const { from, to } = wholePeriod(unit, nowIso.slice(0, 10))
   const end = Date.parse(to) + DAY
   return period(Date.parse(from), end, `this ${unit}`, Date.parse(nowIso))
@@ -764,7 +792,7 @@ const periodReads: readonly RecordsIntent[] = ['created', 'changed', 'archived',
  */
 function ruleCovers(ask: RecordsAsk, question: string, reading: RecordsReading): boolean {
   if (ask.intent === 'glossary') return true
-  const domains = reading.domains.filter((d) => findName(question, d.name))
+  const domains = namedDomains(question, reading.domains).map((x) => x.d)
   const terms = new Map(reading.terms.map((t) => [t.key, t]))
   const inDomain = (s: { start: number; end: number }) =>
     domains.some((d) => {
@@ -781,7 +809,14 @@ function ruleCovers(ask: RecordsAsk, question: string, reading: RecordsReading):
   ])
   const held = ask.parts?.length ?? (ask.domain ? 1 : 0)
   if (domains.length > held) return false
-  if (keys.some((key) => !kept.has(key) && terms.get(key)?.kind !== 'dimension')) return false
+  const covered = (key: string) => {
+    const term = terms.get(key)
+    if (kept.has(key) || term?.kind === 'dimension') return true
+    if (term?.kind !== 'metric_group') return false
+    const members = reading.terms.filter((t) => t.kind === 'metric' && t.parentKey === key)
+    return members.length > 0 && members.every((m) => kept.has(m.key))
+  }
+  if (keys.some((key) => !covered(key))) return false
   const dated = reading.spans.some((s) => s.dates)
   const period = periodReads.includes(ask.intent) && (ask.intent === 'due' || !!ask.period)
   const thisWeek = /\bthis week\b/.test(plain(question))

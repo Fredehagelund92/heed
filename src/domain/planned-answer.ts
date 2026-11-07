@@ -16,6 +16,7 @@ import type { ItemKind } from './item.ts'
 import { canRead } from './links.ts'
 import { compareIds, metricsOf } from './resolver.ts'
 import { scopeWords } from './say.ts'
+import { itemTrust } from './status.ts'
 import { readQuestion, type ResolvedScope } from './scope.ts'
 import { anyDate, isAnyDate, overlaps, type DateWindow } from './validity.ts'
 
@@ -699,13 +700,19 @@ function factLines(
   const dueLines = c.facts?.includes('due')
     ? answered.items.slice(0, FACT_ITEMS).flatMap((item) => {
         const source = byId.get(item.id)
-        if (!source?.reviewDate) return []
-        const passed = source.reviewDate < c.today
+        if (!source) return []
+        const due =
+          itemTrust(
+            { ...source, status: source.status === 'retired' ? 'retired' : 'accepted' },
+            c.today,
+          ) === 'needs_check'
+        const date = source.reviewDate
+          ? `check date ${dayWords(source.reviewDate)}`
+          : 'no check date'
+        const missing = source.checkFlag === 'source_missing' ? ', its source is missing' : ''
         const checked = c.stewards?.checked[item.id]
         const last = checked ? `, last checked ${dayWords(checked)}` : ''
-        return [
-          `${item.title}: check date ${dayWords(source.reviewDate)}${passed ? ', due for a check' : ''}${last}.`,
-        ]
+        return [`${item.title}: ${date}${due ? ', due for a check' : ''}${missing}${last}.`]
       })
     : []
   return [...ownerLines, ...dueLines]

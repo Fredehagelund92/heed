@@ -8,6 +8,7 @@ import {
   assumedPeriod,
   duePeriod,
   findName,
+  namedDomains,
   namesSomethingElse,
   readRecordsPeriod,
   recordsIntents,
@@ -405,9 +406,8 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     // Who owns one thing, or when one thing is checked: what is written about it, with what the
     // records keep about it beside it. Never every domain's owners, or the whole list.
     const anyOwner = ask.intent === 'owner' && !ask.domain && !ask.metric && !ask.noOwner
-    const nothingNamed = anyOwner && !ask.over && !ask.about
     const oneThing =
-      (nothingNamed && namesSomethingElse(normalizeName(ctx.question))) ||
+      (anyOwner && !ask.over && namesSomethingElse(normalizeName(withoutNames(ctx)))) ||
       ((ask.intent === 'due' || ask.intent === 'owner') &&
         !ask.period &&
         ABOUT_ONE_ITEM.test(followUpWords(ctx.question)))
@@ -477,7 +477,7 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
 
 /** The shape of a question about who owns something, which ranks and judges no one. */
 const WHO_OWNS =
-  /\bwho(?: s| is)? (?:owns?|responsible|in charge|looks? after|maintains|keeps)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
+  /\bwho(?:'s| s| is)? (?:owns?|responsible|in charge|looks? after|maintains|keeps)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
 /** Asking for a definition to be changed, however it is put. */
 const CHANGES_A_DEFINITION =
   /\b(?:would you|should we|can you|could you)\b.*\b(?:change|rewrite|reword|redefine|improve)\b.*\bdefinition\b/
@@ -545,6 +545,14 @@ function subjectRead(ctx: PlanContext, about: RecordsAbout | null): RawPlan | nu
 const ownDates = (ctx: Pick<PlanContext, 'question' | 'terms' | 'today'>) =>
   readQuestion(ctx.question, ctx.terms, ctx.today, { loose: true })
 
+/** The question without the metrics and values its own names read as, and without its dates. */
+function withoutNames(ctx: PlanContext) {
+  let rest = ctx.question
+  for (const span of [...ownDates(ctx).spans].sort((a, b) => b.start - a.start))
+    rest = `${rest.slice(0, span.start)} ${rest.slice(span.end)}`
+  return rest
+}
+
 /** What a question's own names narrow a records read to, past the names of its domains. */
 function aboutIn(ctx: PlanContext): RecordsAbout | null {
   const homes = ctx.areas.flatMap((a) => findName(ctx.question, a.name) ?? [])
@@ -564,7 +572,7 @@ function aboutIn(ctx: PlanContext): RecordsAbout | null {
  */
 function partsOf(ask: RecordsAsk, ctx: PlanContext): RecordsAsk['parts'] {
   const words = normalizeName(ctx.question)
-  const domains = ctx.areas.filter((a) => findName(ctx.question, a.name))
+  const domains = namedDomains(ctx.question, ctx.areas).map((x) => x.d)
   if (domains.length > 1 && !ask.metric)
     return domains.map((a) => ({ label: a.name, domain: a.id }))
   const kinds = [...words.matchAll(/\b(guide|rule|warning|event)s?\b/g)].map((m) => m[1]!)
@@ -575,8 +583,9 @@ function partsOf(ask: RecordsAsk, ctx: PlanContext): RecordsAsk['parts'] {
       kind: recordsKindOf[k] ?? null,
     }))
   const said = ownDates(ctx).dates?.words.split(', ') ?? []
-  if (said.length > 1 && datedIntents.includes(ask.intent)) {
-    const periods = said.flatMap((w) => readRecordsPeriod(w, ctx.now) ?? [])
+  if (said.length > 1 && (datedIntents.includes(ask.intent) || ask.intent === 'due')) {
+    const read = ask.intent === 'due' ? duePeriod : readRecordsPeriod
+    const periods = said.flatMap((w) => read(w, ctx.now) ?? [])
     if (periods.length > 1)
       return periods.map((period) => ({
         label: `${period.words[0]!.toUpperCase()}${period.words.slice(1)}`,
@@ -1012,7 +1021,10 @@ function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): R
   // What changed is what changed, whichever of the two reads the model chose.
   const changes = given.intent === 'created' && ASKS_CHANGES.test(words) && !ASKS_ADDED.test(words)
   const raw =
-    given.intent === 'count' && vocabulary && !CONTEXT_KINDS.includes(given.of ?? '') && !/\b(?:guide|rule|warning|event)s?\b/.test(words)
+    given.intent === 'count' &&
+    vocabulary &&
+    !CONTEXT_KINDS.includes(given.of ?? '') &&
+    !/\b(?:guide|rule|warning|event)s?\b/.test(words)
       ? {
           ...given,
           intent: 'terms' as const,
@@ -1050,11 +1062,14 @@ function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): R
   if (catalogue?.of === 'value' && !catalogue.dimension) throw new Miss('unknown key')
   const kind = of ? (recordsKindOf[of] ?? null) : null
   const week = raw.intent === 'asked_nothing' ? readRecordsPeriod('this week', ctx.now) : null
-  const comes = raw.intent === 'due' && own ? duePeriod(own, ctx.now) : null
+  const today = own && /\b(?:today|now)\b/.test(normalizeName(own))
+  const comes =
+    raw.intent === 'due' && !today
+      ? (said.map((words) => duePeriod(words, ctx.now)).find(Boolean) ?? null)
+      : null
   const takesDates = dated || raw.intent === 'conflicts'
   // A period this read keeps no history for is said, never silently dropped.
   const window = ownDates(ctx).window
-  const today = own && /\b(?:today|now)\b/.test(normalizeName(own))
   const undated =
     window &&
     !today &&

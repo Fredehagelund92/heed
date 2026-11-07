@@ -670,6 +670,47 @@ describe('the reads a plan runs', () => {
       'Data for Orders before 19 January 2026 is not reliable',
     ])
   })
+
+  it('says an item is due for a check when its flag is on and its date is still to come', () => {
+    const read = [
+      {
+        kind: 'lookup' as const,
+        scope: {
+          metrics: ['metric:orders'],
+          filters: { 'dim:market': ['val:market/sweden'] },
+          window: anyDate,
+        },
+        period: 'any' as const,
+        why: true,
+      },
+    ]
+    const base = {
+      question: 'what about Sweden?',
+      today: PLAN_TODAY,
+      previous,
+      facts: ['due' as const],
+    }
+    const bundle = (over: object) => ({
+      ...planBundle,
+      items: planBundle.items.map((item) => ({ ...item, ...over })),
+    })
+    const flagged = plannedAnswer(
+      bundle({ reviewDate: '2099-03-01', checkFlag: 'needs_check' }),
+      read,
+      base,
+    )
+    expect(flagged.reading.facts?.join(' ')).toContain('check date 1 Mar 2099, due for a check')
+    const calm = plannedAnswer(bundle({ reviewDate: '2099-03-01', checkFlag: null }), read, base)
+    expect(calm.reading.facts?.join(' ')).not.toContain('due for a check')
+    const undated = plannedAnswer(
+      bundle({ reviewDate: null, checkFlag: 'source_missing' }),
+      read,
+      base,
+    )
+    expect(undated.reading.facts?.join(' ')).toContain(
+      'no check date, due for a check, its source is missing',
+    )
+  })
 })
 
 describe('a follow-up keeps what it does not change', () => {
@@ -1122,6 +1163,53 @@ describe('a plan is held to the question', () => {
     'keeps the exit for "%s"',
     (question) => {
       expect(planned({ cannot: 'person' }, question)).toMatchObject({ kind: 'cannot' })
+    },
+  )
+
+  it.each(["who's responsible for on-time shipping?", 'who’s in charge of on-time shipping?'])(
+    'answers the contraction "%s" as who owns it',
+    (question) => {
+      expect(
+        planned({ cannot: 'person', metrics: ['metric:on_time_shipping_rate'] }, question),
+      ).toMatchObject({ kind: 'records', ask: { intent: 'owner' } })
+    },
+  )
+
+  it('searches for the topic of a who-owns question beside the names it holds', () => {
+    expect(
+      planned({ records: { intent: 'owner' } }, 'who owns the vat rule in norway'),
+    ).toMatchObject({ kind: 'reads', facts: ['owner'] })
+  })
+
+  it('reads the date of a due question from the plan when the question has none', () => {
+    const plan = planned(
+      { records: { intent: 'due', period: 'next week' } },
+      'what is due for a check then?',
+    )
+    expect(plan).toMatchObject({ kind: 'records', ask: { intent: 'due', period: {} } })
+  })
+
+  it('reads one due question for each of two periods', () => {
+    const plan = planned(
+      { records: { intent: 'due' } },
+      'what is due for a check this month and next month?',
+    )
+    expect(plan).toMatchObject({ kind: 'records', ask: { parts: [{}, {}] } })
+  })
+
+  it.each(['what is due for a check on Revenue', 'what changed in Revenue metrics this month'])(
+    'narrows "%s" to the metrics of the group',
+    (question) => {
+      const intent = question.includes('due') ? 'due' : 'changed'
+      const plan = planned({ records: { intent } }, question)
+      expect(plan).toMatchObject({
+        kind: 'records',
+        ask: {
+          about: {
+            metrics: ['metric:net_revenue', 'metric:gross_sales', 'metric:units_sold'],
+          },
+        },
+      })
     },
   )
 
