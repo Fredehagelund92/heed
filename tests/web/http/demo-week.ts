@@ -802,7 +802,8 @@ export type DemoWeekIds = Record<QueueCard | DriveCard | 'flag-germany', string>
  * vocabulary: the mock's Revenue group is Gross sales here, its Black Friday is all markets, its
  * Repeat purchases is Repeat purchase rate, and Orders in Germany is one month. Net revenue in
  * Norway is 12 and 5 rather than 13 and 4: beside its row's "13+", the total would give the 4
- * away, so the service would hide it (FR-614). Orders in Spain is the Not found card's topic,
+ * away, so the service would hide it (FR-614). Orders in Spain is 12 and 7 rather than 12 and 9, for
+ * the same reason: the 3 that found something would be left over. It is the Not found card's topic,
  * seeded with it.
  */
 export const askedThisWeek: {
@@ -884,7 +885,7 @@ export const askedThisWeek: {
     market: 'spain',
     month: '2026-10',
     calls: 12,
-    nothing: 9,
+    nothing: 7,
   },
   {
     area: 'area_sales',
