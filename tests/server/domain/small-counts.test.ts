@@ -296,7 +296,7 @@ describe('what agents found nothing for, in a domain', () => {
         metric: null,
         period: null,
         noOwner: false,
-      } as RecordsAsk,
+      },
       {
         items: [],
         areas: [
@@ -307,7 +307,7 @@ describe('what agents found nothing for, in a domain', () => {
         terms: [],
         asked: { minimum: 5, rows: [row('Orders', 'sales')] },
         conflicts: null,
-      } as never,
+      },
       '2026-10-22T00:00:00Z',
     )
     expect(found.rows).toEqual([])
