@@ -1346,11 +1346,11 @@ function checkedLeft(raw: string | null | undefined, ctx: PlanContext) {
   if (!facts.length) return undefined
   const asks = asked || /^(?:whether|how|which|what|when|who|why|if)\b/i.test(plain)
   if (!asks) {
-    const stems = new Set([...held, 'vocabulary'].map((w) => w.slice(0, 4)))
+    const stems = new Set([...held, 'vocabulary'].map((w) => w.slice(0, 6)))
     const own = (plain.match(/[\p{L}][\p{L}'-]*/gu) ?? []).filter(
       (w) => w.length > 2 && !NO_FACT.has(w.toLowerCase()),
     )
-    const said = own.filter((w) => stems.has(normalizeName(w).slice(0, 4))).length
+    const said = own.filter((w) => stems.has(normalizeName(w).slice(0, 6))).length
     if (own.length && said / own.length < 0.6) return undefined
   }
   return asked ? `${plain}?` : `${plain}.`

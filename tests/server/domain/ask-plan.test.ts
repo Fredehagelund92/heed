@@ -1330,7 +1330,7 @@ describe('a plan is held to the question', () => {
     const left = (text: string, question = 'what happened with the margin and cost in Norway?') =>
       planned({ reads: [{ kind: 'explore', values: ['val:market/norway'] }], left: text }, question)
     for (const text of [
-      'Orders fell dramatically in Norway',
+      'Orders fell sharply in Norway',
       'You should recheck Orders with finance',
       'Contoso pricing',
     ]) {
