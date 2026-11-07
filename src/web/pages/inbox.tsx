@@ -73,6 +73,7 @@ import {
   conflictQuery,
   conflictsQuery,
   inboxPageQuery,
+  namesQuery,
   readQuestionQuery,
   useInbox,
   useReviews,
@@ -151,6 +152,7 @@ function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.R
   if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
   if (done) return `${done.label}, ${midSentence(done.at)}`
+  if (card.names) return card.line
   const s = card.suggestion
   const from = card.source
     ? `${card.source.tool}, ${card.source.folder}`
@@ -801,6 +803,11 @@ function MentionDone({ subject, next }: { subject: Subject; next: () => void }) 
   )
 }
 
+const NamesReview = React.lazy(() => import('@/components/heed/names-review'))
+const NamesDialog = React.lazy(() =>
+  import('@/components/heed/names-review').then((m) => ({ default: m.NamesDialog })),
+)
+
 const CommentBox = React.lazy(() =>
   import('@/components/templates/comment-box').then((m) => ({ default: m.CommentBox })),
 )
@@ -908,6 +915,28 @@ function MentionDetail({
   )
 }
 
+/** The names a read made, in the Inbox's pane: the one card that publishes them (FR-141). */
+function NamesDetail({ card, nav, next }: { card: InboxCard; nav: PaneNav; next: () => void }) {
+  const write = useWrite()
+  React.useEffect(() => {
+    void write('markOpened', { ids: [card.id] })
+    // Once per card opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id])
+  return (
+    <React.Suspense fallback={<ListSkeleton />}>
+      <NamesReview
+        onFinished={next}
+        frame={(body, foot) => (
+          <InboxPanel label={card.title} nav={nav} foot={foot}>
+            {body}
+          </InboxPanel>
+        )}
+      />
+    </React.Suspense>
+  )
+}
+
 /* ---------- setup and all done ---------- */
 
 /** Where the first context item goes, as the editor starts it, and who publishes it there. */
@@ -929,6 +958,15 @@ function Setup() {
   } = useWorkspace()
   const me = useMe()
   const write = useWrite()
+  // A read ends a moment after a tool is connected: its names show here by themselves. Any left
+  // for a look stay on their step, as the Inbox's cards wait for the checklist to end.
+  const canPublish = me.admin || me.owns.length > 0
+  const names = useQuery({
+    ...namesQuery(),
+    enabled: canPublish,
+    refetchInterval: setupDone.definitions || !canPublish ? false : 3000,
+  }).data?.names.filter((name) => name.state !== 'left_out')
+  const [reviewing, setReviewing] = React.useState(false)
   const first = setupSteps.find((s) => !setupDone[s.id])
   // A question about the first item, from what it applies to or, if that is empty, its own words.
   // A new install has only what this visit added, newest first.
@@ -945,12 +983,14 @@ function Setup() {
     : 'What should I know about our numbers?'
   const doneCount = setupSteps.filter((s) => setupDone[s.id]).length
   const go = (id: string) => {
+    if (id === 'definitions' && names?.length) setReviewing(true)
     // The catalogue loads with the first page that needs it, never with the Inbox.
-    if (id === 'definitions')
+    else if (id === 'definitions')
       void import('@/model/catalogue').then(({ definitionsConnectHref }) =>
         navigate(definitionsConnectHref(), { setup: '1' }),
       )
     if (id === 'about') navigate('/settings/general', { setup: '1' })
+    if (id === 'domain') navigate('/settings/domains/new', { setup: '1' })
     if (id === 'fact') navigate('/context/new', { setup: '1' })
     // A question about the first item, typed in and ready to send.
     if (id === 'ask') navigate('/ask', { setup: '1', n: 'setup', q: firstQuestion })
@@ -982,7 +1022,7 @@ function Setup() {
                 </CardTitle>
                 <CardDescription>
                   Your team writes down what the numbers don't show, and every agent reads it before
-                  it answers. Write first, connect later: about ten minutes to your first answer.{' '}
+                  it answers. Name your metrics, then write: about ten minutes to your first answer.{' '}
                   {whereContextGoes(me, domainList)}
                 </CardDescription>
                 <CardAction className="text-xs text-muted-foreground tabular-nums">
@@ -1017,15 +1057,16 @@ function Setup() {
                             {step.description}
                           </span>
                         </span>
-                        {isDone ? (
-                          <span className="sr-only">Done</span>
-                        ) : (
+                        {isDone && <span className="sr-only">Done</span>}
+                        {(!isDone || (step.id === 'definitions' && !!names?.length)) && (
                           <Button
                             variant={first?.id === step.id ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => go(step.id)}
                           >
-                            {step.action}
+                            {step.id === 'definitions' && names?.length
+                              ? `Publish ${names.length === 1 ? '1 name' : `${names.length} names`}`
+                              : step.action}
                           </Button>
                         )}
                       </li>
@@ -1041,6 +1082,11 @@ function Setup() {
           </div>
         </div>
       </div>
+      {reviewing && (
+        <React.Suspense fallback={null}>
+          <NamesDialog onClose={() => setReviewing(false)} />
+        </React.Suspense>
+      )}
     </div>
   )
 }
@@ -1229,7 +1275,9 @@ export function InboxPage() {
       at < 0 ? undefined : `${at + 1} of ${ids.length} in ${tab === 'all' ? 'All' : 'Needs me'}`,
   }
   const detail = selected ? (
-    selected.kind === 'card' ? (
+    selected.kind === 'card' && selected.card.type === 'names' ? (
+      <NamesDetail key={selected.card.id} card={selected.card} nav={nav} next={next} />
+    ) : selected.kind === 'card' ? (
       <CardDetail
         key={selected.card.id}
         card={selected.card}

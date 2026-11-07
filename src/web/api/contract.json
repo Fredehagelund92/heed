@@ -1626,6 +1626,38 @@
           "summary": "The Inbox by need: Not found, Reported, Due for a check and Suggestions for the domains the person owns, with what they sent that waits and what is done under All; counts from agents only, small counts hidden (FR-614)"
         }
       }
+    },
+    "names": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/inbox/names",
+          "tags": [
+            "inbox"
+          ],
+          "summary": "The names the definition sources gave that no live term has yet, as far as the person may accept them, each ready, flagged for a look, or left out (FR-141)"
+        }
+      }
+    },
+    "decideNames": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/inbox/names/decide",
+          "tags": [
+            "inbox"
+          ],
+          "summary": "Accepts names as one edition and leaves others out. A word with another meaning is refused, naming who has it, and a list that changed since it was read is refused (FR-138, FR-141)"
+        }
+      }
     }
   },
   "cards": {
@@ -1843,7 +1875,7 @@
           "tags": [
             "admin"
           ],
-          "summary": "A new workspace's setup checklist, read from what exists: About our business, a published context item, Ask used, an agent connected, definitions connected (FR-816)"
+          "summary": "A new workspace's setup checklist, read from what exists: About our business, a domain, names from definitions live, a published context item, Ask used, an agent connected (FR-816)"
         }
       }
     }

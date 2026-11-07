@@ -64,7 +64,7 @@ The sidebar has four places: **Inbox**, **Ask**, **Context**, **Definitions**. A
 | Setup checklist on a new install                        | `/inbox`, shown while setup is unfinished               |
 | Connect an agent as a dialog, search, shortcuts, report | `/inbox?open=connect`, `palette`, `shortcuts`, `report` |
 
-The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Not found, Reported, Saved questions, Alerts, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
+The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Names, Not found, Reported, Saved questions, Alerts, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
 
 ### Review
 
@@ -274,14 +274,15 @@ Integrations connect Heed to where metrics are defined and where documents live.
 
 ## 13. The first day
 
-A new workspace reaches its first answer from what the team wrote in about ten actions. Setup is write first, connect later:
+A new workspace reaches its first answer from what the team wrote in about ten actions. A context item must say what it applies to, and it can only name what is live in Definitions, so the names come before writing:
 
 1. Say what the business is about (About our business, with the guide).
-2. Write one context item.
-3. Ask a question about it in Ask (it is typed in for you). See Checked, with the item and its owner.
-4. Connect an agent with the prompt.
-5. Connect where metrics are defined.
-6. Invite the people who own other domains, with their role and domains.
+2. Add a domain.
+3. Connect where metrics are defined, and publish the names its read made, on one card.
+4. Write one context item.
+5. Ask a question about it in Ask (it is typed in for you). See Checked, with the item and its owner.
+6. Connect an agent with the prompt.
+7. Invite the people who own other domains, with their role and domains.
 
 Ask answers from what the workspace has written. An item with no Applies to is read from its own words.
 
@@ -307,7 +308,7 @@ The job specs, one line each:
 | J4  | A Not found card comes with a draft, reviewed and published like any suggestion.                                                                                                |
 | J5  | An owner answers a report and the card is done.                                                                                                                                 |
 | J6  | A read from a connected document arrives as a suggestion and is published.                                                                                                      |
-| J7  | A new workspace reaches its first answer, write first, in about ten actions.                                                                                                    |
+| J7  | A new workspace reaches its first answer in about ten actions.                                                                                                                  |
 | J8  | Loading, a failed load, offline, and a Publish that fails and works on Retry.                                                                                                   |
 | J9  | Domains are documents; an empty one can be deleted, one with context cannot.                                                                                                    |
 | J10 | People: invites with roles and domains; the last owner cannot leave; owners add owners to their own domain.                                                                     |

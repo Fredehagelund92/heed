@@ -187,8 +187,8 @@ export function memoryStore() {
 
 /** What a domain's definition source has beyond the vocabulary, beside the fixture edition. */
 export function fakeReads(
-  /** The source members that are no term yet, and who may propose them: none by default. */
-  waiting: WaitingTerms = { members: [], canPropose: false },
+  /** The source members that are no term yet: none by default. */
+  waiting: WaitingTerms = { members: [] },
 ): ServingReads & { asked: unknown[] } {
   const asked: unknown[] = []
   return {

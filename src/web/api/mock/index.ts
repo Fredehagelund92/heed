@@ -44,6 +44,7 @@ import { playAnswer } from './ask-live'
 import { cannotAnswer, followsOn, heldFor, plannedFor } from './planner'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
+import { createMockNames } from './names'
 import { createSettings } from './settings'
 import { createPolicies } from './policies'
 import {
@@ -97,6 +98,7 @@ export function createMockApi() {
   const chats = createChats()
   const scope = createScopeSearch()
   const settings = createSettings()
+  const names = createMockNames()
   const policies = createPolicies()
   /** What the connect flow set for each tool this visit. */
   const kept = new Map<string, Kept>()
@@ -155,8 +157,9 @@ export function createMockApi() {
           : cards.find((c) => c.id === id)?.title) ?? 'A comment'
       )
     }
+    const nameCard = names.card(me())
     return {
-      cards: state.fresh ? [] : cards,
+      cards: [...(nameCard ? [nameCard] : []), ...(state.fresh ? [] : cards)],
       waiting: state.fresh ? [] : waiting,
       sent: state.sent,
       done: state.done,
@@ -718,6 +721,12 @@ export function createMockApi() {
     getInbox: () => now(inbox),
     inboxPage: () => read('inboxPage', '', inbox),
     getReviews: () => now(() => reviews.map(reviewNow)),
+    getNames: () => names.read().then(copy),
+    decideNames: async (input) => {
+      const decided = await names.decide(input)
+      if (decided.accepted) dispatch({ type: 'setupStep', step: 'definitions' })
+      return decided
+    },
     markOpened: ({ ids }) => now(() => ids.forEach((card) => dispatch({ type: 'opened', card }))),
     markReviewed: ({ id }) => now(() => dispatch({ type: 'reviewed', card: id })),
     decideCard: ({ card, outcome, patch }) =>
@@ -931,12 +940,13 @@ export function createMockApi() {
       new Promise((resolve) => setTimeout(resolve, MOCK_TEST_MS)).then(() =>
         copy(testFor(connector, { config, secrets })),
       ),
-    connectIntegration: ({ connector, config, chosen, reason, setup }) =>
+    connectIntegration: ({ connector, config, chosen, reason }) =>
       now(() => {
         checkConnect(connector, { chosen, reason })
         settings.connect(connector)
         kept.set(connector, { config, chosen, revision: 1 })
-        if (setup) dispatch({ type: 'setupStep', step: 'definitions' })
+        // A definitions tool's read makes names, and the owner accepts them.
+        if (connectorById(connector)?.kind === 'definitions') names.load()
         // A content tool's first read is at its next morning read; a definitions tool's now.
         return {
           id: connector,
@@ -1083,6 +1093,7 @@ export function createMockApi() {
       let mentions = false
       if (demo !== lastDemo) {
         lastDemo = demo
+        if (demo === 'names') names.load()
         if (demo === 'setup' || demo === 'done' || demo === 'week' || demo === 'last')
           dispatch({ type: 'demo', mode: demo })
         if ((demo === 'done' || demo === 'week') && state.user) {
@@ -1090,7 +1101,10 @@ export function createMockApi() {
           mentions = true
         }
       }
-      return { fault: result.fault, data: result.data || state !== before || mentions }
+      return {
+        fault: result.fault,
+        data: result.data || state !== before || mentions || demo === 'names',
+      }
     },
     offline: scenario.offline,
     showsLoads: scenario.showsLoads,

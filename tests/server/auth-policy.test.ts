@@ -180,6 +180,8 @@ const readOperations = [
   'items.changes',
   'drafts.fromText',
   'inbox.feed',
+  'inbox.names',
+  'inbox.decideNames',
   'cards.markRead',
   'cards.decide',
   'comments.list',

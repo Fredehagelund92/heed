@@ -132,8 +132,8 @@ CUBE_MODEL_DIR=/path/to/your/cube/model docker compose -f compose.yaml -f compos
 
 This runs the published images, as the Quick start does; `docker compose up` alone builds them from this
 checkout, which takes much longer. With your own model Heed starts empty, with no demo data. Sign in as Ravi Kapoor, the administrator in
-`db/seed/people.local.yml`, and add your domains in Settings, under Domains and owners. On a Mac the
-folder must be one Docker shares, or Heed refuses to start and says so. See
+`db/seed/people.local.yml`, and follow the setup checklist in the Inbox: add your domains, then publish the
+names each read makes, on one card. Your context applies to those names. On a Mac the folder must be one Docker shares, or Heed refuses to start and says so. See
 [the Cube connector](docs/connectors/cube.md).
 
 For dbt, Heed reads the `semantic_manifest.json` that `dbt parse` writes, from a link, object storage, a Git

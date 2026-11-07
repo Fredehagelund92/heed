@@ -291,7 +291,7 @@ export type AlertState = {
  * over all of its raise's domains by the feed).
  */
 export function cardReaches(
-  card: { group: string; reason?: string; rule?: string; areaId: string },
+  card: { group: string; reason?: string; rule?: string; areaId: string | null },
   state: AlertState,
 ): boolean {
   const rule = ruleOfCard(card)

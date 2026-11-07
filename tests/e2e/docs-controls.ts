@@ -71,6 +71,15 @@ export const docControls: DocControl[] = [
     at: '/inbox?demo=setup',
     drawn: 'text',
   },
+  { phrase: 'Publish all', page: 'get-started', at: '/inbox?demo=names', drawn: 'button' },
+  { phrase: 'Look at these first', page: 'get-started', at: '/inbox?demo=names', drawn: 'text' },
+  { phrase: 'Left out', page: 'get-started', at: '/inbox?demo=names', drawn: 'text' },
+  {
+    phrase: 'Add your first domain',
+    page: 'get-started',
+    at: '/inbox?demo=setup',
+    drawn: 'text',
+  },
   {
     phrase: 'Write your first context item',
     page: 'get-started',

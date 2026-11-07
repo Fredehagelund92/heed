@@ -7,6 +7,7 @@ import {
   ClockIcon,
   FlagIcon,
   GitPullRequestArrowIcon,
+  TagIcon,
   TriangleAlertIcon,
 } from '@/components/icons'
 import { and, cn } from '@/lib/utils'
@@ -36,6 +37,7 @@ import { ANSWER_SIDES, type Answers, type PaneState } from '@/model/inbox-pane'
 
 /** The icon each kind of card, and each state a chip names, carries. */
 export const cardIcon = {
+  names: TagIcon,
   suggestion: GitPullRequestArrowIcon,
   gap: CircleDashedIcon,
   flag: FlagIcon,
@@ -58,7 +60,7 @@ export function StateChip({ state }: { state: PaneState }) {
 }
 
 /** A domain as the contract draws it outside a chip: its dot and its name. */
-function Domain({ id }: { id: DomainId }) {
+export function Domain({ id }: { id: DomainId }) {
   const domains = useDomains()
   const name = domains[id]?.name
   if (!name) return null

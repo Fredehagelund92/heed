@@ -8,6 +8,7 @@
 import * as z from 'zod/mini'
 import { alertCardRules } from '../domain/alerts.ts'
 import { cardGroups, cardActions, setupSteps } from '../domain/inbox.ts'
+import { nameFlagCodes, nameStates } from '../domain/source-names.ts'
 import { raiseSubjectSchema } from './alerts.ts'
 import { proposalActions } from '../domain/proposal.ts'
 import { syncedSchema, undoTokenSchema } from './review-path.ts'
@@ -27,10 +28,20 @@ const cardBase = {
 }
 
 /**
- * One card, by what happened (the Inbox's groups: Not found, Reported, Saved questions, Alerts,
- * Mentioned you, Due for a check, Suggestions).
+ * One card, by what happened (the Inbox's groups: Names, Not found, Reported, Saved questions,
+ * Alerts, Mentioned you, Due for a check, Suggestions).
  */
 export const cardSchema = z.union([
+  z.object({
+    ...cardBase,
+    group: z.literal('names'),
+    /** The domain of the names, when they share one: names can belong to none (CON-206). */
+    areaId: z.nullable(z.string()),
+    /** The names Accept all takes, the ones that need a look first, and the tools that gave them. */
+    ready: z.number(),
+    flagged: z.number(),
+    tools: z.array(z.string()),
+  }),
   z.object({
     ...cardBase,
     group: z.literal('suggestion'),
@@ -170,6 +181,61 @@ export const decideCardResultSchema = z.object({
   edition: z.nullable(z.string()),
   undo: undoTokenSchema,
 })
+
+/** A name a read made (FR-141): what it would be, and whether it needs a look first. */
+export const sourceNameSchema = z.object({
+  /** The vocabulary key it takes. */
+  key: z.string(),
+  kind: z.enum(['metric', 'dimension']),
+  name: z.string(),
+  aliases: z.array(z.string()),
+  /** The members it links once accepted, and those a live term links already. */
+  definitionRefs: z.array(z.string()),
+  linked: z.array(z.string()),
+  areaId: z.nullable(z.string()),
+  /** The source's description, as a copy (CON-207). */
+  description: z.nullable(z.string()),
+  /** The tool that gave it, as people say it ("dbt"). */
+  tool: z.string(),
+  state: z.enum(nameStates),
+  flags: z.array(z.object({ code: z.enum(nameFlagCodes), message: z.string() })),
+  /** An owner left it out; otherwise it is a date or an id, which stay out by themselves. */
+  leftByOwner: z.boolean(),
+})
+export type SourceNameRead = z.infer<typeof sourceNameSchema>
+
+export const namesSchema = z.object({
+  /** The names as the person read them: a decision on an older list is refused. */
+  revision: z.string(),
+  names: z.array(sourceNameSchema),
+})
+export type NamesRead = z.infer<typeof namesSchema>
+
+/** The most names one decision takes: a whole model, as a read gives it. */
+export const NAMES_MAX = 20_000
+
+const nameKeySchema = z.string().check(z.regex(/^(?:metric|dim):[a-z0-9_]+$/))
+export const decideNamesSchema = z.strictObject({
+  revision: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
+  /** The names to make live: `name` only when the person changed it. */
+  accept: z
+    .array(
+      z.strictObject({
+        key: nameKeySchema,
+        name: z.optional(z.string().check(z.minLength(1), z.maxLength(200))),
+      }),
+    )
+    .check(z.maxLength(NAMES_MAX)),
+  leaveOut: z.array(nameKeySchema).check(z.maxLength(NAMES_MAX)),
+})
+export type DecideNames = z.infer<typeof decideNamesSchema>
+export const decideNamesResultSchema = z.object({
+  /** The edition that made them live; null when nothing was accepted. */
+  edition: z.nullable(z.string()),
+  accepted: z.number(),
+  leftOut: z.number(),
+})
+export type NamesDecision = z.infer<typeof decideNamesResultSchema>
 
 export const setupSchema = z.object({
   steps: z.array(z.object({ id: z.enum(setupSteps), done: z.boolean() })),

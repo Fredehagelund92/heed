@@ -107,6 +107,57 @@ const patternOf = (name: string) =>
 const isUniqueViolation = (error: unknown) =>
   typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505'
 
+/**
+ * Everything that has each word now, by word, besides the term `except`: the live vocabulary and
+ * what the definitions sources call it, then the terms people wrote.
+ */
+export async function wordHolders(
+  tx: Queryable,
+  words: readonly string[],
+  except: string | null = null,
+): Promise<Map<string, WordHolder[]>> {
+  const vocabulary = await tx.query<{
+    word: string
+    origin: 'vocabulary' | 'source'
+    key: string
+    name: string
+    type: string | null
+    connector: string | null
+  }>(
+    `select w.word, w.origin, w.key, w.name, c.type, c.name as connector
+       from cl_vocabulary_words() w left join connectors c on c.id = w.connector_id
+      where w.word = any($1::text[]) order by w.origin, w.key`,
+    [words],
+  )
+  const terms = await tx.query<Row & { author: string | null }>(
+    `with t0 as (${termRows} where t.word = any($1::text[]) and t.deleted_at is null
+                   and t.id is distinct from $2::uuid order by t.word, t.id)
+     select t0.*, p.display_name as author from t0 left join people p on p.id = t0."createdBy"::uuid`,
+    [words, except],
+  )
+  const found = new Map<string, WordHolder[]>()
+  const add = (word: string, holder: WordHolder) =>
+    found.set(word, [...(found.get(word) ?? []), holder])
+  for (const h of vocabulary)
+    add(h.word, {
+      origin: h.origin,
+      ref: h.key,
+      name: h.name,
+      tool: h.type ? connectorType(h.type, h.connector ?? '').tool : null,
+    })
+  for (const t of terms) {
+    const ref = termRefOf(t)
+    add(t.word, {
+      origin: 'term',
+      id: t.id,
+      name: t.name,
+      sameAs: ref ? { ref, name: t.targetName ?? '' } : null,
+      by: t.author ?? 'someone',
+    })
+  }
+  return found
+}
+
 export function createTermsService(tx: Queryable) {
   const names = {
     async person(id: string) {
@@ -194,40 +245,7 @@ export function createTermsService(tx: Queryable) {
 
   /** Everything that has the word now, besides the term `except`. */
   async function holders(word: string, except: string | null): Promise<WordHolder[]> {
-    const vocabulary = await tx.query<{
-      origin: 'vocabulary' | 'source'
-      key: string
-      name: string
-      type: string | null
-      connector: string | null
-    }>(
-      `select w.origin, w.key, w.name, c.type, c.name as connector
-         from cl_vocabulary_words() w left join connectors c on c.id = w.connector_id
-        where w.word = $1 order by w.origin, w.key`,
-      [word],
-    )
-    const terms = await rows(
-      't.word = $1 and t.deleted_at is null and t.id is distinct from $2::uuid',
-      [word, except],
-    )
-    const found: WordHolder[] = vocabulary.map((h) => ({
-      origin: h.origin,
-      ref: h.key,
-      name: h.name,
-      tool: h.type ? connectorType(h.type, h.connector ?? '').tool : null,
-    }))
-    // One after the other: a transaction's client runs one query at a time.
-    for (const t of terms) {
-      const ref = termRefOf(t)
-      found.push({
-        origin: 'term',
-        id: t.id,
-        name: t.name,
-        sameAs: ref ? { ref, name: t.targetName ?? '' } : null,
-        by: await names.person(t.createdBy),
-      })
-    }
-    return found
+    return (await wordHolders(tx, [word], except)).get(word) ?? []
   }
 
   function refused(refusal: TermRefusal): never {

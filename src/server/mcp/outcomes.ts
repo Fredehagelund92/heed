@@ -183,56 +183,35 @@ function domainVocabulary(bundle: ServingBundle, area: { id: string }) {
   return { metrics: names('metric'), dimensions: names('dimension') }
 }
 
-/** Where an administrator proposes a source's members as terms. */
-const sourcesPath = (sources: readonly string[]) =>
-  sources.length === 1
-    ? `/admin?section=sources&source=${encodeURIComponent(sources[0]!)}`
-    : '/admin?section=sources'
+/** Where an owner publishes the names a read made (FR-141). */
+const NAMES_CARD = '/inbox?card=names:waiting'
 
 /**
  * The members of a definition source a domain has that are no vocabulary term yet, in words: how
- * many by kind, a few by name, whether they are proposed, and the one next step, for the reader
- * as they are (an administrator proposes them; anyone else is told who can). Null when none.
+ * many by kind, a few by name, and the one next step: they wait in the Inbox for an owner of the
+ * domain or an admin (FR-141). Null when none.
  */
 export function waitingIn(area: { id: string; name: string }, waiting: WaitingTerms | null) {
   const mine = waiting?.members.filter((member) => member.areaId === area.id) ?? []
   if (!waiting || !mine.length) return null
   const metrics = mine.filter((m) => m.kind === 'metric')
   const dimensions = mine.filter((m) => m.kind === 'dimension')
-  const proposed = mine.filter((m) => m.proposed)
-  const unproposed = mine.filter((m) => !m.proposed)
   const tools = [...new Set(mine.map((m) => m.tool))].sort()
   const kinds = [
     ...(metrics.length ? [plural(metrics.length, 'metric', 'metrics')] : []),
     ...(dimensions.length ? [plural(dimensions.length, 'dimension', 'dimensions')] : []),
   ]
-  const examples = [...unproposed, ...proposed]
+  const examples = [...mine]
     .sort((a, b) => Number(a.kind === 'dimension') - Number(b.kind === 'dimension'))
     .slice(0, 4)
     .map((m) => m.name)
-  const path = sourcesPath([...new Set(unproposed.map((m) => m.source))].sort())
-  const which = unproposed.length === mine.length ? (mine.length === 1 ? 'it' : 'them') : 'the rest'
-  const next = unproposed.length
-    ? waiting.canPropose
-      ? `As an admin, you can see them all and propose ${which} in Administration › Sources (${path}), with Propose names; you, another admin or an owner of the domain then accepts them.`
-      : `An admin sees them all and proposes ${which} in Administration › Sources.`
-    : null
   return {
     metrics: metrics.length,
     dimensions: dimensions.length,
-    // A few by name: they are named in full in Administration, Sources, where they are proposed.
+    // A few by name: they are named in full on their card in the Inbox.
     examples,
-    ...(proposed.length ? { proposed: proposed.length } : {}),
-    words: [
-      `${list(tools)} ${tools.length === 1 ? 'has' : 'have'} ${list(kinds)} mapped to ${area.name} that the library doesn't know by name yet, such as ${list(examples)}.`,
-      ...(proposed.length
-        ? [
-            `${proposed.length === mine.length ? (mine.length === 1 ? 'It is' : 'They are') : `${proposed.length} of them ${proposed.length === 1 ? 'is' : 'are'}`} proposed as ${proposed.length === 1 ? 'a name and waits' : 'names and wait'} for review in Proposals › To review (/proposals?view=review).`,
-          ]
-        : []),
-      ...(next ? [next] : []),
-    ].join(' '),
-    ...(unproposed.length ? { where: path } : {}),
+    words: `${list(tools)} ${tools.length === 1 ? 'has' : 'have'} ${list(kinds)} mapped to ${area.name} that the library doesn't know by name yet, such as ${list(examples)}. ${mine.length === 1 ? 'It waits' : 'They wait'} in the Inbox for an owner of the domain or an admin to publish ${mine.length === 1 ? 'it' : 'them'}.`,
+    where: NAMES_CARD,
   }
 }
 

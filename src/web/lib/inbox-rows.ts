@@ -18,8 +18,12 @@ export const rowId = (r: InboxRow) =>
 export const rowTitle = (r: InboxRow) =>
   r.kind === 'card' ? r.card.title : r.kind === 'waiting' ? r.item.title : r.title
 /** What needs you: an open card, and anything that mentions you that you haven't read. */
-/** The Inbox's groups, in the order of need: what agents couldn't answer first, suggestions after. */
+/**
+ * The Inbox's groups, in the order of need: the names a read made first, then what agents couldn't
+ * answer, suggestions after.
+ */
 export const INBOX_GROUPS = [
+  { id: 'names', label: 'Names' },
   { id: 'gap', label: 'Not found' },
   { id: 'flag', label: 'Reported' },
   { id: 'look', label: 'Saved questions' },

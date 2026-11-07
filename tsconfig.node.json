@@ -14,8 +14,10 @@
     "playwright.config.ts",
     "playwright.golden-http.config.ts",
     "playwright.seed.config.ts",
+    "playwright.own-data.config.ts",
     "tests/e2e",
     "tests/e2e-seed",
+    "tests/e2e-own",
     "tests/lint/*.ts",
     "scripts"
   ],

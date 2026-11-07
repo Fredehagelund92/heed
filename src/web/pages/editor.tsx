@@ -449,7 +449,7 @@ function Editor({
   // With no definitions connected there is nothing to say where it applies with yet.
   const noWords = !form.where.length && !vocabulary.metrics.length && !vocabulary.dimensions.length
   const blocked = missing.length
-    ? `Add ${missing.join(', ')} first.${noWords ? ' Where it applies is named from your definitions: connect them in Settings, Integrations.' : ''}`
+    ? `Add ${missing.join(', ')} first.${noWords ? ' Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox.' : ''}`
     : tooLong
       ? 'Shorten the first paragraph to 280 characters first.'
       : unchanged

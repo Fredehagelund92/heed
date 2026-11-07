@@ -1,1 +1,1 @@
-export { createTermsService, type TermsService } from './service.ts'
+export { createTermsService, wordHolders, type TermsService } from './service.ts'

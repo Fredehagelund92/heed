@@ -187,6 +187,8 @@ export const wiredMethods = [
   'markOpened',
   'markReviewed',
   'decideCard',
+  'getNames',
+  'decideNames',
   'completeCard',
   'publishReview',
   'publishReviews',
@@ -1609,6 +1611,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     decideCard,
     completeCard: decideCard,
+    getNames: () => read(() => client.inbox.names()),
+    decideNames: (input) =>
+      write('inbox.decideNames', input, (o) => client.inbox.decideNames(input, o)),
     // A Not found card's draft also saves its question, unless the person said not to (FR-526);
     // Undo takes both back. The publish stands if the question cannot be saved.
     publishReview: async ({ id, relations, saveQuestion }) => {

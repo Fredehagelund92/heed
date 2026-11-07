@@ -114,6 +114,7 @@ export default tseslint.config(
       'src/server/**',
       'tests/e2e/**',
       'tests/e2e-seed/**',
+      'tests/e2e-own/**',
       'tests/lint/**',
       'tests/server/**',
       'tests/integration/**',

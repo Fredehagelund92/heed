@@ -30,7 +30,12 @@ import type { CommentsService } from '../comments/index.ts'
 import { syncedOf } from '../connectors/index.ts'
 import type { ServingBundle } from '../editions/index.ts'
 import type { GapsService } from '../gaps/index.ts'
-import { loadProposal, type ReviewPath, type ReviewService } from '../review/index.ts'
+import {
+  loadProposal,
+  type NamesService,
+  type ReviewPath,
+  type ReviewService,
+} from '../review/index.ts'
 
 /*
   The Inbox of Heed v1 (docs/product.md, section 5): the cards of the domains a person owns (every
@@ -42,7 +47,10 @@ import { loadProposal, type ReviewPath, type ReviewService } from '../review/ind
   whatever domain it is in. Due for a check: live items whose check date passed or whose
   definition changed. Suggestions: those waiting for a decision. Under All, the person's own
   suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions:
-  one card for each domain whose saved questions need a look (FR-526).
+  one card for each domain whose saved questions need a look (FR-526). Names: one card for the
+  names a read made that the person may accept (FR-141), above the rest, since nothing can be
+  written about a metric that has none. Once only names an owner left out remain, it goes under
+  Done, where they can be accepted after all.
 
   Alerts: a card for each raise of an alert rule with a card of its own, for a week. The alert
   rules (FR-621, src/domain/alerts.ts) decide whether an Alert, a Not found, a Saved questions or
@@ -103,6 +111,7 @@ export function createInboxFeedService(
     path: ReviewPath
     gaps: GapsService
     comments: Pick<CommentsService, 'mentionCards' | 'markMentionsRead'>
+    names: Pick<NamesService, 'waiting'>
   },
 ) {
   async function liveBundle(): Promise<ServingBundle | null> {
@@ -664,12 +673,37 @@ export function createInboxFeedService(
     }
   }
 
+  /** The one card of the names a read made; none when nothing is left to look at. */
+  async function namesCard(): Promise<Card[]> {
+    const { names, at } = await deps.names.waiting()
+    const looking = names.filter((name) => name.state !== 'left_out')
+    const left = names.filter((name) => name.leftByOwner)
+    if (!looking.length && !left.length) return []
+    const [area, ...others] = new Set(looking.map((name) => name.areaId))
+    const when = at ?? clock.now().toISOString()
+    return [
+      {
+        id: cardKey.names(),
+        group: 'names',
+        areaId: others.length ? null : (area ?? null),
+        at: when,
+        opened: false,
+        done: looking.length ? null : { outcome: 'Left out', at: when },
+        ready: names.filter((name) => name.state === 'ready').length,
+        flagged: names.filter((name) => name.state === 'flagged').length,
+        tools: [...new Set(names.map((name) => name.tool))].sort(),
+      },
+    ]
+  }
+
   return {
     async feed(tab: 'needs' | 'all' = 'needs'): Promise<Feed> {
       const areas = await domains()
       const bundle = await liveBundle()
       const min = await minimum()
+      const names = await namesCard()
       let cards = [
+        ...names.filter((card) => !card.done),
         ...(await gaps(bundle, min)),
         ...(await flags(areas)),
         ...(await reports(areas, 'open')),
@@ -689,6 +723,7 @@ export function createInboxFeedService(
       if (tab === 'all') {
         const open = new Set(cards.map((c) => c.id))
         cards.push(...(await done(areas)).filter((c) => !open.has(c.id)))
+        cards.push(...names.filter((card) => card.done))
       }
       const sorted = byNeed(cards)
       return {
@@ -830,12 +865,13 @@ export function createInboxFeedService(
     async setup(): Promise<{ steps: { id: SetupStep; done: boolean }[]; done: boolean }> {
       const [row] = await tx.query<Record<SetupStep, boolean>>(
         `select coalesce(length(btrim((select value #>> '{}' from settings_current where key='business.about'))),0) > 0 as about,
+                exists(select 1 from areas where archived_at is null) as domain,
+                exists(select 1 from serving_vocabulary((select seq from live_edition)) t
+                        where t.kind in ('metric','dimension')) as definitions,
                 exists(select 1 from live_edition l join item_version_service s on s.editions @> l.seq) as fact,
                 exists(select 1 from setup_marks where step='ask') as ask,
                 (exists(select 1 from mcp_requests where client_label<>'eval')
-                 or exists(select 1 from auth.oauth_grants)) as agent,
-                exists(select 1 from connectors c join connector_snapshots n on n.connector_id=c.id
-                         where n.status='ok' and c.removed_at is null) as definitions`,
+                 or exists(select 1 from auth.oauth_grants)) as agent`,
       )
       const steps = setupSteps.map((id) => ({ id, done: Boolean(row?.[id]) }))
       return { steps, done: steps.every((s) => s.done) }
