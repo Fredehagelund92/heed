@@ -543,7 +543,12 @@ describe('loose dates, as Ask reads them', () => {
       },
     )
 
-    it.each(['the year-end report', 'a quarter-end rush'])('finds no date in "%s"', (text) => {
+    it.each([
+      'the year-end report',
+      'a quarter-end rush',
+      'what do we know about the month-end close',
+      'what do we know about the year-end report',
+    ])('finds no date in "%s"', (text) => {
       expect(readDates(text, monday, { loose: true }).status).toBe('none')
     })
 

@@ -616,7 +616,7 @@ const partPattern = sticky(
 const untilPattern = sticky('(before|until|till|by|up to|up until|prior to|earlier than) ')
 const afterPattern = sticky('(after|later than|beyond|since) ')
 const aroundPattern = sticky('(?:around|about|circa|roughly) ')
-const thePeriodPattern = sticky('(?:the |this )?(week|month|quarter|year)\\b')
+const thePeriodPattern = sticky('(?:the |this )?(week|month|quarter|year)\\b(?![- ]end\\b)')
 
 /** The days of a period a part of it names: "early", "the second half", "the last week". */
 function partOf(period: Period, part: string): Period {
