@@ -228,6 +228,7 @@ function engineAnswerOf(
           definitions: a.definitions.map((d) => ({ name: d.name, words: d.words, tool: d.tool })),
         }
       : {}),
+    ...(a.footer ? { footer: a.footer } : {}),
     // How it was read, as keys, for the next question to carry; and the planner's reading.
     ...(scope ? { keys: scope } : {}),
     ...(a.reading

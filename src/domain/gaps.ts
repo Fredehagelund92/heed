@@ -58,27 +58,9 @@ export function visibleTotal(total: number, shown: number, minimum: number): num
 /** A topic's calls as a reader may have them: a count, or a floor, and what found nothing. */
 export type TopicCalls = { count: number | null; atLeast: number; nothing?: number | null }
 
-/**
- * A topic's counts as they may be shown together, the one rule for everything that states them
- * (FR-614, FR-620): each is hidden under the minimum, and a total goes to a floor when what found
- * something would be left over, under the minimum, once what found nothing is taken from it. What
- * found nothing is the count kept, as on Observability. A topic with no shown count of at least the
- * minimum is not shown at all.
- */
-export function shownTopics<T extends TopicCalls>(rows: readonly T[], minimum: number): T[] {
-  return rows.flatMap((row) => {
-    const nothing = visibleCount(row.nothing ?? 0, minimum)
-    const total = row.count === null ? null : visibleCount(row.count, minimum)
-    const hides = !!nothing && total !== null && visibleCount(total - nothing, minimum) === null
-    const shown = {
-      ...row,
-      nothing,
-      count: hides ? null : total,
-      atLeast: hides ? nothing : Math.min(row.atLeast, total ?? row.atLeast),
-    }
-    return (shown.count ?? shown.atLeast) >= minimum ? [shown] : []
-  })
-}
+/** Only a topic with a shown count of at least the minimum is listed at all (FR-614). */
+export const listedTopics = <T extends TopicCalls>(rows: readonly T[], minimum: number): T[] =>
+  rows.filter((row) => (row.count ?? row.atLeast) >= minimum)
 
 /** A topic's calls in a table: the number, "13+", or "Fewer than 5" when not even a floor shows. */
 export function askedCell(row: TopicCalls, minimum: number): string {

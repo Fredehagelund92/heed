@@ -872,9 +872,7 @@ describe('a records answer', () => {
       ask({ intent: 'asked_nothing' }),
       world([], { asked: { minimum: 5, rows: [] } }),
     )
-    expect(none.sentence).toBe(
-      'No topic agents asked about 5 times or more this week found nothing.',
-    )
+    expect(none.sentence).toBe('No topic was asked about 5 times or more this week.')
   })
 
   it('lists the conflicts as Context does, each opening its pair, five at most', () => {

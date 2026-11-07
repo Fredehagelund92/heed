@@ -187,14 +187,31 @@ hidden count must not show (in a world of small counts fed in raw), what a rule 
 what a loose date must do, and what a synthesis or an analysis must keep. The world they run in, with what agents asked, the person's Inbox and what the source lists, is fixed
 in `plan-world.ts`, so what a case must say never drifts.
 
-| Layer            | When                                                              | Proves                                                                                                                                   |
-| ---------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Scripted planner | Every build, `tests/server/ask-plan-cases.test.ts`                | The reads, templates, counts, audience, the fit check, the fallbacks                                                                     |
-| Recorded plans   | Every build, the same file                                        | The last real plans replay through `checkPlan`; a changed prompt, vocabulary format or model fails the build until someone records again |
-| Real model       | On request, `npm run eval:ask-gate -- --real --max-cost-usd 0.50` | Three tries a case, seven when it flips, majority decides. Reported apart (FR-710). `--record` keeps its plans                           |
+| Layer            | When                                                              | Proves                                                                                                                                    |
+| ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Scripted planner | Every build, `tests/server/ask-plan-cases.test.ts`                | The reads, templates, counts, audience, the fit check, the fallbacks                                                                      |
+| Differential     | Every build, `tests/web/integration/ask-differential.test.ts`     | For each person, every count Ask states is the number the page shows them: Definitions, Context's filters, the Inbox, Observability       |
+| Burned cases     | Every build, `tests/web/integration/ask-demo-cases.test.ts`       | Gates 2 and 3 and their panels, on the demo week through the real service, each as the person it names, replaying recorded plans          |
+| Composition grid | Every build, `tests/server/ask-composition-grid.test.ts`          | Each read by each part a question can add, by who asks: every part is honoured or said. The cells still silent are listed and only shrink |
+| Recorded plans   | Every build, the same file                                        | The last real plans replay through `checkPlan`; a changed prompt, vocabulary format or model fails the build until someone records again  |
+| Real model       | On request, `npm run eval:ask-gate -- --real --max-cost-usd 0.50` | Three tries a case, seven when it flips, majority decides. Reported apart (FR-710). `--record` keeps its plans                            |
 
 `npm run eval:ask-gate` prints the scores by class and exits non-zero when the gate fails. Code
 decides honesty: a judge can only fail a case, never pass one.
+
+A case can name who asks (`as`): what a count may say and what "my domain" is depend on it. The
+burned cases of gates 2 and 3 (`burned-cases.ts`) run on the demo week, not in `plan-world.ts`, so a
+person's hidden counts are the service's own. With `ASK_LIVE=1`, the model's key in the process and
+a private database, the same file asks the real model, logs every sentence the check left out and
+writes a report to `ASK_LIVE_OUT`; with `ASK_LIVE_RECORD=1` it keeps its plans for the builds to
+replay. The cases that still fail are listed in the test, so the list only shrinks. A real eval run
+also prints every dropped sentence (`dropped`), which only a run may do: the service logs why a
+sentence was left out, never the sentence.
+
+Forty development cases are held back (`held-back.ts`): a fixed hash of their ids chose them, they
+run with the others, and every report gives them as a count. Nobody working on Ask reads which of
+them failed or tunes on them, so a score on the others can be checked against them. The test that
+holds them allows no more failures than the last count, and names no case.
 
 | Gate                                   | Bar                                                         |
 | -------------------------------------- | ----------------------------------------------------------- |

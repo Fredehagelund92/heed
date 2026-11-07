@@ -11,6 +11,7 @@ import {
   refusedAnswer,
   type RecordsAnswer,
   type RecordsIntent,
+  type RecordsWorld,
 } from '../../../domain/records.ts'
 import { asksDefinition, asksDefinitionInAsk, readQuestion } from '../../../domain/scope.ts'
 import {
@@ -20,8 +21,11 @@ import {
   planBundle,
   planDefinitions,
   planItem,
+  planPeople,
   planStewards,
   planRecords,
+  rawAsked,
+  recordsAs,
   smallCountRecords,
   sourceChangedRecords,
 } from './plan-world.ts'
@@ -56,6 +60,8 @@ export type PlanCase = {
   sources?: string[]
   /** Scoped with @, so the browser sends no chat with it. */
   scoped?: true
+  /** Who asks, by name: what a count may say and what "my domain" is depend on it. */
+  as?: string
   /** The class of question it tests (FR-720): reads, analysis, synthesis, beyond, and the rest. */
   class?: 'D' | 'R' | 'S' | 'A' | 'X'
   /** The world it is asked in, when it is not the usual one. */
@@ -726,13 +732,26 @@ const worlds = {
   'small counts': smallCountRecords,
 }
 
+/** The records a case is answered from, as the person it names may have them. */
+function worldOf(c: Pick<PlanCase, 'world' | 'as'>): RecordsWorld {
+  const world = worlds[c.world ?? 'usual']
+  const raw = rawAsked[c.world === 'small counts' ? 'small counts' : 'usual']
+  return c.as ? recordsAs(world, raw, c.as) : world
+}
+
+/** Who is asking, as the planner reads it. */
+function askerOf(name: string) {
+  const { admin, areas } = planPeople[name]!
+  return { admin, owns: planAreas.filter((a) => areas.includes(a.id)) }
+}
+
 /**
  * Asks a case's question in the planner cases' world as Ask does (src/domain/ask-route.ts): the
  * records question the rules read, the rules' answer, then the planner when it is to read it.
  * `chat` is the turns of the cases it follows, oldest first.
  */
 export async function askPlanCase(
-  c: Pick<PlanCase, 'question' | 'sources' | 'scoped' | 'world'>,
+  c: Pick<PlanCase, 'question' | 'sources' | 'scoped' | 'world' | 'as'>,
   planner: Planner | null,
   chat: readonly ChatTurn[],
 ): Promise<PlanOutcome> {
@@ -760,6 +779,7 @@ export async function askPlanCase(
     today: PLAN_TODAY,
     now: PLAN_NOW,
     stewards: () => Promise.resolve(planStewards),
+    ...(c.as ? { asker: () => Promise.resolve(askerOf(c.as!)) } : {}),
     planner: planner
       ? (input, check) => {
           calls++
@@ -775,7 +795,7 @@ export async function askPlanCase(
     found?.type === 'refused'
       ? refusedAnswer(planRecords)
       : found
-        ? answerRecords(found.ask, worlds[c.world ?? 'usual'], PLAN_NOW)
+        ? answerRecords(found.ask, worldOf(c), PLAN_NOW)
         : null
   const define =
     routed.kind === 'reads'
@@ -863,7 +883,9 @@ export function recordsText(r: RecordsAnswer): string[] {
     ...(r.clear ?? []),
     r.ranked ?? '',
     r.note ?? '',
-    r.notSeen ?? '',
+    r.footer?.denominator ?? '',
+    r.footer?.notSeen ?? '',
+    r.footer?.stale ?? '',
   ].filter(Boolean)
 }
 
@@ -891,6 +913,10 @@ function renderedOf(routed: Routed, records: RecordsAnswer | null, define: strin
     if (routed.kind === 'reads') lines.push(...(routed.planned.reading.facts ?? []))
     if (routed.kind === 'reads' && routed.planned.reading.left)
       lines.push(`Not answered here: ${routed.planned.reading.left}`)
+    if ((routed.kind === 'reads' || routed.kind === 'rules') && routed.footer) {
+      const { denominator, notSeen, stale } = routed.footer
+      lines.push(...[denominator, notSeen, stale].flatMap((line) => line ?? []))
+    }
   }
   return lines.join('\n')
 }

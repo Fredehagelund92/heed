@@ -177,6 +177,17 @@ const sectionSchema = z.object({
 })
 export type RecordsSection = z.infer<typeof sectionSchema>
 
+/**
+ * What every answer owes the reader, in one place (src/domain/answer-footer.ts): what a count is out
+ * of, what the read could not see, and what in it may be out of date.
+ */
+export const footerSchema = z.object({
+  denominator: z.nullable(z.string()),
+  notSeen: z.nullable(z.string()),
+  stale: z.nullable(z.string()),
+})
+export type AnswerFooter = z.infer<typeof footerSchema>
+
 /** What a records read is narrowed to: the metrics and values the question names, by key. */
 export const recordsAboutSchema = z.object({
   metrics: z.array(z.string()),
@@ -240,8 +251,8 @@ export const recordsAnswerSchema = z.union([
     clear: z.optional(z.array(z.string())),
     /** The rule behind a ranking, in words: "Look first at Orders in Spain: ...". */
     ranked: z.optional(z.nullable(z.string())),
-    /** What the read cannot see: "Not seen: a definition your source does not hold." */
-    notSeen: z.optional(z.nullable(z.string())),
+    /** What it is out of, what the read cannot see, and what in it may be out of date. */
+    footer: z.optional(footerSchema),
     /** The domain a ranking of domains puts first, alone: what "that one" means next. */
     top: z.optional(z.nullable(z.object({ id: z.string(), name: z.string() }))),
     /** The sentence it leads with when the question reaches beyond what is written. */

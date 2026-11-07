@@ -16,7 +16,7 @@
  * Pure: no clock, no input or output. The words of a question are read in memory only and are
  * never part of the answer (FR-602).
  */
-import { shownTopics, visibleCount, visibleTotal } from './gaps.ts'
+import { visibleCount } from './gaps.ts'
 import { ownCaveat } from './proposal-rules.ts'
 import { audienceAllows, noGroups, type ItemKind } from './item.ts'
 import {
@@ -550,94 +550,6 @@ export function topicScope(topic: Omit<TopicCount, 'id' | 'area' | 'calls'>): Re
         .map(([dimension, values]) => [dimension, [...new Set(values)].sort(compareIds)]),
     ),
     window: { start: topic.month, end: next },
-  }
-}
-
-/** A row of Asked this week: a topic with its months joined, and how often it was asked. */
-export type AskedTopic = {
-  /** The topic's parts without the month, as one key. */
-  key: string
-  area: string | null
-  metrics: string[]
-  values: string[]
-  dimensions: string[]
-  /** The months whose own calls are shown (at least the minimum), newest first. */
-  months: string[]
-  /** The month the row is answered on: the newest shown month, else the month of today. */
-  month: string
-  count: number | null
-  atLeast: number
-  /** How many of the calls delivered no item; null under the minimum. */
-  nothing: number | null
-}
-/**
- * Topics asked about this week, one row per metric, market and dimension with its months joined
- * (as the Questions page groups them), most asked first. A month asked fewer than
- * `minimum` times is never shown on its own (FR-614): a row's count is shown only when no hidden
- * month could be worked out from it by subtraction (`visibleTotal`); otherwise `count` is null
- * and `atLeast` is what its shown months add up to ("13+"). Only shown months are listed in
- * `months`, and the row is answered on the newest of them (`month`; on the month of `today` when
- * none is shown, never on a hidden one). A row that shows fewer than `minimum` is not listed.
- * `hidden` is what the rows not listed add up to, itself hidden under the minimum.
- */
-export function askedTopics(
-  rows: readonly TopicCount[],
-  minimum: number,
-  today: string,
-): { topics: AskedTopic[]; hidden: number | null } {
-  const groups = new Map<string, TopicCount[]>()
-  for (const row of rows) {
-    const key = [
-      row.area ?? '',
-      [...row.metrics].sort(compareIds).join(','),
-      [...row.values].sort(compareIds).join(','),
-      [...row.dimensions].sort(compareIds).join(','),
-    ].join('|')
-    groups.set(key, [...(groups.get(key) ?? []), row])
-  }
-  const all = [...groups].map(([key, list]): AskedTopic & { total: number } => {
-    const total = list.reduce((sum, row) => sum + row.calls, 0)
-    const atLeast = list.reduce(
-      (sum, row) => sum + (visibleCount(row.calls, minimum) === null ? 0 : row.calls),
-      0,
-    )
-    const first = list[0]!
-    const months = [
-      ...new Set(
-        list.filter((row) => visibleCount(row.calls, minimum) !== null).map((row) => row.month),
-      ),
-    ]
-      .sort(compareIds)
-      .reverse()
-    return {
-      key,
-      area: first.area,
-      metrics: [...first.metrics].sort(compareIds),
-      values: [...first.values].sort(compareIds),
-      dimensions: [...first.dimensions].sort(compareIds),
-      months,
-      month: months[0] ?? `${today.slice(0, 7)}-01`,
-      count: list.length > 1 ? visibleTotal(total, atLeast, minimum) : visibleCount(total, minimum),
-      atLeast,
-      nothing: visibleCount(
-        list.reduce((sum, row) => sum + (row.noItem ?? 0), 0),
-        minimum,
-      ),
-      total,
-    }
-  })
-  // One rule for what may show together: a total that would give a small count away by subtraction
-  // goes to a floor.
-  const shown = shownTopics(all, minimum)
-    .filter((topic) => (topic.count ?? topic.atLeast) >= minimum)
-    .sort((a, b) => (b.count ?? b.atLeast) - (a.count ?? a.atLeast) || compareIds(a.key, b.key))
-  const hidden = all.filter((topic) => (topic.count ?? topic.atLeast) < minimum)
-  return {
-    topics: shown.map(({ total: _total, ...topic }) => topic),
-    hidden: visibleCount(
-      hidden.reduce((sum, topic) => sum + topic.total, 0),
-      minimum,
-    ),
   }
 }
 

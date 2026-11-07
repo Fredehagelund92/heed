@@ -726,9 +726,12 @@ export function createInboxFeedService(
         cards.push(...names.filter((card) => card.done))
       }
       const sorted = byNeed(cards)
+      // A Not found card's draft is that card, on the Inbox and in what it counts.
+      const drafts = new Set(sorted.flatMap((c) => (c.group === 'gap' && c.draft ? [c.draft] : [])))
+      const counted = sorted.filter((c) => !(c.group === 'suggestion' && drafts.has(c.proposalId)))
       return {
         week: await week(bundle, min),
-        groups: groupCounts(sorted, waits.length),
+        groups: groupCounts(counted, waits.length),
         cards: sorted,
         waiting: waits,
       }

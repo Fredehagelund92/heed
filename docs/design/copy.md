@@ -78,6 +78,10 @@ An answer from the records (what was created, what is due, who owns a domain) ha
 
 An analysis of the records is a records answer: the Records chip, the same line under it, and one sentence from a template. Its rows come in up to four sections, each headed by what it counts with its denominator: "No context written: 13 of 22 metrics". A ranking says its rule in words: "Look first at Orders in Spain: agents found nothing there most often." Its last lines say what the read cannot see and that agents did not read it: "Not seen: a definition your source does not hold, or a word people use that Heed cannot read." A count never stands alone, and never a quality word such as "good" or "healthy" without the count behind it.
 
+Every answer ends in the same footer, written by code, each line only when it has something to say: what a count is out of ("Out of 21 live context items."), what the read could not see ("Not seen: drafts and suggestions, which are not context yet."), and what in it may be out of date ("Returns changed definition on 28 April 2026: its check date has passed."), whatever the answer's state. What agents asked says its days too: "This week here is 16 to 22 Oct 2026, as Observability counts it."
+
+A count of what agents asked says what the reader's own Observability says: a floor as a floor ("13+"), a topic the question names that shows no count as "Fewer than 5", and a hidden count as "Hidden", never 0. When a model and the date reader read a question's dates apart, the answer says so: "The dates could also mean 1 to 30 Nov 2025."
+
 When Ask cannot answer the question asked, it says so in a fixed sentence (FR-720). A limit sentence comes first, and what is written follows it. A cannot sentence stands alone: nothing was looked up, so it has no state.
 
 | Exit             | Sentence                                                                                                               |

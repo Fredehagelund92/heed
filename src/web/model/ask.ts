@@ -1,6 +1,6 @@
 import { CHAT_LINE, CHAT_SOURCES, type ChatTurn, type HeldReading } from '@domain/ask-chat'
 import { notLookedUp } from '@domain/say'
-import type { AnswerLimit, RecordsAnswer } from '@domain/records-answer'
+import type { AnswerFooter, AnswerLimit, RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
@@ -193,6 +193,8 @@ export type Answer = {
   write?: { metric: string | null; market: string | null }
   /** The fixed sentence it leads with when the question reaches beyond what is written (FR-720). */
   limit?: AnswerLimit
+  /** What it owes the reader: what a count is out of, what it could not see, what may be stale. */
+  footer?: AnswerFooter
   /**
    * The last question, asked again because the person said so in words ("try again"): what was
    * asked. `question` and `parts` stay what they typed.

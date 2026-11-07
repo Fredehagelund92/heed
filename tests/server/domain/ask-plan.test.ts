@@ -1287,12 +1287,43 @@ describe('a plan is held to the question', () => {
     ).toMatchObject({ kind: 'cannot', reason: 'source' })
   })
 
-  it('reads one thing’s date as that thing, never the list of what is due', () => {
+  it('leaves a records plan as the model wrote it: no word of the question rewrites it', () => {
     const plan = planned(
       { records: { intent: 'due' } },
-      'when is the Italy promotions event due for a check?',
+      'when was what is due for Paid media last checked?',
     )
-    expect(plan).toMatchObject({ kind: 'reads', facts: ['due'] })
+    expect(plan).toMatchObject({ kind: 'records', ask: { intent: 'due' } })
+  })
+
+  it('reads a kind of context written as a read as a search of that kind', () => {
+    const plan = planned(
+      { reads: [{ kind: 'guide', metrics: ['metric:returns'] }] },
+      'what does the guide for Returns say?',
+    )
+    expect(plan).toMatchObject({ kind: 'reads', reads: [{ kind: 'explore', kinds: ['guide'] }] })
+  })
+
+  it('reads what changed in the definitions as the source, not the context', () => {
+    const plan = planned(
+      { records: { intent: 'changed', of: 'definition' } },
+      'which definitions changed last month?',
+    )
+    expect(plan).toMatchObject({ kind: 'records', ask: { intent: 'audit' } })
+  })
+
+  it('keeps what the model wrote left out, whatever its punctuation', () => {
+    const left = (text: string) =>
+      planned(
+        { reads: [{ kind: 'explore', values: ['val:market/norway'] }], left: text },
+        'how many items are about Norway, and how many still apply?',
+      )
+    expect(left('how many of those still apply')).toMatchObject({
+      left: 'how many of those still apply.',
+    })
+    expect(left('how many of those still apply?')).toMatchObject({
+      left: 'how many of those still apply?',
+    })
+    expect(left('see https://example.test/page?')).not.toHaveProperty('left')
   })
 
   it('leaves the words of the question out of what is left', () => {
@@ -1307,7 +1338,7 @@ describe('a plan is held to the question', () => {
     expect(plan).not.toHaveProperty('left')
   })
 
-  it('keeps nothing of the last question in one with its own subject', () => {
+  it('keeps what the model carried: the model reads the chat, no word of it decides', () => {
     const plan = planned(
       {
         reads: [
@@ -1317,7 +1348,84 @@ describe('a plan is held to the question', () => {
       'what events happened in August?',
       { previous },
     )
-    expect(plan).toMatchObject({ reads: [{ scope: { metrics: [] } }] })
+    expect(plan).toMatchObject({ reads: [{ scope: { metrics: ['metric:orders'] } }] })
+  })
+
+  describe('the dates, read twice', () => {
+    const read = (dates: string, from?: string | null, to?: string | null) => ({
+      kind: 'explore',
+      kinds: ['event'],
+      dates,
+      from,
+      to,
+    })
+
+    it('takes the days the model worked out, for words the reader cannot place', () => {
+      const plan = planned(
+        { reads: [read('the three months before 4 August 2026', '2026-05-04', '2026-08-03')] },
+        'what happened in the three months before 4 August 2026?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-05-04', end: '2026-08-04' } } }],
+      })
+    })
+
+    it('says the other reading when the two disagree, and never loses the plan', () => {
+      const plan = planned(
+        { reads: [read('in november', '2026-11-01', '2026-11-30')] },
+        'what happens in november?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-11-01', end: '2026-12-01' } } }],
+        otherDays: { start: '2025-11-01', end: '2025-12-01' },
+      })
+    })
+
+    it('takes no days with no first day: only the business could date those words', () => {
+      const plan = planned(
+        { reads: [read('since the rebrand', null, '2026-10-23')] },
+        'what happened since the rebrand?',
+      )
+      expect(plan).toMatchObject({ unplaced: ['since the rebrand'] })
+    })
+
+    it('says nothing when they agree, and reads the words when the model gave no days', () => {
+      const same = planned(
+        { reads: [read('in august 2026', '2026-08-01', '2026-08-31')] },
+        'what happened in august 2026?',
+      )
+      expect(same).not.toHaveProperty('otherDays')
+      const words = planned({ reads: [read('in august 2026')] }, 'what happened in august 2026?')
+      expect(words).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-08-01', end: '2026-09-01' } } }],
+      })
+    })
+
+    it('takes no days for a question that names no period', () => {
+      const plan = planned(
+        { records: { intent: 'due', period: null, from: '1900-01-01', to: '2026-10-23' } },
+        'anything overdue in Sales?',
+      )
+      expect(plan).toMatchObject({ kind: 'records', ask: { intent: 'due', period: null } })
+    })
+
+    it('never takes days that are not days', () => {
+      const plan = planned(
+        { reads: [read('in august 2026', 'soon', '2026-13-45')] },
+        'what happened in august 2026?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-08-01', end: '2026-09-01' } } }],
+      })
+    })
+
+    it('reads a records period from them too', () => {
+      const plan = planned(
+        { records: { intent: 'created', period: 'since october', from: '2026-10-01' } },
+        'what went into context since october?',
+      )
+      expect(plan).toMatchObject({ kind: 'records', ask: { period: { assumed: false } } })
+    })
   })
 })
 

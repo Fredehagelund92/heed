@@ -5,6 +5,7 @@ import {
   wordsPrompt,
   wordsStates,
   wordsSystem,
+  type DroppedSentence,
   type WordsInput,
 } from '../../../domain/answer-words.ts'
 import type { Database, Queryable } from '../../db/database.ts'
@@ -103,6 +104,11 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
   const definitions = (answer.definitions ?? []).flatMap((d) =>
     d.words ? [{ name: d.name, words: d.words }] : [],
   )
+  // What is shown under the words: the words need not say it, and never say it is not known.
+  const facts = [
+    ...(answer.reading?.facts ?? []),
+    ...(answer.footer?.stale ? [answer.footer.stale] : []),
+  ]
   return {
     question,
     state: answer.state,
@@ -117,7 +123,7 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
     ...(definitions.length ? { definitions } : {}),
     ...(answer.reading ? { read: answer.reading.words } : {}),
     ...(answer.limit ? { limit: answer.limit.sentence } : {}),
-    ...(answer.reading?.facts?.length ? { facts: answer.reading.facts } : {}),
+    ...(facts.length ? { facts } : {}),
   }
 }
 
@@ -151,6 +157,8 @@ export function writeWords(
     signal?: AbortSignal
     onError?: (error: unknown) => void
     onMiss?: (miss: WordsMiss) => void
+    /** Each sentence the check left out, for a run of the cases: never the service's log. */
+    onDropped?: (dropped: readonly DroppedSentence[]) => void
   },
   input: WordsInput,
 ): AsyncGenerator<string> | null {
@@ -216,6 +224,7 @@ async function* sentencesOf(
         } else if (part.type === 'error') throw part.error
       }
       if (!gate.failed) yield* gate.end(finishReason === 'stop')
+      deps.onDropped?.(gate.dropped)
     } finally {
       done.abort()
       // A call still open (stopped, or ended at a failing sentence) is recorded as aborted.
@@ -238,7 +247,7 @@ async function* sentencesOf(
       // The words stood, without the sentences that said more than the items do.
       deps.onMiss?.({
         reason: 'sentences left out',
-        why: gate.dropped[0]!,
+        why: gate.dropped[0]!.why,
         count: gate.dropped.length,
       })
     else if (cut)

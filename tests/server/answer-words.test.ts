@@ -54,12 +54,12 @@ describe('the check on a model’s words', () => {
     })
     const pause = { title: 'Ads', summary: 'Ads in Norway paused in May.', notToConclude: null }
     const words = 'Ads in Norway paused in May [1]. We should pause ads in Norway [1].'
-    expect(checkWords(words, asked([pause]))).toEqual({
+    expect(checkWords(words, asked([pause]))).toMatchObject({
       ok: true,
       text: 'Ads in Norway paused in May [1].',
     })
     const other = { title: 'Guide', summary: 'You should read it weekly.', notToConclude: null }
-    expect(checkWords(words, asked([pause, other]))).toEqual({
+    expect(checkWords(words, asked([pause, other]))).toMatchObject({
       ok: true,
       text: 'Ads in Norway paused in May [1].',
     })
@@ -72,7 +72,7 @@ describe('the check on a model’s words', () => {
       items: [{ title: 'Margin', summary, notToConclude: null }],
     })
     const asked = 'Look at four weeks or more [1]. You should look at four weeks or more [1].'
-    expect(checkWords(asked, guide('Look at four weeks or more.'))).toEqual({
+    expect(checkWords(asked, guide('Look at four weeks or more.'))).toMatchObject({
       ok: true,
       text: 'Look at four weeks or more [1].',
     })
@@ -90,7 +90,7 @@ describe('the check on a model’s words', () => {
         'One side counts store credit [1].\n\nThe other counts card and cash only [2].',
         input,
       ),
-    ).toEqual({
+    ).toMatchObject({
       ok: true,
       text: 'One side counts store credit [1]. The other counts card and cash only [2].',
     })

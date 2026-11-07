@@ -34,6 +34,7 @@ export {
   engineDigest,
   GATE_BUDGETS,
   gatePasses,
+  heldIds,
   plannerDigest,
   recordedPlansFile,
   scoreRun,
@@ -49,7 +50,9 @@ export {
   type PlannerMiss,
   type PlannerReply,
 } from './plan.ts'
+export { demoCases, type DemoCase } from './burned-cases.ts'
 export {
+  askedFor,
   askedThisWeek,
   createBundleCache,
   liveBundle as liveServingBundle,
@@ -57,6 +60,7 @@ export {
   minimumCount,
   reachOfDraft,
   replayTopic,
+  type AskTrace,
   type BundleCache,
   type LookupDeps,
 } from './service.ts'

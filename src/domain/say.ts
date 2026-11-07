@@ -4,6 +4,7 @@ import { metricsOf } from './resolver.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import type { CannotReason } from './records-answer.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
+import type { DateWindow } from './validity.ts'
 import { concepts as peopleConcepts } from './words.ts'
 import type { WordMeaning } from './vocabulary.ts'
 import { concepts } from './words-v1.ts'
@@ -638,3 +639,7 @@ export function reportSaid(c: {
 /** What a planned answer leads with when what was read says nothing of the names asked. */
 export const generalSaid = (names: readonly string[]) =>
   `Nothing is written about ${names.length < 2 ? (names[0] ?? 'this') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`} in particular. Here is what is written in general.`
+
+/** What a read says when the model and the date reader read a question's dates apart (FR-719). */
+export const otherDaysSaid = (window: DateWindow) =>
+  `The dates could also mean ${periodWords(window, { upTo: true })}.`

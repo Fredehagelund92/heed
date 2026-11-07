@@ -1,5 +1,6 @@
+import { notSeen as notSeenLine } from './answer-footer.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
-import { askedCell, shownTopics } from './gaps.ts'
+import { askedCell, listedTopics } from './gaps.ts'
 import { overlaps } from './validity.ts'
 import {
   type AuditFacet,
@@ -421,29 +422,30 @@ function readingOf(
     const value = read.value
     const metrics = about?.metrics ?? []
     const values = about?.values ?? []
+    const named = (r: (typeof asked.rows)[number]) =>
+      inDomain(r.area ?? null) &&
+      (!value || (r.values ?? []).includes(value)) &&
+      (!metrics.length || metrics.some((m) => (r.metrics ?? []).includes(m))) &&
+      (!values.length || values.some((v) => (r.values ?? []).includes(v)))
     return {
       minimum: asked.minimum,
-      rows: shownTopics(asked.rows, asked.minimum).filter(
-        (r) =>
-          inDomain(r.area ?? null) &&
-          (!value || (r.values ?? []).includes(value)) &&
-          (!metrics.length || metrics.some((m) => (r.metrics ?? []).includes(m))) &&
-          (!values.length || values.some((v) => (r.values ?? []).includes(v))),
-      ),
+      rows: listedTopics(asked.rows, asked.minimum).filter(named),
+      // A topic the question names that shows no count of the minimum is said so, never none.
+      below: metrics.length
+        ? asked.rows.filter((r) => named(r) && !listedTopics([r], asked.minimum).length)
+        : [],
     }
   }
 
   const askedNothing = (): Part => {
     const { rows, minimum } = askedTopics()
-    const { nothing, section } = foundNothing({ rows, minimum })
+    const { nothing, section, sentence } = foundNothing({ rows, minimum }, where)
     const n = nothing.length
     const top = nothing[0]
     return {
-      sentence: n
-        ? `Agents found nothing for ${count(n)} of ${count(rows.length)} topics${where} this week.`
-        : `Agents found something for every topic${where} asked about ${minimum} times or more this week.`,
+      sentence,
       section,
-      clear: `Agents found something for every topic${where} asked about ${minimum} times or more this week.`,
+      clear: sentence,
       detail: n ? "This counts agents' calls that delivered nothing, this week." : null,
       ranked: top ? `Look first at ${top.title}: agents found nothing there most often.` : null,
       note: `A topic asked about fewer than ${minimum} times is not shown, so no small count is given away.`,
@@ -452,30 +454,34 @@ function readingOf(
   }
 
   const askedMost = (): Part => {
-    const { rows, minimum } = askedTopics()
+    const { rows, below, minimum } = askedTopics()
+    const shown = [...rows, ...below]
     const n = rows.length
     const named = read.value ? (world.terms.find((t) => t.key === read.value)?.name ?? '') : ''
     const value = named && !about ? ` about ${named}` : ''
+    const none = `No topic${value}${where} was asked about ${minimum} times or more this week.`
     return {
       sentence: n
         ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${value}${where} ${minimum} times or more this week.`
-        : `No topic${value}${where} was asked about ${minimum} times or more this week.`,
-      section: n
+        : below.length
+          ? `${list(below.map((r) => r.title))} ${below.length === 1 ? 'was' : 'were'} asked about fewer than ${minimum} times this week.`
+          : none,
+      section: shown.length
         ? {
             title: 'Asked most this week',
-            count: `${count(n)} ${noun(n, 'topic', 'topics')}`,
-            columns: ['Topic', 'Asked'],
-            rows: rows.slice(0, SECTION_ROWS).map((r) => ({
+            count: `${count(shown.length)} ${noun(shown.length, 'topic', 'topics')}`,
+            columns: ['Topic', 'Asked', 'Found nothing'],
+            rows: shown.slice(0, SECTION_ROWS).map((r) => ({
               type: 'topic' as const,
               title: r.title,
-              cells: [askedCell(r, minimum)],
+              cells: [askedCell(r, minimum), r.nothing == null ? 'Hidden' : count(r.nothing)],
               gap: r.gap,
             })),
-            shown: n > SECTION_ROWS ? `Showing the ${SECTION_ROWS} asked most` : null,
+            shown: shown.length > SECTION_ROWS ? `Showing the ${SECTION_ROWS} asked most` : null,
             more: null,
           }
         : null,
-      clear: `No topic${value}${where} was asked about ${minimum} times or more this week.`,
+      clear: none,
       note: `A topic asked about fewer than ${minimum} times is not shown, so no small count is given away.`,
       found: n,
     }
@@ -917,28 +923,42 @@ function nothingCell(
 
 /**
  * What agents' calls found nothing for this week, as Asked this week may show it: what their calls
- * delivered, under the minimum (FR-614), never what a topic reads as today. Most first.
+ * delivered, under the minimum (FR-614), never what a topic reads as today. Most first. A topic whose
+ * count is hidden may have found nothing or not: it is never read as none, so the sentence says so.
  */
-export function foundNothing(asked: {
-  rows: NonNullable<RecordsWorld['asked']>['rows']
-  minimum: number
-}): {
+export function foundNothing(
+  asked: { rows: NonNullable<RecordsWorld['asked']>['rows']; minimum: number },
+  where = '',
+): {
   nothing: NonNullable<RecordsWorld['asked']>['rows'][number][]
   section: RecordsSection | null
+  sentence: string
 } {
   const share = (r: { nothing?: number | null; atLeast: number; count: number | null }) =>
     (r.nothing ?? 0) / Math.max(r.count ?? r.atLeast, 1)
-  const rows = shownTopics(asked.rows, asked.minimum)
+  const rows = listedTopics(asked.rows, asked.minimum)
   const nothing = rows
     .filter((r) => (r.nothing ?? 0) > 0)
     .sort((a, b) => (b.nothing ?? 0) - (a.nothing ?? 0) || share(b) - share(a))
   const n = nothing.length
+  const unsaid = rows.filter((r) => r.nothing === null).length
+  const topics = `${count(rows.length)} ${noun(rows.length, 'topic', 'topics')}`
+  const hidden = `the count is hidden for ${count(unsaid)} of ${topics}`
   return {
     nothing,
+    sentence: unsaid
+      ? n
+        ? `Agents found nothing for at least ${count(n)} of ${topics}${where} this week: ${hidden}.`
+        : `No topic${where} shows calls that found nothing this week, and ${hidden}.`
+      : n
+        ? `Agents found nothing for ${count(n)} of ${topics}${where} this week.`
+        : rows.length
+          ? `Agents found something for every topic${where} asked about ${asked.minimum} times or more this week.`
+          : `No topic${where} was asked about ${asked.minimum} times or more this week.`,
     section: n
       ? {
           title: 'Agents found nothing',
-          count: `${count(n)} of ${count(rows.length)} topics this week`,
+          count: `${unsaid ? 'At least ' : ''}${count(n)} of ${topics} this week`,
           columns: ['Topic', 'Found nothing'],
           rows: nothing.slice(0, SECTION_ROWS).map((r) => ({
             type: 'topic' as const,
@@ -1078,7 +1098,7 @@ export function auditAnswer(
         }
       : {}),
     ranked,
-    notSeen: notSeen.length ? `Not seen: ${notSeen.join('; ')}.` : null,
+    ...(notSeen.length ? { footer: notSeenLine(notSeen.join('; ')) } : {}),
     audit: read,
     ...(only?.top ? { top: only.top } : {}),
   }

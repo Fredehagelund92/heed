@@ -13,6 +13,7 @@ import {
   engineDigest,
   GATE_BUDGETS,
   gatePasses,
+  heldIds,
   plannerDigest,
   PLAN_MAX_TOKENS,
   PLAN_TODAY,
@@ -176,8 +177,7 @@ async function main() {
       plans.set(input.prompt, [...(plans.get(input.prompt) ?? []), reply.text])
       const checked = check(parsePlan(reply.text))
       // The cases are made up, so what the model wrote may be shown.
-      if (!checked.ok)
-        console.log(`\tthe plan failed the check: ${checked.why}: ${reply.text.slice(0, 200)}`)
+      if (!checked.ok) console.log(`\tthe plan failed the check: ${checked.why}`)
       return checked.ok ? checked.plan : 'missed'
     }
     const got = await runPlanCases(cases, planner)
@@ -200,6 +200,8 @@ async function main() {
     // The words of each planned answer with items, as Ask asks for them, held to Ask's check.
     const wordsCost: number[] = []
     let wordsFailed = 0
+    let droppedCount = 0
+    let sentenceCount = 0
     const voiced: string[] = []
     for (const [id, outcome] of got) {
       if (outcome.routed.kind !== 'reads' || !outcome.routed.planned.answer.items.length) continue
@@ -216,13 +218,20 @@ async function main() {
       wordsCost.push(calls.slice(before).reduce((t, c) => t + c.costMicros, 0))
       const checked = reply
         ? checkWords(reply.text, input)
-        : { ok: false as const, why: 'no words' }
+        : { ok: false as const, why: 'no words', dropped: [] }
       if (!checked.ok) wordsFailed++
       else if (OWN_VOICE.test(checked.text)) voiced.push(id)
-      console.log(
-        `words\t${id}\t${checked.ok ? 'pass' : `FAIL ${checked.why}`}\t${reply?.text.replace(/\s+/g, ' ') ?? ''}`,
-      )
+      // Every sentence the check left out, so a run can read how many it keeps from the person.
+      if (!heldIds().has(id))
+        for (const { text, why } of checked.dropped) console.log(`dropped\t${id}\t${why}\t${text}`)
+      droppedCount += checked.dropped.length
+      sentenceCount += (reply?.text.match(/[.!?](?:\s|$)/g) ?? []).length
+      if (!heldIds().has(id))
+        console.log(
+          `words\t${id}\t${checked.ok ? 'pass' : `FAIL ${checked.why}`}\t${reply?.text.replace(/\s+/g, ' ') ?? ''}`,
+        )
     }
+    console.log(`Sentences dropped: ${droppedCount} of about ${sentenceCount}.`)
     const code = report(cases, got, {
       timing,
       planCost,
@@ -333,15 +342,23 @@ function report(
 ): number {
   let failed = 0
   let routed = 0
+  let back = 0
+  const held = heldIds()
   for (const c of cases) {
     const outcome = got.get(c.id)!
     const problems = planProblems(c, outcome)
     if (outcome.route === c.expect.route) routed++
     if (problems.length) failed++
+    // A held-back case is a count: nobody tunes on which of them failed.
+    if (held.has(c.id)) {
+      if (!problems.length) back++
+      continue
+    }
     console.log(
       `${problems.length ? 'FAIL' : 'pass'}\t${c.id}\t${problems.join('; ') || outcome.routed.kind}`,
     )
   }
+  console.log(`Held back: ${back} of ${cases.filter((c) => held.has(c.id)).length} passed.`)
   const share = Math.round((routed / cases.length) * 100)
   console.log(
     `${cases.length - failed} of ${cases.length} cases passed; ${share}% read as they should be.`,

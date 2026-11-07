@@ -94281,6 +94281,46 @@
                                         "reason",
                                         "sentence"
                                       ]
+                                    },
+                                    "footer": {
+                                      "type": "object",
+                                      "properties": {
+                                        "denominator": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "notSeen": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stale": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "denominator",
+                                        "notSeen",
+                                        "stale"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -95483,14 +95523,44 @@
                                             }
                                           ]
                                         },
-                                        "notSeen": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
+                                        "footer": {
+                                          "type": "object",
+                                          "properties": {
+                                            "denominator": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
                                             },
-                                            {
-                                              "type": "null"
+                                            "notSeen": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "stale": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
                                             }
+                                          },
+                                          "required": [
+                                            "denominator",
+                                            "notSeen",
+                                            "stale"
                                           ]
                                         },
                                         "top": {
@@ -103578,6 +103648,46 @@
                           "required": [
                             "reason",
                             "sentence"
+                          ]
+                        },
+                        "footer": {
+                          "type": "object",
+                          "properties": {
+                            "denominator": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "notSeen": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "stale": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "denominator",
+                            "notSeen",
+                            "stale"
                           ]
                         }
                       },

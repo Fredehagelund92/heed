@@ -95,6 +95,8 @@ export async function planQuestion(
     onMiss?: (miss: PlannerMiss) => void
     onError?: (error: unknown) => void
     onCall?: (call: MeteredCall) => void
+    /** What the model wrote, for a run of the cases to record: never the service's log. */
+    onPlan?: (prompt: string, text: string) => void
   },
   input: PlannerInput,
   check: (raw: unknown) => PlanCheck,
@@ -128,6 +130,7 @@ export async function planQuestion(
     } finally {
       await meter.close()
     }
+    deps.onPlan?.(input.prompt, reply.text)
     const checked = check(parsePlan(reply.text))
     if (!checked.ok) {
       deps.onMiss?.({
