@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { chatSources, type ChatTurn } from './ask-chat.ts'
+import { OWN_VOICE, supportedBy } from './answer-words.ts'
 import { auditWords } from './audit.ts'
 import { periodWords, readDates } from './dates.ts'
 import type { ItemKind } from './item.ts'
@@ -487,7 +488,13 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   const reads = raw.reads
     .map((read) =>
       read.kind === 'lookup' && !read.metrics?.length && !open?.metrics.length
-        ? { kind: 'explore' as const, values: read.values, dates: read.dates }
+        ? {
+            kind: 'explore' as const,
+            values: read.values,
+            dates: read.dates,
+            from: read.from,
+            to: read.to,
+          }
         : read,
     )
     .map((read) => carryIntoRead(readOf(read, ctx), open))
@@ -513,7 +520,8 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
       : homes.length
         ? `this read every domain, not only ${homes.join(' and ')}.`
         : undefined
-  const { unplaced = [] } = ownDates(ctx)
+  const { unplaced = [], window: ownWindow } = ownDates(ctx)
+  const checked = !!ownWindow && !isAnyDate(ownWindow)
   const dated = raw.reads.flatMap((r) =>
     r.kind === 'lookup' || r.kind === 'explore' ? [{ ...r, words: r.dates }] : [],
   )
@@ -525,7 +533,7 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
     ...(limitWord ? { limit: limitWord } : {}),
     ...(left ? { left } : {}),
     ...(facts.length ? { facts } : {}),
-    ...(unplaced.length && !dated.some((r) => modelDays(r, ctx)) ? { unplaced } : {}),
+    ...(unplaced.length && !(checked && dated.some((r) => modelDays(r, ctx))) ? { unplaced } : {}),
     ...(otherDays ? { otherDays } : {}),
   }
 }
@@ -838,7 +846,7 @@ function modelDays(
   if (!c.words?.trim()) return null
   const day = /^\d{4}-\d{2}-\d{2}$/
   const real = (d: string | null | undefined) =>
-    !!d && day.test(d) && !Number.isNaN(Date.parse(d)) ? d : null
+    !!d && day.test(d) && new Date(d).toISOString().slice(0, 10) === d ? d : null
   const from = real(c.from)
   if (!from) return null
   const end = shiftDate(real(c.to) ?? ctx.today, 1)
@@ -864,9 +872,9 @@ function crossChecked(
   c: { words: string | null | undefined; from?: string | null; to?: string | null },
   ctx: PlanContext,
 ): { days: DateWindow | null; other: DateWindow | null } {
-  const model = modelDays(c, ctx)
   const own = ownDates(ctx).window
   const placed = own && !isAnyDate(own) ? own : null
+  const model = placed ? modelDays(c, ctx) : null
   // "By next spring" has no first day: the model's today is the same reading, not another.
   const open =
     placed?.start === anyDate.start && model?.start === ctx.today && placed.end === model.end
@@ -1300,14 +1308,18 @@ function checkedStandalone(raw: string | null | undefined, ctx: PlanContext) {
  * so whether Ask admits a part is left out never turns on the model's punctuation.
  */
 function checkedLeft(raw: string | null | undefined, ctx: PlanContext) {
-  const text = raw
-    ?.replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[.;,:]+$/, '')
-  if (!text) return undefined
+  const text = raw?.replace(/\s+/g, ' ').trim()
+  if (!text || OWN_VOICE.test(text)) return undefined
   const asked = text.endsWith('?')
-  const kept = checkedStandalone(asked ? text : `${text}?`, ctx)
-  return kept ? (asked ? kept : `${text}.`) : undefined
+  const plain = text.replace(/[^\p{L}\p{N}'_-]+/gu, ' ').trim()
+  if (!plain || !checkedStandalone(`${plain}?`, ctx)) return undefined
+  const source = [
+    ...chatQuestions(ctx),
+    ...ctx.terms.flatMap((t) => [t.name, ...t.aliases]),
+    ...ctx.areas.map((a) => a.name),
+  ].join(' ')
+  if (!supportedBy(`x ${plain}`, source)) return undefined
+  return asked ? `${plain}?` : `${plain}.`
 }
 
 /* ---------- when the planner reads a question ---------- */

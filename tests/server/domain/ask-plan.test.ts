@@ -1326,6 +1326,26 @@ describe('a plan is held to the question', () => {
     expect(left('see https://example.test/page?')).not.toHaveProperty('left')
   })
 
+  it('keeps only a part of what was asked as what is left, in any punctuation', () => {
+    const left = (text: string, question = 'what happened with the margin and cost in Norway?') =>
+      planned({ reads: [{ kind: 'explore', values: ['val:market/norway'] }], left: text }, question)
+    for (const text of [
+      'Orders fell sharply in Norway',
+      'You should recheck Orders with finance',
+      'Contoso pricing',
+    ]) {
+      expect(left(text)).not.toHaveProperty('left')
+    }
+    expect(
+      left('one thing: the margin', 'what one thing about the margin in Norway?'),
+    ).toMatchObject({ left: 'one thing the margin.' })
+    expect(left('the margin!')).toMatchObject({ left: 'the margin.' })
+    expect(left('margin and/or cost')).toMatchObject({ left: 'margin and or cost.' })
+    expect(
+      left('whether anything is written twice', 'is anything written twice about Norway?'),
+    ).toHaveProperty('left')
+  })
+
   it('leaves the words of the question out of what is left', () => {
     const question = 'explain the Norway situation in two lines'
     const plan = planned(
@@ -1398,6 +1418,51 @@ describe('a plan is held to the question', () => {
       const words = planned({ reads: [read('in august 2026')] }, 'what happened in august 2026?')
       expect(words).toMatchObject({
         reads: [{ scope: { window: { start: '2026-08-01', end: '2026-09-01' } } }],
+      })
+    })
+
+    it('keeps the model days on a market read with no metric, and says the other reading', () => {
+      const plan = planned(
+        {
+          reads: [
+            {
+              kind: 'lookup',
+              values: ['val:market/norway'],
+              dates: 'in november',
+              from: '2026-11-01',
+              to: '2026-11-30',
+            },
+          ],
+        },
+        'what happened in Norway in november?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-11-01', end: '2026-12-01' } } }],
+        otherDays: { start: '2025-11-01', end: '2025-12-01' },
+      })
+    })
+
+    it('takes no model days when the reader placed nothing in the question', () => {
+      const since = planned(
+        { reads: [read('since the rebrand', '2026-03-01', null)] },
+        'what happened since the rebrand?',
+      )
+      expect(since).toMatchObject({ unplaced: ['since the rebrand'] })
+      expect(since.reads[0]!.scope.window.start).not.toBe('2026-03-01')
+      const none = planned(
+        { reads: [read('around the audit', '2026-08-01', '2026-08-31')] },
+        'what is written about Orders?',
+      )
+      expect(none.reads[0]!.scope.window.start).not.toBe('2026-08-01')
+    })
+
+    it('never takes a day that does not exist', () => {
+      const plan = planned(
+        { reads: [read('in february 2026', '2026-02-31', '2026-02-28')] },
+        'what happened in february 2026?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: '2026-02-01', end: '2026-03-01' } } }],
       })
     })
 
