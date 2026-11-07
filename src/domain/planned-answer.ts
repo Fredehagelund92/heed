@@ -1,7 +1,7 @@
 import type { ChatTurn } from './ask-chat.ts'
-import type { PlannedRead, PlanPeriod } from './ask-plan.ts'
+import type { PlanFact, PlannedRead, PlanPeriod } from './ask-plan.ts'
 import { rankItems, readQuery, type SearchArea } from './context-search.ts'
-import { fullDayWords } from './dates.ts'
+import { dayWords, fullDayWords } from './dates.ts'
 import {
   answer,
   answerItemOf,
@@ -46,6 +46,8 @@ export type PlanReading = {
   period: PlanPeriod | null
   /** The part of the question these reads do not answer, as a short question (FR-720). */
   left?: string
+  /** What the records say about what was read, in fixed sentences: who owns it, when it is due. */
+  facts?: string[]
   /**
    * The person said which meaning of a word they meant, and the fixed rules read it, with no
    * model. `also` names the meanings left, so the other one stays in sight.
@@ -273,6 +275,10 @@ type ExploreRead = Extract<PlannedRead, { kind: 'explore' }>
 /** How a search reads under a limit: only what names what was asked, and only its words. */
 type Strict = { names?: boolean; words?: boolean }
 
+/** A search of every kind that names nothing: only its words say what it is about. */
+const wordsAlone = ({ scope, kinds }: ExploreRead) =>
+  !scope.metrics.length && !Object.keys(scope.filters).length && (!kinds.length || kinds.length > 3)
+
 /** A read, run: its answer, the reads as they ran, and the values only general items cover. */
 type ReadRun = { answer: Answer; reads: PlannedRead[]; general: string[] }
 
@@ -305,9 +311,11 @@ export function explore(
     strict,
   )
   const whole = searchOnce(bundle, { ...asked, kinds: rest, words: '' }, today, now, strict)
+  // One search in two halves: a kind with nothing to say leaves no part of the question open.
+  const empty = !whole.answer.items.length || whole.general.length > 0
   return {
-    answer: combined([matched.answer, whole.answer]),
-    reads: [matched.read, whole.read],
+    answer: empty ? matched.answer : combined([matched.answer, whole.answer]),
+    reads: empty ? [{ ...matched.read, kinds: asked.kinds }] : [matched.read, whole.read],
     general: matched.general.filter((value) => whole.general.includes(value)),
   }
 }
@@ -332,10 +340,12 @@ function searchOnce(
   )
   const query = readQuery(asked.words, bundle.terms, bundle.areas ?? [])
   const matched = query.concepts.length ? rankItems(query, candidates, bundle.terms) : []
-  const read = matched.length ? asked : { ...asked, words: '' }
+  // A search with a scope that matches no word reads the scope, and says so by dropping its words.
+  const read = matched.length || wordsAlone(asked) ? asked : { ...asked, words: '' }
+  // Words are all a search of everything with no scope is about: matching nothing, it reads nothing.
   const every = matched.length
     ? matched
-    : strict.words && asked.words.trim()
+    : (strict.words || wordsAlone(asked)) && asked.words.trim()
       ? []
       : candidates.map((item) => ({ item, score: 0, all: true }))
   // An item for no value applies to every one, so it says nothing of the value asked: it is read
@@ -507,11 +517,16 @@ function engineRead(
                 values,
               })),
             },
-            { today: c.today, now },
+            { today: c.today, now, person: true },
           )
-        : answer(bundle, { scope: read.scope }, { today: c.today, now })
+        : answer(bundle, { scope: read.scope }, { today: c.today, now, person: true })
     case 'definition':
-      return answer(bundle, { question: '', metrics: read.metrics }, { today: c.today, now })
+      // What a metric means is no question of a day: what is written about it is read whole.
+      return answer(
+        bundle,
+        { scope: { metrics: read.metrics, filters: {}, window: anyDate } },
+        { today: c.today, now, person: true },
+      )
     case 'about_previous':
       return previousSources(
         bundle,
@@ -603,6 +618,11 @@ export function plannedAnswer(
     now?: () => number
     /** A limit sentence leads the answer: only what is about what was asked may follow it. */
     limited?: boolean
+    /** What the question asks of the records about what is read. */
+    facts?: readonly PlanFact[]
+    stewards?: Stewards
+    /** Words of the question that name dates Ask could not place. */
+    unplaced?: readonly string[]
   },
 ): PlannedAnswer {
   const runs = reads.map((read) =>
@@ -616,6 +636,14 @@ export function plannedAnswer(
     ? []
     : ran.flatMap((r) => (r.kind === 'lookup' || r.kind === 'explore' ? r.scope.metrics : []))
   const general = runs.every((r) => r.general.length) ? runs.flatMap((r) => r.general) : []
+  const facts = [
+    ...(c.unplaced?.length
+      ? [
+          `Ask could not place ${list(c.unplaced.map((w) => `"${w}"`))} as dates, so it read every date.`,
+        ]
+      : []),
+    ...factLines(bundle, answered, c),
+  ]
   return {
     reads: ran,
     answer: answered,
@@ -631,6 +659,7 @@ export function plannedAnswer(
       period: dated?.period ?? null,
       ...(c.standalone ? { standalone: c.standalone } : {}),
       ...(c.left ? { left: c.left } : {}),
+      ...(facts.length ? { facts } : {}),
       ...(c.settled ? { settled: c.settled } : {}),
     },
     defines: [
@@ -638,6 +667,54 @@ export function plannedAnswer(
     ],
     ...(general.length ? { general: [...new Set(general)].map((key) => nameOf(bundle, key)) } : {}),
   }
+}
+
+/** How many items a line about check dates names. */
+const FACT_ITEMS = 5
+
+/**
+ * What the records keep about the items an answer found, which no item's words say, in fixed
+ * sentences (FR-720): the owners of each one's domain, and each one's check date. No model writes
+ * them, and they name only what the answer already gives.
+ */
+function factLines(
+  bundle: PlannedBundle,
+  answered: Answer,
+  c: { facts?: readonly PlanFact[]; stewards?: Stewards; today: string },
+): string[] {
+  const homes = [...new Set(answered.items.map((item) => item.areaId))]
+  const names = new Map((bundle.areas ?? []).map((a) => [a.id, a.name]))
+  const byId = new Map(bundle.items.map((item) => [item.id, item]))
+  const owners = c.facts?.includes('owner') ? (c.stewards?.owners ?? null) : null
+  const ownerLines = homes.flatMap((id) => {
+    const who = owners?.[id]
+    const name = names.get(id)
+    if (!who || !name) return []
+    return [
+      who.length
+        ? `${list(who)} ${who.length === 1 ? 'owns' : 'own'} ${name}.`
+        : `${name} has no owner. An administrator can add one.`,
+    ]
+  })
+  const dueLines = c.facts?.includes('due')
+    ? answered.items.slice(0, FACT_ITEMS).flatMap((item) => {
+        const source = byId.get(item.id)
+        if (!source?.reviewDate) return []
+        const passed = source.reviewDate < c.today
+        const checked = c.stewards?.checked[item.id]
+        const last = checked ? `, last checked ${dayWords(checked)}` : ''
+        return [
+          `${item.title}: check date ${dayWords(source.reviewDate)}${passed ? ', due for a check' : ''}${last}.`,
+        ]
+      })
+    : []
+  return [...ownerLines, ...dueLines]
+}
+
+/** What the records keep about items, beside the items: each domain's owners, each item's last check. */
+export type Stewards = {
+  owners: Readonly<Record<string, readonly string[]>>
+  checked: Readonly<Record<string, string | null>>
 }
 
 /** What the working line says while a plan's reads run: "Looking for events and guides…". */

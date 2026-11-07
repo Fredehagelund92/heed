@@ -1523,6 +1523,11 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
               Ask again
             </Button>
           )}
+          {answer.reading?.facts?.map((fact) => (
+            <p key={fact} className="text-sm">
+              {fact}
+            </p>
+          ))}
           {answer.reading?.left && (
             <p className="text-sm text-muted-foreground">
               Not answered here: {answer.reading.left}

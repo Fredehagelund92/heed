@@ -80,8 +80,8 @@ describe('a plan as the model writes it', () => {
     })
   })
 
-  it('reads its dates as get_context reads them, and refuses dates it cannot read', () => {
-    const read = (dates: string | null, why = false) => {
+  it('reads its dates as a person writes them, and no date loses the plan', () => {
+    const read = (dates: string | null, why = false, question = 'orders in Sweden') => {
       const checked = checkPlan(
         {
           reads: [
@@ -94,7 +94,7 @@ describe('a plan as the model writes it', () => {
             },
           ],
         },
-        ctx({ question: 'orders in Sweden' }),
+        ctx({ question }),
       )
       if (!checked.ok || checked.plan.kind !== 'reads') throw new Error(JSON.stringify(checked))
       const [first] = checked.plan.reads
@@ -105,23 +105,30 @@ describe('a plan as the model writes it', () => {
       window: { start: '2026-09-01', end: '2026-10-01' },
       period: 'asked',
     })
-    // No dates: today, as the rules read it; for a question about why, every date.
-    expect(read(null).period).toBe('today')
+    // No dates: every date, and today only for a question about now.
+    expect(read(null)).toEqual({ window: anyDate, period: 'any' })
+    expect(read(null, false, 'orders in Sweden now').period).toBe('today')
     expect(read(null, true)).toEqual({ window: anyDate, period: 'any' })
+    // The question's own loose words, whatever the model wrote.
+    expect(read(null, false, 'orders in Sweden last summer')).toEqual({
+      window: { start: '2026-06-01', end: '2026-09-01' },
+      period: 'asked',
+    })
     // The last question's period, carried, only when its words named one.
-    expect(read('same').period).toBe('today')
+    expect(read('same').period).toBe('any')
     const dated = { ...previous, question: 'why did orders drop in Norway in May 2026?' }
     const carried = checkPlan(
       { reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'same' }] },
       ctx({ previous: dated }),
     )
     expect(carried).toMatchObject({ ok: true, plan: { reads: [{ period: 'carried' }] } })
+    // Words no reader can place: the plan stands, undated.
     expect(
       checkPlan(
         { reads: [{ kind: 'lookup', metrics: ['metric:orders'], dates: 'the 45th of Smarch' }] },
         ctx(),
       ),
-    ).toEqual({ ok: false, why: 'dates not read' })
+    ).toMatchObject({ ok: true, plan: { reads: [{ kind: 'lookup' }] } })
   })
 
   it('reads a search with no dates over the last 3 months, with only the words asked', () => {
@@ -1021,5 +1028,156 @@ describe('what a question back leaves open', () => {
     expect(open('net', planner)).toMatchObject({
       filters: { 'dim:market': ['val:market/sweden'] },
     })
+  })
+})
+
+// Fix round 3: what a model wrote never takes the question somewhere else, and a stray word never
+// loses a plan the question can use.
+describe('a plan is held to the question', () => {
+  const alone = (question: string) => ctx({ question, previous: null })
+  const planned = (raw: unknown, question: string, over: Partial<PlanContext> = {}) => {
+    const checked = checkPlan(raw, { ...alone(question), ...over })
+    if (!checked.ok) throw new Error(checked.why)
+    return checked.plan
+  }
+
+  it('keeps a plan with a word that is no limit', () => {
+    const plan = planned(
+      { reads: [{ kind: 'explore', values: ['val:market/norway'] }], limit: 'cannot' },
+      'what do we know about Norway?',
+    )
+    expect(plan).toMatchObject({ kind: 'reads' })
+    expect(plan).not.toHaveProperty('limit')
+  })
+
+  it('keeps a records plan with a key where a number goes', () => {
+    const plan = planned(
+      { records: { intent: 'conflicts', limit: 'val:market/france' } },
+      'which conflicts are about France?',
+    )
+    expect(plan).toMatchObject({
+      kind: 'records',
+      ask: { intent: 'conflicts', about: { values: ['val:market/france'] } },
+    })
+  })
+
+  it('keeps an analysis with every facet', () => {
+    const facets = [
+      'no_context',
+      'no_words',
+      'no_domain',
+      'unlinked',
+      'asked_nothing',
+      'due',
+      'review',
+    ]
+    expect(planned({ audit: { facets } }, 'are we missing anything?')).toMatchObject({
+      kind: 'records',
+    })
+  })
+
+  it('counts metrics as metrics, never as context items', () => {
+    expect(
+      planned({ records: { intent: 'count', of: 'metric' } }, 'how many metrics are there?'),
+    ).toMatchObject({ ask: { intent: 'terms', catalogue: { of: 'metric', count: true } } })
+  })
+
+  it('reads what changed as what changed, whichever read the model chose', () => {
+    expect(
+      planned(
+        { records: { intent: 'created', domain: 'area_marketing' } },
+        'what changed in Marketing last month?',
+      ),
+    ).toMatchObject({ ask: { intent: 'changed', domain: 'area_marketing' } })
+  })
+
+  it('reads the question’s own period when the plan leaves it out', () => {
+    expect(
+      planned({ records: { intent: 'created' } }, 'what was added last summer?'),
+    ).toMatchObject({ ask: { period: { words: 'from June to August 2026', assumed: false } } })
+  })
+
+  it('reads a domain that is also a metric’s other name as the domain', () => {
+    const plan = planned(
+      { records: { intent: 'due', domain: 'area_sales' } },
+      'what is due for a check in Sales?',
+    )
+    expect(plan).toMatchObject({ ask: { domain: 'area_sales' } })
+    expect(plan).not.toHaveProperty('ask.about')
+  })
+
+  it('answers who owns something, never as one person’s work', () => {
+    expect(
+      planned(
+        { cannot: 'person', metrics: ['metric:on_time_shipping_rate'] },
+        'who is in charge of on-time shipping?',
+      ),
+    ).toMatchObject({ kind: 'records', ask: { intent: 'owner' } })
+    expect(planned({ cannot: 'person' }, 'whose fault is the Norway drop?')).toMatchObject({
+      kind: 'cannot',
+    })
+  })
+
+  it('takes a change to a definition to the exit, however the plan read it', () => {
+    expect(
+      planned(
+        { reads: [{ kind: 'definition', metrics: ['metric:churn_rate'] }], limit: 'advice' },
+        'what would you change in the definition of churn rate?',
+      ),
+    ).toMatchObject({ kind: 'cannot', reason: 'source' })
+  })
+
+  it('reads one thing’s date as that thing, never the list of what is due', () => {
+    const plan = planned(
+      { records: { intent: 'due' } },
+      'when is the Italy promotions event due for a check?',
+    )
+    expect(plan).toMatchObject({ kind: 'reads', facts: ['due'] })
+  })
+
+  it('leaves the words of the question out of what is left', () => {
+    const question = 'explain the Norway situation in two lines'
+    const plan = planned(
+      {
+        reads: [{ kind: 'explore', values: ['val:market/norway'] }],
+        left: 'Explain the Norway situation in two lines?',
+      },
+      question,
+    )
+    expect(plan).not.toHaveProperty('left')
+  })
+
+  it('keeps nothing of the last question in one with its own subject', () => {
+    const plan = planned(
+      {
+        reads: [
+          { kind: 'explore', kinds: ['event'], metrics: ['metric:orders'], dates: 'in August' },
+        ],
+      },
+      'what events happened in August?',
+      { previous },
+    )
+    expect(plan).toMatchObject({ reads: [{ scope: { metrics: [] } }] })
+  })
+})
+
+describe('a search that finds what it finds', () => {
+  const everyDate = { metrics: [], filters: {}, window: anyDate }
+  const search = (words: string, kinds: ('event' | 'issue' | 'note' | 'guide')[]) =>
+    explore(
+      { ...planBundle, areas: planBundle.areas ?? [] },
+      { kind: 'explore', words, kinds, scope: everyDate, period: 'any' },
+      PLAN_TODAY,
+    )
+
+  it('finds nothing for words nothing has, across every kind', () => {
+    expect(search('loyalty points', []).answer.state).toBe('missing')
+    expect(search('loyalty points', ['event', 'issue', 'note', 'guide']).answer.items).toEqual([])
+  })
+
+  it('leaves no part open for a kind with nothing to say', () => {
+    const { answer } = search('card failed', ['event', 'guide'])
+    expect(answer.items.length).toBeGreaterThan(0)
+    expect(answer.state).not.toBe('partial')
   })
 })

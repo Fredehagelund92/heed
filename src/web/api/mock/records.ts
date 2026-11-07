@@ -9,9 +9,10 @@ import {
   type RecordsRecognition,
   type RecordsWorld,
 } from '@domain/records'
+import { readDates } from '@domain/dates'
 import { cardGroups } from '@domain/inbox'
 import { readsPlainly } from '@domain/plain-read'
-import type { Term } from '@domain/vocabulary'
+import { normalizeName, type Term } from '@domain/vocabulary'
 import { toServerValidity } from '@/model/validity'
 import { HIDE_UNDER } from '@/api/mock/obs-engine'
 import type { Definition } from '@/lib/definitions'
@@ -92,7 +93,7 @@ function spansOf(question: string, terms: readonly Term[]) {
     .filter((t) => t.kind !== 'metric_group')
     .flatMap((t) => [t.name, ...t.aliases].map((name) => ({ name, key: t.key })))
     .sort((a, b) => b.name.length - a.name.length)
-  const spans: { start: number; end: number; keys: string[] }[] = []
+  const spans: { start: number; end: number; keys: string[]; dates?: boolean }[] = []
   for (const { name, key } of names) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const found = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').exec(question)
@@ -100,6 +101,11 @@ function spansOf(question: string, terms: readonly Term[]) {
     const at = { start: found.index, end: found.index + found[0].length, keys: [key] }
     if (!spans.some((s) => s.start < at.end && at.start < s.end)) spans.push(at)
   }
+  const dates = readDates(normalizeName(question), RECORDS_NOW.slice(0, 10), { loose: true })
+  if (dates.status === 'read')
+    for (const { start, end } of dates.spans)
+      if (!spans.some((s) => s.start < end && start < s.end))
+        spans.push({ start, end, keys: [], dates: true })
   return spans
 }
 
@@ -131,6 +137,10 @@ function itemsOf(pool: readonly Fact[]): RecordsItem[] {
         // The demo world keeps no day an item was archived: its last decision is the archiving.
         archivedAt: f.status === 'Archived' ? checked : null,
         owners: f.owners ?? [],
+        metrics: f.where
+          .filter((w) => metrics.some((m) => m.name === w))
+          .map((w) => `metric:${slug(w)}`),
+        values: f.where.filter((w) => markets.includes(w)).map((w) => `val:market/${slug(w)}`),
       },
     ]
   })

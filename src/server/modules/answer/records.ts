@@ -149,6 +149,8 @@ async function itemsOf(
       checkedAt: i.lastChecked ? moved(`${i.lastChecked.on}T00:00:00.000Z`) : null,
       archivedAt: i.status === 'retired' ? moved(t?.ended) : null,
       owners: i.owners,
+      metrics: i.scope.metrics.map((m) => `metric:${m}`),
+      values: i.scope.dimensionValues.map((v) => `val:${v.dimension}/${v.value}`),
     }
   })
 }
@@ -159,7 +161,9 @@ const needs = (ask: RecordsAsk) => {
   const analysis = ask.intent === 'audit' || ask.intent === 'queue' || !!ask.over
   const reviews = facets.includes('review')
   return {
-    items: !['asked_nothing', 'terms', 'values', 'conflicts', 'glossary'].includes(ask.intent),
+    items:
+      !!ask.about ||
+      !['asked_nothing', 'terms', 'values', 'conflicts', 'glossary'].includes(ask.intent),
     asked:
       ask.intent === 'asked_nothing' ||
       reviews ||
@@ -272,7 +276,7 @@ export async function recogniseRecordsOf(
   reads: Pick<RecordsReads, 'areas' | 'glossary' | 'people'>,
 ): Promise<RecordsRecognition | null> {
   if (!wordsOnly(input)) return null
-  const read = readQuestion(input.question, bundle.terms, clock.today())
+  const read = readQuestion(input.question, bundle.terms, clock.today(), { loose: true })
   // A word of the workspace's own is read only for a question about what a word means.
   const named = read.terms.some((t) => t.kind === 'metric' || t.kind === 'metric_group')
   const glossary = asksDefinition(input.question) && !named ? await reads.glossary() : undefined

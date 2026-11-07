@@ -92,7 +92,7 @@ const namesOf = (terms: readonly Term[]): Names => {
 export type PlannerWorld = {
   pool: readonly Fact[]
   definitions: readonly Definition[]
-  domains: readonly { id: DomainId; name: string }[]
+  domains: readonly { id: DomainId; name: string; owners?: readonly string[] }[]
 }
 
 /** The planner's turn: the vocabulary, the edition, and the chat as Ask keeps it. */
@@ -189,6 +189,12 @@ export function plannedFor(
     limited: !!reason,
     ...(plan.standalone ? { standalone: plan.standalone } : {}),
     ...(plan.left ? { left: plan.left } : {}),
+    ...(plan.facts ? { facts: plan.facts } : {}),
+    ...(plan.unplaced ? { unplaced: plan.unplaced } : {}),
+    stewards: {
+      owners: Object.fromEntries(world.domains.map((d) => [d.id, d.owners ?? []])),
+      checked: {},
+    },
   })
   const answer = answerOf(resultOf(planned), question, namesOf(bundle.terms))
   const said = planned.general

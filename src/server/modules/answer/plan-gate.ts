@@ -22,6 +22,15 @@ export const classOf = (c: PlanCase): GateClass => c.class ?? 'earlier'
 
 /** What a shown count under the minimum looks like in a line about a topic. */
 const SMALL_COUNT = /\b[Aa]sked (?:[1-4])\b/
+/** A hidden item, told to a person: named, or counted as for another group. */
+const HIDDEN_ITEM = /Finance counts|for another group|are for another|isn't shared with/
+/** Whether a table of what agents asked shows a count from one to under the minimum. */
+const smallCell = (outcome: PlanOutcome) => {
+  const found = outcome.records
+  if (!found || found.refused) return false
+  const rows = [...found.rows, ...(found.sections ?? []).flatMap((s) => s.rows)]
+  return rows.some((r) => r.type === 'topic' && r.cells.some((c) => /^[1-4](?: of \d+)?$/.test(c)))
+}
 export { OWN_VOICE }
 
 export type ZeroRule =
@@ -65,7 +74,11 @@ export function scoreRun(
     if (!found.some(readProblem)) read++
     if (!found.some(mustProblem)) complete++
     if (found.some((p) => p.startsWith('invents'))) zero.invented.push(c.id)
-    if (/Finance counts/.test(outcome.rendered) || SMALL_COUNT.test(outcome.rendered))
+    if (
+      HIDDEN_ITEM.test(outcome.rendered) ||
+      SMALL_COUNT.test(outcome.rendered) ||
+      smallCell(outcome)
+    )
       zero['hidden given away'].push(c.id)
     // A rule or a plan that answered with a read the question did not ask for.
     if (found.some(readProblem) && c.class) zero.substitution.push(c.id)

@@ -25,6 +25,7 @@ import {
   workingWords,
   type PlannedAnswer,
   type PlannedBundle,
+  type Stewards,
 } from './planned-answer.ts'
 import { readsPlainly } from './plain-read.ts'
 import { limitAlone, limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
@@ -39,7 +40,7 @@ import {
   termChosenSaid,
 } from './say.ts'
 import { asksDefinition, readQuestion } from './scope.ts'
-import { dateWindowSchema } from './validity.ts'
+import { anyDate, dateWindowSchema } from './validity.ts'
 import { namesOf, normalizeName } from './vocabulary.ts'
 
 /*
@@ -319,7 +320,7 @@ export function routeHeld(
     bundle.areas.some((area) => wordsOf(ask.question).includes(wordsOf(area.name)))
   const firm =
     domainAfterAnalysis || (c.records && (c.records.type === 'refused' || !c.records.loose))
-  const held = firm ? null : heldOf(readAsk(ask, bundle.terms, today))
+  const held = firm ? null : heldOf(readAsk(ask, bundle.terms, today, true))
   if (!held) return null
   const context = planContextOf(bundle, ask.question, turns, { today, now: c.now })
   const open = scoped ? null : leftOpen(context)
@@ -350,19 +351,21 @@ export async function routeQuestion(c: {
   now: string
   planner?: Planner | undefined
   clock?: () => number
+  /** What the records keep about items, for an answer that says who owns what it found. */
+  stewards?: (() => Promise<Stewards>) | undefined
 }): Promise<Routed & { reason: PlannerReason | null; asked: boolean }> {
   const { bundle, ask, turns, today } = c
   const previous = turns.at(-1) ?? null
   const scoped = !!(ask.metrics?.length || ask.dimension_filters?.length || ask.window)
   const held = routeHeld(c, scoped)
   if (held) return held
-  const read = readQuestion(ask.question, bundle.terms, today)
+  const read = readQuestion(ask.question, bundle.terms, today, { loose: true })
   const names = read.terms.length > 0
   if (!scoped && !names && asksNothing(ask.question, turns))
     return nothingAsked(ask.question, turns)
   if (!scoped && asksUndefinedWords(ask.question))
     return { ...cannot('not_yet'), reason: null, asked: false }
-  const rules = answer(bundle, ask, { today, ...(c.clock ? { now: c.clock } : {}) })
+  const rules = rulesAnswer(bundle, ask, today, c.clock)
   const plain = readsPlainly(ask.question, read.spans)
   const reason = plannerReason({
     question: ask.question,
@@ -387,11 +390,15 @@ export async function routeQuestion(c: {
       })
     : null
   const missed = plan === 'missed'
+  const facts = plan && !missed && plan.kind === 'reads' ? (plan.facts ?? []) : []
+  const stewards = facts.length ? await c.stewards?.() : undefined
   const routed = ((): Routed => {
     if (!plan || missed) {
       // A word of judgement a read cannot answer: the honest exit, never the nearest read.
       const judged =
-        c.records?.type === 'records' && c.records.judgement && c.records.ask.intent !== 'audit'
+        c.records?.type === 'records' &&
+        c.records.judgement &&
+        (c.records.ask.intent !== 'audit' || c.records.unfit)
       if (judged) return cannot('not_yet')
       if (c.records) return { kind: 'records', found: c.records, planned: false }
       if (misfit) return cannot('not_yet')
@@ -428,6 +435,9 @@ export async function routeQuestion(c: {
           limited: !!limit,
           ...(plan.standalone ? { standalone: plan.standalone } : {}),
           ...(plan.left ? { left: plan.left } : {}),
+          ...(plan.facts ? { facts: plan.facts } : {}),
+          ...(plan.unplaced ? { unplaced: plan.unplaced } : {}),
+          ...(stewards ? { stewards } : {}),
           ...(c.clock ? { now: c.clock } : {}),
         })
         return {
@@ -442,6 +452,28 @@ export async function routeQuestion(c: {
     }
   })()
   return { ...routed, reason, asked: asks }
+}
+
+/** Words that ask what happened: it may be over, so a day is no place to stop looking. */
+const ASKS_THE_PAST =
+  /^(?:why|how come|what (?:happened|explains|explained|caused|drove)|what s behind)\b/
+
+/**
+ * The rules' answer for a person. A question about what happened that names no dates is read at
+ * today, as the rules read every undated question; when that finds nothing it reads every date,
+ * since what happened may have ended, and the answer says what it read.
+ */
+function rulesAnswer(
+  bundle: RouteBundle,
+  ask: Extract<AnswerAsk, { question: string }>,
+  today: string,
+  clock?: () => number,
+): Answer {
+  const options = { today, person: true, ...(clock ? { now: clock } : {}) }
+  const first = answer(bundle, ask, options)
+  const past = ASKS_THE_PAST.test(normalizeName(ask.question).replace(/[^\p{L}\p{N} ]+/gu, ' '))
+  if (!past || !first.assumed || first.items.length || !first.scope) return first
+  return answer(bundle, { scope: { ...first.scope, window: anyDate } }, options)
 }
 
 /**

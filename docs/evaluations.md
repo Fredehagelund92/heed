@@ -181,8 +181,10 @@ Ask's promises (FR-720) are held by cases, not by reading answers. The planner c
 `src/server/modules/answer/steward-cases.ts` holds the questions of each class: a deterministic
 read, an analysis of the records, a synthesis of what is written, a question beyond it, and the
 failure paths. `gate-cases.ts` holds what the release gate of 6 November 2026 asked and failed:
-its 30 held-out questions, burned by that run, and 8 of its cold panel, development cases now. The
-world they run in, with what agents asked, the person's Inbox and what the source lists, is fixed
+its 30 held-out questions, burned by that run, and 8 of its cold panel, development cases now.
+`class-cases.ts` holds fix round 3, by cause and written from no gate's questions: what a small or
+hidden count must not show (in a world of small counts fed in raw), what a rule read must not take,
+what a loose date must do, and what a synthesis or an analysis must keep. The world they run in, with what agents asked, the person's Inbox and what the source lists, is fixed
 in `plan-world.ts`, so what a case must say never drifts.
 
 | Layer            | When                                                              | Proves                                                                                                                                   |
@@ -198,7 +200,7 @@ decides honesty: a judge can only fail a case, never pass one.
 | -------------------------------------- | ----------------------------------------------------------- |
 | Invented number, name or row           | None                                                        |
 | Unsupported sentence shown             | None                                                        |
-| Hidden item or small count given away  | None                                                        |
+| Hidden item or small count given away  | None, in any line, read from the rows as well as the words  |
 | Substitution                           | None                                                        |
 | Advice in Ask's own voice              | None                                                        |
 | A question's words in a table or a log | None (`tests/integration/privacy.test.ts`)                  |

@@ -169,3 +169,78 @@ describe('the person boundary, both ways', () => {
     expect(recognised(question)?.type).not.toBe('refused')
   })
 })
+
+// Fix round 3: a rule read answers only what it covers, in shape and subject. Each rule read, each
+// way of asking more than it gives: the read never silently drops the part it cannot answer.
+describe('a rule read takes no question it does not fit', () => {
+  const reads = [
+    'what was added last week',
+    'what changed in the context this week',
+    'how many context items do we have',
+    'how many metrics are in Sales',
+    'list 10 dimensions',
+    'what markets are there',
+    'list conflicts',
+    'what is due for a check in Marketing',
+    'who owns the Sales domain',
+    'which domains have no owner',
+    'what did agents ask that found nothing',
+    'which metrics have no context written',
+    'are there duplicates in the context',
+    'what is waiting on me',
+  ]
+  const more: [string, string][] = [
+    ['a comparison', ' compared to the year before'],
+    ['a comparison', ' versus Marketing'],
+    ['a second subject', ' and who is responsible for each'],
+    ['a second subject', ' and what agents think of it'],
+    ['a qualifier', ' excluding anything archived'],
+    ['a qualifier', ' that nobody has read'],
+    ['a breakdown', ' by market'],
+    ['a breakdown', ' per domain'],
+    ['a person', ' that Sofia Brandt wrote'],
+  ]
+  it.each(reads.flatMap((q) => more.map(([what, tail]) => [what, `${q}${tail}?`] as const)))(
+    '%s: "%s" is no rule read',
+    async (_what, question) => {
+      const { calls, got } = await asked(question)
+      const refused = got.routed.kind === 'records' && got.routed.found.type === 'refused'
+      expect(calls > 0 || refused, got.rendered).toBe(true)
+    },
+  )
+
+  it.each([
+    ['what context was created in August?', 'in August 2026'],
+    ['what was added last quarter?', 'from July to September 2026'],
+    ['what was added last summer?', 'from June to August 2026'],
+    ['what changed in the context last year?', 'in 2025'],
+    ['what was archived last year?', 'in 2025'],
+  ])('"%s" reads the period it names, with no model', async (question, days) => {
+    const { calls, got } = await asked(question)
+    expect(calls).toBe(0)
+    expect(got.rendered).toContain(days)
+    expect(got.rendered).not.toContain('last 7 days')
+  })
+
+  it('reads a market or a metric beside a noun as that, never all of it', async () => {
+    const spain = await asked('how many context items are about Spain?')
+    expect(spain.calls).toBe(0)
+    expect(spain.got.rendered).toMatch(/\d context items about Spain/)
+    expect(spain.got.rendered).not.toMatch(/22 context items/)
+  })
+
+  it('says it cannot, with no model, rather than answer a part', async () => {
+    const got = await askPlanCase(
+      { question: 'what was added last week compared to the week before?' },
+      null,
+      [],
+    )
+    expect(got.routed.kind).toBe('reply')
+    expect(got.rendered).toBe('Ask cannot work this out yet.')
+  })
+
+  it('reads the words of a question no read names as no person', async () => {
+    const { got } = await asked('what does Returns mean and did its definition change?')
+    expect(got.rendered).not.toMatch(/one person's work/)
+  })
+})

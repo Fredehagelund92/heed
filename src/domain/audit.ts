@@ -1,10 +1,12 @@
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
+import { askedCell, shownTopics } from './gaps.ts'
 import { overlaps } from './validity.ts'
 import {
   type AuditFacet,
   type AuditRead,
   type RecordsFound,
   type RecordsKind,
+  type RecordsPeriod,
   type RecordsRow,
   type RecordsSection,
 } from './records-answer.ts'
@@ -186,6 +188,7 @@ function readingOf(
   read: AuditRead,
   world: RecordsWorld,
   domain: { id: string; name: string } | null,
+  period: RecordsPeriod | null = null,
 ) {
   const audit: AuditWorld = world.audit ?? {
     terms: [],
@@ -193,15 +196,28 @@ function readingOf(
     members: { total: 0, unlinked: [] },
     readAt: null,
   }
-  const where = domain ? ` in ${domain.name}` : ''
+  const about = read.about
+  const where = `${domain ? ` in ${domain.name}` : ''}${about ? ` about ${about.words}` : ''}`
 
   /** The terms it counts: metrics unless it asked for dimensions, in the domain when one is named. */
   const terms = () => {
     const of = read.of ?? 'metric'
     return audit.terms
-      .filter((t) => (of === 'definition' || t.kind === of) && inDomain(t.areaId))
+      .filter(
+        (t) =>
+          (of === 'definition' || t.kind === of) &&
+          inDomain(t.areaId) &&
+          (!about?.metrics.length || about.metrics.includes(t.key)),
+      )
       .sort(byName)
   }
+
+  /** Whether an item is about what the question narrowed it to. */
+  const namesAbout = (i: Pick<AuditItem, 'metrics' | 'values'>) =>
+    !about ||
+    ((!about.metrics.length || about.metrics.some((m) => i.metrics.includes(m))) &&
+      (!about.values.length || about.values.some((v) => i.values.includes(v))))
+  const inAbout = new Set(audit.items.filter(namesAbout).map((i) => i.id))
 
   const inDomain = (areaId: string | null) => !domain || areaId === domain.id
 
@@ -365,15 +381,18 @@ function readingOf(
   /** What changed or went at the source. */
   const sourceChanged = (): Part => {
     const listed = terms()
+    const inPeriod = (t: AuditTerm) =>
+      !period || (!!t.changedAt && t.changedAt >= period.start && t.changedAt < period.end)
     const moved = listed
-      .filter((t) => t.state !== 'current' || t.changedAt)
+      .filter((t) => (t.state !== 'current' || t.changedAt) && inPeriod(t))
       .sort((a, b) => (b.changedAt ?? '').localeCompare(a.changedAt ?? '') || byName(a, b))
     const n = moved.length
+    const when = period ? ` ${period.words}` : ''
     const lastRead = audit.readAt ? ` The source was last read on ${dayWords(audit.readAt)}.` : ''
     return {
       sentence: n
-        ? `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)} changed or went at the source.${lastRead}`
-        : `No definition changed at the source.${lastRead}`,
+        ? `${count(n)} of ${count(listed.length)} ${termsWord(listed.length)}${about ? where : ''} changed or went at the source${when}.${lastRead}`
+        : `No definition${about ? where : ''} changed at the source${when}.${lastRead}`,
       section: n
         ? {
             title: 'Changed at the source',
@@ -391,7 +410,7 @@ function readingOf(
             more: definitionsMore(),
           }
         : null,
-      clear: `No definition changed at the source.${lastRead}`,
+      clear: `No definition${about ? where : ''} changed at the source${when}.${lastRead}`,
       found: n,
     }
   }
@@ -400,10 +419,16 @@ function readingOf(
   const askedTopics = () => {
     const asked = world.asked ?? { rows: [], minimum: 5 }
     const value = read.value
+    const metrics = about?.metrics ?? []
+    const values = about?.values ?? []
     return {
       minimum: asked.minimum,
-      rows: asked.rows.filter(
-        (r) => inDomain(r.area ?? null) && (!value || (r.values ?? []).includes(value)),
+      rows: shownTopics(asked.rows, asked.minimum).filter(
+        (r) =>
+          inDomain(r.area ?? null) &&
+          (!value || (r.values ?? []).includes(value)) &&
+          (!metrics.length || metrics.some((m) => (r.metrics ?? []).includes(m))) &&
+          (!values.length || values.some((v) => (r.values ?? []).includes(v))),
       ),
     }
   }
@@ -430,11 +455,11 @@ function readingOf(
     const { rows, minimum } = askedTopics()
     const n = rows.length
     const named = read.value ? (world.terms.find((t) => t.key === read.value)?.name ?? '') : ''
-    const about = named ? ` about ${named}` : ''
+    const value = named && !about ? ` about ${named}` : ''
     return {
       sentence: n
-        ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${about}${where} ${minimum} times or more this week.`
-        : `No topic${about}${where} was asked about ${minimum} times or more this week.`,
+        ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${value}${where} ${minimum} times or more this week.`
+        : `No topic${value}${where} was asked about ${minimum} times or more this week.`,
       section: n
         ? {
             title: 'Asked most this week',
@@ -443,14 +468,14 @@ function readingOf(
             rows: rows.slice(0, SECTION_ROWS).map((r) => ({
               type: 'topic' as const,
               title: r.title,
-              cells: [r.count === null ? `${count(r.atLeast)}+` : count(r.count)],
+              cells: [askedCell(r, minimum)],
               gap: r.gap,
             })),
             shown: n > SECTION_ROWS ? `Showing the ${SECTION_ROWS} asked most` : null,
             more: null,
           }
         : null,
-      clear: `No topic${about} was asked about ${minimum} times or more this week.`,
+      clear: `No topic${value}${where} was asked about ${minimum} times or more this week.`,
       note: `A topic asked about fewer than ${minimum} times is not shown, so no small count is given away.`,
       found: n,
     }
@@ -496,7 +521,12 @@ function readingOf(
   }
 
   const liveItems = (): readonly RecordsItem[] => {
-    return world.items.filter((i) => i.status !== 'archived' && inDomain(i.areaId))
+    return world.items.filter(
+      (i) =>
+        i.status !== 'archived' &&
+        inDomain(i.areaId) &&
+        namesAbout({ metrics: i.metrics ?? [], values: i.values ?? [] }),
+    )
   }
 
   const duePart = (): Part => {
@@ -505,7 +535,9 @@ function readingOf(
 
   const conflictsPart = (): Part => {
     const pairs = (world.conflicts ?? []).filter(
-      (c) => !domain || c.holder.areaId === domain.id || c.other.areaId === domain.id,
+      (c) =>
+        (!domain || c.holder.areaId === domain.id || c.other.areaId === domain.id) &&
+        (!about || inAbout.has(c.holder.id) || inAbout.has(c.other.id)),
     )
     const n = pairs.length
     const word = noun(n, 'conflict', 'conflicts')
@@ -537,7 +569,7 @@ function readingOf(
   /** Live items that say the same thing by the only test code can run: their words on the label. */
   const duplicates = (): Part => {
     if (read.of === 'definition') return sameWords()
-    const pairs = writtenTwice(audit.items).filter(
+    const pairs = writtenTwice(audit.items.filter(namesAbout)).filter(
       ([a, b]) => inDomain(a.areaId) || inDomain(b.areaId),
     )
     const n = pairs.length
@@ -597,7 +629,7 @@ function readingOf(
 
   const overlapsPart = (): Part => {
     const names = new Map(world.terms.map((t) => [t.key, t.name]))
-    const pairs = overlapping(audit.items).filter(
+    const pairs = overlapping(audit.items.filter(namesAbout)).filter(
       ([a, b]) => inDomain(a.areaId) || inDomain(b.areaId),
     )
     const n = pairs.length
@@ -896,7 +928,8 @@ export function foundNothing(asked: {
 } {
   const share = (r: { nothing?: number | null; atLeast: number; count: number | null }) =>
     (r.nothing ?? 0) / Math.max(r.count ?? r.atLeast, 1)
-  const nothing = asked.rows
+  const rows = shownTopics(asked.rows, asked.minimum)
+  const nothing = rows
     .filter((r) => (r.nothing ?? 0) > 0)
     .sort((a, b) => (b.nothing ?? 0) - (a.nothing ?? 0) || share(b) - share(a))
   const n = nothing.length
@@ -905,7 +938,7 @@ export function foundNothing(asked: {
     section: n
       ? {
           title: 'Agents found nothing',
-          count: `${count(n)} of ${count(asked.rows.length)} topics this week`,
+          count: `${count(n)} of ${count(rows.length)} topics this week`,
           columns: ['Topic', 'Found nothing'],
           rows: nothing.slice(0, SECTION_ROWS).map((r) => ({
             type: 'topic' as const,
@@ -949,14 +982,20 @@ function queuePart(lines: readonly QueueLine[]): Part {
   }
 }
 
-const understoodOf = (read: AuditRead, domain: { name: string } | null, queue: boolean) => {
+const understoodOf = (
+  read: AuditRead,
+  domain: { name: string } | null,
+  queue: boolean,
+  period: RecordsPeriod | null,
+) => {
+  const about = `${read.about ? `, about ${read.about.words}` : ''}${period ? `, ${period.words}` : ''}`
   const asksMissing = MISSING.every((facet) => read.facets.includes(facet))
   const asked = asksMissing ? 'what may be missing from Definitions' : auditWords(read)
   const what = [queue ? 'what is waiting on you' : null, read.facets.length ? asked : null]
     .filter(Boolean)
     .join(' and ')
   const said = `${what[0]!.toUpperCase()}${what.slice(1)}`
-  return domain ? `${said}, in ${domain.name}` : said
+  return `${domain ? `${said}, in ${domain.name}` : said}${about}`
 }
 
 /**
@@ -969,8 +1008,9 @@ export function auditAnswer(
   base: Omit<RecordsFound, 'understood' | 'sentence'>,
   domain: { id: string; name: string } | null,
   queue: readonly QueueLine[] | null,
+  period: RecordsPeriod | null = null,
 ): RecordsFound {
-  const reading = readingOf(read, world, domain)
+  const reading = readingOf(read, world, domain, period)
   const facets = read.facets
   const joined = facets.includes('asked_most') && facets.includes('no_context')
   const several = facets.length + (queue ? 1 : 0) > 1
@@ -1014,7 +1054,7 @@ export function auditAnswer(
   const notes = parts.flatMap((p) => (p.note ? [p.note] : []))
   return {
     ...base,
-    understood: understoodOf(read, domain, !!queue),
+    understood: understoodOf(read, domain, !!queue, period),
     read: `Read ${list(reads)}`,
     sentence: only ? only.sentence : lead,
     detail: only?.detail ?? null,

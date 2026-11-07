@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadGoldenSet } from '../../../db/seed/golden-set.ts'
 import { monthWords, readDates, whatHeedReads } from '../../../src/domain/dates.ts'
-import { shiftDate } from '../../../src/domain/validity.ts'
+import { anyDate, shiftDate } from '../../../src/domain/validity.ts'
 import { normalizeName } from '../../../src/domain/vocabulary.ts'
 
 /*
@@ -365,5 +365,111 @@ describe('a month in words', () => {
   it('names the month of a day in full, with its year', () => {
     expect(monthWords('2026-10-01')).toBe('October 2026')
     expect(monthWords('2027-01-31')).toBe('January 2027')
+  })
+})
+
+// Fix round 3: Ask reads dates as people write them. A loose date is resolved against today and
+// said in how it was read, and nothing a person writes stops the question.
+describe('loose dates, as Ask reads them', () => {
+  const today = '2026-10-23'
+  const read = (text: string) => {
+    const got = readDates(text, today, { loose: true })
+    if (got.status !== 'read') throw new Error(`${text} read as ${got.status}`)
+    return [got.window.start, shiftDate(got.window.end!, -1)]
+  }
+
+  it.each([
+    ['in august', '2026-08-01', '2026-08-31'],
+    ['in may', '2026-05-01', '2026-05-31'],
+    ['in december', '2025-12-01', '2025-12-31'],
+    ['early august', '2026-08-01', '2026-08-10'],
+    ['mid-august', '2026-08-11', '2026-08-20'],
+    ['late august', '2026-08-21', '2026-08-31'],
+    ['the end of last quarter', '2026-08-30', '2026-09-30'],
+    ['the start of q3', '2026-07-01', '2026-07-30'],
+    ['first week of august', '2026-08-01', '2026-08-07'],
+    ['the last week of september', '2026-09-24', '2026-09-30'],
+    ['the first half of 2026', '2026-01-01', '2026-06-30'],
+    ['second half of last year', '2025-07-01', '2025-12-31'],
+    ['h1', '2026-01-01', '2026-06-30'],
+    ['h2 last year', '2025-07-01', '2025-12-31'],
+    ['last summer', '2026-06-01', '2026-08-31'],
+    ['this summer', '2026-06-01', '2026-08-31'],
+    ['last winter', '2025-12-01', '2026-02-28'],
+    ['this winter', '2026-12-01', '2027-02-28'],
+    ['next spring', '2027-03-01', '2027-05-31'],
+    ['autumn 2025', '2025-09-01', '2025-11-30'],
+    ['last year', '2025-01-01', '2025-12-31'],
+    ['last quarter', '2026-07-01', '2026-09-30'],
+    ['august last year', '2025-08-01', '2025-08-31'],
+    ['q3 last year', '2025-07-01', '2025-09-30'],
+    ['last august', '2026-08-01', '2026-08-31'],
+    ['this time last year', '2025-10-01', '2025-10-31'],
+    ['two weeks ago', '2026-10-05', '2026-10-11'],
+    ['a month ago', '2026-09-01', '2026-09-30'],
+    ['3 days ago', '2026-10-20', '2026-10-20'],
+    ['a few days ago', '2026-10-19', '2026-10-21'],
+    ['the past few days', '2026-10-21', '2026-10-23'],
+    ['the last couple of weeks', '2026-10-10', '2026-10-23'],
+    ['recent months', '2026-07-24', '2026-10-23'],
+    ['last fortnight', '2026-10-10', '2026-10-23'],
+    ['last weekend', '2026-10-17', '2026-10-18'],
+    ['this weekend', '2026-10-24', '2026-10-25'],
+    ['last tuesday', '2026-10-20', '2026-10-20'],
+    ['earlier this year', '2026-01-01', '2026-10-22'],
+    ['later this month', '2026-10-24', '2026-10-31'],
+    ['the month before last', '2026-08-01', '2026-08-31'],
+    ['the week of 5 october', '2026-10-05', '2026-10-11'],
+    ['last fiscal year', '2025-01-01', '2025-12-31'],
+    ['fy26', '2026-01-01', '2026-12-31'],
+    ['12/10/2026', '2026-10-12', '2026-10-12'],
+    ['since last summer', '2026-06-01', '2026-10-23'],
+    ['after the summer', '2026-09-01', '2026-10-23'],
+    ['before august', anyDate.start, '2026-07-31'],
+    ['until last month', anyDate.start, '2026-08-31'],
+    ['by the end of the year', anyDate.start, '2026-12-31'],
+    ['around august', '2026-08-01', '2026-08-31'],
+    ['august and september', '2026-08-01', '2026-09-30'],
+    ['august vs september', '2026-08-01', '2026-09-30'],
+    ['last year and this year', '2025-01-01', '2026-10-23'],
+  ])('reads "%s"', (text, from, to) => {
+    expect(read(text)).toEqual([from, to])
+  })
+
+  it.each([
+    'since the launch',
+    'a while ago',
+    '31 february',
+    'around christmas',
+    'before the rebrand',
+    'after the migration',
+    'in h3',
+  ])('never fails on "%s"', (text) => {
+    const got = readDates(text, today, { loose: true })
+    expect(got.status).not.toBe('unreadable')
+  })
+
+  it('names what it could not place, and reads every date', () => {
+    const got = readDates('since the launch', today, { loose: true })
+    expect(got).toMatchObject({ status: 'read', window: anyDate, unplaced: ['since the launch'] })
+    if (got.status === 'read') expect(got.readsAs).toContain("could not place 'since the launch'")
+  })
+
+  it('says the resolved days and the words they came from', () => {
+    const got = readDates('last summer', today, { loose: true })
+    if (got.status !== 'read') throw new Error('read')
+    expect(got.readsAs).toBe('1 Jun to 31 Aug 2026 (last summer, June to August; UTC)')
+  })
+
+  it.each(['orders fall in norway', 'the spring sale in spain', 'what may change', 'winter coats'])(
+    'finds no date in "%s"',
+    (text) => {
+      expect(readDates(text, today, { loose: true }).status).toBe('none')
+    },
+  )
+
+  it('is off for agents: get_context keeps the strict reader', () => {
+    for (const text of ['early august', 'last summer', 'two weeks ago'])
+      expect(readDates(text, today).status).toBe('unreadable')
   })
 })

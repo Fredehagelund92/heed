@@ -174,6 +174,8 @@ export type Answer = {
     period?: 'asked' | 'carried' | 'today' | 'recent' | 'any' | null
     /** The part of the question these reads do not answer, as a short question (FR-720). */
     left?: string
+    /** What the records say about what was read, in fixed sentences: its owners, its check dates. */
+    facts?: string[]
     /** The person said which meaning of a word they meant: read by the rules, with no model. */
     settled?: { also: string | null }
     /** On the mock binding, what the working line said while the reads ran (the service sends it). */

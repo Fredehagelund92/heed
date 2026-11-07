@@ -20,7 +20,9 @@ import {
   planBundle,
   planDefinitions,
   planItem,
+  planStewards,
   planRecords,
+  smallCountRecords,
   sourceChangedRecords,
 } from './plan-world.ts'
 
@@ -57,7 +59,7 @@ export type PlanCase = {
   /** The class of question it tests (FR-720): reads, analysis, synthesis, beyond, and the rest. */
   class?: 'D' | 'R' | 'S' | 'A' | 'X'
   /** The world it is asked in, when it is not the usual one. */
-  world?: 'source changed'
+  world?: 'source changed' | 'small counts'
   /** Asked with no model, with a planner that gave up, or with this plan as the model's. */
   with?: { planner: 'none' | 'missed' } | { raw: unknown }
   expect: {
@@ -718,6 +720,11 @@ export type PlanOutcome = {
 }
 
 const titleOf = new Map(planBundle.items.map((item) => [item.id, item.title]))
+const worlds = {
+  usual: planRecords,
+  'source changed': sourceChangedRecords,
+  'small counts': smallCountRecords,
+}
 
 /**
  * Asks a case's question in the planner cases' world as Ask does (src/domain/ask-route.ts): the
@@ -729,7 +736,7 @@ export async function askPlanCase(
   planner: Planner | null,
   chat: readonly ChatTurn[],
 ): Promise<PlanOutcome> {
-  const read = readQuestion(c.question, planBundle.terms, PLAN_TODAY)
+  const read = readQuestion(c.question, planBundle.terms, PLAN_TODAY, { loose: true })
   const records = recogniseRecords(c.question, {
     spans: read.spans,
     terms: planBundle.terms,
@@ -752,6 +759,7 @@ export async function askPlanCase(
     records,
     today: PLAN_TODAY,
     now: PLAN_NOW,
+    stewards: () => Promise.resolve(planStewards),
     planner: planner
       ? (input, check) => {
           calls++
@@ -767,7 +775,7 @@ export async function askPlanCase(
     found?.type === 'refused'
       ? refusedAnswer(planRecords)
       : found
-        ? answerRecords(found.ask, c.world ? sourceChangedRecords : planRecords, PLAN_NOW)
+        ? answerRecords(found.ask, worlds[c.world ?? 'usual'], PLAN_NOW)
         : null
   const define =
     routed.kind === 'reads'
@@ -836,7 +844,9 @@ export function recordsText(r: RecordsAnswer): string[] {
     return [name, ...row.cells, link].filter(Boolean).join(' | ')
   }
   return [
-    r.period ? `Understood as ${r.understood} (${r.period.label})` : '',
+    r.period
+      ? `Understood as ${r.understood} (${r.period.label})`
+      : `Understood as ${r.understood}`,
     r.limit?.sentence ?? '',
     r.sentence,
     r.detail ?? '',
@@ -878,6 +888,7 @@ function renderedOf(routed: Routed, records: RecordsAnswer | null, define: strin
     lines.push(...answer.items.map((item) => item.title))
     if (!answer.items.length)
       for (const key of define) lines.push(`Nothing else is written about ${titleOfTerm(key)} yet.`)
+    if (routed.kind === 'reads') lines.push(...(routed.planned.reading.facts ?? []))
     if (routed.kind === 'reads' && routed.planned.reading.left)
       lines.push(`Not answered here: ${routed.planned.reading.left}`)
   }
@@ -901,7 +912,9 @@ function invented(found: RecordsAnswer | null): string[] {
   if (!found || found.refused) return []
   const items = new Set(planRecords.items.map((i) => i.title))
   const terms = new Set(planRecords.terms.map((t) => t.name))
-  const topics = new Set(planRecords.asked?.rows.map((r) => r.title))
+  const topics = new Set(
+    Object.values(worlds).flatMap((world) => world.asked?.rows.map((r) => r.title) ?? []),
+  )
   return [...found.rows, ...(found.sections ?? []).flatMap((s) => s.rows)].flatMap((row) =>
     (row.type === 'item' && !items.has(row.title)) ||
     (row.type === 'term' && !terms.has(row.name)) ||

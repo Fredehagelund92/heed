@@ -28,6 +28,8 @@ export type ScopeInput = {
   metrics?: string[]
   filters?: Record<string, string[]>
   window?: DateWindow
+  /** Read the words' dates as a person writes them (`readDates`): Ask's, never an agent's. */
+  loose?: boolean
 }
 /**
  * A part of the scope Heed could not read. `message`, for a name it does not know, says so and
@@ -190,11 +192,12 @@ function readWords(
   terms: readonly Term[],
   today: string,
   use?: { metrics: boolean; dimensions: boolean },
+  loose = false,
 ) {
   const found = termsInText(question, terms, use)
   let dates: ReturnType<typeof readDates>
   try {
-    dates = readDates(found.text, today, { taken: found.occupied })
+    dates = readDates(found.text, today, { taken: found.occupied, loose })
   } catch {
     dates = {
       status: 'unreadable',
@@ -309,10 +312,13 @@ export function extractScope(
       if (valueKey) filters[key].push(valueKey)
     }
   }
-  const found = readWords(question, terms, today, {
-    metrics: structured.metrics === undefined,
-    dimensions: structured.filters === undefined,
-  })
+  const found = readWords(
+    question,
+    terms,
+    today,
+    { metrics: structured.metrics === undefined, dimensions: structured.filters === undefined },
+    structured.loose,
+  )
   const { text, occupied, dated } = found
   issues.push(...found.ambiguous)
   metrics.push(...found.metrics)
@@ -400,15 +406,18 @@ export function readQuestion(
   question: string,
   terms: readonly Term[],
   today: string,
+  { loose = false }: { loose?: boolean } = {},
 ): {
   terms: Term[]
   window: DateWindow | null
   dates: DatesRead | null
+  /** With `loose`: words that name dates Heed could not place, so every date was read. */
+  unplaced?: string[]
   issues: ScopeIssue[]
   spans: Span[]
 } {
   calendarDateSchema.parse(today)
-  const found = readWords(question, terms, today)
+  const found = readWords(question, terms, today, undefined, loose)
   const keys = [
     ...unique(found.metrics),
     ...Object.entries(found.filters)
@@ -421,6 +430,7 @@ export function readQuestion(
     terms: keys.flatMap((key) => byKey.get(key) ?? []),
     window: dates.status === 'read' ? dates.window : null,
     dates: dates.status === 'read' ? { words: found.datesWords, reads_as: dates.readsAs } : null,
+    ...(dates.status === 'read' && dates.unplaced ? { unplaced: dates.unplaced } : {}),
     issues: [
       ...found.ambiguous,
       ...(dates.status === 'unreadable'
