@@ -177,6 +177,15 @@ const sectionSchema = z.object({
 })
 export type RecordsSection = z.infer<typeof sectionSchema>
 
+/** What a records read is narrowed to: the metrics and values the question names, by key. */
+export const recordsAboutSchema = z.object({
+  metrics: z.array(z.string()),
+  values: z.array(z.string()),
+  /** The same, as the answer says it: "Orders in Norway". */
+  words: z.string(),
+})
+export type RecordsAbout = z.infer<typeof recordsAboutSchema>
+
 /** An analysis as it was read, so a follow-up can carry it (FR-719, FR-720). */
 export const auditReadSchema = z.object({
   facets: z.array(z.enum(auditFacets)),
@@ -188,6 +197,8 @@ export const auditReadSchema = z.object({
   value: z.nullable(z.string()),
   /** A ranking of domains the best first, when the question asks for the best covered. */
   best: z.optional(z.boolean()),
+  /** What the question narrowed it to. */
+  about: z.optional(recordsAboutSchema),
 })
 export type AuditRead = z.infer<typeof auditReadSchema>
 

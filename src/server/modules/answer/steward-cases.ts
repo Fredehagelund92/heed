@@ -1,4 +1,5 @@
 import { DEFAULT_PRODUCT_NAME as PRODUCT } from '../../../domain/brand.ts'
+import { classCases } from './class-cases.ts'
 import { gateCases } from './gate-cases.ts'
 import type { PlanCase } from './plan-cases.ts'
 
@@ -680,7 +681,7 @@ const S: PlanCase[] = [
       route: 'planner',
       plan: ['explore'],
       stateIn: ['conflict', 'grounded', 'partial'],
-      must: [/Not answered here: who owns/i],
+      must: ['Jon Abara and Sofia Brandt own Sales.'],
     },
   },
   {
@@ -1206,4 +1207,5 @@ export const stewardCases: PlanCase[] = [
   ...classed('A', A),
   ...classed('X', X),
   ...gateCases,
+  ...classCases,
 ]

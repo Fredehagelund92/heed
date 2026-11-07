@@ -92126,6 +92126,31 @@
                                 },
                                 "best": {
                                   "type": "boolean"
+                                },
+                                "about": {
+                                  "type": "object",
+                                  "properties": {
+                                    "metrics": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "values": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "words": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "metrics",
+                                    "values",
+                                    "words"
+                                  ]
                                 }
                               },
                               "required": [
@@ -94203,6 +94228,12 @@
                                         "left": {
                                           "type": "string"
                                         },
+                                        "facts": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
                                         "settled": {
                                           "type": "object",
                                           "properties": {
@@ -95582,6 +95613,31 @@
                                                 },
                                                 "best": {
                                                   "type": "boolean"
+                                                },
+                                                "about": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "metrics": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "values": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "words": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "metrics",
+                                                    "values",
+                                                    "words"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -103469,6 +103525,12 @@
                             },
                             "left": {
                               "type": "string"
+                            },
+                            "facts": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
                             },
                             "settled": {
                               "type": "object",

@@ -158,6 +158,7 @@ export async function lookupQuestion(
     now: momentOf(clock).now,
     planner: deps.planner,
     clock: clockMs,
+    ...(reads ? { stewards: () => stewardsOf(reads) } : {}),
   })
   // A records question is counted and answered inside the request, before the stream starts.
   const found =
@@ -207,7 +208,8 @@ export async function lookupQuestion(
       return
     }
     // The rules' answer, also for a records question when no records are read here.
-    const rules = routed.kind === 'rules' ? routed.answer : answer(bundle, ask, { today })
+    const rules =
+      routed.kind === 'rules' ? routed.answer : answer(bundle, ask, { today, person: true })
     const limit = routed.kind === 'rules' && routed.limit ? { limit: routed.limit } : {}
     for (const step of rules.steps) yield { type: 'step', step }
     yield { type: 'answer', answer: answered(rules, limit) }
@@ -223,6 +225,21 @@ export async function lookupQuestion(
       yield { type: 'words-end' }
     }
   })()
+}
+
+/** What the records keep about items: owners as Context names them, and each item's last check. */
+async function stewardsOf(reads: Pick<RecordsReads, 'areas' | 'people' | 'index'>) {
+  // One after the other: a transaction runs one statement at a time.
+  const areas = await reads.areas()
+  const people = await reads.people()
+  const index = await reads.index()
+  const names = new Map(people.map((p) => [p.id, p.name]))
+  return {
+    owners: Object.fromEntries(
+      areas.map((a) => [a.id, a.ownerIds.map((id) => names.get(id) ?? 'Someone who left')]),
+    ),
+    checked: Object.fromEntries(index.items.map((i) => [i.id, i.lastChecked?.on ?? null])),
+  }
 }
 
 /** A reply as Ask sends it: for a question Ask cannot answer, what it can show beside the sentence. */

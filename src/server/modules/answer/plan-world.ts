@@ -453,6 +453,8 @@ const itemRecord = (s: Seed): RecordsItem => ({
   checkedAt: '2026-10-20T09:00:00.000Z',
   archivedAt: null,
   owners: [],
+  metrics: s.metrics.map((m) => `metric:${m}`),
+  values: (s.markets ?? []).map((m) => `val:market/${m}`),
 })
 
 /** The items a person here may see: never the one for the Finance group. */
@@ -579,6 +581,46 @@ export const planRecords: RecordsWorld = {
         'Money a customer holds with us from a gift card or a refund, spent like cash at checkout.',
     },
   ],
+}
+
+/** What the records keep about items: each domain's owners, by name, and each item's last check. */
+export const planStewards = {
+  owners: Object.fromEntries(
+    planRecords.areas.map((a) => [a.id, a.ownerIds.map((id) => planRecords.people[id]!)]),
+  ),
+  checked: Object.fromEntries(planRecords.items.map((i) => [i.id, i.checkedAt])),
+}
+
+/**
+ * The same records in a week of small counts, one row for each way a count can be hidden, as they
+ * would reach Ask if a read gave them raw: a topic under the minimum, one shown only as a floor, one
+ * whose calls that found something would be left over under the minimum, and one whose calls that
+ * found nothing are under it. Nothing below the minimum may appear in an answer about them.
+ */
+export const smallCountRecords: RecordsWorld = {
+  ...planRecords,
+  asked: {
+    minimum: 5,
+    rows: (
+      [
+        ['Returns in Italy', 'metric:returns', 'val:market/italy', 3, 3, 0],
+        ['Orders in Italy', 'metric:orders', 'val:market/italy', null, 9, 0],
+        ['Discount cost in Italy', 'metric:discount_cost', 'val:market/italy', 11, 11, 8],
+        ['Units sold in Italy', 'metric:units_sold', 'val:market/italy', 14, 14, 2],
+        ['Gross sales in Italy', 'metric:gross_sales', 'val:market/italy', 6, 6, 6],
+      ] as const
+    ).map(([title, metric, value, count, atLeast, nothing]) => ({
+      title,
+      area: SALES,
+      count,
+      atLeast,
+      nothing,
+      state: nothing ? ('missing' as const) : ('grounded' as const),
+      gap: null,
+      metrics: [metric],
+      values: [value],
+    })),
+  },
 }
 
 /** The same records on the day the source changed a definition: no item relies on it yet. */

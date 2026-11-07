@@ -239,6 +239,156 @@ const alone: Record<string, RawPlan> = {
   'i am in paid media what contexts are needing check': {
     records: { intent: 'due', domain: 'area_paid_media' },
   },
+  // Fix round 3 (class-cases.ts), as the model wrote them, a date or a name left out on purpose:
+  // Ask reads those from the question.
+  'how many times did agents ask about returns in italy': audit(['asked_most']),
+  'what do we say about orders in norway': { reads: [lookup('orders', 'norway')] },
+  'how many rules and warnings were created this year': { records: { intent: 'created' } },
+  'what was added last week compared to the week before': {
+    records: { intent: 'created', period: 'last week' },
+  },
+  'who owns sales and marketing': { records: { intent: 'owner', domain: 'area_sales' } },
+  'which conflicts are about norway': { records: { intent: 'conflicts' } },
+  'which conflicts are about france': { records: { intent: 'conflicts' } },
+  'what is due for a check on returns': { records: { intent: 'due', metric: 'metric:returns' } },
+  'how many warnings are there for germany': { records: { intent: 'count', of: 'warning' } },
+  'which definitions changed last month': audit(['source_changed']),
+  'which definitions changed this month': audit(['source_changed']),
+  'what changed in the definition of returns': audit(['source_changed']),
+  'how many metrics did we have last year': {
+    records: { intent: 'terms', of: 'metric', count: true },
+  },
+  'how many conflicts does each domain have': audit(['review']),
+  'were any conflicts opened last month': {
+    records: { intent: 'conflicts', period: 'last month' },
+  },
+  'what is due this quarter': { records: { intent: 'due', period: 'this quarter' } },
+  'how many items are due by next spring': { records: { intent: 'due' } },
+  'what did we write about france in spring': one(
+    explore([], { values: ['val:market/france'], dates: 'in spring' }),
+  ),
+  'what happened in spain in early october': one(
+    explore(['event'], { values: ['val:market/spain'] }),
+  ),
+  'what do we know about orders in sweden before 19 january 2026': {
+    reads: [lookup('orders', 'sweden', 'before 19 January 2026')],
+  },
+  'what changed for orders in france since the rebrand': one(
+    explore(['event'], {
+      metrics: ['metric:orders'],
+      values: ['val:market/france'],
+      dates: 'since the rebrand',
+    }),
+  ),
+  'what happened to norway around christmas': one(
+    explore(['event'], { values: ['val:market/norway'], dates: 'around Christmas' }),
+  ),
+  'what does the context say about why orders fell in norway and who owns that': {
+    reads: [
+      explore(['event', 'warning', 'guide'], {
+        words: 'orders fell',
+        metrics: ['metric:orders'],
+        values: ['val:market/norway'],
+      }),
+    ],
+    left: 'who owns that',
+  },
+  'who should i ask about the vat rule': { records: { intent: 'owner', of: 'rule' } },
+  'who should i talk to about norway': { records: { intent: 'owner' } },
+  'what is due for a check and who owns it': { records: { intent: 'due' } },
+  'list the conflicts and who owns them': { records: { intent: 'conflicts' } },
+  'who is in charge of on time shipping in norway': {
+    records: { intent: 'owner', metric: 'metric:on_time_shipping_rate' },
+  },
+  'when is the italy promotions event due for a check': { records: { intent: 'due', of: 'event' } },
+  'when is the norway stop due for a check': { records: { intent: 'due' } },
+  'when was the returns rule last checked and who owns it': {
+    reads: [explore(['rule'], { metrics: ['metric:returns'] })],
+  },
+  'what is due for a check about italy': { records: { intent: 'due' } },
+  'what is due for a check in spain': { records: { intent: 'due' } },
+  'what comes up for a check in sales next spring': {
+    records: { intent: 'due', domain: 'area_sales', period: 'next spring' },
+  },
+  'what is the conflict about in norway orders': one(
+    explore(['warning', 'rule'], {
+      words: 'conflict',
+      metrics: ['metric:orders'],
+      values: ['val:market/norway'],
+    }),
+  ),
+  'what are the two sides of the spain vat rule': one(
+    explore(['rule'], { words: 'spain vat rule', values: ['val:market/spain'] }),
+  ),
+  'which rules apply to orders in norway right now': one(
+    explore(['rule'], { metrics: ['metric:orders'], values: ['val:market/norway'] }),
+  ),
+  'are there conflicts in sales and who owns them': {
+    records: { intent: 'conflicts', domain: 'area_sales' },
+  },
+  'what does returns mean and did its definition change': {
+    reads: [definition('returns'), explore(['rule'], { metrics: ['metric:returns'] })],
+  },
+  'how do we count units sold': one(explore(['rule'], { metrics: ['metric:units_sold'] })),
+  'what happened with the norway launch campaign': one(
+    explore(['event'], { words: 'norway launch campaign', values: ['val:market/norway'] }),
+  ),
+  'what do we know about the italy promotions': one(
+    explore(['event', 'warning', 'rule', 'guide'], {
+      words: 'promotion',
+      values: ['val:market/italy'],
+    }),
+  ),
+  'what do we know about loyalty points': one(explore([], { words: 'loyalty points' })),
+  'give me the facts on the spain card outage': one(
+    explore(['event', 'warning'], { words: 'outage', values: ['val:market/spain'] }),
+  ),
+  'explain the norway situation in two lines': {
+    ...one(explore([], { words: 'norway', values: ['val:market/norway'] })),
+    left: 'Explain the Norway situation in two lines?',
+  },
+  'what do we say about net revenue in spain': { reads: [lookup('net_revenue', 'spain')] },
+  'is there anything to be careful about with orders in germany': one(
+    explore(['warning', 'rule'], {
+      words: 'orders germany',
+      metrics: ['metric:orders'],
+      values: ['val:market/germany'],
+    }),
+  ),
+  'is anything about france written twice': audit(['duplicates']),
+  'what found nothing in marketing': {
+    records: { intent: 'asked_nothing', domain: 'area_marketing' },
+  },
+  'what did agents find nothing for in sales last month': {
+    records: { intent: 'asked_nothing', domain: 'area_sales', period: 'last month' },
+  },
+  'how many metrics are in sales compared to marketing': {
+    records: { intent: 'terms', of: 'metric', domain: 'area_sales', count: true },
+  },
+  'what does the guide for return on ad spend say': one(
+    explore(['guide'], { metrics: ['metric:return_on_ad_spend'] }),
+  ),
+  'what s the story with returns': one(explore([], { metrics: ['metric:returns'] })),
+  'how did orders in spain compare in august and september': {
+    reads: [lookup('orders', 'spain', 'August and September')],
+  },
+  'what applies to net revenue in spain today': {
+    reads: [lookup('net_revenue', 'spain', 'today')],
+  },
+  'what do we say about orders in norway and poland': {
+    reads: [
+      {
+        kind: 'lookup',
+        metrics: ['metric:orders'],
+        values: ['val:market/norway', 'val:market/poland'],
+        dates: null,
+        why: false,
+      },
+    ],
+  },
+  'what does the context say about discount cost in italy and who owns it': one(
+    explore([], { metrics: ['metric:discount_cost'], values: ['val:market/italy'] }),
+  ),
 }
 
 /** Plans for follow-ups, by the last question's words and then their own. */

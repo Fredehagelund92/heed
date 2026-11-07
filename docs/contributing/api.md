@@ -799,8 +799,10 @@ and `next` as before.
   `write`, `person`, `not_yet` or `unread`, the `definitions` a `source` reply shows and what a
   `write` reply starts from), with nothing looked up. An `answer`'s `limit` is the fixed sentence
   it leads with when the question reaches beyond what is written, or, with its `reason` `partly` or
-  `general`, when only part could be read or a name has nothing of its own, and its `reading.left`
-  names a part of the question its reads do not answer. A message with no subject of its
+  `general`, when only part could be read or a name has nothing of its own, its `reading.left`
+  names a part of the question its reads do not answer, and its `reading.facts` says, in fixed
+  sentences, what the records keep about what was read: its owners, its check dates, and dates Ask
+  could not place. A message with no subject of its
   own and no question that fits ("hmm", or "try again" with nothing to repeat) gets `nothing_asked`
   with no model call. A message that only asks again never reaches the service as such: the browser
   sends the last question instead (`src/domain/ask-again.ts`). A plan that fails the check, a limit,

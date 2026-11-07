@@ -95,6 +95,8 @@ When Ask cannot answer the question asked, it says so in a fixed sentence (FR-72
 | `cannot:not_yet` | Ask cannot work this out yet.                                                                                          |
 | Plan not used    | Ask could not read this question just now, so nothing was looked up.                                                   |
 
+A period a records read keeps no history for is said, never dropped: "This is how it stands today, not in 2025: the records keep no count by date." What the records keep about what an answer found stands in fixed sentences under its words: "Jon Abara and Sofia Brandt own Sales.", "Returns changed definition on 28 April 2026: check date 2 Oct 2026, due for a check, last checked 20 Oct 2026."
+
 When nothing was read under a limit, the sentence ends at its first part ("What happens next is not written down."): there is nothing to go on to. `limit:partly` is said by code, when no model read a question that is not plainly a read; `limit:general` when a name has nothing of its own and what was read applies to everything. A plan never chooses either.
 
 A due row says why it is due: **Check date 18 Sep 2026**, **Definition changed** or **Source missing**, and never a date the item has not reached.

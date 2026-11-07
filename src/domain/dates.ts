@@ -1,4 +1,4 @@
-import { isAnyDate, isCalendarDate, shiftDate, type DateWindow } from './validity.ts'
+import { anyDate, isAnyDate, isCalendarDate, shiftDate, type DateWindow } from './validity.ts'
 
 /*
   The date reader: the period the words of a question name, read the same way for get_context,
@@ -10,6 +10,12 @@ import { isAnyDate, isCalendarDate, shiftDate, type DateWindow } from './validit
   period Heed cannot read are never replaced: the reader names them and says what it reads. It is
   a pure function of the text and today, a calendar day in one time zone: the company's, else UTC
   (NFR-048), which `readsAs` names.
+
+  Ask reads people, who write dates loosely, so it reads with `loose` on (FR-720): part of a period
+  ("early August", "the end of last quarter"), a season, "two weeks ago", "the past few days", a
+  weekend, "before" or "after" a period, and two periods at once, each resolved against today and
+  said in `readsAs`. Words it still cannot place never stop the question: they are named, and the
+  days they could mean are all read. get_context keeps its strict reader.
 */
 
 const monthNames = [
@@ -47,10 +53,11 @@ export const longDayWords = (day: string) => {
  * The days of a window (end exclusive) as people read them: "7 Oct 2026", "1-7 Oct 2026"; every
  * date (`anyDate`) is "any date".
  */
-export function windowWords(window: DateWindow): string {
+export function windowWords(window: DateWindow, { upTo = false } = {}): string {
   if (isAnyDate(window)) return 'any date'
   if (window.end === null) return `from ${dayWords(window.start)}`
   const last = shiftDate(window.end, -1)
+  if (upTo && window.start === anyDate.start) return `up to ${dayWords(last)}`
   if (last <= window.start) return dayWords(window.start)
   const [from, to] = [dayWords(window.start), dayWords(last)]
   if (window.start.slice(0, 7) === last.slice(0, 7)) return `${from.split(' ')[0]}-${to}`
@@ -75,10 +82,11 @@ export const fullDayWords = (day: string) =>
  * (docs/design/voice.md, principle 8): "on 14 October 2026", "from 1 to 7 October 2026", "in
  * September 2026", "from July to September 2026", "in 2026", "from 15 June 2026 on", "at any date".
  */
-export function periodWords(window: DateWindow): string {
+export function periodWords(window: DateWindow, { upTo = false } = {}): string {
   if (isAnyDate(window)) return 'at any date'
   if (window.end === null) return `from ${fullDayWords(window.start)} on`
   const last = shiftDate(window.end, -1)
+  if (upTo && window.start === anyDate.start) return `up to ${fullDayWords(last)}`
   if (last <= window.start) return `on ${fullDayWords(window.start)}`
   const [start, end] = [window.start, last]
   const sameYear = start.slice(0, 4) === end.slice(0, 4)
@@ -151,7 +159,14 @@ export type DatesRead =
    * One period. `readsAs` says how Heed read it, for a person: the days, what they are and the
    * time zone, "1 Jan to 7 Oct 2026 (this year so far; UTC)".
    */
-  | { status: 'read'; window: DateWindow; readsAs: string; spans: DateSpan[] }
+  | {
+      status: 'read'
+      window: DateWindow
+      readsAs: string
+      spans: DateSpan[]
+      /** With `loose`: words that name dates Heed could not place. */
+      unplaced?: string[]
+    }
   /** Words that name dates Heed cannot read, or more than one period, and what it reads. */
   | { status: 'unreadable'; spans: DateSpan[]; message: string }
 
@@ -429,6 +444,12 @@ const unreadablePatterns = [
   /\b(?:since|before|after) (?:the |our )?(?:launch|release|change|migration|update|campaign|outage|incident|rebrand|merger|switch|cutover|go-live|start|beginning|then)\b/g,
 ]
 
+/** What only the loose reader names as dates it could not place; the strict reader leaves them be. */
+const looseUnreadablePatterns = [
+  /\b(?:since|after|before|until|till) the fall\b(?! (?:in|of)\b)/g,
+  /\bthe (?:week|month|quarter|year) (?:before|after) (?!(?:last|that|this)\b)(?:the |our )?[a-z][a-z-]*/g,
+]
+
 type Found = (Named & { end: number }) | { end: number; bad: true }
 /** A date written with slashes, dots or day-first dashes, "12/10/2026", "10.12.2026", "10-12-26": which part is the day is a guess. */
 const numericDate = /\b(?:\d{1,4}([/.])\d{1,2}\1\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4})\b/g
@@ -496,9 +517,387 @@ const soFarOf = (named: Named, today: string): Named =>
         what: [...named.what.filter((w) => !w.includes('after today')), 'so far'],
       }
 
+/* ---------- what people write that the strict reader does not place ---------- */
+
+const NUMBER_WORD = `\\d{1,3}|${numberWords.join('|')}|an?`
+const FEW: Record<string, number> = { few: 3, 'a few': 3, couple: 2, 'a couple': 2, several: 5 }
+const countOf = (word: string) =>
+  /\d/.test(word)
+    ? Number(word)
+    : FEW[word] !== undefined
+      ? FEW[word]
+      : word === 'a' || word === 'an'
+        ? 1
+        : numberWords.indexOf(word) + 1
+const weekdays = 'monday tuesday wednesday thursday friday saturday sunday'.split(' ')
+const mondayOf = (day: string) =>
+  shiftDate(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7))
+export const wholePeriod = (unit: string, today: string): Period => {
+  if (unit === 'week') return { from: mondayOf(today), to: shiftDate(mondayOf(today), 6) }
+  const months = monthsIn[unit]!
+  const start = Math.floor((monthOf(today) - 1) / months) * months + 1
+  const from = iso(yearOf(today), start, 1)
+  return { from, to: shiftDate(addMonths(from, months), -1) }
+}
+/** The whole period of a unit some periods back from the one today is in. */
+const back = (unit: string, count: number, today: string): Period => {
+  const { from } = wholePeriod(unit, today)
+  if (unit === 'week') {
+    const monday = shiftDate(from, -7 * count)
+    return { from: monday, to: shiftDate(monday, 6) }
+  }
+  const start = addMonths(from, -count * monthsIn[unit]!)
+  return { from: start, to: shiftDate(addMonths(start, monthsIn[unit]!), -1) }
+}
+const daysOf = ({ from, to }: Period) =>
+  Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
+
+const SEASON_MONTHS: Record<string, [number, string]> = {
+  spring: [3, 'March to May'],
+  summer: [6, 'June to August'],
+  autumn: [9, 'September to November'],
+  fall: [9, 'September to November'],
+  winter: [12, 'December to February'],
+}
+const seasonOf = (name: string, year: number): Period => {
+  const from = iso(year, SEASON_MONTHS[name]![0], 1)
+  return { from, to: shiftDate(addMonths(from, 3), -1) }
+}
+/** The season the words mean: "this" the one that year, "last" the last ended, alone the latest started. */
+function seasonPeriod(name: string, which: string | undefined, today: string): Period {
+  let year = yearOf(today)
+  const started = (y: number) => seasonOf(name, y).from <= today
+  if (which === 'this')
+    return seasonOf(name, name === 'winter' && monthOf(today) <= 2 ? year - 1 : year)
+  if (which === 'next' || which === 'coming') {
+    while (started(year)) year++
+    return seasonOf(name, year)
+  }
+  while (!started(year)) year--
+  if (which && seasonOf(name, year).to >= today) year--
+  return seasonOf(name, year)
+}
+
+const SEASON_LEAD =
+  '(this|last|next|past|previous|coming|in|during|over|the|in the|during the|over the)'
+const seasonPattern = sticky(
+  `(?:${SEASON_LEAD} )?(?:the )?(spring|summer|autumn|fall|winter)(?: of)?(?: ${YEAR})?\\b(?! (?:sales?|campaigns?|collections?|ranges?|promotions?|promos?|launch|drops?|lines?|prices?)\\b)`,
+)
+const agoPattern = sticky(
+  `(?:about |around |roughly )?(${NUMBER_WORD}|a few|few|a couple|couple|several)(?: of)? (day|week|month|quarter|year)s? ago\\b`,
+)
+const fewPattern = sticky(
+  `(?:the |these )?(?:(?:last|past|previous|this past) (?:(few|a few|couple of|couple|several) )|(?:(recent) ))(day|week|month|quarter|year)s\\b`,
+)
+const fortnightPattern = sticky('(?:(?:the|this) )?(?:(?:last|past|previous) )?fortnight\\b')
+const weekendPattern = sticky(
+  '(?:(?:the|over the|this past) )?(?:(last|this|next|past|previous) )?weekend\\b',
+)
+const weekdayPattern = sticky(`(last|this|next|on|past|previous) (${weekdays.join('|')})\\b`)
+const nearPattern = sticky('(earlier|later) (?:this|in the) (week|month|quarter|year)\\b')
+const beforeLastPattern = sticky(
+  'the (week|month|quarter|year) before(?: last\\b| that\\b|\\b(?! (?!(?:compared|versus|vs|against|and|or|than|to|for|in|on|by)\\b)\\S))',
+)
+const monthOfYearPattern = sticky(
+  `(${monthNames.join('|')}|${shortMonths.join('|').toLowerCase()}|q[1-4])(?: of)? (last|this) year\\b`,
+)
+const lastMonthNamePattern = sticky(`(last|this) (${monthNames.join('|')}|q[1-4])\\b`)
+const yearAgoPattern = sticky('(?:this|the same) (time|week|month|quarter)(?: as)? last year\\b')
+const fiscalNamedPattern = sticky('(this|last|next) (?:fiscal|financial) (year|quarter)\\b')
+const fiscalYearPattern = sticky(`(?:fy|fiscal(?: year)?|financial year) ?'?(\\d{4}|\\d{2})\\b`)
+const halfNamePattern = sticky(`h([12])(?:(?: of)? (?:${YEAR}|(last|this) year))?\\b`)
+const periodEndPattern = sticky('(?:the )?(week|month|quarter|year)[- ]end\\b')
+const weekOfPattern = sticky(
+  '(?:the )?(?:week|weekend) (?:of|starting|beginning|commencing) (?:the )?',
+)
+const partPattern = sticky(
+  '(?:the )?(?:very )?(early|mid|middle|late|start|beginning|end|close|(?:first|second) half|(?:first|second|third|fourth|last|final) week|first day|last day|(?:first|last) few days)(?:(?:-| )in|-| of| )(?: the)? ?',
+)
+const untilPattern = sticky('(before|until|till|by|up to|up until|prior to|earlier than) ')
+const afterPattern = sticky('(after|later than|beyond|since) ')
+const aroundPattern = sticky('(?:around|about|circa|roughly) ')
+const thePeriodPattern = sticky('(?:the |this )?(week|month|quarter|year)\\b(?![- ]end\\b)')
+
+/** The days of a period a part of it names: "early", "the second half", "the last week". */
+function partOf(period: Period, part: string): Period {
+  const { from, to } = period
+  const days = daysOf(period)
+  const third = Math.floor(days / 3)
+  const on = (n: number) => shiftDate(from, n)
+  if (['early', 'start', 'beginning'].includes(part)) return { from, to: on(third - 1) }
+  if (['mid', 'middle'].includes(part)) return { from: on(third), to: on(2 * third - 1) }
+  if (['late', 'end', 'close'].includes(part)) return { from: on(2 * third), to }
+  if (part.endsWith('half')) {
+    const months = Math.round(days / 30.4)
+    const split =
+      months > 0 && months % 2 === 0
+        ? addMonths(from, months / 2)
+        : shiftDate(from, Math.floor(days / 2))
+    return part.startsWith('first') ? { from, to: shiftDate(split, -1) } : { from: split, to }
+  }
+  if (part === 'first day') return { from, to: from }
+  if (part === 'last day') return { from: to, to }
+  if (part === 'first few days') return { from, to: on(2) }
+  if (part === 'last few days') return { from: shiftDate(to, -2), to }
+  if (part === 'last week' || part === 'final week') return { from: shiftDate(to, -6), to }
+  const week = ['first', 'second', 'third', 'fourth'].indexOf(part.split(' ')[0]!)
+  const start = on(7 * week)
+  const end = shiftDate(start, 6)
+  return { from: start, to: end > to ? to : end }
+}
+
+/** A loose period at `index`, with where it ends and how it is said, or null. */
+function looseAt(text: string, index: number, today: string): (Named & { end: number }) | null {
+  const said = (m: RegExpExecArray, period: Period, what = m[0]) => ({
+    period,
+    what: [what],
+    end: index + m[0].length,
+  })
+  let m = at(partPattern, text, index)
+  if (m) {
+    const base = baseAt(text, index + m[0].length, today)
+    if (base) {
+      const period = partOf(base.period, m[1]!)
+      return { period, what: [text.slice(index, base.end)], end: base.end }
+    }
+  }
+  m = /(?:^|\s)(?:by|before|until|till|up to|up until|prior to) $/.test(text.slice(0, index))
+    ? at(periodEndPattern, text, index)
+    : null
+  if (m) return said(m, partOf(wholePeriod(m[1]!, today), 'end'))
+  m = at(halfNamePattern, text, index)
+  if (m) {
+    const year = m[2]
+      ? Number(m[2])
+      : m[3] === 'last'
+        ? yearOf(today) - 1
+        : m[1] === '2' && monthOf(today) < 7
+          ? yearOf(today) - 1
+          : yearOf(today)
+    return said(
+      m,
+      partOf(
+        { from: iso(year, 1, 1), to: iso(year, 12, 31) },
+        `${m[1] === '1' ? 'first' : 'second'} half`,
+      ),
+    )
+  }
+  m = at(seasonPattern, text, index)
+  const dropOfFall =
+    m?.[2] === 'fall' &&
+    !m[3] &&
+    (m[1] === 'the' ||
+      (/^(?:in|during|over)(?: the)?$/.test(m[1] ?? '') &&
+        (m[0].endsWith(' of') ||
+          /^ (?:in|of) (?!(?:19|20)\d{2}\b)/.test(text.slice(index + m[0].length)))))
+  if (m && (m[1] || m[3]) && !dropOfFall) {
+    const name = m[2]!
+    const which = m[1]?.replace(/^(?:in|during|over)(?: the)?$|^the$/, '') || undefined
+    const period = m[3] ? seasonOf(name, Number(m[3])) : seasonPeriod(name, which, today)
+    return said(
+      m,
+      period,
+      `${m[0].replace(/^(?:in|during|over)(?: the)? /, '')}, ${SEASON_MONTHS[name]![1]}`,
+    )
+  }
+  m = at(agoPattern, text, index)
+  if (m) {
+    const count = countOf(m[1]!)
+    const unit = m[2]!
+    const vague = FEW[m[1]!] !== undefined
+    if (unit === 'day') {
+      const day = shiftDate(today, -count)
+      return said(
+        m,
+        vague ? { from: shiftDate(day, -1), to: shiftDate(day, 1) } : { from: day, to: day },
+      )
+    }
+    const period = back(unit, count, today)
+    return said(
+      m,
+      vague
+        ? { from: back(unit, count + 1, today).from, to: back(unit, count - 1, today).to }
+        : period,
+    )
+  }
+  m = at(fewPattern, text, index)
+  if (m) {
+    const count = m[2] ? 3 : countOf(m[1]!.replace(/ of$/, ''))
+    const named = trailing(count, m[3]!, today)
+    return named && said(m, named.period)
+  }
+  m = at(fortnightPattern, text, index)
+  if (m) return said(m, { from: shiftDate(today, -13), to: today })
+  m = at(weekendPattern, text, index)
+  if (m) {
+    const saturday = shiftDate(mondayOf(today), 5)
+    const start =
+      m[1] === 'next'
+        ? shiftDate(saturday, 7)
+        : m[1] === 'this' || saturday <= shiftDate(today, -1)
+          ? saturday
+          : shiftDate(saturday, -7)
+    return said(m, { from: start, to: shiftDate(start, 1) })
+  }
+  m = at(weekdayPattern, text, index)
+  if (m) {
+    const wanted = weekdays.indexOf(m[2]!)
+    const now = weekdays.indexOf(weekdays[(new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7]!)
+    const gap = (now - wanted + 7) % 7 || 7
+    const day =
+      m[1] === 'this'
+        ? shiftDate(mondayOf(today), wanted)
+        : m[1] === 'next'
+          ? shiftDate(mondayOf(today), 7 + wanted)
+          : shiftDate(today, -gap)
+    return said(m, { from: day, to: day })
+  }
+  m = at(nearPattern, text, index)
+  if (m) {
+    const { from, to } = wholePeriod(m[2]!, today)
+    return m[1] === 'earlier'
+      ? said(m, { from, to: shiftDate(today, -1) })
+      : said(m, { from: shiftDate(today, 1), to })
+  }
+  m = at(beforeLastPattern, text, index)
+  if (m) return said(m, back(m[1]!, 2, today))
+  m = at(monthOfYearPattern, text, index) ?? at(lastMonthNamePattern, text, index)
+  if (m) {
+    const [first, second] = [m[1]!, m[2]!]
+    const named = /^(?:last|this)$/.test(first) ? second : first
+    const which = named === first ? second : first
+    const point = at(pointPatterns[6]![0], named, 0)
+      ? quarter(Number(named[1]), undefined)
+      : ({ unit: 'month', year: null, month: monthNumber(named), day: 1 } as Point)
+    const lately = latestStarted(point, today)
+    // "Last August" is the last whole one; "August last year" is the year before this one.
+    const year =
+      named === first
+        ? yearOf(today) - (which === 'last' ? 1 : 0)
+        : which === 'this'
+          ? yearOf(today)
+          : bounds(point, lately)!.to >= today
+            ? lately - 1
+            : lately
+    return said(m, bounds(point, year)!)
+  }
+  m = at(yearAgoPattern, text, index)
+  if (m) {
+    const unit = m[1] === 'time' ? 'month' : m[1]!
+    const { from, to } = wholePeriod(unit, addMonths(today, -12))
+    return said(m, { from, to })
+  }
+  m = at(fiscalNamedPattern, text, index)
+  if (m) {
+    const key = `${m[1]}${capital(m[2]!)}` as keyof ReturnType<typeof periods>
+    return said(m, periods(today)[key], `${m[0]}, as the calendar ${m[2]}`)
+  }
+  m = at(fiscalYearPattern, text, index)
+  if (m) {
+    const year = m[1]!.length === 2 ? 2000 + Number(m[1]) : Number(m[1])
+    if (year < 1900 || year > 9000) return null
+    return said(
+      m,
+      { from: iso(year, 1, 1), to: iso(year, 12, 31) },
+      `${m[0]}, as the calendar year`,
+    )
+  }
+  m = at(weekOfPattern, text, index)
+  if (m) {
+    const point = pointAt(text, index + m[0].length)
+    if (point?.point) {
+      const named = pointPeriod(point.point, today)
+      if (named) {
+        const monday = mondayOf(named.period.from)
+        return {
+          period: { from: monday, to: shiftDate(monday, 6) },
+          what: [text.slice(index, point.end)],
+          end: point.end,
+        }
+      }
+    }
+  }
+  return null
+}
+
+/** The period a part or a "before" is of: loose or strict, or "the month" as a whole. */
+function baseAt(text: string, index: number, today: string) {
+  const found = baseRead(text, index, today)
+  const unit =
+    found && /^(?:the )?this (week|month|quarter|year)$/.exec(text.slice(index, found.end))
+  return unit ? { ...found, period: wholePeriod(unit[1]!, today) } : found
+}
+
+function baseRead(text: string, index: number, today: string) {
+  const loose = looseAt(text, index, today)
+  if (loose) return loose
+  const the = text.startsWith('the ', index) ? 4 : 0
+  const found = periodAt(text, index + the, today)
+  if (found && !('bad' in found)) return found
+  const m = at(thePeriodPattern, text, index)
+  return m ? { period: wholePeriod(m[1]!, today), what: [m[0]], end: index + m[0].length } : null
+}
+
+/** "Before August", "by the end of the year", "after the summer": the days on that side of it. */
+function sideOf(text: string, index: number, today: string): (Named & { end: number }) | null {
+  const around = at(aroundPattern, text, index)
+  if (around) return baseAt(text, index + around[0].length, today)
+  const until = at(untilPattern, text, index)
+  const after = until ? null : at(afterPattern, text, index)
+  const lead = until ?? after
+  if (!lead) return null
+  const base = baseAt(text, index + lead[0].length, today)
+  if (!base) return null
+  const named = base.what[0]!
+  if (
+    /^(?:week|month|quarter|year)$/.test(named) ||
+    (lead[1] === 'by' && /^the (?:week|month|quarter|year)$/.test(named))
+  )
+    return null
+  const what = [text.slice(index, base.end)]
+  if (after) {
+    const from = after[1] === 'since' ? base.period.from : shiftDate(base.period.to, 1)
+    return { period: { from, to: today }, what, end: base.end }
+  }
+  const inclusive = lead[1] === 'by' || lead[1]!.startsWith('up') || /[- ]end$/.test(base.what[0]!)
+  return {
+    period: {
+      from: anyDate.start,
+      to: inclusive ? base.period.to : shiftDate(base.period.from, -1),
+    },
+    what,
+    end: base.end,
+  }
+}
+
+/** Every loose period in the words, in order: what the strict reader then leaves alone. */
+function loosePeriods(free: string, today: string): Claim[] {
+  const claims: Claim[] = []
+  for (let i = 0; i < free.length; i++) {
+    if (!/[a-z0-9]/.test(free[i]!) || (i > 0 && /[a-z0-9]/.test(free[i - 1]!))) continue
+    const found = sideOf(free, i, today) ?? looseAt(free, i, today)
+    if (!found || found.period.from > found.period.to) continue
+    claims.push({ start: i, ...found })
+    i = found.end - 1
+  }
+  return claims
+}
+
+/** A date with slashes or dots as Heed's people write it, the day first: "12/10/2026". */
+function numericPeriod(words: string): Named | null {
+  const parts = words.split(/[/.-]/).map(Number) as [number, number, number]
+  const [a, b, c] =
+    words.indexOf('/') === 4 || parts[0] > 31 ? [parts[2], parts[1], parts[0]] : parts
+  const [date, month] = b > 12 && a <= 12 ? [b, a] : [a, b]
+  const year = c < 100 ? 2000 + c : c
+  const day = iso(year, month, date)
+  return isCalendarDate(day) ? { period: { from: day, to: day }, what: ['day first'] } : null
+}
+
 /**
  * The period the words of a text name. `text` is normalised (lower case, single spaces), and
- * `taken` holds the places other names already took, which are never read as dates.
+ * `taken` holds the places other names already took, which are never read as dates. With `loose`,
+ * what people write loosely is read too, and nothing comes back unreadable.
  */
 export function readDates(
   text: string,
@@ -506,19 +905,25 @@ export function readDates(
   {
     taken = new Set<number>(),
     timeZone = 'UTC',
-  }: { taken?: ReadonlySet<number>; timeZone?: string } = {},
+    loose = false,
+  }: { taken?: ReadonlySet<number>; timeZone?: string; loose?: boolean } = {},
 ): DatesRead {
   // A name stops a date: "Q3" never runs into the name after it.
   const claims: Claim[] = []
   for (const m of text.matchAll(numericDate)) {
     const [start, end] = [m.index, m.index + m[0].length]
     if ([...Array(end - start).keys()].some((k) => taken.has(start + k))) continue
-    claims.push({ start, end, unreadable: true })
+    const read = loose ? numericPeriod(m[0]) : null
+    claims.push(read ? { start, end, ...read } : { start, end, unreadable: true })
   }
-  const free = [...text]
+  const free0 = [...text]
     .map((char, i) =>
       taken.has(i) || claims.some((c) => c.start <= i && i < c.end) ? '\u0000' : char,
     )
+    .join('')
+  if (loose) claims.push(...loosePeriods(free0, today))
+  const free = [...free0]
+    .map((char, i) => (claims.some((c) => c.start <= i && i < c.end) ? '\u0000' : char))
     .join('')
   for (let i = 0; i < free.length; i++) {
     if (!/[a-z0-9]/.test(free[i]!) || (i > 0 && /[a-z0-9]/.test(free[i - 1]!))) continue
@@ -552,7 +957,9 @@ export function readDates(
   const rest = [...free]
     .map((char, i) => (claims.some((c) => c.start <= i && i < c.end) ? '\u0000' : char))
     .join('')
-  for (const pattern of unreadablePatterns)
+  for (const pattern of loose
+    ? [...looseUnreadablePatterns, ...unreadablePatterns]
+    : unreadablePatterns)
     for (const m of rest.matchAll(pattern)) {
       const end = m.index + m[0].length
       if (/^\d{4}$/.test(m[0]) && isQuantity(rest, m.index, end)) continue
@@ -564,14 +971,43 @@ export function readDates(
   const spans = claims.map(({ start, end }) => ({ start, end }))
   const words = (c: DateSpan) => `'${text.slice(c.start, c.end)}'`
   const unreadable = claims.filter((c) => 'unreadable' in c)
+  const read = claims.filter((c): c is DateSpan & Named => 'period' in c)
+  const distinct = new Map(read.map((c) => [`${c.period.from}/${c.period.to}`, c]))
+  if (loose && (unreadable.length || distinct.size > 1)) {
+    const placed = [...distinct.values()]
+    const window = placed.length
+      ? {
+          start: placed.map((c) => c.period.from).sort()[0]!,
+          end: shiftDate(
+            placed
+              .map((c) => c.period.to)
+              .sort()
+              .at(-1)!,
+            1,
+          ),
+        }
+      : anyDate
+    const what = [
+      ...(placed.length > 1
+        ? [`covers ${list(placed.map(words))}`]
+        : placed.flatMap((c) => c.what)),
+      ...(unreadable.length ? [`could not place ${list(unreadable.map(words))}`] : []),
+      timeZone,
+    ]
+    return {
+      status: 'read',
+      window,
+      readsAs: `${windowWords(window, { upTo: true })} (${what.join('; ')})`,
+      spans,
+      ...(unreadable.length ? { unplaced: unreadable.map((c) => text.slice(c.start, c.end)) } : {}),
+    }
+  }
   if (unreadable.length)
     return {
       status: 'unreadable',
       spans,
       message: `${list(unreadable.map(words))} cannot be read as dates. ${whatHeedReads(today)}`,
     }
-  const read = claims as (DateSpan & Named)[]
-  const distinct = new Map(read.map((c) => [`${c.period.from}/${c.period.to}`, c]))
   if (distinct.size > 1)
     return {
       status: 'unreadable',
@@ -583,7 +1019,7 @@ export function readDates(
   return {
     status: 'read',
     window,
-    readsAs: `${windowWords(window)} (${[...new Set(what), timeZone].join('; ')})`,
+    readsAs: `${windowWords(window, { upTo: loose })} (${[...new Set(what), timeZone].join('; ')})`,
     spans,
   }
 }

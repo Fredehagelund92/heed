@@ -117,6 +117,7 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
     ...(definitions.length ? { definitions } : {}),
     ...(answer.reading ? { read: answer.reading.words } : {}),
     ...(answer.limit ? { limit: answer.limit.sentence } : {}),
+    ...(answer.reading?.facts?.length ? { facts: answer.reading.facts } : {}),
   }
 }
 

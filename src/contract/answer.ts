@@ -241,6 +241,8 @@ export const answerSchema = z.object({
       standalone: z.optional(z.string()),
       /** The part of the question these reads do not answer, as a short question (FR-720). */
       left: z.optional(z.string()),
+      /** What the records say about what was read, in fixed sentences: its owners, its check dates. */
+      facts: z.optional(z.array(z.string())),
       /**
        * The person said which meaning of a word they meant and the fixed rules read it, with no
        * model; `also` names the meanings left ("Sales can also mean Gross sales.").

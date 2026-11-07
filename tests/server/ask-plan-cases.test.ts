@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parsePlan } from '../../src/domain/ask-plan.ts'
 import {
+  classCases,
   engineDigest,
   gateCases,
   gatePasses,
@@ -76,11 +77,11 @@ describe('what Ask promises (FR-720), on the scripted planner', async () => {
     const score = scoreRun(all, run)
     expect(score.problems).toEqual({})
     expect(gatePasses(score)).toBe(true)
-  })
+  }, 30_000)
 
   it('leaves what get_context says as it was', () => {
     // Over the questions the digest was first taken on: a change to the engine changes it.
-    const gate = new Set(gateCases.map((c) => c.id))
+    const gate = new Set([...gateCases, ...classCases].map((c) => c.id))
     const before = [...planCases, ...stewardCases].filter((c) => !gate.has(c.id))
     expect(engineDigest(before)).toBe('be23418b7e7d7350')
   })

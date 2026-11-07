@@ -230,6 +230,81 @@ describe('reading a records question', () => {
     // A clash among Definitions' own names is not a pair of context items.
     'list conflicting definitions',
   ]
+  it('sends a bare number that is no period to the planner', () => {
+    expect(recognise('list the 3 newest rules')).toMatchObject({ unfit: true })
+    expect(recognise('What context was added in the past 3 days?')).not.toMatchObject({
+      unfit: true,
+    })
+  })
+
+  describe('overlapping domain names', () => {
+    const overlapping = [...domains, { id: 'sales_ops', name: 'Sales Ops' }]
+    const read = (question: string) => {
+      const reading = readQuestion(question, terms, today)
+      return recogniseRecords(question, {
+        spans: reading.spans,
+        terms: terms,
+        domains: overlapping,
+        now,
+      })
+    }
+
+    it('keeps a second subject that stands free of the longer name', () => {
+      expect(read('who owns Sales Ops and Sales')).toMatchObject({
+        ask: {
+          parts: [
+            { label: 'Sales Ops', domain: 'sales_ops' },
+            { label: 'Sales', domain: 'sales' },
+          ],
+        },
+      })
+    })
+
+    it('reads a domain whose name holds another as that one domain', () => {
+      expect(read('who owns Sales Ops')).toMatchObject({
+        ask: { intent: 'owner', domain: 'sales_ops' },
+      })
+      expect(read('who owns Sales Ops')).not.toHaveProperty('ask.parts')
+      const due = read('what is due for a check in Sales Ops')
+      expect(due).toMatchObject({ ask: { intent: 'due', domain: 'sales_ops' } })
+      expect(due).not.toHaveProperty('unfit')
+    })
+  })
+
+  it('reads a plain this quarter as the whole quarter, whatever else the question says', () => {
+    const question = 'which of the items are due for a check this quarter'
+    const got = recogniseRecords(question, {
+      spans: readQuestion(question, terms, today).spans,
+      terms,
+      domains,
+      now,
+    })
+    expect(got).toMatchObject({ type: 'records', ask: { period: { words: 'this quarter' } } })
+  })
+
+  it('reads a part or a side of a period as that, never as the whole of it', () => {
+    const whole = recogniseRecords('what is due for a check this year', {
+      spans: readQuestion('what is due for a check this year', terms, today).spans,
+      terms,
+      domains,
+      now,
+    })
+    expect(whole).toMatchObject({ ask: { period: { words: 'this year' } } })
+    for (const question of [
+      'what is due for a check by the end of this year',
+      'what is due for a check before this month',
+    ]) {
+      const got = recogniseRecords(question, {
+        spans: readQuestion(question, terms, today).spans,
+        terms,
+        domains,
+        now,
+      })
+      expect(got, question).toMatchObject({ type: 'records' })
+      if (got?.type === 'records') expect(got.ask.period?.words).not.toBe('this year')
+    }
+  })
+
   it.each(negatives)('leaves "%s" to the answer engine', (question) => {
     expect(intentOf(question)).toBeNull()
   })
@@ -245,6 +320,13 @@ describe('reading a records question', () => {
   ]
   it.each(people)('refuses "%s", a question about one person', (question) => {
     expect(intentOf(question)).toBe('refused')
+  })
+
+  it.each([
+    'what was the latest rule added and who should i ask about it',
+    'which domain is worst and who do i talk to',
+  ])('leaves "%s" to the planner, as a ranking of items', (question) => {
+    expect(intentOf(question)).not.toBe('refused')
   })
 
   it('reads the domain by its name, before a synonym of a metric that shares the word', () => {
@@ -769,6 +851,14 @@ describe('a records answer', () => {
           count: 6,
           atLeast: 6,
           nothing: 6,
+          state: 'grounded',
+          gap: null,
+        },
+        {
+          title: 'Returns in Italy',
+          count: 2,
+          atLeast: 2,
+          nothing: 2,
           state: 'grounded',
           gap: null,
         },

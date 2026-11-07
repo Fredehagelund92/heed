@@ -16,7 +16,7 @@
  * Pure: no clock, no input or output. The words of a question are read in memory only and are
  * never part of the answer (FR-602).
  */
-import { visibleCount, visibleTotal } from './gaps.ts'
+import { shownTopics, visibleCount, visibleTotal } from './gaps.ts'
 import { ownCaveat } from './proposal-rules.ts'
 import { audienceAllows, noGroups, type ItemKind } from './item.ts'
 import {
@@ -99,6 +99,11 @@ export type AnswerOptions = {
   now?: () => number
   /** Whose words `say` is in; the words of get_facts without it, the reply a draft's preview reads. */
   voice?: Voice
+  /**
+   * Answering a person in Ask, not an agent: the dates are read as people write them, and an item
+   * for another group is neither named nor counted (FR-128, FR-614).
+   */
+  person?: boolean
 }
 
 /** An item the answer gives, in the order get_context gives it. */
@@ -201,7 +206,12 @@ export type Answer = {
 const ms = (value: number) => Math.round(value * 100) / 100
 
 /** A question as get_context reads it: the names it was sent first, then the words for the rest. */
-export function readAsk(ask: AnswerAsk, terms: readonly Term[], today: string): ScopeResult {
+export function readAsk(
+  ask: AnswerAsk,
+  terms: readonly Term[],
+  today: string,
+  person = false,
+): ScopeResult {
   if ('scope' in ask) return { status: 'resolved', scope: ask.scope }
   const filters: Record<string, string[]> = Object.create(null) as Record<string, string[]>
   for (const filter of ask.dimension_filters ?? [])
@@ -212,6 +222,7 @@ export function readAsk(ask: AnswerAsk, terms: readonly Term[], today: string): 
     ...(ask.window === undefined
       ? {}
       : { window: { start: ask.window.from, end: shiftDate(ask.window.to, 1) } }),
+    ...(person ? { loose: true } : {}),
   })
 }
 
@@ -372,7 +383,7 @@ function nearMisses(
 export function* lookUp(
   bundle: AnswerBundle,
   ask: AnswerAsk,
-  { today, maxItems = ANSWER_MAX_ITEMS, now = () => 0, voice }: AnswerOptions,
+  { today, maxItems = ANSWER_MAX_ITEMS, now = () => 0, voice, person = false }: AnswerOptions,
 ): Generator<AnswerStep, Answer, void> {
   const steps: AnswerStep[] = []
   // A step's time is its own work: the clock starts again when the caller asks for the next step.
@@ -388,7 +399,7 @@ export function* lookUp(
     return value
   }
 
-  const read = readAsk(ask, bundle.terms, today)
+  const read = readAsk(ask, bundle.terms, today, person)
   const scope = read.status === 'resolved' ? read.scope : null
   const dates = (read.status === 'resolved' && read.dates) || null
   const assumed = (read.status === 'resolved' && read.assumed) || null
@@ -410,9 +421,11 @@ export function* lookUp(
     const item = byId.get(id)!
     return { id, reason, kind: item.kind, title: item.title, replacedBy }
   }
-  const forAnotherGroup = resolution.withheld.filter((w) => w.reason === 'audience').length
+  const hidden = person ? 'audience' : null
+  const withheld = resolution.withheld.filter((w) => w.reason !== hidden)
+  const forAnotherGroup = withheld.filter((w) => w.reason === 'audience').length
   const leftOut: LeftOut[] = [
-    ...resolution.withheld.flatMap((w) => (w.reason === 'audience' ? [] : [named(w.id, w.reason)])),
+    ...withheld.flatMap((w) => (w.reason === 'audience' ? [] : [named(w.id, w.reason)])),
     ...cut.map((id) => named(id, 'cut')),
     ...resolution.replacements.map((r) => named(r.id, 'replaced', r.replacedBy)),
   ]
@@ -455,9 +468,10 @@ export function* lookUp(
       partial: items.filter((item) => item.match === 'partial').length,
       unverified: items.filter((item) => item.unverified).length,
       cut: cut.length,
-      withheld: resolution.withheld.map((w) => w.reason),
+      withheld: withheld.map((w) => w.reason),
       assumed: assumed ? assumedDate(assumed).note.sentence : null,
       readsAs: dates?.reads_as ?? null,
+      upTo: person,
       groups: resolution.scope ? askedGroups(bundle, resolution.scope) : [],
       about: metrics.length > 1,
     },
@@ -612,7 +626,9 @@ export function askedTopics(
       total,
     }
   })
-  const shown = all
+  // One rule for what may show together: a total that would give a small count away by subtraction
+  // goes to a floor.
+  const shown = shownTopics(all, minimum)
     .filter((topic) => (topic.count ?? topic.atLeast) >= minimum)
     .sort((a, b) => (b.count ?? b.atLeast) - (a.count ?? a.atLeast) || compareIds(a.key, b.key))
   const hidden = all.filter((topic) => (topic.count ?? topic.atLeast) < minimum)
