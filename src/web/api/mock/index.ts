@@ -302,7 +302,7 @@ export function createMockApi() {
     if (recognised?.type === 'records' && recognised.loose) {
       const a = planned(!recognised.judgement)
       if (a) return a
-      if (recognised.judgement && recognised.ask.intent !== 'audit')
+      if (recognised.judgement && (recognised.ask.intent !== 'audit' || recognised.unfit))
         return cannotAnswer(question, { reason: 'not_yet', metrics: [], filters: {} }, world)
     }
     // A question that reaches beyond what is written is the planner's first, as on the service.

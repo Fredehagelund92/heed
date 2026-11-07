@@ -53,11 +53,11 @@ export const longDayWords = (day: string) => {
  * The days of a window (end exclusive) as people read them: "7 Oct 2026", "1-7 Oct 2026"; every
  * date (`anyDate`) is "any date".
  */
-export function windowWords(window: DateWindow): string {
+export function windowWords(window: DateWindow, { upTo = false } = {}): string {
   if (isAnyDate(window)) return 'any date'
   if (window.end === null) return `from ${dayWords(window.start)}`
   const last = shiftDate(window.end, -1)
-  if (window.start === anyDate.start) return `up to ${dayWords(last)}`
+  if (upTo && window.start === anyDate.start) return `up to ${dayWords(last)}`
   if (last <= window.start) return dayWords(window.start)
   const [from, to] = [dayWords(window.start), dayWords(last)]
   if (window.start.slice(0, 7) === last.slice(0, 7)) return `${from.split(' ')[0]}-${to}`
@@ -82,11 +82,11 @@ export const fullDayWords = (day: string) =>
  * (docs/design/voice.md, principle 8): "on 14 October 2026", "from 1 to 7 October 2026", "in
  * September 2026", "from July to September 2026", "in 2026", "from 15 June 2026 on", "at any date".
  */
-export function periodWords(window: DateWindow): string {
+export function periodWords(window: DateWindow, { upTo = false } = {}): string {
   if (isAnyDate(window)) return 'at any date'
   if (window.end === null) return `from ${fullDayWords(window.start)} on`
   const last = shiftDate(window.end, -1)
-  if (window.start === anyDate.start) return `up to ${fullDayWords(last)}`
+  if (upTo && window.start === anyDate.start) return `up to ${fullDayWords(last)}`
   if (last <= window.start) return `on ${fullDayWords(window.start)}`
   const [start, end] = [window.start, last]
   const sameYear = start.slice(0, 4) === end.slice(0, 4)
@@ -585,9 +585,9 @@ const fewPattern = sticky(
 )
 const fortnightPattern = sticky('(?:(?:the|this) )?(?:(?:last|past|previous) )?fortnight\\b')
 const weekendPattern = sticky(
-  '(?:(?:the|over the|this past) )?(?:(last|this|past|previous) )?weekend\\b',
+  '(?:(?:the|over the|this past) )?(?:(last|this|next|past|previous) )?weekend\\b',
 )
-const weekdayPattern = sticky(`(last|this|on|past|previous) (${weekdays.join('|')})\\b`)
+const weekdayPattern = sticky(`(last|this|next|on|past|previous) (${weekdays.join('|')})\\b`)
 const nearPattern = sticky('(earlier|later) (?:this|in the) (week|month|quarter|year)\\b')
 const beforeLastPattern = sticky(
   'the (week|month|quarter|year) before(?: last\\b| that\\b|\\b(?! (?!(?:compared|versus|vs|against|and|or|than|to|for|in|on|by)\\b)\\S))',
@@ -623,7 +623,9 @@ function partOf(period: Period, part: string): Period {
   if (part.endsWith('half')) {
     const months = Math.round(days / 30.4)
     const split =
-      months % 2 === 0 ? addMonths(from, months / 2) : shiftDate(from, Math.floor(days / 2))
+      months > 0 && months % 2 === 0
+        ? addMonths(from, months / 2)
+        : shiftDate(from, Math.floor(days / 2))
     return part.startsWith('first') ? { from, to: shiftDate(split, -1) } : { from: split, to }
   }
   if (part === 'first day') return { from, to: from }
@@ -712,15 +714,24 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
   if (m) {
     const saturday = shiftDate(mondayOf(today), 5)
     const start =
-      m[1] === 'this' || saturday <= shiftDate(today, -1) ? saturday : shiftDate(saturday, -7)
+      m[1] === 'next'
+        ? shiftDate(saturday, 7)
+        : m[1] === 'this' || saturday <= shiftDate(today, -1)
+          ? saturday
+          : shiftDate(saturday, -7)
     return said(m, { from: start, to: shiftDate(start, 1) })
   }
   m = at(weekdayPattern, text, index)
   if (m) {
     const wanted = weekdays.indexOf(m[2]!)
     const now = weekdays.indexOf(weekdays[(new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7]!)
-    const gap = (now - wanted + 7) % 7 || (m[1] === 'this' ? 0 : 7)
-    const day = shiftDate(today, -gap)
+    const gap = (now - wanted + 7) % 7 || 7
+    const day =
+      m[1] === 'this'
+        ? shiftDate(mondayOf(today), wanted)
+        : m[1] === 'next'
+          ? shiftDate(mondayOf(today), 7 + wanted)
+          : shiftDate(today, -gap)
     return said(m, { from: day, to: day })
   }
   m = at(nearPattern, text, index)
@@ -766,6 +777,7 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
   m = at(fiscalYearPattern, text, index)
   if (m) {
     const year = m[1]!.length === 2 ? 2000 + Number(m[1]) : Number(m[1])
+    if (year < 1900 || year > 9000) return null
     return said(
       m,
       { from: iso(year, 1, 1), to: iso(year, 12, 31) },
@@ -809,7 +821,9 @@ function sideOf(text: string, index: number, today: string): (Named & { end: num
   const after = until ? null : at(afterPattern, text, index)
   const lead = until ?? after
   if (!lead) return null
-  if (at(thePeriodPattern, text, index + lead[0].length)?.[0].match(/^(?:week|month|quarter|year)$/))
+  if (
+    at(thePeriodPattern, text, index + lead[0].length)?.[0].match(/^(?:week|month|quarter|year)$/)
+  )
     return null
   const base = baseAt(text, index + lead[0].length, today)
   if (!base) return null
@@ -954,7 +968,7 @@ export function readDates(
     return {
       status: 'read',
       window,
-      readsAs: `${windowWords(window)} (${what.join('; ')})`,
+      readsAs: `${windowWords(window, { upTo: true })} (${what.join('; ')})`,
       spans,
       ...(unreadable.length ? { unplaced: unreadable.map((c) => text.slice(c.start, c.end)) } : {}),
     }

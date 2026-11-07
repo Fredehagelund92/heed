@@ -427,6 +427,14 @@ describe('the days of a window, as people read them', () => {
     expect(windowWords(window)).toBe(words)
   })
 
+  it('keeps its default words for a window that starts at the earliest date', () => {
+    const window = { start: '1900-01-01', end: '2026-06-01' }
+    expect(windowWords(window)).toBe('1 Jan 1900 to 31 May 2026')
+    expect(periodWords(window)).toBe('from January 1900 to May 2026')
+    expect(windowWords(window, { upTo: true })).toBe('up to 31 May 2026')
+    expect(periodWords(window, { upTo: true })).toBe('up to 31 May 2026')
+  })
+
   it.each([
     [{ start: '2026-10-07', end: '2026-10-08' }, 'on 7 October 2026'],
     [{ start: '2026-10-01', end: '2026-10-08' }, 'from 1 to 7 October 2026'],

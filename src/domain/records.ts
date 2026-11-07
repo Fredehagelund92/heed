@@ -23,6 +23,7 @@ import {
   type RecordsRow,
   type RecordsAnswer,
 } from './records-answer.ts'
+import { shownTopics } from './gaps.ts'
 import { reachesBeyond } from './plain-read.ts'
 import { asksDefinition } from './scope.ts'
 import { anyDate, isAnyDate } from './validity.ts'
@@ -100,6 +101,8 @@ export type RecordsAsk = {
   about?: RecordsAbout
   /** The period the question names that this read keeps no history for: the answer says so. */
   asOf?: string
+  /** The words of the question that named dates Ask could not place, for a read with no history. */
+  asOfUnplaced?: string[]
   /** The question also asks who owns what this read finds: the answer says, by domain. */
   owners?: boolean
   /** A question with a second subject: one read for each, side by side. */
@@ -177,25 +180,31 @@ const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Where a name is in the question, whole words only, any case. */
 export function findName(question: string, name: string): { start: number; end: number } | null {
-  const words = name.trim()
-  if (!words) return null
-  const found = new RegExp(`(?<![\\p{L}\\p{N}])${escape(words)}(?![\\p{L}\\p{N}])`, 'iu').exec(
-    question,
-  )
-  return found ? { start: found.index, end: found.index + found[0].length } : null
+  return findNames(question, name)[0] ?? null
 }
 
-/** The domains a question names; a name inside a longer name found at the same place is no second one. */
+function findNames(question: string, name: string): { start: number; end: number }[] {
+  const words = name.trim()
+  if (!words) return []
+  return [
+    ...question.matchAll(
+      new RegExp(`(?<![\\p{L}\\p{N}])${escape(words)}(?![\\p{L}\\p{N}])`, 'giu'),
+    ),
+  ].map((found) => ({ start: found.index, end: found.index + found[0].length }))
+}
+
+/** The domains a question names, each where it stands free of a longer name that holds it. */
 export function namedDomains<T extends { name: string }>(question: string, domains: readonly T[]) {
-  const found = domains.flatMap((d) => {
-    const at = findName(question, d.name)
-    return at ? [{ d, at }] : []
-  })
+  const found = domains.flatMap((d) => findNames(question, d.name).map((at) => ({ d, at })))
   const width = (x: { at: { start: number; end: number } }) => x.at.end - x.at.start
-  return found.filter(
+  const free = found.filter(
     (x) =>
       !found.some((y) => y.at.start <= x.at.start && x.at.end <= y.at.end && width(y) > width(x)),
   )
+  return domains.flatMap((d) => {
+    const first = free.find((x) => x.d === d)
+    return first ? [first] : []
+  })
 }
 
 const overlaps = (a: { start: number; end: number }, b: { start: number; end: number }) =>
@@ -348,14 +357,20 @@ const PART_OF_A_PERIOD =
  * date when it names dates it cannot place. `whole` keeps the days after now: what comes due.
  */
 export function spokenPeriod(text: string, nowIso: string, whole = false): RecordsPeriod | null {
-  const read = readDates(normalizeName(text), nowIso.slice(0, 10), { loose: true })
+  const read = ((): ReturnType<typeof readDates> => {
+    try {
+      return readDates(normalizeName(text), nowIso.slice(0, 10), { loose: true })
+    } catch {
+      return { status: 'read', window: anyDate, readsAs: '', spans: [], unplaced: [text.trim()] }
+    }
+  })()
   if (read.status !== 'read') return null
   const now = Date.parse(nowIso)
   const { window } = read
   const start = Date.parse(window.start)
   const end = window.end ? Date.parse(window.end) : now
   const last = whole ? end : Math.min(end, now)
-  const words = periodWords(window)
+  const words = periodWords(window, { upTo: true })
   const found = period(start, last, words, now)
   if (read.unplaced)
     return { ...found, label: `Could not place ${list(read.unplaced)}, so any date, UTC` }
@@ -626,15 +641,15 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
     )
   ) {
     const owner = ask('owner', { metric: domain ? null : (metric?.key ?? null) })
-    const several = namedDomains(question, reading.domains).map((x) => x.d)
+    const several = namedDomains(question, reading.domains)
+      .sort((a, b) => a.at.start - b.at.start)
+      .map((x) => x.d)
     if (owner.type === 'records' && several.length > 1)
       return {
         ...owner,
         ask: {
           ...owner.ask,
-          parts: several
-            .sort((a, b) => findName(question, a.name)!.start - findName(question, b.name)!.start)
-            .map((d) => ({ label: d.name, domain: d.id })),
+          parts: several.map((d) => ({ label: d.name, domain: d.id })),
         },
       }
     // Who owns something the words name and no read knows: never every domain's owners.
@@ -793,12 +808,9 @@ const periodReads: readonly RecordsIntent[] = ['created', 'changed', 'archived',
 function ruleCovers(ask: RecordsAsk, question: string, reading: RecordsReading): boolean {
   if (ask.intent === 'glossary') return true
   const domains = namedDomains(question, reading.domains).map((x) => x.d)
+  const spoken = domains.flatMap((d) => findNames(question, d.name))
   const terms = new Map(reading.terms.map((t) => [t.key, t]))
-  const inDomain = (s: { start: number; end: number }) =>
-    domains.some((d) => {
-      const at = findName(question, d.name)
-      return !!at && overlaps(s, at)
-    })
+  const inDomain = (s: { start: number; end: number }) => spoken.some((at) => overlaps(s, at))
   const names = reading.spans.filter((s) => !s.dates && !inDomain(s))
   const keys = names.flatMap((s) => s.keys ?? [])
   const kept = new Set([
@@ -832,10 +844,7 @@ function ruleCovers(ask: RecordsAsk, question: string, reading: RecordsReading):
   )
     return false
   let rest = question
-  const out = [
-    ...reading.spans.filter((s) => s.dates || !inDomain(s)),
-    ...domains.flatMap((d) => findName(question, d.name) ?? []),
-  ]
+  const out = [...reading.spans.filter((s) => s.dates || !inDomain(s)), ...spoken]
   for (const at of out.sort((a, b) => b.start - a.start))
     rest = `${rest.slice(0, at.start)} ${rest.slice(at.end)}`
   const allowed = readWords[ask.intent]
@@ -875,9 +884,9 @@ const valuesWord = (word: string, ask: RecordsAsk, reading: RecordsReading) => {
 const OWNER_OF =
   /\b(?:owns?|owners? of|responsible for|in charge of|looks? after|checks|reviews|talk to|speak to|ask)\b(.*)$/
 const NO_SUBJECT =
-  /\b(?:the|a|an|our|this|that|these|those|it|them|each|every|all|any|what|domains?|metrics?)\b/g
+  /\b(?:the|a|an|our|this|that|these|those|it|them|each|every|all|any|what|domains?|metrics?|about|on|in|for|of|at|to|with|regarding)\b/g
 export const namesSomethingElse = (t: string) =>
-  (OWNER_OF.exec(t)?.[1] ?? '').replace(NO_SUBJECT, ' ').trim().length > 0
+  (OWNER_OF.exec(t)?.[1] ?? '').replace(NO_SUBJECT, ' ').replace(/[^\p{L}\p{N}]+/gu, '').length > 0
 
 /** A kind of context item the words name; definitions are no context items. */
 const kindOrNull = (t: string): RecordsKind | null => {
@@ -1016,15 +1025,15 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     ? { ...owned, clear: [...(owned.clear ?? []), `Not answered here: ${ask.left}`] }
     : owned
   // A period this read keeps no history for is said, never silently dropped.
-  return ask.asOf
+  const stands = ask.asOfUnplaced?.length
+    ? `This is how it stands today: Ask could not place ${list(ask.asOfUnplaced.map((w) => `"${w}"`))}.`
+    : ask.asOf
+      ? `This is how it stands today, not ${ask.asOf}: the records keep no count by date.`
+      : null
+  return stands
     ? {
         ...found,
-        note: [
-          `This is how it stands today, not ${ask.asOf}: the records keep no count by date.`,
-          found.note,
-        ]
-          .filter(Boolean)
-          .join(' '),
+        note: [stands, found.note].filter(Boolean).join(' '),
       }
     : found
 }
@@ -1353,7 +1362,7 @@ function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): 
         understood: 'Topics agents asked about that found nothing, this week',
         read: 'Read what agents asked this week',
         sentence: n
-          ? `Agents found nothing for ${count(n)} of ${count(asked.rows.length)} topics this week.`
+          ? `Agents found nothing for ${count(n)} of ${count(shownTopics(asked.rows, asked.minimum).length)} topics this week.`
           : `No topic agents asked about ${asked.minimum} times or more this week found nothing.`,
         columns: section?.columns ?? [],
         rows: section?.rows ?? [],

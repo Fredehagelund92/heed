@@ -249,6 +249,17 @@ describe('reading a records question', () => {
       })
     }
 
+    it('keeps a second subject that stands free of the longer name', () => {
+      expect(read('who owns Sales Ops and Sales')).toMatchObject({
+        ask: {
+          parts: [
+            { label: 'Sales Ops', domain: 'sales_ops' },
+            { label: 'Sales', domain: 'sales' },
+          ],
+        },
+      })
+    })
+
     it('reads a domain whose name holds another as that one domain', () => {
       expect(read('who owns Sales Ops')).toMatchObject({
         ask: { intent: 'owner', domain: 'sales_ops' },
@@ -822,6 +833,14 @@ describe('a records answer', () => {
           count: 6,
           atLeast: 6,
           nothing: 6,
+          state: 'grounded',
+          gap: null,
+        },
+        {
+          title: 'Returns in Italy',
+          count: 2,
+          atLeast: 2,
+          nothing: 2,
           state: 'grounded',
           gap: null,
         },

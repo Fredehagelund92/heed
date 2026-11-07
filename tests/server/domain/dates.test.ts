@@ -492,6 +492,30 @@ describe('loose dates, as Ask reads them', () => {
     if (pair.status === 'read') expect(pair.unplaced).toBeUndefined()
   })
 
+  describe('with today Monday 2 November 2026', () => {
+    const monday = '2026-11-02'
+    const window = (text: string) => {
+      const got = readDates(text, monday, { loose: true })
+      if (got.status !== 'read') throw new Error(`${text} read as ${got.status}`)
+      return [got.window.start, shiftDate(got.window.end!, -1)]
+    }
+
+    it.each([
+      ['next weekend', ['2026-11-14', '2026-11-15']],
+      ['this friday', ['2026-11-06', '2026-11-06']],
+      ['next monday', ['2026-11-09', '2026-11-09']],
+      ['last friday', ['2026-10-30', '2026-10-30']],
+      ['second half of last week', ['2026-10-29', '2026-11-01']],
+    ])('reads "%s"', (text, days) => {
+      expect(window(text)).toEqual(days)
+    })
+
+    it('never fails on a fiscal year it cannot place', () => {
+      const got = readDates('what was added in fy 0000', monday, { loose: true })
+      expect(got).toMatchObject({ status: 'read', unplaced: ['fy 0000'] })
+    })
+  })
+
   it('is off for agents: get_context keeps the strict reader', () => {
     for (const text of ['early august', 'last summer', 'two weeks ago'])
       expect(readDates(text, today).status).toBe('unreadable')

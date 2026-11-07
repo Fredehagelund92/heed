@@ -9,10 +9,10 @@ import {
   type RecordsRecognition,
   type RecordsWorld,
 } from '@domain/records'
-import { readDates } from '@domain/dates'
 import { cardGroups } from '@domain/inbox'
 import { readsPlainly } from '@domain/plain-read'
-import { normalizeName, type Term } from '@domain/vocabulary'
+import { readQuestion } from '@domain/scope'
+import type { Term } from '@domain/vocabulary'
 import { toServerValidity } from '@/model/validity'
 import { HIDE_UNDER } from '@/api/mock/obs-engine'
 import type { Definition } from '@/lib/definitions'
@@ -84,29 +84,9 @@ export function termsOf(definitions: readonly Definition[]): Term[] {
   ]
 }
 
-/**
- * Where the words name a metric, a dimension or a market, as the engine's reader finds names: whole
- * words, longest first.
- */
+/** Where the words name a metric, a dimension, a market or a date: the engine's own reader. */
 function spansOf(question: string, terms: readonly Term[]) {
-  const names = terms
-    .filter((t) => t.kind !== 'metric_group')
-    .flatMap((t) => [t.name, ...t.aliases].map((name) => ({ name, key: t.key })))
-    .sort((a, b) => b.name.length - a.name.length)
-  const spans: { start: number; end: number; keys: string[]; dates?: boolean }[] = []
-  for (const { name, key } of names) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const found = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').exec(question)
-    if (!found) continue
-    const at = { start: found.index, end: found.index + found[0].length, keys: [key] }
-    if (!spans.some((s) => s.start < at.end && at.start < s.end)) spans.push(at)
-  }
-  const dates = readDates(normalizeName(question), RECORDS_NOW.slice(0, 10), { loose: true })
-  if (dates.status === 'read')
-    for (const { start, end } of dates.spans)
-      if (!spans.some((s) => s.start < end && start < s.end))
-        spans.push({ start, end, keys: [], dates: true })
-  return spans
+  return readQuestion(question, terms, RECORDS_NOW.slice(0, 10), { loose: true }).spans
 }
 
 /** The Context list's items as the records keep them. */
@@ -125,7 +105,7 @@ function itemsOf(pool: readonly Fact[]): RecordsItem[] {
         status:
           f.status === 'Archived' ? 'archived' : f.status === 'Needs checking' ? 'due' : 'live',
         // The demo world's check date is 90 days after the last check, as its Context list reads it.
-        reviewDate: day && due < RECORDS_NOW.slice(0, 10) ? due : null,
+        reviewDate: day ? due : null,
         // Due before its check date: its definition changed since it was checked.
         checkFlag:
           f.status === 'Needs checking' && !(day && due < RECORDS_NOW.slice(0, 10))

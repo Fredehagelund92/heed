@@ -1213,6 +1213,15 @@ describe('a plan is held to the question', () => {
     },
   )
 
+  it('says the words it could not place when a read keeps no history by date', () => {
+    const plan = planned(
+      { records: { intent: 'count', of: 'rule' } },
+      'how many metrics did we have before the rebrand',
+    )
+    expect(plan).toMatchObject({ kind: 'records', ask: { asOfUnplaced: ['before the rebrand'] } })
+    expect(plan).not.toHaveProperty('ask.asOf')
+  })
+
   it('reads a domain named with special characters', () => {
     const areas = [
       { id: 'area_rd', name: 'R&D (Nordics' },

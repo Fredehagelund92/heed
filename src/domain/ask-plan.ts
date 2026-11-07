@@ -541,6 +541,10 @@ function subjectRead(ctx: PlanContext, about: RecordsAbout | null): RawPlan | nu
   }
 }
 
+/** What a read that keeps no history says it could not do: the period, or the words not placed. */
+const asOfOf = (window: DateWindow, unplaced: readonly string[] | undefined) =>
+  unplaced?.length ? { asOfUnplaced: [...unplaced] } : { asOf: periodWords(window, { upTo: true }) }
+
 /** The dates a question's own words name, read as a person writes them, with those words. */
 const ownDates = (ctx: Pick<PlanContext, 'question' | 'terms' | 'today'>) =>
   readQuestion(ctx.question, ctx.terms, ctx.today, { loose: true })
@@ -677,7 +681,7 @@ function auditAskOf(
     metric: null,
     period,
     noOwner: false,
-    ...(undated ? { asOf: periodWords(dates.window!) } : {}),
+    ...(undated ? asOfOf(dates.window!, dates.unplaced) : {}),
     audit: {
       facets: [...new Set(facets)],
       of: raw.kind ?? null,
@@ -1090,7 +1094,7 @@ function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): R
     ...(catalogue ? { catalogue } : {}),
     ...(over ? { over } : {}),
     ...(about && (!owned || raw.intent !== 'owner') ? { about } : {}),
-    ...(undated ? { asOf: periodWords(window) } : {}),
+    ...(undated ? asOfOf(window, ownDates(ctx).unplaced) : {}),
   }
 }
 
