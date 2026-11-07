@@ -8,7 +8,7 @@ import {
   assumedPeriod,
   duePeriod,
   findName,
-  RANKS_PEOPLE,
+  RANKING_WORDS,
   namedDomains,
   namesSomethingElse,
   readRecordsPeriod,
@@ -478,9 +478,10 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
 
 /** The shape of a question about who owns something, which ranks and judges no one. */
 const WHO_OWNS =
-  /\bwho(?:'s| s| is| are)? (?:owns?|responsible|in charge|looks? after|maintains|keeps|the owners? of)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
+  /\bwho(?:'s| s| is| are)? (?:owns?|responsible|in charge|looks? after|maintains|keeps|the owners? of)\b|\bthe owners? of\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
+const RANKS_THE_PEOPLE = new RegExp(`\\b(?:${RANKING_WORDS})\\b`)
 const asksWhoOwns = (words: string) =>
-  WHO_OWNS.test(words) && !RANKS_PEOPLE.test(words) && !/\b(?:fault|blame)\b/.test(words)
+  WHO_OWNS.test(words) && !RANKS_THE_PEOPLE.test(words) && !/\b(?:fault|blame)\b/.test(words)
 /** Asking for a definition to be changed, however it is put. */
 const CHANGES_A_DEFINITION =
   /\b(?:would you|should we|can you|could you)\b.*\b(?:change|rewrite|reword|redefine|improve)\b.*\bdefinition\b/

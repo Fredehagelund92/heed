@@ -322,6 +322,13 @@ describe('reading a records question', () => {
     expect(intentOf(question)).toBe('refused')
   })
 
+  it.each([
+    'what was the latest rule added and who should i ask about it',
+    'which domain is worst and who do i talk to',
+  ])('leaves "%s" to the planner, as a ranking of items', (question) => {
+    expect(intentOf(question)).not.toBe('refused')
+  })
+
   it('reads the domain by its name, before a synonym of a metric that shares the word', () => {
     // "sales" is also a synonym of Net revenue here: the domain wins.
     const r = recognise('how many definitions are in Sales?')

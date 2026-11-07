@@ -1229,6 +1229,13 @@ describe('a plan is held to the question', () => {
     },
   )
 
+  it.each(['and the owner of that rule?', 'who owns the latest rule'])(
+    'answers "%s" as who owns it',
+    (question) => {
+      expect(planned({ cannot: 'person' }, question).kind).not.toBe('cannot')
+    },
+  )
+
   it.each(['who owns the most domains', 'who is responsible for the fault in the vat rule'])(
     'keeps the exit for "%s"',
     (question) => {

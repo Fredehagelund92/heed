@@ -40,6 +40,18 @@ const orders = (id: string, overrides: Partial<ResolverItem> & { title?: string 
   })
 const ask = { question: 'What were orders in Norway in August 2026?' }
 
+describe('what an agent asks with words the loose reader names', () => {
+  it('still gets its items when the question holds a date phrase only Ask places', () => {
+    const result = answer(
+      bundleOf([orders('itm_00000001')]),
+      { question: 'what applies to orders in norway the week before christmas' },
+      { today },
+    )
+    expect(result.items).toHaveLength(1)
+    expect(result.say).not.toMatch(/cannot be read as dates/)
+  })
+})
+
 describe('the steps', () => {
   it('come one by one, in order, each timed with the clock it is given', () => {
     let t = 0

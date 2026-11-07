@@ -553,6 +553,30 @@ describe('loose dates, as Ask reads them', () => {
       expect(got.readsAs).toBe('up to 31 Jul 2026 (before august; UTC)')
     })
 
+    it.each([
+      ['the week before christmas', 'none'],
+      ['the week after next', 'none'],
+      ['the month before in q3', 'read'],
+      ['since the fall', 'none'],
+    ])('reads "%s" strictly as %s, as it always did', (text, status) => {
+      expect(readDates(text, monday).status).toBe(status)
+    })
+
+    it.each([
+      ['last fall in norway', '1 Sep to 30 Nov 2025 (last fall, September to November; UTC)'],
+      ['this fall in sales', '1 Sep to 30 Nov 2026 (this fall, September to November; UTC)'],
+      ['by the year end', 'up to 31 Dec 2026 (by the year end; UTC)'],
+      ['before year end', 'up to 31 Dec 2026 (before year end; UTC)'],
+    ])('reads "%s"', (text, readsAs) => {
+      const got = readDates(text, monday, { loose: true })
+      if (got.status !== 'read') throw new Error(text)
+      expect(got.readsAs).toBe(readsAs)
+    })
+
+    it('finds no date in a fall that is a drop with a lead of in', () => {
+      expect(readDates('in the fall in sales', monday, { loose: true }).status).toBe('none')
+    })
+
     it('never fails on a fiscal year it cannot place', () => {
       const got = readDates('what was added in fy 0000', monday, { loose: true })
       expect(got).toMatchObject({ status: 'read', unplaced: ['fy 0000'] })

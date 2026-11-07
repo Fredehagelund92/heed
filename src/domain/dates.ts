@@ -441,9 +441,13 @@ const unreadablePatterns = [
   /\b(?:last|past|next|previous|coming|recent|few|couple of|several|this) (?:[a-z0-9]+ )?(?:days?|weeks?|months?|quarters?|years?|fortnight|half|season)\b/g,
   /\b(?:since|before|after|around|over|in|during|this|last|next|early|late) (?:the )?(?:spring|summer|autumn|winter|weekends?)\b/g,
   /\b(?:h[12]|(?:first|second|1st|2nd) half|fiscal|fy ?\d{2,4})\b/g,
+  /\b(?:since|before|after) (?:the |our )?(?:launch|release|change|migration|update|campaign|outage|incident|rebrand|merger|switch|cutover|go-live|start|beginning|then)\b/g,
+]
+
+/** What only the loose reader names as dates it could not place; the strict reader leaves them be. */
+const looseUnreadablePatterns = [
   /\b(?:since|after|before|until|till) the fall\b(?! (?:in|of)\b)/g,
   /\bthe (?:week|month|quarter|year) (?:before|after) (?!(?:last|that|this)\b)(?:the |our )?[a-z][a-z-]*/g,
-  /\b(?:since|before|after) (?:the |our )?(?:launch|release|change|migration|update|campaign|outage|incident|rebrand|merger|switch|cutover|go-live|start|beginning|then)\b/g,
 ]
 
 type Found = (Named & { end: number }) | { end: number; bad: true }
@@ -602,7 +606,7 @@ const yearAgoPattern = sticky('(?:this|the same) (time|week|month|quarter)(?: as
 const fiscalNamedPattern = sticky('(this|last|next) (?:fiscal|financial) (year|quarter)\\b')
 const fiscalYearPattern = sticky(`(?:fy|fiscal(?: year)?|financial year) ?'?(\\d{4}|\\d{2})\\b`)
 const halfNamePattern = sticky(`h([12])(?:(?: of)? (?:${YEAR}|(last|this) year))?\\b`)
-const periodEndPattern = sticky('(week|month|quarter|year)[- ]end\\b')
+const periodEndPattern = sticky('(?:the )?(week|month|quarter|year)[- ]end\\b')
 const weekOfPattern = sticky(
   '(?:the )?(?:week|weekend) (?:of|starting|beginning|commencing) (?:the )?',
 )
@@ -657,7 +661,9 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
       return { period, what: [text.slice(index, base.end)], end: base.end }
     }
   }
-  m = text.slice(0, index).endsWith('by ') ? at(periodEndPattern, text, index) : null
+  m = /(?:^|\s)(?:by|before|until|till|up to|up until|prior to) $/.test(text.slice(0, index))
+    ? at(periodEndPattern, text, index)
+    : null
   if (m) return said(m, partOf(wholePeriod(m[1]!, today), 'end'))
   m = at(halfNamePattern, text, index)
   if (m) {
@@ -681,8 +687,9 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
     m?.[2] === 'fall' &&
     !m[3] &&
     (m[1] === 'the' ||
-      m[0].endsWith(' of') ||
-      /^ (?:in|of) (?!(?:19|20)\d{2}\b)/.test(text.slice(index + m[0].length)))
+      (/^(?:in|during|over)(?: the)?$/.test(m[1] ?? '') &&
+        (m[0].endsWith(' of') ||
+          /^ (?:in|of) (?!(?:19|20)\d{2}\b)/.test(text.slice(index + m[0].length)))))
   if (m && (m[1] || m[3]) && !dropOfFall) {
     const name = m[2]!
     const which = m[1]?.replace(/^(?:in|during|over)(?: the)?$|^the$/, '') || undefined
@@ -852,7 +859,7 @@ function sideOf(text: string, index: number, today: string): (Named & { end: num
     const from = after[1] === 'since' ? base.period.from : shiftDate(base.period.to, 1)
     return { period: { from, to: today }, what, end: base.end }
   }
-  const inclusive = lead[1] === 'by' || lead[1]!.startsWith('up')
+  const inclusive = lead[1] === 'by' || lead[1]!.startsWith('up') || /[- ]end$/.test(base.what[0]!)
   return {
     period: {
       from: anyDate.start,
@@ -950,7 +957,9 @@ export function readDates(
   const rest = [...free]
     .map((char, i) => (claims.some((c) => c.start <= i && i < c.end) ? '\u0000' : char))
     .join('')
-  for (const pattern of unreadablePatterns)
+  for (const pattern of loose
+    ? [...looseUnreadablePatterns, ...unreadablePatterns]
+    : unreadablePatterns)
     for (const m of rest.matchAll(pattern)) {
       const end = m.index + m[0].length
       if (/^\d{4}$/.test(m[0]) && isQuantity(rest, m.index, end)) continue

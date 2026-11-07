@@ -234,7 +234,8 @@ const PERSON_PAST =
  * indefinite word names no one, and "who owns" asks for a domain's owners.
  */
 /** Words that rank people, which no question about who owns something holds. */
-export const RANKS_PEOPLE = /\b(?:behind|furthest|slowest|fastest|latest|most|least|best|worst)\b/
+export const RANKING_WORDS = 'behind|furthest|slowest|fastest|most|least|best|worst'
+export const RANKS_PEOPLE = new RegExp(`\\bwho\\b.*\\b(?:${RANKING_WORDS}|latest)\\b`)
 
 function aboutAPerson(t: string, words: string, people: readonly string[]): boolean {
   if (
@@ -257,7 +258,6 @@ function aboutAPerson(t: string, words: string, people: readonly string[]): bool
   }
   // A ranking of people: "who is furthest behind", "who reviews the slowest".
   if (
-    /\bwho\b/.test(t) &&
     RANKS_PEOPLE.test(t) &&
     !/\bwho (?:owns|is the owner|are the owners|is responsible for|are responsible for|looks? after|manages|maintains|is in charge of)\b/.test(
       t,
