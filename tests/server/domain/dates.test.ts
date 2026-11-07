@@ -543,6 +543,10 @@ describe('loose dates, as Ask reads them', () => {
       },
     )
 
+    it.each(['the year-end report', 'a quarter-end rush'])('finds no date in "%s"', (text) => {
+      expect(readDates(text, monday, { loose: true }).status).toBe('none')
+    })
+
     it('says up to for a loose read of one side, and not for a strict one', () => {
       const got = readDates('before august', monday, { loose: true })
       if (got.status !== 'read') throw new Error('read')

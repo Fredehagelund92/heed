@@ -657,7 +657,7 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
       return { period, what: [text.slice(index, base.end)], end: base.end }
     }
   }
-  m = at(periodEndPattern, text, index)
+  m = text.slice(0, index).endsWith('by ') ? at(periodEndPattern, text, index) : null
   if (m) return said(m, partOf(wholePeriod(m[1]!, today), 'end'))
   m = at(halfNamePattern, text, index)
   if (m) {
