@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { readsFooter, recordsFooter } from '../../../src/domain/answer-footer.ts'
 import type { Answer } from '../../../src/domain/answer.ts'
-import { answerRecords, type RecordsAsk } from '../../../src/domain/records.ts'
+import {
+  answerRecords,
+  readRecordsPeriod,
+  type RecordsAsk,
+  type RecordsItem,
+} from '../../../src/domain/records.ts'
 import { PLAN_NOW, planBundle } from '../../../src/server/modules/answer/index.ts'
 import { planRecords } from '../../../src/server/modules/answer/plan-world.ts'
 
@@ -87,5 +92,43 @@ describe('the footer of a records answer', () => {
     expect(
       recordsFooter(answerRecords(inSales, world, PLAN_NOW), inSales, world).denominator,
     ).toMatch(/Agents asked about Sales 79 times in all this week\./)
+  })
+})
+
+describe('what a count of changes is out of', () => {
+  const at = (day: string) => `${day}T09:00:00.000Z`
+  const stored = (id: string, over: Partial<RecordsItem> = {}): RecordsItem => ({
+    id,
+    kind: 'note',
+    areaId: 'area_sales',
+    title: id,
+    status: 'live',
+    reviewDate: '2027-01-01',
+    checkFlag: null,
+    publishedAt: at('2026-01-02'),
+    changedAt: at('2026-01-02'),
+    checkedAt: at('2026-01-02'),
+    archivedAt: null,
+    owners: [],
+    ...over,
+  })
+  const denominator = (type: 'created' | 'changed', items: RecordsItem[]) => {
+    const period = readRecordsPeriod('last 30 days', PLAN_NOW)!
+    const world = { ...planRecords, items }
+    const asked = ask({ intent: type, period })
+    return answerRecords(asked, world, PLAN_NOW).footer?.denominator
+  }
+
+  it('counts the archived items a change was made to', () => {
+    const archived = Array.from({ length: 3 }, (_, i) =>
+      stored(`a${i}`, { status: 'archived', archivedAt: at('2026-10-20') }),
+    )
+    expect(denominator('changed', [...archived, stored('live')])).toBe('Out of 4 context items.')
+  })
+
+  it('counts only live items when no archived item was among those created', () => {
+    const items = [stored('a', { publishedAt: at('2026-10-20') }), stored('b'), stored('c')]
+    const old = stored('gone', { status: 'archived', archivedAt: at('2026-02-01') })
+    expect(denominator('created', [...items, old])).toBe('Out of 3 live context items.')
   })
 })

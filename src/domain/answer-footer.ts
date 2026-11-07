@@ -89,7 +89,21 @@ export function recordsFooter(
       (!ask.kind || ask.kind === 'definition' || i.kind === ask.kind) &&
       isAbout(i, ask.about),
   )
-  const overAll = ask.intent === 'changed' || ask.intent === 'created'
+  const period = found.period ?? ask.period
+  const inPeriod = (iso: string | null) =>
+    !!period &&
+    iso !== null &&
+    Date.parse(iso) >= Date.parse(period.start) &&
+    Date.parse(iso) < Date.parse(period.end)
+  const overAll =
+    (ask.intent === 'created' || ask.intent === 'changed') &&
+    scope.some(
+      (i) =>
+        i.status === 'archived' &&
+        (ask.intent === 'created'
+          ? inPeriod(i.publishedAt)
+          : [i.archivedAt, i.publishedAt, i.changedAt, i.checkedAt].some(inPeriod)),
+    )
   const live = overAll ? scope.length : scope.filter((i) => i.status !== 'archived').length
   const facets = ask.audit?.facets ?? []
   const asked =

@@ -893,7 +893,7 @@ describe('a records answer', () => {
     )
     expect(found.domain).toBeNull()
     expect(found.footer?.denominator).toContain('in Sales')
-    expect(found.footer?.denominator).toContain('2 context items in Marketing')
+    expect(found.footer?.denominator).toContain('2 live context items in Marketing')
   })
 
   it('counts a change over every item, archived or not, and narrows the denominator', () => {
@@ -914,7 +914,7 @@ describe('a records answer', () => {
       }),
       w,
     )
-    expect(narrowed.footer?.denominator).toBe('Out of 1 context item.')
+    expect(narrowed.footer?.denominator).toBe('Out of 1 live context item.')
     const defs = answer(ask({ intent: 'conflicts', kind: 'definition' }), w)
     expect(defs.footer?.denominator).toBe('Out of 2 live context items.')
   })

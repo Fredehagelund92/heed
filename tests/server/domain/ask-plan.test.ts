@@ -1462,12 +1462,12 @@ describe('a plan is held to the question', () => {
         'what happened since the rebrand?',
       )
       expect(since).toMatchObject({ unplaced: ['since the rebrand'] })
-      expect(since.reads[0]!.scope.window.start).not.toBe('2026-03-01')
+      expect(since).not.toMatchObject({ reads: [{ scope: { window: { start: '2026-03-01' } } }] })
       const none = planned(
         { reads: [read('around the audit', '2026-08-01', '2026-08-31')] },
         'what is written about Orders?',
       )
-      expect(none.reads[0]!.scope.window.start).not.toBe('2026-08-01')
+      expect(none).not.toMatchObject({ reads: [{ scope: { window: { start: '2026-08-01' } } }] })
     })
 
     it('keeps the plan when a model day is not a date at all', () => {
