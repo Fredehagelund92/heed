@@ -589,7 +589,9 @@ const weekendPattern = sticky(
 )
 const weekdayPattern = sticky(`(last|this|on|past|previous) (${weekdays.join('|')})\\b`)
 const nearPattern = sticky('(earlier|later) (?:this|in the) (week|month|quarter|year)\\b')
-const beforeLastPattern = sticky('the (week|month|quarter|year) before(?: last| that)?\\b')
+const beforeLastPattern = sticky(
+  'the (week|month|quarter|year) before(?: last\\b| that\\b|\\b(?! (?!(?:compared|versus|vs|against|and|or|than|to|for|in|on|by)\\b)\\S))',
+)
 const monthOfYearPattern = sticky(
   `(${monthNames.join('|')}|${shortMonths.join('|').toLowerCase()}|q[1-4])(?: of)? (last|this) year\\b`,
 )
@@ -668,7 +670,7 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
     )
   }
   m = at(seasonPattern, text, index)
-  if (m && (m[1] || m[3])) {
+  if (m && (m[1] || m[3]) && !(m[2] === 'fall' && !m[3] && m[1] === 'the')) {
     const name = m[2]!
     const which = m[1]?.replace(/^(?:in|during|over)(?: the)?$|^the$/, '') || undefined
     const period = m[3] ? seasonOf(name, Number(m[3])) : seasonPeriod(name, which, today)
@@ -807,6 +809,8 @@ function sideOf(text: string, index: number, today: string): (Named & { end: num
   const after = until ? null : at(afterPattern, text, index)
   const lead = until ?? after
   if (!lead) return null
+  if (at(thePeriodPattern, text, index + lead[0].length)?.[0].match(/^(?:week|month|quarter|year)$/))
+    return null
   const base = baseAt(text, index + lead[0].length, today)
   if (!base) return null
   const what = [text.slice(index, base.end)]

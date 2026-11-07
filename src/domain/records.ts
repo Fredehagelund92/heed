@@ -805,16 +805,25 @@ function ruleCovers(ask: RecordsAsk, question: string, reading: RecordsReading):
     rest = `${rest.slice(0, at.start)} ${rest.slice(at.end)}`
   const allowed = readWords[ask.intent]
   const joined = (ask.audit?.facets.length ?? 0) > 1 || !!ask.parts?.length
-  const own = (word: string) => {
+  const tokens = plain(rest).split(' ').filter(Boolean)
+  const own = (word: string, at: number) => {
     if (ASKS.has(word) || allowed.has(word) || (joined && word === 'and')) return true
-    if (/^\d+$/.test(word))
-      return ask.intent === 'terms' || ask.intent === 'created' || ask.intent === 'changed'
+    if (/^\d+$/.test(word)) {
+      if (ask.intent === 'terms') return true
+      return (
+        (ask.intent === 'created' || ask.intent === 'changed') &&
+        (PERIOD_UNIT.test(tokens[at + 1] ?? '') || PERIOD_LEAD.test(tokens[at - 1] ?? ''))
+      )
+    }
     if (ask.intent === 'values') return valuesWord(word, ask, reading)
     if (ask.intent === 'terms') return word in NUMBERS
     return (reading.tools ?? []).some((tool) => plain(tool) === word)
   }
-  return plain(rest).split(' ').filter(Boolean).every(own)
+  return tokens.every((word, at) => own(word, at))
 }
+
+const PERIOD_UNIT = /^(?:hours?|days?|weeks?|months?|years?)$/
+const PERIOD_LEAD = /^(?:last|past|previous|next|within)$/
 
 /** A dimension named by its plural, as a question for its values does. */
 const valuesWord = (word: string, ask: RecordsAsk, reading: RecordsReading) => {

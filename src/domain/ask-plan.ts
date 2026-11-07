@@ -321,7 +321,7 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   if (ranked && !toRanked && asksOwner && ONE_OF_THEM.test(followUpWords(ctx.question)))
     return planOf({ records: { intent: 'owner', domain: ranked } }, ctx)
   // Who owns something names no person, whatever the plan says.
-  if ('cannot' in raw && raw.cannot === 'person' && asksOwner && !NAMES_BLAME.test(ctx.question))
+  if ('cannot' in raw && raw.cannot === 'person' && WHO_OWNS.test(followUpWords(ctx.question)))
     return planOf({ records: { intent: 'owner', metric: raw.metrics?.[0] ?? null } }, ctx)
   if ('cannot' in raw) {
     // The keys only say what to show beside the sentence: one that fails never loses the exit.
@@ -475,8 +475,9 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   }
 }
 
-/** What a person did, beside words about who owns something: "whose fault", "to blame". */
-const NAMES_BLAME = /\b(?:blame|fault|dropped the ball|slowest|fastest|worst|best)\b/i
+/** The shape of a question about who owns something, which ranks and judges no one. */
+const WHO_OWNS =
+  /\bwho(?: s| is)? (?:owns?|responsible|in charge|looks? after|maintains|keeps)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
 /** Asking for a definition to be changed, however it is put. */
 const CHANGES_A_DEFINITION =
   /\b(?:would you|should we|can you|could you)\b.*\b(?:change|rewrite|reword|redefine|improve)\b.*\bdefinition\b/
@@ -563,9 +564,7 @@ function aboutIn(ctx: PlanContext): RecordsAbout | null {
  */
 function partsOf(ask: RecordsAsk, ctx: PlanContext): RecordsAsk['parts'] {
   const words = normalizeName(ctx.question)
-  const domains = ctx.areas.filter((a) =>
-    new RegExp(`(?<![\\p{L}\\p{N}])${normalizeName(a.name)}(?![\\p{L}\\p{N}])`, 'u').test(words),
-  )
+  const domains = ctx.areas.filter((a) => findName(ctx.question, a.name))
   if (domains.length > 1 && !ask.metric)
     return domains.map((a) => ({ label: a.name, domain: a.id }))
   const kinds = [...words.matchAll(/\b(guide|rule|warning|event)s?\b/g)].map((m) => m[1]!)
@@ -1004,6 +1003,8 @@ const recordsKindOf: Partial<Record<string, RecordsKind | 'definition'>> = {
   definition: 'definition',
 }
 
+const CONTEXT_KINDS: readonly string[] = ['event', 'warning', 'rule', 'guide']
+
 function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): RecordsAsk {
   const words = normalizeName(ctx.question)
   // How many metrics or dimensions there are is the vocabulary's count, never of context items.
@@ -1011,7 +1012,7 @@ function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): R
   // What changed is what changed, whichever of the two reads the model chose.
   const changes = given.intent === 'created' && ASKS_CHANGES.test(words) && !ASKS_ADDED.test(words)
   const raw =
-    given.intent === 'count' && vocabulary
+    given.intent === 'count' && vocabulary && !CONTEXT_KINDS.includes(given.of ?? '') && !/\b(?:guide|rule|warning|event)s?\b/.test(words)
       ? {
           ...given,
           intent: 'terms' as const,

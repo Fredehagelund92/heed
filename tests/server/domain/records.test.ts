@@ -230,6 +230,13 @@ describe('reading a records question', () => {
     // A clash among Definitions' own names is not a pair of context items.
     'list conflicting definitions',
   ]
+  it('sends a bare number that is no period to the planner', () => {
+    expect(recognise('list the 3 newest rules')).toMatchObject({ unfit: true })
+    expect(recognise('What context was added in the past 3 days?')).not.toMatchObject({
+      unfit: true,
+    })
+  })
+
   it.each(negatives)('leaves "%s" to the answer engine', (question) => {
     expect(intentOf(question)).toBeNull()
   })

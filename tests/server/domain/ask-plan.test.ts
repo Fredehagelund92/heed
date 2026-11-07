@@ -1118,6 +1118,34 @@ describe('a plan is held to the question', () => {
     })
   })
 
+  it.each(['which owner has done the least this month?', 'which owners are slacking?'])(
+    'keeps the exit for "%s"',
+    (question) => {
+      expect(planned({ cannot: 'person' }, question)).toMatchObject({ kind: 'cannot' })
+    },
+  )
+
+  it('reads a domain named with special characters', () => {
+    const areas = [
+      { id: 'area_rd', name: 'R&D (Nordics' },
+      { id: 'area_cpp', name: 'C++' },
+    ]
+    const plan = planned(
+      { records: { intent: 'owner', domain: 'area_rd' } },
+      'who owns R&D (Nordics and C++?',
+      { areas },
+    )
+    expect(plan).toMatchObject({ kind: 'records' })
+  })
+
+  it.each([
+    ['how many rules mention the metric orders', { intent: 'count', of: 'rule' }],
+    ['how many warnings are about kpis in sales', { intent: 'count', of: 'warning' }],
+  ])('keeps the count of context items in "%s"', (question, records) => {
+    const plan = planned({ records }, question)
+    expect(plan).not.toMatchObject({ ask: { intent: 'terms' } })
+  })
+
   it('takes a change to a definition to the exit, however the plan read it', () => {
     expect(
       planned(

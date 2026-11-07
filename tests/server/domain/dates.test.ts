@@ -468,6 +468,30 @@ describe('loose dates, as Ask reads them', () => {
     },
   )
 
+  it.each([
+    'what caused the fall in orders in norway',
+    'what do we know about orders by month',
+    'orders by week',
+    'orders by year',
+  ])('finds no date in "%s"', (text) => {
+    expect(readDates(text, today, { loose: true }).status).toBe('none')
+  })
+
+  it.each(['orders by the end of the year', 'start of the month', 'in the fall'])(
+    'still reads "%s"',
+    (text) => {
+      expect(readDates(text, today, { loose: true }).status).toBe('read')
+    },
+  )
+
+  it('names what follows "the week before" instead of dropping it', () => {
+    const got = readDates('the week before the launch', today, { loose: true })
+    expect(got).toMatchObject({ status: 'read', window: anyDate, unplaced: ['before the launch'] })
+    const pair = readDates('last week against the week before', today, { loose: true })
+    expect(pair).toMatchObject({ status: 'read' })
+    if (pair.status === 'read') expect(pair.unplaced).toBeUndefined()
+  })
+
   it('is off for agents: get_context keeps the strict reader', () => {
     for (const text of ['early august', 'last summer', 'two weeks ago'])
       expect(readDates(text, today).status).toBe('unreadable')
