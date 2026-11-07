@@ -851,7 +851,9 @@ describe('the reach of a draft', () => {
 describe('Asked this week', () => {
   it('lists the topics asked most, with the state each gets now, and never a small count', async () => {
     const asked = await ok<Asked>('GET', '/ask/asked', 'kofi')
-    expect(asked).toMatchObject({ week: lastSeven, hidden: 7 })
+    // Sales' total of 31 shows on its owners' Overview, so a hidden 7 beside the rows' 21 would
+    // give the 3 in September away: it stays hidden.
+    expect(asked).toMatchObject({ week: lastSeven, hidden: null })
     expect(asked.rows.map((r) => [r.title, r.count, r.atLeast, r.months])).toEqual([
       // 12 in October and 3 in September: a total would give the 3 away.
       ['Orders in Norway', null, 12, ['2026-10-01']],
@@ -877,11 +879,11 @@ describe('Asked this week', () => {
     expect(JSON.stringify(asked)).not.toMatch(/per_|@example/)
   })
 
-  it('hides the total when, beside the rows, it would give a small count away', async () => {
-    // 12 + 3 + 9 + 3 + 4 calls this week. The rows show 12 (Norway's 3 in September hidden), 9 and
-    // 7 hidden: a total of 31 would give the 3 away by subtraction (FR-614).
+  it('states the total that the owner page shows', async () => {
+    // 12 + 3 + 9 + 3 + 4 calls this week. Sales' total of 31 shows on its owners' Overview, so Ask
+    // states it too, with the floor of the rows beside it.
     expect(await ok<Asked>('GET', '/ask/asked', 'kofi')).toMatchObject({
-      asked: null,
+      asked: 31,
       askedAtLeast: 21,
     })
   })
