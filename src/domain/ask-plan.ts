@@ -8,6 +8,7 @@ import {
   assumedPeriod,
   duePeriod,
   findName,
+  RANKS_PEOPLE,
   namedDomains,
   namesSomethingElse,
   readRecordsPeriod,
@@ -322,7 +323,7 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
   if (ranked && !toRanked && asksOwner && ONE_OF_THEM.test(followUpWords(ctx.question)))
     return planOf({ records: { intent: 'owner', domain: ranked } }, ctx)
   // Who owns something names no person, whatever the plan says.
-  if ('cannot' in raw && raw.cannot === 'person' && WHO_OWNS.test(followUpWords(ctx.question)))
+  if ('cannot' in raw && raw.cannot === 'person' && asksWhoOwns(followUpWords(ctx.question)))
     return planOf({ records: { intent: 'owner', metric: raw.metrics?.[0] ?? null } }, ctx)
   if ('cannot' in raw) {
     // The keys only say what to show beside the sentence: one that fails never loses the exit.
@@ -477,7 +478,9 @@ function planOf(raw: RawPlan, ctx: PlanContext): AskPlan {
 
 /** The shape of a question about who owns something, which ranks and judges no one. */
 const WHO_OWNS =
-  /\bwho(?:'s| s| is)? (?:owns?|responsible|in charge|looks? after|maintains|keeps)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
+  /\bwho(?:'s| s| is| are)? (?:owns?|responsible|in charge|looks? after|maintains|keeps|the owners? of)\b|\bwho (?:should |can |could |do )?(?:i |we )?(?:to )?(?:ask|talk to|speak to)\b/
+const asksWhoOwns = (words: string) =>
+  WHO_OWNS.test(words) && !RANKS_PEOPLE.test(words) && !/\b(?:fault|blame)\b/.test(words)
 /** Asking for a definition to be changed, however it is put. */
 const CHANGES_A_DEFINITION =
   /\b(?:would you|should we|can you|could you)\b.*\b(?:change|rewrite|reword|redefine|improve)\b.*\bdefinition\b/
@@ -1021,14 +1024,14 @@ const CONTEXT_KINDS: readonly string[] = ['event', 'warning', 'rule', 'guide']
 function recordsAskOf(given: z.infer<typeof recordsSchema>, ctx: PlanContext): RecordsAsk {
   const words = normalizeName(ctx.question)
   // How many metrics or dimensions there are is the vocabulary's count, never of context items.
-  const vocabulary = /\b(?:metrics?|dimensions?|kpis?)\b/.exec(words)?.[0]
+  const vocabulary =
+    /\b(?:how many|number of|count of|total)(?: (?:of )?(?:our|the|all|total|different))* (metrics?|dimensions?|kpis?)\b/.exec(
+      words,
+    )?.[1] ?? (given.of === 'metric' || given.of === 'dimension' ? given.of : undefined)
   // What changed is what changed, whichever of the two reads the model chose.
   const changes = given.intent === 'created' && ASKS_CHANGES.test(words) && !ASKS_ADDED.test(words)
   const raw =
-    given.intent === 'count' &&
-    vocabulary &&
-    !CONTEXT_KINDS.includes(given.of ?? '') &&
-    !/\b(?:guide|rule|warning|event)s?\b/.test(words)
+    given.intent === 'count' && vocabulary && !CONTEXT_KINDS.includes(given.of ?? '')
       ? {
           ...given,
           intent: 'terms' as const,

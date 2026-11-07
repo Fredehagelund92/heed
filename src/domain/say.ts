@@ -137,7 +137,7 @@ function readNote(readsAs: string | null | undefined): string | null {
 export function scopeWords(
   bundle: Names,
   scope: ResolvedScope,
-  dates: { show: boolean; readsAs?: string | null } = { show: true },
+  dates: { show: boolean; readsAs?: string | null; upTo?: boolean } = { show: true },
 ): string {
   const parts = scope.metrics.length ? [list(scope.metrics.map((key) => nameOf(bundle, key)))] : []
   for (const [dimension, values] of Object.entries(scope.filters)) {
@@ -154,7 +154,9 @@ export function scopeWords(
   }
   if (dates.show) {
     const note = readNote(dates.readsAs)
-    parts.push(`${periodWords(scope.window)}${note ? ` (${note})` : ''}`)
+    parts.push(
+      `${periodWords(scope.window, { upTo: dates.upTo ?? false })}${note ? ` (${note})` : ''}`,
+    )
   }
   return parts.join(' ')
 }
@@ -430,6 +432,8 @@ export type ContextSay = {
   assumed: string | null
   /** How Heed read the dates in the question's words, when it read them there. */
   readsAs?: string | null
+  /** A person's question in Ask: a window from the earliest date is said "up to". */
+  upTo?: boolean
   /** The metric groups asked for, with their metrics (`askedGroups`). */
   groups?: readonly AskedGroup[]
   /** Each delivered fact names the asked metrics it is about (`about`). */
@@ -450,7 +454,11 @@ export function contextSaid(bundle: Names, c: ContextSay, voice = factVoice): Sa
     return voice.stateFirst ? { ...failed, say: `${stateWords('failed')} ${failed.say}` } : failed
   }
   if (c.status === 'need_more_detail' || !c.scope) return unreadSaid(bundle, c.issues, c.question)
-  const scope = scopeWords(bundle, c.scope, { show: !c.assumed, readsAs: c.readsAs ?? null })
+  const scope = scopeWords(bundle, c.scope, {
+    show: !c.assumed,
+    readsAs: c.readsAs ?? null,
+    upTo: c.upTo ?? false,
+  })
   const [one, many] = voice.item
   const applies = (n: number, more = '') =>
     count(n, `${more}${one} applies`, `${more}${many} apply`)

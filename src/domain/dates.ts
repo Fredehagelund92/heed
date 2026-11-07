@@ -441,6 +441,8 @@ const unreadablePatterns = [
   /\b(?:last|past|next|previous|coming|recent|few|couple of|several|this) (?:[a-z0-9]+ )?(?:days?|weeks?|months?|quarters?|years?|fortnight|half|season)\b/g,
   /\b(?:since|before|after|around|over|in|during|this|last|next|early|late) (?:the )?(?:spring|summer|autumn|winter|weekends?)\b/g,
   /\b(?:h[12]|(?:first|second|1st|2nd) half|fiscal|fy ?\d{2,4})\b/g,
+  /\b(?:since|after|before|until|till) the fall\b(?! (?:in|of)\b)/g,
+  /\bthe (?:week|month|quarter|year) (?:before|after) (?!(?:last|that|this)\b)(?:the |our )?[a-z][a-z-]*/g,
   /\b(?:since|before|after) (?:the |our )?(?:launch|release|change|migration|update|campaign|outage|incident|rebrand|merger|switch|cutover|go-live|start|beginning|then)\b/g,
 ]
 
@@ -600,6 +602,7 @@ const yearAgoPattern = sticky('(?:this|the same) (time|week|month|quarter)(?: as
 const fiscalNamedPattern = sticky('(this|last|next) (?:fiscal|financial) (year|quarter)\\b')
 const fiscalYearPattern = sticky(`(?:fy|fiscal(?: year)?|financial year) ?'?(\\d{4}|\\d{2})\\b`)
 const halfNamePattern = sticky(`h([12])(?:(?: of)? (?:${YEAR}|(last|this) year))?\\b`)
+const periodEndPattern = sticky('(week|month|quarter|year)[- ]end\\b')
 const weekOfPattern = sticky(
   '(?:the )?(?:week|weekend) (?:of|starting|beginning|commencing) (?:the )?',
 )
@@ -654,6 +657,8 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
       return { period, what: [text.slice(index, base.end)], end: base.end }
     }
   }
+  m = at(periodEndPattern, text, index)
+  if (m) return said(m, partOf(wholePeriod(m[1]!, today), 'end'))
   m = at(halfNamePattern, text, index)
   if (m) {
     const year = m[2]
@@ -672,7 +677,13 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
     )
   }
   m = at(seasonPattern, text, index)
-  if (m && (m[1] || m[3]) && !(m[2] === 'fall' && !m[3] && m[1] === 'the')) {
+  const dropOfFall =
+    m?.[2] === 'fall' &&
+    !m[3] &&
+    (m[1] === 'the' ||
+      m[0].endsWith(' of') ||
+      /^ (?:in|of) (?!(?:19|20)\d{2}\b)/.test(text.slice(index + m[0].length)))
+  if (m && (m[1] || m[3]) && !dropOfFall) {
     const name = m[2]!
     const which = m[1]?.replace(/^(?:in|during|over)(?: the)?$|^the$/, '') || undefined
     const period = m[3] ? seasonOf(name, Number(m[3])) : seasonPeriod(name, which, today)
@@ -804,6 +815,13 @@ function looseAt(text: string, index: number, today: string): (Named & { end: nu
 
 /** The period a part or a "before" is of: loose or strict, or "the month" as a whole. */
 function baseAt(text: string, index: number, today: string) {
+  const found = baseRead(text, index, today)
+  const unit =
+    found && /^(?:the )?this (week|month|quarter|year)$/.exec(text.slice(index, found.end))
+  return unit ? { ...found, period: wholePeriod(unit[1]!, today) } : found
+}
+
+function baseRead(text: string, index: number, today: string) {
   const loose = looseAt(text, index, today)
   if (loose) return loose
   const the = text.startsWith('the ', index) ? 4 : 0
@@ -821,12 +839,14 @@ function sideOf(text: string, index: number, today: string): (Named & { end: num
   const after = until ? null : at(afterPattern, text, index)
   const lead = until ?? after
   if (!lead) return null
-  if (
-    at(thePeriodPattern, text, index + lead[0].length)?.[0].match(/^(?:week|month|quarter|year)$/)
-  )
-    return null
   const base = baseAt(text, index + lead[0].length, today)
   if (!base) return null
+  const named = base.what[0]!
+  if (
+    /^(?:week|month|quarter|year)$/.test(named) ||
+    (lead[1] === 'by' && /^the (?:week|month|quarter|year)$/.test(named))
+  )
+    return null
   const what = [text.slice(index, base.end)]
   if (after) {
     const from = after[1] === 'since' ? base.period.from : shiftDate(base.period.to, 1)
@@ -990,7 +1010,7 @@ export function readDates(
   return {
     status: 'read',
     window,
-    readsAs: `${windowWords(window)} (${[...new Set(what), timeZone].join('; ')})`,
+    readsAs: `${windowWords(window, { upTo: loose })} (${[...new Set(what), timeZone].join('; ')})`,
     spans,
   }
 }

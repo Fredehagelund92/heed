@@ -271,6 +271,17 @@ describe('reading a records question', () => {
     })
   })
 
+  it('reads a plain this quarter as the whole quarter, whatever else the question says', () => {
+    const question = 'which of the items are due for a check this quarter'
+    const got = recogniseRecords(question, {
+      spans: readQuestion(question, terms, today).spans,
+      terms,
+      domains,
+      now,
+    })
+    expect(got).toMatchObject({ type: 'records', ask: { period: { words: 'this quarter' } } })
+  })
+
   it('reads a part or a side of a period as that, never as the whole of it', () => {
     const whole = recogniseRecords('what is due for a check this year', {
       spans: readQuestion('what is due for a check this year', terms, today).spans,

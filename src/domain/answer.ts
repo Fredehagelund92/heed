@@ -471,6 +471,7 @@ export function* lookUp(
       withheld: withheld.map((w) => w.reason),
       assumed: assumed ? assumedDate(assumed).note.sentence : null,
       readsAs: dates?.reads_as ?? null,
+      upTo: person,
       groups: resolution.scope ? askedGroups(bundle, resolution.scope) : [],
       about: metrics.length > 1,
     },

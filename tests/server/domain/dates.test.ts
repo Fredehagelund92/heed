@@ -486,7 +486,11 @@ describe('loose dates, as Ask reads them', () => {
 
   it('names what follows "the week before" instead of dropping it', () => {
     const got = readDates('the week before the launch', today, { loose: true })
-    expect(got).toMatchObject({ status: 'read', window: anyDate, unplaced: ['before the launch'] })
+    expect(got).toMatchObject({
+      status: 'read',
+      window: anyDate,
+      unplaced: ['the week before the launch'],
+    })
     const pair = readDates('last week against the week before', today, { loose: true })
     expect(pair).toMatchObject({ status: 'read' })
     if (pair.status === 'read') expect(pair.unplaced).toBeUndefined()
@@ -508,6 +512,41 @@ describe('loose dates, as Ask reads them', () => {
       ['second half of last week', ['2026-10-29', '2026-11-01']],
     ])('reads "%s"', (text, days) => {
       expect(window(text)).toEqual(days)
+    })
+
+    it.each(['orders by the month', 'orders by the week', 'during the fall in orders'])(
+      'finds no date in "%s"',
+      (text) => {
+        expect(readDates(text, monday, { loose: true }).status).toBe('none')
+      },
+    )
+
+    it.each([
+      ['by year end', '2026-12-31'],
+      ['by quarter end', '2026-12-31'],
+      ['by month end', '2026-11-30'],
+      ['by the end of this year', '2026-12-31'],
+    ])('reads "%s" up to %s', (text, last) => {
+      const got = readDates(text, monday, { loose: true })
+      if (got.status !== 'read') throw new Error(text)
+      expect(shiftDate(got.window.end!, -1)).toBe(last)
+      expect(got.readsAs).toMatch(/^up to /)
+    })
+
+    it.each(['the week before christmas', 'since the fall', 'after the fall'])(
+      'names the words of "%s" it cannot place',
+      (text) => {
+        expect(readDates(text, monday, { loose: true })).toMatchObject({
+          status: 'read',
+          unplaced: [text],
+        })
+      },
+    )
+
+    it('says up to for a loose read of one side, and not for a strict one', () => {
+      const got = readDates('before august', monday, { loose: true })
+      if (got.status !== 'read') throw new Error('read')
+      expect(got.readsAs).toBe('up to 31 Jul 2026 (before august; UTC)')
     })
 
     it('never fails on a fiscal year it cannot place', () => {

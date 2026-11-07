@@ -233,6 +233,9 @@ const PERSON_PAST =
  * person. It turns on who the question is about, never on words like "nobody" or "who": an
  * indefinite word names no one, and "who owns" asks for a domain's owners.
  */
+/** Words that rank people, which no question about who owns something holds. */
+export const RANKS_PEOPLE = /\b(?:behind|furthest|slowest|fastest|latest|most|least|best|worst)\b/
+
 function aboutAPerson(t: string, words: string, people: readonly string[]): boolean {
   if (
     new RegExp(
@@ -254,7 +257,8 @@ function aboutAPerson(t: string, words: string, people: readonly string[]): bool
   }
   // A ranking of people: "who is furthest behind", "who reviews the slowest".
   if (
-    /\bwho\b.*\b(?:behind|furthest|slowest|fastest|latest|most|least|best|worst)\b/.test(t) &&
+    /\bwho\b/.test(t) &&
+    RANKS_PEOPLE.test(t) &&
     !/\bwho (?:owns|is the owner|are the owners|is responsible for|are responsible for|looks? after|manages|maintains|is in charge of)\b/.test(
       t,
     )
@@ -690,7 +694,17 @@ function readRecords(question: string, reading: RecordsReading): RecordsRecognit
     // Definitions are not checked here; "outdated definitions" is the context due for a check.
     return ask('due', {
       kind: kindIn(t),
-      ...(dated ? { period: duePeriod(dated, reading.now) } : {}),
+      ...(dated
+        ? {
+            period: duePeriod(
+              reading.spans
+                .filter((s) => s.dates)
+                .map((s) => question.slice(s.start, s.end))
+                .join(', '),
+              reading.now,
+            ),
+          }
+        : {}),
     })
   const created =
     /\b(?:created|added|add|new|newest|latest|recent|recently|lately|published|came in|written|wrote)\b/.test(

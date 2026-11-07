@@ -1222,6 +1222,34 @@ describe('a plan is held to the question', () => {
     expect(plan).not.toHaveProperty('ask.asOf')
   })
 
+  it.each(['who is the owner of the vat rule', 'who are the owners of the vat rule'])(
+    'answers "%s" as who owns it',
+    (question) => {
+      expect(planned({ cannot: 'person' }, question)).toMatchObject({ kind: 'reads' })
+    },
+  )
+
+  it.each(['who owns the most domains', 'who is responsible for the fault in the vat rule'])(
+    'keeps the exit for "%s"',
+    (question) => {
+      expect(planned({ cannot: 'person' }, question)).toMatchObject({ kind: 'cannot' })
+    },
+  )
+
+  it.each(['how many context items mention the metric orders', 'how many items name a dimension'])(
+    'does not count the vocabulary for "%s"',
+    (question) => {
+      const plan = planned({ records: { intent: 'count' } }, question)
+      expect(plan).not.toMatchObject({ ask: { intent: 'terms' } })
+    },
+  )
+
+  it('counts the metrics when they are what is counted', () => {
+    expect(
+      planned({ records: { intent: 'count' } }, 'how many of our metrics are there'),
+    ).toMatchObject({ ask: { intent: 'terms', catalogue: { of: 'metric', count: true } } })
+  })
+
   it('reads a domain named with special characters', () => {
     const areas = [
       { id: 'area_rd', name: 'R&D (Nordics' },

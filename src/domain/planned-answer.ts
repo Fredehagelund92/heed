@@ -74,7 +74,11 @@ const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 function periodText(window: DateWindow, period: PlanPeriod, today: string): string {
   if (period === 'today') return `today, ${fullDayWords(today)}`
   if (isAnyDate(window)) return 'at any date'
-  const days = scopeWords({ terms: [] }, { metrics: [], filters: {}, window })
+  const days = scopeWords(
+    { terms: [] },
+    { metrics: [], filters: {}, window },
+    { show: true, upTo: true },
+  )
   return period === 'recent' ? `in the last 3 months (${days.replace(/^from /, '')})` : days
 }
 
