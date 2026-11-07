@@ -64,7 +64,7 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   new install and checks that every main screen draws on its data, with no call refused
   (`npm run test:e2e:seed`).
 - **An own manifest to a Checked answer (Playwright).** `tests/e2e-own` starts from an empty
-  database with no demo: it connects an invented dbt project through the app, accepts the names its
+  database with no demo: it connects an invented dbt project through the app, publishes the names its
   read made, publishes a context item about one of its metrics, and gets Checked from `get_context`
   and from Ask (`npm run test:e2e:own`, on a database `npm run db:migrate` prepared with
   `SEED_DEMO=off`). It is the one journey that does not start from seeded names.

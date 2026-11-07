@@ -1,11 +1,11 @@
 /**
  * The names a read makes (FR-141): each member of a definition source that no live term names,
- * as the term it would be, sorted into what an owner accepts with one press and what they must
+ * as the term it would be, sorted into what an owner publishes with one press and what they must
  * look at first. One word has one meaning across the workspace (FR-138), so a name that would give
- * a word a second meaning is flagged, never picked: it stays out of Accept all, with the name
- * `termCandidates` offers for it, until an owner accepts or changes it. A date or an id stays out
+ * a word a second meaning is flagged, never picked: it stays out of Publish all, with the name
+ * `termCandidates` offers for it, until an owner publishes or changes it. A date or an id stays out
  * by itself, since an item's dates and its scope cover those, and so does a member an owner left
- * out; while the card is open, either can still be accepted one by one. Dates and ids alone never
+ * out; while the card is open, either can still be published one by one. Dates and ids alone never
  * raise the card.
  *
  * Pure: the service and the mock binding make the same names from the same members.
@@ -31,7 +31,7 @@ export const nameFlagCodes = ['taken', 'same_name', 'titles_differ', 'bad_name']
 export type NameFlagCode = (typeof nameFlagCodes)[number]
 export type NameFlag = { code: NameFlagCode; message: string }
 
-/** `ready` goes with Accept all, `flagged` waits for a look, `left_out` is only there to add. */
+/** `ready` goes with Publish all, `flagged` waits for a look, `left_out` is only there to add. */
 export const nameStates = ['ready', 'flagged', 'left_out'] as const
 export type NameState = (typeof nameStates)[number]
 
@@ -201,7 +201,7 @@ function nameShapeRefusal(name: string): string | null {
   return null
 }
 
-/** Why a name can't be accepted as it stands, in one sentence; null when it can. */
+/** Why a name can't be published as it stands, in one sentence; null when it can. */
 export function nameRefusal(
   key: string,
   name: string,

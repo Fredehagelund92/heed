@@ -274,7 +274,7 @@ sorted by ref. Only the members in the views of an item's metrics matter to it
 its definitions agree on, so a dimension shared by views of different domains has none.
 
 The names a read makes (FR-141) are worked out from `definitions` and the live vocabulary whenever
-they are read, so nothing has to follow a source's changes. Accepting them writes the term, its
+they are read, so nothing has to follow a source's changes. Publishing them writes the term, its
 version with no proposer, an accepted vocabulary proposal and an owner's or administrator's decision,
 and serves them in one edition, which `vocab_term_service_guard` checks like any other. Only what an
 owner left out is kept, by member, in `names_left_out`.
