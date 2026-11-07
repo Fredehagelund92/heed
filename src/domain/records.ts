@@ -1383,8 +1383,12 @@ function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): 
       }
     }
     case 'asked_nothing': {
-      const asked = world.asked ?? { rows: [], minimum: 5 }
-      const { nothing, section, sentence } = foundNothing(asked)
+      const all = world.asked ?? { rows: [], minimum: 5 }
+      const asked = {
+        ...all,
+        rows: all.rows.filter((r) => !domain || (r.area ?? null) === domain.id),
+      }
+      const { nothing, section, sentence } = foundNothing(asked, domain ? ` in ${domain.name}` : '')
       const n = nothing.length
       return {
         ...base,

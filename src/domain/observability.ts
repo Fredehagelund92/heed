@@ -668,6 +668,8 @@ export type ReaderSubject = {
   atLeast: number
   /** The calls that found nothing; null is a count hidden, never none. */
   nothing: Shown
+  /** False when a view the reader is held to has no such topic at all: it is not named. */
+  seen: boolean
   /** Its calls in fact: never shown, only added up with what stays hidden. */
   calls: number
 }
@@ -706,6 +708,7 @@ export function readerSubjects(c: ReaderViews): ReaderSubject[] {
       count,
       atLeast: every.length ? Math.min(...every.map((s) => s.total ?? s.atLeast)) : 0,
       nothing: every.length && nothing.every((n) => n !== null) ? nothing[0]! : null,
+      seen: every.length > 0,
       calls: list.reduce((n, t) => n + sumCounts(t.counts), 0),
     }
   })

@@ -25,7 +25,7 @@ import {
 import { canRead, followedFrom, termShown } from '../../../domain/links.ts'
 import { asksDefinitionInAsk } from '../../../domain/scope.ts'
 import { compareIds } from '../../../domain/resolver.ts'
-import { visibleCount, visibleTotal } from '../../../domain/gaps.ts'
+import { askedTotals } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
@@ -497,7 +497,14 @@ export async function askedFor(
     .sort((a, b) => size(b) - size(a) || compareIds(a.key, b.key))
   const shown = listed.reduce((sum, s) => sum + size(s), 0)
   const calls = (rows: typeof subjects) => rows.reduce((sum, s) => sum + s.calls, 0)
-  const hidden = visibleCount(calls(subjects.filter((s) => !listed.includes(s))), minimum)
+  const unshown = subjects.filter((s) => !listed.includes(s))
+  const { asked: askedTotal, hidden } = askedTotals(
+    listed.map((s) => ({ domain: s.domain, size: size(s) })),
+    calls(unshown),
+    calls(subjects),
+    domains,
+    minimum,
+  )
   const gaps = await openGaps(tx)
   const asked: Asked = {
     week: start,
@@ -530,15 +537,15 @@ export async function askedFor(
     hidden,
     // The total beside the rows: shown only when what it adds over the counts the rows show is
     // zero or at least the minimum, so it never gives a small count away by subtraction.
-    asked: visibleTotal(calls(subjects), shown + (hidden ?? 0), minimum),
+    asked: askedTotal,
     askedAtLeast: shown,
     starters: startersOf(bundle, today).map((scope) => ({
       title: topicWords(bundle, scope),
       scope,
     })),
   }
-  const unlisted = subjects
-    .filter((s) => !listed.includes(s))
+  const unlisted = unshown
+    .filter((s) => s.seen)
     .map((subject): UnlistedTopic => {
       const scope = topicScope({ ...subject, month: `${today.slice(0, 7)}-01` })
       return {

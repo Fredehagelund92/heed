@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { askedCell, listedTopics, visibleTotal } from '../../../src/domain/gaps.ts'
-import { readerSubjects, zeroCounts, type ViewScope } from '../../../src/domain/observability.ts'
+import { askedCell, askedTotals, listedTopics, visibleTotal } from '../../../src/domain/gaps.ts'
+import {
+  readerDomains,
+  readerSubjects,
+  zeroCounts,
+  type ViewScope,
+} from '../../../src/domain/observability.ts'
 import { answerRecords, type RecordsAsk } from '../../../src/domain/records.ts'
 import { recordsText } from '../../../src/server/modules/answer/plan-cases.ts'
 import { askPlanCase, PLAN_NOW, planBundle } from '../../../src/server/modules/answer/index.ts'
@@ -195,5 +200,116 @@ describe('an item for another group, to a person', () => {
     )
     expect(said.forAnotherGroup).toBe(1)
     expect(said.say).toMatch(/for another group/)
+  })
+})
+
+describe('the total asked and the topics left out, beside the domain totals', () => {
+  const inD = (domain: string, subject: string, calls: number) => ({
+    ...topic(subject, calls, 0),
+    domain,
+  })
+  const topics = [inD('d1', 'big', 20), inD('d1', 'x', 3), inD('d1', 'y', 3), inD('d2', 'z', 3)]
+  const owners = { d1: [{ admin: false, areas: ['d1'] }], d2: [{ admin: false, areas: ['d2'] }] }
+  const views = (reader: ViewScope) => ({
+    topics,
+    days: dayOf(topics),
+    dates: [DAY],
+    minimum: 5,
+    reader,
+    owners,
+  })
+  const totalsFor = (reader: ViewScope) => {
+    const v = views(reader)
+    const subjects = readerSubjects(v)
+    const listed = subjects.filter((s) => (s.count ?? s.atLeast) >= 5)
+    const domains = readerDomains(v)
+    return {
+      domains,
+      ...askedTotals(
+        listed.map((s) => ({ domain: s.domain, size: s.count ?? s.atLeast })),
+        subjects.filter((s) => !listed.includes(s)).reduce((n, s) => n + s.calls, 0),
+        subjects.reduce((n, s) => n + s.calls, 0),
+        domains,
+        5,
+      ),
+    }
+  }
+
+  it('gives a reader with no page the totals of the domains whose owners show one', () => {
+    expect(readerDomains(views({ admin: false, areas: [] }))).toEqual({ d1: 26 })
+  })
+
+  it('gives an owner their own domain total', () => {
+    expect(readerDomains(views({ admin: false, areas: ['d1'] }))).toEqual({ d1: 26 })
+  })
+
+  it('leaves out a total and a hidden count that a domain total would work a 3 out of', () => {
+    for (const reader of [
+      { admin: false, areas: [] },
+      { admin: false, areas: ['d1'] },
+    ] as ViewScope[]) {
+      expect(totalsFor(reader)).toMatchObject({ asked: null, hidden: null })
+    }
+  })
+
+  it('keeps them when what is left is zero or at least the minimum', () => {
+    expect(askedTotals([{ domain: 'd1', size: 20 }], 6, 26, { d1: 26 }, 5)).toEqual({
+      asked: 26,
+      hidden: 6,
+    })
+    expect(askedTotals([{ domain: 'd1', size: 20 }], 12, 32, { d1: 26 }, 5)).toEqual({
+      asked: 32,
+      hidden: 12,
+    })
+  })
+
+  it('does not name a topic that a view the reader is held to does not show at all', () => {
+    const quiet = [inD('d1', 'few', 2)]
+    const [s] = readerSubjects({
+      topics: quiet,
+      days: dayOf(quiet),
+      dates: [DAY],
+      minimum: 5,
+      reader: { admin: false, areas: ['d1'] },
+      owners,
+    })
+    expect(s).toMatchObject({ seen: false, count: null, atLeast: 0 })
+  })
+})
+
+describe('what agents found nothing for, in a domain', () => {
+  it('reads only the rows of the domain the question names', () => {
+    const row = (title: string, area: string) => ({
+      title,
+      area,
+      count: 12,
+      atLeast: 12,
+      nothing: 9,
+      state: 'missing' as const,
+      gap: null,
+    })
+    const found = answerRecords(
+      {
+        intent: 'asked_nothing',
+        domain: 'marketing',
+        kind: null,
+        metric: null,
+        period: null,
+        noOwner: false,
+      } as RecordsAsk,
+      {
+        items: [],
+        areas: [
+          { id: 'sales', name: 'Sales', ownerIds: [] },
+          { id: 'marketing', name: 'Marketing', ownerIds: [] },
+        ],
+        people: {},
+        terms: [],
+        asked: { minimum: 5, rows: [row('Orders', 'sales')] },
+        conflicts: null,
+      } as never,
+      '2026-10-22T00:00:00Z',
+    )
+    expect(found.rows).toEqual([])
   })
 })

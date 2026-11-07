@@ -459,7 +459,7 @@ function readingOf(
     const n = rows.length
     const named = read.value ? (world.terms.find((t) => t.key === read.value)?.name ?? '') : ''
     const value = named && !about ? ` about ${named}` : ''
-    const none = `No topic${value}${where} was asked about ${minimum} times or more this week.`
+    const none = `No topic${value}${where} shows a count of ${minimum} or more this week.`
     return {
       sentence: n
         ? `Agents asked about ${count(n)} ${noun(n, 'topic', 'topics')}${value}${where} ${minimum} times or more this week.`
@@ -954,7 +954,7 @@ export function foundNothing(
         ? `Agents found nothing for ${count(n)} of ${topics}${where} this week.`
         : rows.length
           ? `Agents found something for every topic${where} asked about ${asked.minimum} times or more this week.`
-          : `No topic${where} was asked about ${asked.minimum} times or more this week.`,
+          : `No topic${where} shows a count of ${asked.minimum} or more this week.`,
     section: n
       ? {
           title: 'Agents found nothing',
