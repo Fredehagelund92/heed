@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.2.0](https://github.com/Fredehagelund92/heed/compare/v0.1.0...v0.2.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** the MCP server no longer offers get_facts, find_facts, search_facts, search_context, read_item, report_gap, give_feedback or draft_context. Use get_context, find_context, read_context, report and suggest_context, which take the agent contract's arguments and replies.
+
+### Features
+
+* **ask:** add model-led planner, exploration answers and follow-ups ([#142](https://github.com/Fredehagelund92/heed/issues/142)) ([0685769](https://github.com/Fredehagelund92/heed/commit/06857690d83726a752cc9066a98aca5e1ab74b7d))
+* **ask:** answer "list conflicts" from the Context's conflicts ([#136](https://github.com/Fredehagelund92/heed/issues/136)) ([b0d7613](https://github.com/Fredehagelund92/heed/commit/b0d7613a85ce70f708167d8ce35cf917ce93e3b7))
+* **ask:** answer what is missing, stale, conflicting or unowned from Heed's own records ([#154](https://github.com/Fredehagelund92/heed/issues/154)) ([c22c43f](https://github.com/Fredehagelund92/heed/commit/c22c43f311c5e8748f41f6290c1356c286ce5f60))
+* **connectors:** add dbt MetricFlow definitions connector ([#150](https://github.com/Fredehagelund92/heed/issues/150)) ([bba91ab](https://github.com/Fredehagelund92/heed/commit/bba91abecab8ab2390299e9cea3e66c96fa80258))
+* **connectors:** make connectors agent-ready and vendor-free on screen ([#141](https://github.com/Fredehagelund92/heed/issues/141)) ([d8488af](https://github.com/Fredehagelund92/heed/commit/d8488af09d6d90b9945c020998acd1a92c7a245e))
+* **connectors:** read dbt MetricFlow manifests from object storage ([#152](https://github.com/Fredehagelund92/heed/issues/152)) ([d89eceb](https://github.com/Fredehagelund92/heed/commit/d89eceb8a52c6b28a54cd1bf6fb138843377f0d9))
+* **docs:** publish documentation as a separate Starlight site ([#145](https://github.com/Fredehagelund92/heed/issues/145)) ([c6a5154](https://github.com/Fredehagelund92/heed/commit/c6a5154f495fbe31f0867d3b4802daec4f354ba2))
+* make synced definitions usable names with an owner-accepted names card ([#164](https://github.com/Fredehagelund92/heed/issues/164)) ([f368054](https://github.com/Fredehagelund92/heed/commit/f3680547c978bd34654f523743a43f09aeb76dbf))
+* **mcp:** remove the 8 deprecated tools, keep secrets in compose and cut the controls that pretend ([#163](https://github.com/Fredehagelund92/heed/issues/163)) ([bc6896e](https://github.com/Fredehagelund92/heed/commit/bc6896e233a47c22d07988c97fbf2ca22ad05e13))
+* **server:** run Heed on Vercel Functions with Neon ([#140](https://github.com/Fredehagelund92/heed/issues/140)) ([7d85e36](https://github.com/Fredehagelund92/heed/commit/7d85e3651ab93c0bca19b98c473ae27c1e723231))
+* **web:** ':' alone opens the emoji list in comments ([#131](https://github.com/Fredehagelund92/heed/issues/131)) ([c65273a](https://github.com/Fredehagelund92/heed/commit/c65273ad561d80f72dc2acb1f021930892133141))
+* **web:** answer what a metric is with its definition first in Ask ([#133](https://github.com/Fredehagelund92/heed/issues/133)) ([6eb8cd0](https://github.com/Fredehagelund92/heed/commit/6eb8cd028bfec7121365f1324fa835e0a7617eea))
+* **web:** Ask answers read like a chat app ([#129](https://github.com/Fredehagelund92/heed/issues/129)) ([c1c5a66](https://github.com/Fredehagelund92/heed/commit/c1c5a6601eefdc836b81c9e6eab2450c082bb784))
+* **web:** brush and drill the Observability Overview chart ([#139](https://github.com/Fredehagelund92/heed/issues/139)) ([892c62f](https://github.com/Fredehagelund92/heed/commit/892c62f82a489c1ba1fe5d4cd63baee41c644e33))
+* **web:** filter bar for the Observability explorer with typed chips and facet rail ([#135](https://github.com/Fredehagelund92/heed/issues/135)) ([9a3c314](https://github.com/Fredehagelund92/heed/commit/9a3c3149c36fef345daad7026ca473f187ed4714))
+* **web:** merge Overview and Questions into one Observability explorer ([#134](https://github.com/Fredehagelund92/heed/issues/134)) ([71e28c8](https://github.com/Fredehagelund92/heed/commit/71e28c8b4dbd61dcb7e596e771a703783f91acb8))
+* **web:** open the Inbox pane on what agents say today and after you decide ([#130](https://github.com/Fredehagelund92/heed/issues/130)) ([343819a](https://github.com/Fredehagelund92/heed/commit/343819af16b0888683a9775d638823b68568c1b1))
+* **web:** rebuild context item Details as one shared body in sentences ([#151](https://github.com/Fredehagelund92/heed/issues/151)) ([d29173b](https://github.com/Fredehagelund92/heed/commit/d29173be0482e77b48918645b591d94835cf377b))
+* **web:** remove Observability Summary page and its digest and snapshot code ([#128](https://github.com/Fredehagelund92/heed/issues/128)) ([83a4c44](https://github.com/Fredehagelund92/heed/commit/83a4c44fbc9c1217d92e89e7bee59dd130fe3a8b))
+* **web:** show conflicts as a filter of the Context table, not a list of their own ([#127](https://github.com/Fredehagelund92/heed/issues/127)) ([df92c88](https://github.com/Fredehagelund92/heed/commit/df92c88452b2efe87d48e106ff56c0088f17747d))
+* **web:** unify collapsible triggers into one fold system and show the context item as a row ([#144](https://github.com/Fredehagelund92/heed/issues/144)) ([fb3fa73](https://github.com/Fredehagelund92/heed/commit/fb3fa73bb90551009cf9d79429befd839c514c9e))
+
+
+### Fixes
+
+* **answer:** route Ask questions by intent and fix steward, due and definition reads ([#162](https://github.com/Fredehagelund92/heed/issues/162)) ([1c78ec8](https://github.com/Fredehagelund92/heed/commit/1c78ec84d65388f756dfbb441dca2dadb629569b))
+* **ask:** give the planner the whole chat as context, not just the previous turn ([#149](https://github.com/Fredehagelund92/heed/issues/149)) ([19f0986](https://github.com/Fredehagelund92/heed/commit/19f098666fbfa927b6b39f71db0ce63bb175e2cd))
+* **ask:** keep example numbering out of cited sources and ready the repo for launch ([#158](https://github.com/Fredehagelund92/heed/issues/158)) ([95503b8](https://github.com/Fredehagelund92/heed/commit/95503b8858ffc89f114fa444b03701c4cc9c2419))
+* **domain:** fix Ask small-count leaks, rule-read scope, loose dates and answer state ([#165](https://github.com/Fredehagelund92/heed/issues/165)) ([0d6b511](https://github.com/Fredehagelund92/heed/commit/0d6b511a48df8d1fee395cd74b58b267b0c8a193))
+* **terms:** refuse taken words, ask on ambiguous ones, keep period on follow-ups ([#153](https://github.com/Fredehagelund92/heed/issues/153)) ([07e0b3b](https://github.com/Fredehagelund92/heed/commit/07e0b3b2412fd257bd0ca8d523fbbfb2a93a7ecc))
+* **web:** align Help, shortcuts dialog and docs with the app before 0.1.0 ([#138](https://github.com/Fredehagelund92/heed/issues/138)) ([d814d42](https://github.com/Fredehagelund92/heed/commit/d814d429975b983a00b613c8345642f4562b330f))
+* **web:** make clicking Context and Definitions respond at once ([#161](https://github.com/Fredehagelund92/heed/issues/161)) ([50bcccf](https://github.com/Fredehagelund92/heed/commit/50bcccfa8a486551ebd4ca46828a1420897e976a))
+* **web:** review Preview shows the item as its Context page will ([#132](https://github.com/Fredehagelund92/heed/issues/132)) ([ff9e2b2](https://github.com/Fredehagelund92/heed/commit/ff9e2b221cb164457e05ec6543d2f0459325acf8))
+
 ## 0.1.0 (2026-11-02)
 
 
