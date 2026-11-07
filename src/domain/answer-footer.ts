@@ -89,7 +89,7 @@ export function recordsFooter(
       (!ask.kind || ask.kind === 'definition' || i.kind === ask.kind) &&
       isAbout(i, ask.about),
   )
-  const overAll = ask.intent === 'changed'
+  const overAll = ask.intent === 'changed' || ask.intent === 'created'
   const live = overAll ? scope.length : scope.filter((i) => i.status !== 'archived').length
   const facets = ask.audit?.facets ?? []
   const asked =

@@ -1106,7 +1106,7 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
     recordsFooter(found, { ...whole, ...parts[i]!, parts: undefined }, world),
   )
   const joined = (pick: (f: AnswerFooter) => string | null) =>
-    once(footers.map(pick)).join(' ') || null
+    once(footers.flatMap((f) => (pick(f) ?? '').split(/(?<=\.)\s+/))).join(' ') || null
   const clear = reads.flatMap(({ label, found }) =>
     (found.clear ?? []).map((l) => `${label}: ${l}`),
   )

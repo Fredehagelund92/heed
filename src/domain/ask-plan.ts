@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { chatSources, type ChatTurn } from './ask-chat.ts'
-import { OWN_VOICE, supportedBy } from './answer-words.ts'
+import { NO_FACT, OWN_VOICE } from './answer-words.ts'
 import { auditWords } from './audit.ts'
 import { periodWords, readDates } from './dates.ts'
 import type { ItemKind } from './item.ts'
@@ -847,7 +847,9 @@ function modelDays(
   if (!c.words?.trim()) return null
   const day = /^\d{4}-\d{2}-\d{2}$/
   const real = (d: string | null | undefined) =>
-    !!d && day.test(d) && new Date(d).toISOString().slice(0, 10) === d ? d : null
+    !!d && day.test(d) && !Number.isNaN(Date.parse(d)) && new Date(d).toISOString().startsWith(d)
+      ? d
+      : null
   const from = real(c.from)
   if (!from) return null
   const end = shiftDate(real(c.to) ?? ctx.today, 1)
@@ -875,7 +877,15 @@ function crossChecked(
 ): { days: DateWindow | null; other: DateWindow | null } {
   const own = ownDates(ctx).window
   const placed = own && !isAnyDate(own) ? own : null
-  const model = placed ? modelDays(c, ctx) : null
+  const days = modelDays(c, ctx)
+  const today = shiftDate(ctx.today, 1)
+  const nowOnly =
+    !placed &&
+    days?.start === ctx.today &&
+    days.end === today &&
+    ASKS_NOW.test(followUpWords(ctx.question))
+  if (nowOnly) return { days, other: null }
+  const model = placed ? days : null
   // "By next spring" has no first day: the model's today is the same reading, not another.
   const open =
     placed?.start === anyDate.start && model?.start === ctx.today && placed.end === model.end
@@ -1310,18 +1320,54 @@ function checkedStandalone(raw: string | null | undefined, ctx: PlanContext) {
  */
 function checkedLeft(raw: string | null | undefined, ctx: PlanContext) {
   const text = raw?.replace(/\s+/g, ' ').trim()
-  if (!text || OWN_VOICE.test(text)) return undefined
+  if (!text || OWN_VOICE.test(text) || /https?:|www\./i.test(text)) return undefined
   const asked = text.endsWith('?')
   const plain = text.replace(/[^\p{L}\p{N}'_-]+/gu, ' ').trim()
   if (!plain || !checkedStandalone(`${plain}?`, ctx)) return undefined
-  const source = [
-    ...chatQuestions(ctx),
-    ...ctx.terms.flatMap((t) => [t.name, ...t.aliases]),
-    ...ctx.areas.map((a) => a.name),
-  ].join(' ')
-  if (!supportedBy(`x ${plain}`, source)) return undefined
+  const held = heldWords(ctx)
+  const [lead = ''] = plain.match(/[\p{L}][\p{L}\p{N}'-]*/u) ?? []
+  const known = (w: string) => held.has(normalizeName(w)) || NO_FACT.has(w.toLowerCase())
+  if (
+    /^\p{Lu}/u.test(lead) &&
+    !known(lead) &&
+    !/^q[1-4]$/i.test(lead) &&
+    !MONTH.test(lead.toLowerCase())
+  )
+    return undefined
+  // What is left once its names and dates are taken: a note of only those leaves nothing out.
+  let rest = plain
+  for (const span of [...readQuestion(plain, ctx.terms, ctx.today, { loose: true }).spans].sort(
+    (a, b) => b.start - a.start,
+  ))
+    rest = `${rest.slice(0, span.start)} ${rest.slice(span.end)}`
+  const facts = (rest.match(/[\p{L}][\p{L}'-]*/gu) ?? []).filter(
+    (w) => w.length > 2 && !NO_FACT.has(w.toLowerCase()),
+  )
+  if (!facts.length) return undefined
+  const asks = asked || /^(?:whether|how|which|what|when|who|why|if)\b/i.test(plain)
+  if (!asks) {
+    const stems = new Set([...held, 'vocabulary'].map((w) => w.slice(0, 4)))
+    const own = (plain.match(/[\p{L}][\p{L}'-]*/gu) ?? []).filter(
+      (w) => w.length > 2 && !NO_FACT.has(w.toLowerCase()),
+    )
+    const said = own.filter((w) => stems.has(normalizeName(w).slice(0, 4))).length
+    if (own.length && said / own.length < 0.6) return undefined
+  }
   return asked ? `${plain}?` : `${plain}.`
 }
+
+/** The words the chat's questions say and the names Heed holds. */
+function heldWords(ctx: PlanContext) {
+  const said = normalizeName(chatQuestions(ctx).join(' '))
+  return new Set(
+    [...ctx.terms.flatMap((t) => [t.name, ...t.aliases]), ...ctx.areas.map((a) => a.name), said]
+      .flatMap((name) => normalizeName(name).split(/[^\p{L}\p{N}]+/u))
+      .filter(Boolean),
+  )
+}
+
+const MONTH =
+  /^(?:january|february|march|april|may|june|july|august|september|october|november|december)$/
 
 /* ---------- when the planner reads a question ---------- */
 

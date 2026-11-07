@@ -1330,7 +1330,7 @@ describe('a plan is held to the question', () => {
     const left = (text: string, question = 'what happened with the margin and cost in Norway?') =>
       planned({ reads: [{ kind: 'explore', values: ['val:market/norway'] }], left: text }, question)
     for (const text of [
-      'Orders fell sharply in Norway',
+      'Orders fell dramatically in Norway',
       'You should recheck Orders with finance',
       'Contoso pricing',
     ]) {
@@ -1344,6 +1344,20 @@ describe('a plan is held to the question', () => {
     expect(
       left('whether anything is written twice', 'is anything written twice about Norway?'),
     ).toHaveProperty('left')
+  })
+
+  it('keeps an honest note and refuses one that leaves nothing out', () => {
+    const left = (text: string, question: string) =>
+      planned({ reads: [{ kind: 'explore', values: ['val:market/norway'] }], left: text }, question)
+    expect(
+      left('Jordan is not in the vocabulary', 'anything written about orders in jordan?'),
+    ).toHaveProperty('left')
+    expect(
+      left('whether the definition changed', 'what is the definition of orders in Norway?'),
+    ).toHaveProperty('left')
+    expect(
+      left('this week; net revenue', 'what is net revenue in Norway this week?'),
+    ).not.toHaveProperty('left')
   })
 
   it('leaves the words of the question out of what is left', () => {
@@ -1454,6 +1468,24 @@ describe('a plan is held to the question', () => {
         'what is written about Orders?',
       )
       expect(none.reads[0]!.scope.window.start).not.toBe('2026-08-01')
+    })
+
+    it('keeps the plan when a model day is not a date at all', () => {
+      const plan = planned(
+        { reads: [read('in february 2026', '2026-02-01', '2026-13-01')] },
+        'what happened in february 2026?',
+      )
+      expect(plan).toMatchObject({ kind: 'reads' })
+    })
+
+    it('takes the model today for a question about now that the reader places nowhere', () => {
+      const plan = planned(
+        { reads: [read('today', PLAN_NOW.slice(0, 10), PLAN_NOW.slice(0, 10))] },
+        'which rules apply to Orders in Norway right now?',
+      )
+      expect(plan).toMatchObject({
+        reads: [{ scope: { window: { start: PLAN_NOW.slice(0, 10) } } }],
+      })
     })
 
     it('never takes a day that does not exist', () => {

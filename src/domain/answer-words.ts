@@ -150,7 +150,7 @@ export const splitCitations = (text: string) =>
  * Words that carry no fact of their own: the small words of a sentence, and how a sentence about
  * the context talks about it ("the two sources disagree"). A sentence is checked on the rest.
  */
-const NO_FACT = new Set(
+export const NO_FACT = new Set(
   (
     'a about across after again all also although am an and any are as at be because been before ' +
     'being both but by can could did do does doing done during each either for from had has have ' +
