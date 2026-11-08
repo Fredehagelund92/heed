@@ -300,8 +300,12 @@ const alone: Record<string, RawPlan> = {
   'who is in charge of on time shipping in norway': {
     records: { intent: 'owner', metric: 'metric:on_time_shipping_rate' },
   },
-  'when is the italy promotions event due for a check': { records: { intent: 'due', of: 'event' } },
-  'when is the norway stop due for a check': { records: { intent: 'due' } },
+  'when is the italy promotions event due for a check': one(
+    explore(['event'], { words: 'italy promotions', values: ['val:market/italy'] }),
+  ),
+  'when is the norway stop due for a check': one(
+    explore(['event'], { words: 'stop', values: ['val:market/norway'] }),
+  ),
   'when was the returns rule last checked and who owns it': {
     reads: [explore(['rule'], { metrics: ['metric:returns'] })],
   },

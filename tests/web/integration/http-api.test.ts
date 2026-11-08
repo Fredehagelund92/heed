@@ -121,7 +121,7 @@ describe('the http binding', () => {
   it('shows an owner the draft that waits on a Not found topic of their domain, and nobody else', async () => {
     await api!.signIn({ name: OWNER.name })
     const spain = (await api!.askedThisWeek()).rows.find((r) => r.title === 'Orders in Spain')!
-    expect(spain).toMatchObject({ state: 'missing', count: '12' })
+    expect(spain).toMatchObject({ state: 'missing', count: '9+' })
     expect(spain.next?.label).toBe('Write it')
     expect(spain.next?.href).toMatch(/^\/context\/new\?gap=[0-9a-f-]{36}$/)
     await api!.signIn({ name: 'Ines Duarte' })

@@ -101,7 +101,12 @@ export function wordsPrompt(input: WordsInput): string {
   ].join('\n')
 }
 
-export type WordsCheck = { ok: true; text: string } | { ok: false; why: string }
+/** A sentence the check left out, and why: what a run of the cases logs, never the service. */
+export type DroppedSentence = { text: string; why: string }
+
+export type WordsCheck = ({ ok: true; text: string } | { ok: false; why: string }) & {
+  dropped: readonly DroppedSentence[]
+}
 
 /** The numbers a text says, as written: "4", "2026", "3.5". */
 const numbersIn = (text: string) => text.match(/\d+(?:[.,]\d+)*/g) ?? []
@@ -145,7 +150,7 @@ export const splitCitations = (text: string) =>
  * Words that carry no fact of their own: the small words of a sentence, and how a sentence about
  * the context talks about it ("the two sources disagree"). A sentence is checked on the rest.
  */
-const NO_FACT = new Set(
+export const NO_FACT = new Set(
   (
     'a about across after again all also although am an and any are as at be because been before ' +
     'being both but by can could did do does doing done during each either for from had has have ' +
@@ -233,7 +238,7 @@ export function wordsGate(input: WordsInput) {
   let failed: string | null = null
   const passed: string[] = []
   const waiting: string[] = []
-  const dropped: string[] = []
+  const dropped: DroppedSentence[] = []
 
   /** The text of the items a sentence cites. */
   const citedItems = (text: string) =>
@@ -256,7 +261,7 @@ export function wordsGate(input: WordsInput) {
     // An item's own "you should" may be quoted by a sentence that cites that item; a model turning
     // its words into advice may not, and the question never lets it.
     if (OWN_VOICE.test(check.text) && !OWN_VOICE.test(citedItems(check.text).join(' '))) {
-      dropped.push('advises in its own voice')
+      dropped.push({ text: check.text, why: 'advises in its own voice' })
       return []
     }
     const defined = !!support.definitions && supportedBy(check.text, support.definitions)
@@ -265,7 +270,8 @@ export function wordsGate(input: WordsInput) {
       ? cites(check.text)
       : defined || lead || supportedBy(check.text, support.frame)
     if (!stands) {
-      dropped.push(check.cites ? 'says what its items do not' : 'a sentence that cites no item')
+      const why = check.cites ? 'says what its items do not' : 'a sentence that cites no item'
+      dropped.push({ text: check.text, why })
       return []
     }
     if (length + (length ? 1 : 0) + check.text.length > WORDS_MAX) {
@@ -305,11 +311,11 @@ export function wordsGate(input: WordsInput) {
       const out = finished ? sentence(buffer) : []
       buffer = ''
       if (!passed.length && !failed)
-        failed = waiting.length ? 'cites no item' : (dropped[0] ?? 'no words')
+        failed = waiting.length ? 'cites no item' : (dropped[0]?.why ?? 'no words')
       return out
     },
-    /** Why each sentence left out on the way was left out, in order. */
-    get dropped(): readonly string[] {
+    /** Each sentence left out on the way, and why, in order. */
+    get dropped(): readonly DroppedSentence[] {
       return dropped
     },
     /** Why the words ended early or show nothing; null while every sentence has passed. */
@@ -332,5 +338,6 @@ export type WordsGate = ReturnType<typeof wordsGate>
 export function checkWords(raw: string, input: WordsInput): WordsCheck {
   const gate = wordsGate(input)
   const text = [...gate.push(raw), ...gate.end(true)].join(' ')
-  return gate.failed ? { ok: false, why: gate.failed } : { ok: true, text }
+  const { dropped } = gate
+  return gate.failed ? { ok: false, why: gate.failed, dropped } : { ok: true, text, dropped }
 }

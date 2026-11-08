@@ -3,7 +3,6 @@ import { peopleVoice } from '../../../src/domain/say.ts'
 import {
   answer,
   answerState,
-  askedTopics,
   lookUp,
   NEAR_MISSES_SHOWN,
   reach,
@@ -307,64 +306,6 @@ const topic = (id: string, overrides: Partial<TopicCount> = {}): TopicCount => (
   month: '2026-08-01',
   calls: 10,
   ...overrides,
-})
-
-describe('Asked this week', () => {
-  it('joins a topic’s months, most asked first, and never gives a small month away', () => {
-    const { topics, hidden } = askedTopics(
-      [
-        topic('a', { calls: 31, month: '2026-10-01' }),
-        topic('b', { calls: 7, month: '2026-09-01' }),
-        // Net revenue in Norway: 13 shown, and 3 in another month that a total would give away.
-        topic('c', { metrics: ['metric:revenue'], calls: 13, month: '2026-10-01' }),
-        topic('d', { metrics: ['metric:revenue'], calls: 3, month: '2026-09-01' }),
-        // Orders in Spain: two months under 5 that add up to 6.
-        topic('e', { values: ['val:market/spain'], calls: 3, month: '2026-10-01' }),
-        topic('f', { values: ['val:market/spain'], calls: 3, month: '2026-09-01' }),
-        // Orders by market: asked 4 times, never listed.
-        topic('g', { values: [], dimensions: ['dim:market'], calls: 4 }),
-      ],
-      5,
-      '2026-10-26',
-    )
-    expect(topics.map((t) => [t.metrics, t.values, t.months, t.month, t.count, t.atLeast])).toEqual(
-      [
-        [
-          ['metric:orders'],
-          ['val:market/norway'],
-          ['2026-10-01', '2026-09-01'],
-          '2026-10-01',
-          38,
-          38,
-        ],
-        [['metric:revenue'], ['val:market/norway'], ['2026-10-01'], '2026-10-01', null, 13],
-        [['metric:orders'], ['val:market/spain'], [], '2026-10-01', 6, 0],
-      ],
-    )
-    expect(hidden).toBeNull()
-    expect(
-      askedTopics(
-        [topic('a', { calls: 2 }), topic('b', { values: [], calls: 3 })],
-        5,
-        '2026-10-26',
-      ),
-    ).toEqual({ topics: [], hidden: 5 })
-  })
-
-  it('answers a row listed only by its total on the month of today, never on a hidden month', () => {
-    const { topics } = askedTopics(
-      [
-        topic('a', { calls: 3, month: '2026-09-01' }),
-        topic('b', { calls: 3, month: '2026-08-01' }),
-      ],
-      5,
-      '2026-10-26',
-    )
-    expect(topics).toHaveLength(1)
-    expect(topics[0]!.months).toEqual([])
-    expect(topics[0]!.count).toBe(6)
-    expect(topicScope(topics[0]!).window.start).toBe('2026-10-01')
-  })
 })
 
 describe("a workspace's first questions", () => {

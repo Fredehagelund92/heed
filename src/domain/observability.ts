@@ -606,6 +606,144 @@ export function topicView(rows: readonly TopicCounts[], minimum: number, chart?:
   }
 }
 
+/* ---------- what one reader may have of what agents asked ---------- */
+
+/** What a person's Overview and Questions count: every domain, or the domains they own. */
+export type ViewScope = { admin: boolean; areas: readonly string[] }
+
+/** The one count a topic has in every view: the view decides what shows of it. */
+export type ReaderTopic = TopicCounts & { month: string }
+
+/** A day's calls in a domain, by answer state: what a view's chart is made from. */
+export type DomainDay = { day: string; domain: string | null; counts: StateCounts }
+
+const inScope = (scope: ViewScope, domain: string | null) =>
+  scope.admin || (domain !== null && scope.areas.includes(domain))
+
+/**
+ * The topics, the chart and its numbers of one person's view, as Overview and Questions make them:
+ * null for a view that reads too little to show any count at all (FR-614).
+ */
+export function pageView(
+  topics: readonly ReaderTopic[],
+  days: readonly DomainDay[],
+  dates: readonly string[],
+  scope: ViewScope,
+  minimum: number,
+): TopicView | null {
+  const mine = days.filter((d) => inScope(scope, d.domain))
+  const inRange = dates.map((day) => {
+    const counts = zeroCounts()
+    for (const d of mine) if (d.day === day) for (const s of shownStates) counts[s] += d.counts[s]
+    return { day, counts }
+  })
+  if (inRange.reduce((n, d) => n + sumCounts(d.counts), 0) < minimum) return null
+  return topicView(
+    topics.filter((t) => inScope(scope, t.domain)),
+    minimum,
+    { bars: barsOf(inRange, dates.length) },
+  )
+}
+
+/** What a reader's counts are made from: every topic, and whose views may state them. */
+export type ReaderViews = {
+  topics: readonly ReaderTopic[]
+  days: readonly DomainDay[]
+  dates: readonly string[]
+  minimum: number
+  reader: ViewScope
+  /** The views of the people who own each domain, by domain. */
+  owners: Readonly<Record<string, readonly ViewScope[]>>
+}
+
+/** A subject of what agents asked, as one reader may have it. */
+export type ReaderSubject = {
+  key: string
+  domain: string | null
+  /** The months whose own calls show, newest first. */
+  months: string[]
+  /** Its calls, or null when only a floor may show. */
+  count: Shown
+  /** What its shown counts add up to: "13+" when `count` is null. */
+  atLeast: number
+  /** The calls that found nothing; null is a count hidden, never none. */
+  nothing: Shown
+  /** False when a view the reader is held to has no such topic at all: it is not named. */
+  seen: boolean
+  /** Its calls in fact: never shown, only added up with what stays hidden. */
+  calls: number
+}
+
+/**
+ * What agents asked, as one reader may have it, the one source of every count Ask states (FR-614,
+ * FR-620): a topic of a domain the reader's own Overview and Questions count is that page's number.
+ * Any other topic is the strictest view of it that a person who owns its domain has, and a topic no
+ * one owns is the administrators' view: each count only as far as every one of those views shows
+ * it. So a person with no Observability page gets the same floors as the owners, never more.
+ */
+export function readerSubjects(c: ReaderViews): ReaderSubject[] {
+  const { topics } = c
+  const viewsFor = viewsOf(c)
+  const subjects = new Map<string, ReaderTopic[]>()
+  for (const t of topics) subjects.set(t.subject, [...(subjects.get(t.subject) ?? []), t])
+  return [...subjects].map(([key, list]) => {
+    const domain = list[0]!.domain
+    const views = viewsFor(domain)
+    const shown = views.map((view) => view?.subjects.find((s) => s.key === key) ?? null)
+    const groups = shown.flatMap((s) => s ?? [])
+    // Hidden in any view is hidden: each count shows only as far as every view shows it.
+    const every = groups.length === shown.length ? groups : []
+    const counts = every.map((s) => s.total)
+    const count = every.length && counts.every((n) => n !== null) ? counts[0]! : null
+    const nothing = every.map((s) => s.counts.missing)
+    const months = list
+      .filter(({ id }) =>
+        views.every((view) => view?.topics.find((t) => t.id === id)?.total != null),
+      )
+      .map((t) => t.month)
+    return {
+      key,
+      domain,
+      months: [...new Set(months)].sort().reverse(),
+      count,
+      atLeast: every.length ? Math.min(...every.map((s) => s.total ?? s.atLeast)) : 0,
+      nothing: every.length && nothing.every((n) => n !== null) ? nothing[0]! : null,
+      seen: every.length > 0,
+      calls: list.reduce((n, t) => n + sumCounts(t.counts), 0),
+    }
+  })
+}
+
+/** What each domain's calls add up to, by the same rule: only where every view shows the total. */
+export function readerDomains(c: ReaderViews): Record<string, number> {
+  const viewsFor = viewsOf(c)
+  const out: Record<string, number> = {}
+  for (const domain of new Set(c.topics.flatMap((t) => t.domain ?? []))) {
+    const totals = viewsFor(domain).map(
+      (view) => view?.domains.find((d) => d.domain === domain)?.total ?? null,
+    )
+    const [first] = totals
+    if (first != null && totals.every((n) => n === first)) out[domain] = first
+  }
+  return out
+}
+
+/** Which views state a domain's counts for one reader: `readerSubjects` says whose. */
+function viewsOf({ topics, days, dates, minimum, reader, owners }: ReaderViews) {
+  const made = new Map<string, TopicView | null>()
+  const viewOf = (scope: ViewScope) => {
+    const key = scope.admin ? '*' : [...scope.areas].sort().join(',')
+    if (!made.has(key)) made.set(key, pageView(topics, days, dates, scope, minimum))
+    return made.get(key)!
+  }
+  const everyone: ViewScope = { admin: true, areas: [] }
+  return (domain: string | null) => {
+    if (inScope(reader, domain)) return [viewOf(reader)]
+    const own = domain === null ? [] : (owners[domain] ?? [])
+    return (own.length ? own : [everyone]).map(viewOf)
+  }
+}
+
 /**
  * How a topic was answered, as far as a reader can see: each answer state that shows as more than 0
  * or is hidden, on a subject whose count shows at all. A hidden count says no more than that.

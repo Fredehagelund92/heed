@@ -22,12 +22,17 @@ import {
   barsOf,
   answersOf,
   beforeView,
+  readerDomains,
+  readerSubjects,
   shownParts,
   sumCounts,
   topicView,
   zeroCounts,
+  type DomainDay,
+  type ReaderSubject,
   type StateCounts,
   type TopicCounts,
+  type ViewScope,
 } from '../../../domain/observability.ts'
 import {
   coarseOf,
@@ -89,6 +94,32 @@ async function reader(tx: Queryable, area: string | undefined) {
   /** The domains read: one asked for, an owner's own, or every one (null) for an administrator. */
   const areas = area ? [area] : admin ? null : owned
   return { admin, areas, owned }
+}
+
+/** What the person's own Overview and Questions count: nothing, for someone who has no page. */
+export async function readerScope(tx: Queryable): Promise<ViewScope> {
+  const [me] = await tx.query<{ admin: boolean; areas: string[] }>(
+    `select cl_is_admin_now() as admin,
+            coalesce(array_agg(a.id order by a.id) filter (where cl_is_owner_now(a.id)),'{}') as areas
+       from areas a`,
+  )
+  return { admin: !!me?.admin, areas: me?.areas ?? [] }
+}
+
+/** What each domain's owners' own Overview and Questions count, by domain. */
+async function ownersViews(tx: Queryable): Promise<Record<string, ViewScope[]>> {
+  const rows = await tx.query<{ area: string; person: string; admin: boolean }>(
+    `select x.area_id as area, x.person_id::text as person,
+            exists (select 1 from global_role_grants g where g.person_id = x.person_id
+                     and g.role = 'administrator' and g.valid_at @> now()) as admin
+       from area_assignments x
+      where x.role = 'owner' and x.valid_at @> now()`,
+  )
+  const owned = new Map<string, string[]>()
+  for (const r of rows) owned.set(r.person, [...(owned.get(r.person) ?? []), r.area])
+  const views: Record<string, ViewScope[]> = {}
+  for (const r of rows) (views[r.area] ??= []).push({ admin: r.admin, areas: owned.get(r.person)! })
+  return views
 }
 
 /** The days of a view: the range back from yesterday, and the same length before it. */
@@ -776,6 +807,71 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         couldNotRead,
         publishes,
         agents,
+      }
+    },
+
+    /**
+     * What agents asked in the last 7 days as this person may have it (`readerSubjects`): the one
+     * source of the counts Ask states and of Asked this week. Open to everyone, unlike the page: a
+     * person with no Observability page gets the strictest view the owners of each domain have.
+     */
+    async asked(): Promise<{
+      subjects: (ReaderSubject & Pick<TopicRow, 'metrics' | 'values' | 'dimensions'>)[]
+      domains: Record<string, number>
+      minimum: number
+      start: string
+    }> {
+      const least = await minimum(tx)
+      const { start, end } = daysOf(clock.today(), 7)
+      const rows = byTopic(await topicCounts(null, true, start, end))
+      const days = await tx.query<{
+        day: string
+        domain: string | null
+        state: string
+        calls: number
+      }>(
+        `select (d.delivered_hour at time zone 'UTC')::date::text as day, t.area_id as domain,
+                d.answer_state as state, count(*)::int as calls
+           from deliveries d join topics t on t.id = d.topic_id
+          where d.caller = 'agent' and d.answer_state in ('grounded','partial','conflict','stale','missing')
+            and d.delivered_hour >= $1::date and d.delivered_hour < $2::date
+          group by 1, 2, 3`,
+        [start, end],
+      )
+      const byDay = new Map<string, DomainDay>()
+      for (const r of days) {
+        const key = `${r.day}|${r.domain ?? ''}`
+        const day = byDay.get(key) ?? { day: r.day, domain: r.domain, counts: zeroCounts() }
+        if (r.state in day.counts) day.counts[r.state as keyof StateCounts] += r.calls
+        byDay.set(key, day)
+      }
+      const dates: string[] = []
+      for (let day = start; day < end; day = shiftDate(day, 1)) dates.push(day)
+      const topics = [...rows.values()].map((t) => ({
+        id: t.id,
+        domain: t.area,
+        subject: subjectOf(t),
+        month: t.month,
+        counts: t.counts,
+      }))
+      const views = {
+        topics,
+        days: [...byDay.values()],
+        dates,
+        minimum: least,
+        reader: await readerScope(tx),
+        owners: await ownersViews(tx),
+      }
+      const subjects = readerSubjects(views)
+      const parts = new Map([...rows.values()].map((t) => [subjectOf(t), t]))
+      return {
+        subjects: subjects.map((s) => {
+          const { metrics, values, dimensions } = parts.get(s.key)!
+          return { ...s, metrics, values, dimensions }
+        }),
+        domains: readerDomains(views),
+        minimum: least,
+        start,
       }
     },
 

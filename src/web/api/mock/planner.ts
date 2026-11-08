@@ -1,4 +1,5 @@
 import type { AnswerResult } from '@contract/answer'
+import { readsFooter } from '@domain/answer-footer'
 import { nothingAskedSaid } from '@domain/ask-again'
 import { checkPlan, limitOf, readsAsFollowUp, type AskPlan } from '@domain/ask-plan'
 import { fixturePlan } from '@domain/ask-plan-fixture'
@@ -191,12 +192,18 @@ export function plannedFor(
     ...(plan.left ? { left: plan.left } : {}),
     ...(plan.facts ? { facts: plan.facts } : {}),
     ...(plan.unplaced ? { unplaced: plan.unplaced } : {}),
+    ...(plan.otherDays ? { otherDays: plan.otherDays } : {}),
     stewards: {
       owners: Object.fromEntries(world.domains.map((d) => [d.id, d.owners ?? []])),
       checked: {},
     },
   })
-  const answer = answerOf(resultOf(planned), question, namesOf(bundle.terms))
+  const footer = readsFooter(bundle, planned.answer, planned.cut)
+  const answer = answerOf(
+    { ...resultOf(planned), ...(footer ? { footer } : {}) },
+    question,
+    namesOf(bundle.terms),
+  )
   const said = planned.general
     ? { reason: 'general' as const, sentence: generalSaid(planned.general) }
     : limitOfReason(reason, planned.answer)

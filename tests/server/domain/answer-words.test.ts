@@ -160,7 +160,7 @@ describe('the words as they stream', () => {
       'Online sales stopped [1].',
     ])
     expect(gate.failed).toBeNull()
-    expect(gate.dropped).toEqual(['a sentence that cites no item'])
+    expect(gate.dropped.map((d) => d.why)).toEqual(['a sentence that cites no item'])
   })
 
   it('leaves out a sentence that cites nothing and adds a fact, and goes on', () => {
@@ -172,7 +172,7 @@ describe('the words as they stream', () => {
       'Online sales stopped [1].',
       'Order value includes store credit [2].',
     ])
-    expect(gate.dropped).toEqual(['a sentence that cites no item'])
+    expect(gate.dropped.map((d) => d.why)).toEqual(['a sentence that cites no item'])
   })
 
   it('leaves out a sentence its items do not support (FR-701)', () => {
@@ -185,7 +185,7 @@ describe('the words as they stream', () => {
     expect([...shown.flat(), ...last]).toEqual([
       'Online sales to Norway stopped on 4 August 2026 [1].',
     ])
-    expect(gate.dropped).toEqual(['says what its items do not'])
+    expect(gate.dropped.map((d) => d.why)).toEqual(['says what its items do not'])
   })
 
   it('lets a short lead say what the items say before a sentence that cites them', () => {
@@ -264,11 +264,13 @@ describe('the words as they stream', () => {
 
 describe('the words whole, as the words cases check them', () => {
   it('stands only when every sentence passes', () => {
-    expect(checkWords('Online sales stopped [1].\n\nStore credit counts [2].', input)).toEqual({
+    expect(
+      checkWords('Online sales stopped [1].\n\nStore credit counts [2].', input),
+    ).toMatchObject({
       ok: true,
       text: 'Online sales stopped [1]. Store credit counts [2].',
     })
-    expect(checkWords('Online sales stopped [1]. It fell 12 percent.', input)).toEqual({
+    expect(checkWords('Online sales stopped [1]. It fell 12 percent.', input)).toMatchObject({
       ok: false,
       why: 'a number it was not given (12)',
     })

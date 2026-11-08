@@ -2,7 +2,9 @@ import type { PlannedBundle } from '../../../domain/planned-answer.ts'
 import type { AnswerSource } from '../../../domain/answer.ts'
 import type { ItemKind } from '../../../domain/item.ts'
 import type { Term } from '../../../domain/vocabulary.ts'
+import { readerSubjects, zeroCounts, type ViewScope } from '../../../domain/observability.ts'
 import type { RecordsItem, RecordsWorld } from '../../../domain/records.ts'
+import { shiftDate } from '../../../domain/validity.ts'
 
 /*
   The world the planner cases run in (FR-710, FR-719): an invented edition shaped like the demo's
@@ -461,13 +463,55 @@ const itemRecord = (s: Seed): RecordsItem => ({
 const seen = seeds.filter((s) => !s.groups)
 
 /** What agents asked this week: each topic, its domain, its calls, those that found nothing. */
-const asked: [string, string, number, number, string[], boolean?][] = [
-  ['Orders in Norway', SALES, 31, 0, ['metric:orders', 'val:market/norway']],
-  ['Net revenue in Norway', SALES, 17, 0, ['metric:net_revenue', 'val:market/norway']],
-  ['Orders in Poland', SALES, 13, 6, ['metric:orders', 'val:market/poland']],
-  ['Orders in Spain', SALES, 12, 9, ['metric:orders', 'val:market/spain'], true],
-  ['Cost per acquisition', MARKETING, 10, 0, ['metric:cost_per_acquisition']],
-  ['Orders in Germany', SALES, 6, 6, ['metric:orders', 'val:market/germany']],
+/** A topic as the deliveries keep it: raw, so only the one disclosure source can state it. */
+type RawTopic = {
+  title: string
+  area: string
+  keys: string[]
+  /** Each month's calls and the calls of them that found nothing. */
+  months: [string, number, number][]
+  gap?: boolean
+}
+const OCTOBER = '2026-10'
+const SEPTEMBER = '2026-09'
+const asked: RawTopic[] = [
+  {
+    title: 'Orders in Norway',
+    area: SALES,
+    keys: ['metric:orders', 'val:market/norway'],
+    months: [[OCTOBER, 31, 0]],
+  },
+  {
+    title: 'Net revenue in Norway',
+    area: SALES,
+    keys: ['metric:net_revenue', 'val:market/norway'],
+    months: [[OCTOBER, 17, 0]],
+  },
+  {
+    title: 'Orders in Poland',
+    area: SALES,
+    keys: ['metric:orders', 'val:market/poland'],
+    months: [[OCTOBER, 13, 6]],
+  },
+  {
+    title: 'Orders in Spain',
+    area: SALES,
+    keys: ['metric:orders', 'val:market/spain'],
+    months: [[OCTOBER, 12, 9]],
+    gap: true,
+  },
+  {
+    title: 'Cost per acquisition',
+    area: MARKETING,
+    keys: ['metric:cost_per_acquisition'],
+    months: [[OCTOBER, 10, 0]],
+  },
+  {
+    title: 'Orders in Germany',
+    area: SALES,
+    keys: ['metric:orders', 'val:market/germany'],
+    months: [[OCTOBER, 11, 6]],
+  },
 ]
 
 const owners: Record<string, string[]> = {
@@ -477,36 +521,96 @@ const owners: Record<string, string[]> = {
   [PAID_MEDIA]: ['per_priya'],
 }
 
+/** The people of the world: who may read which view, by the same rule as the service. */
+export const planPeople: Readonly<Record<string, ViewScope>> = {
+  'Jon Abara': { admin: true, areas: [SALES] },
+  'Sofia Brandt': { admin: false, areas: [SALES] },
+  'Tomas Eriksen': { admin: false, areas: [MARKETING] },
+  'Noor Haddad': { admin: false, areas: [CUSTOMER_VALUE] },
+  'Alex Moreau': { admin: false, areas: [CUSTOMER_VALUE] },
+  'Priya Nair': { admin: false, areas: [PAID_MEDIA] },
+  'Ines Duarte': { admin: false, areas: [] },
+  'Maria Lindqvist': { admin: false, areas: [] },
+}
+
+/** The 7 days Observability counts on the world's day, the last full one the last. */
+const ASKED_DAYS = Array.from({ length: 7 }, (_, i) => shiftDate(PLAN_TODAY, i - 7))
+
+/** What agents asked as one person may have it, from the source the service has (`readerSubjects`). */
+function askedAs(
+  raw: readonly RawTopic[],
+  person = 'Jon Abara',
+): NonNullable<RecordsWorld['asked']> {
+  const topics = raw.flatMap((t) =>
+    t.months.map(([month, calls, nothing]) => ({
+      id: `${t.title} ${month}`,
+      domain: t.area,
+      subject: t.title,
+      month,
+      counts: { ...zeroCounts(), grounded: calls - nothing, missing: nothing },
+    })),
+  )
+  const views: Record<string, ViewScope[]> = {}
+  for (const [area, ids] of Object.entries(owners))
+    views[area] = ids.map((id) => planPeople[peopleNames[id]!]!)
+  const subjects = readerSubjects({
+    topics,
+    // The week as one bar: what the page's days add to a view, this world leaves out.
+    days: topics.map((t) => ({ day: ASKED_DAYS[0]!, domain: t.domain, counts: t.counts })),
+    dates: ASKED_DAYS.slice(0, 1),
+    minimum: 5,
+    reader: planPeople[person]!,
+    owners: views,
+  })
+  return {
+    minimum: 5,
+    start: ASKED_DAYS[0]!,
+    rows: subjects
+      .map((s) => {
+        const t = raw.find((r) => r.title === s.key)!
+        return {
+          title: t.title,
+          area: t.area,
+          count: s.count,
+          atLeast: s.atLeast,
+          nothing: s.nothing,
+          state: t.months.some(([, , nothing]) => nothing)
+            ? ('missing' as const)
+            : ('grounded' as const),
+          gap: t.gap ? { card: 'gap:spain', draft: null } : null,
+          metrics: t.keys.filter((k) => k.startsWith('metric:')),
+          values: t.keys.filter((k) => k.startsWith('val:')),
+        }
+      })
+      .sort((a, b) => (b.count ?? b.atLeast) - (a.count ?? a.atLeast)),
+  }
+}
+
+/** The records as one person has them: what agents asked is the only part that differs. */
+export const recordsAs = (world: RecordsWorld, raw: readonly RawTopic[], person: string) => ({
+  ...world,
+  asked: askedAs(raw, person),
+})
+
+const peopleNames: Readonly<Record<string, string>> = {
+  per_jon: 'Jon Abara',
+  per_sofia: 'Sofia Brandt',
+  per_tomas: 'Tomas Eriksen',
+  per_noor: 'Noor Haddad',
+  per_alex: 'Alex Moreau',
+  per_priya: 'Priya Nair',
+  per_ines: 'Ines Duarte',
+}
+
 /** Jon Abara's records: an administrator and an owner of Sales, in no group. */
 export const planRecords: RecordsWorld = {
   items: seen.map(itemRecord),
   areas: planAreas.map((a) => ({ ...a, ownerIds: owners[a.id]! })),
-  people: {
-    per_jon: 'Jon Abara',
-    per_sofia: 'Sofia Brandt',
-    per_tomas: 'Tomas Eriksen',
-    per_noor: 'Noor Haddad',
-    per_alex: 'Alex Moreau',
-    per_priya: 'Priya Nair',
-    per_ines: 'Ines Duarte',
-  },
+  people: peopleNames,
   terms: planTerms.map((t) =>
     t.kind === 'metric' ? { ...t, areaId: planBundle.metricArea[t.key] ?? null } : t,
   ),
-  asked: {
-    minimum: 5,
-    rows: asked.map(([title, area, count, nothing, keys, gap]) => ({
-      title,
-      area,
-      count,
-      atLeast: count,
-      nothing,
-      state: nothing ? 'missing' : 'grounded',
-      gap: gap ? { card: 'gap:spain', draft: null } : null,
-      metrics: keys.filter((k) => k.startsWith('metric:')),
-      values: keys.filter((k) => k.startsWith('val:')),
-    })),
-  },
+  asked: askedAs(asked),
   conflicts: [
     {
       key: 'rul_norway_credit.rul_norway_cash',
@@ -597,31 +701,32 @@ export const planStewards = {
  * whose calls that found something would be left over under the minimum, and one whose calls that
  * found nothing are under it. Nothing below the minimum may appear in an answer about them.
  */
-export const smallCountRecords: RecordsWorld = {
-  ...planRecords,
-  asked: {
-    minimum: 5,
-    rows: (
+const smallCounts: RawTopic[] = (
+  [
+    ['Returns in Italy', 'metric:returns', [[OCTOBER, 3, 3]]],
+    [
+      'Orders in Italy',
+      'metric:orders',
       [
-        ['Returns in Italy', 'metric:returns', 'val:market/italy', 3, 3, 0],
-        ['Orders in Italy', 'metric:orders', 'val:market/italy', null, 9, 0],
-        ['Discount cost in Italy', 'metric:discount_cost', 'val:market/italy', 11, 11, 8],
-        ['Units sold in Italy', 'metric:units_sold', 'val:market/italy', 14, 14, 2],
-        ['Gross sales in Italy', 'metric:gross_sales', 'val:market/italy', 6, 6, 6],
-      ] as const
-    ).map(([title, metric, value, count, atLeast, nothing]) => ({
-      title,
-      area: SALES,
-      count,
-      atLeast,
-      nothing,
-      state: nothing ? ('missing' as const) : ('grounded' as const),
-      gap: null,
-      metrics: [metric],
-      values: [value],
-    })),
-  },
-}
+        [OCTOBER, 9, 0],
+        [SEPTEMBER, 3, 0],
+      ],
+    ],
+    ['Discount cost in Italy', 'metric:discount_cost', [[OCTOBER, 11, 8]]],
+    ['Units sold in Italy', 'metric:units_sold', [[OCTOBER, 14, 2]]],
+    ['Gross sales in Italy', 'metric:gross_sales', [[OCTOBER, 6, 6]]],
+  ] as const
+).map(([title, metric, months]) => ({
+  title,
+  area: SALES,
+  keys: [metric, 'val:market/italy'],
+  months: months.map((m) => [...m]),
+}))
+
+export const smallCountRecords: RecordsWorld = { ...planRecords, asked: askedAs(smallCounts) }
+
+/** The raw topics of each world, for what one person may have of them. */
+export const rawAsked = { usual: asked, 'small counts': smallCounts }
 
 /** The same records on the day the source changed a definition: no item relies on it yet. */
 export const sourceChangedRecords: RecordsWorld = {

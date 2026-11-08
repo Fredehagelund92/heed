@@ -1,4 +1,5 @@
 import type { AnswerState } from './answer.ts'
+import { isAbout, notSeen, recordsFooter } from './answer-footer.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 import {
   auditAnswer,
@@ -13,6 +14,7 @@ import {
 import { periodWords, readDates, wholePeriod } from './dates.ts'
 import {
   recordsKinds,
+  type AnswerFooter,
   type AuditRead,
   type LimitReason,
   type RecordsAbout,
@@ -23,10 +25,10 @@ import {
   type RecordsRow,
   type RecordsAnswer,
 } from './records-answer.ts'
-import { shownTopics } from './gaps.ts'
 import { reachesBeyond } from './plain-read.ts'
+import { otherDaysSaid } from './say.ts'
 import { asksDefinition } from './scope.ts'
-import { anyDate, isAnyDate } from './validity.ts'
+import { anyDate, isAnyDate, type DateWindow } from './validity.ts'
 import { normalizeName, type Term } from './vocabulary.ts'
 
 /*
@@ -103,6 +105,8 @@ export type RecordsAsk = {
   asOf?: string
   /** The words of the question that named dates Ask could not place, for a read with no history. */
   asOfUnplaced?: string[]
+  /** The model and the date reader read the dates apart: the days it did not take. */
+  otherDays?: DateWindow
   /** The question also asks who owns what this read finds: the answer says, by domain. */
   owners?: boolean
   /** A question with a second subject: one read for each, side by side. */
@@ -430,6 +434,14 @@ function exactPeriod(text: string, nowIso: string): RecordsPeriod | null {
 }
 
 /** The period an answer about changes takes when the words name none: the last 7 days. */
+/** Days a reader or the model worked out, as a records read takes them. */
+export function windowPeriod(window: DateWindow, nowIso: string, whole = false): RecordsPeriod {
+  const now = Date.parse(nowIso)
+  const end = window.end ? Date.parse(window.end) : now
+  const words = periodWords(window, { upTo: true })
+  return period(Date.parse(window.start), whole ? end : Math.min(end, now), words, now)
+}
+
 export const assumedPeriod = (nowIso: string): RecordsPeriod => {
   const now = Date.parse(nowIso)
   return period(now - 7 * DAY, now, 'in the last 7 days', now, true)
@@ -963,6 +975,10 @@ export type RecordsWorld = {
       values?: readonly string[]
     }[]
     minimum: number
+    /** The first of the 7 days it counts, as Observability counts them. */
+    start?: string
+    /** Each domain's calls, where the reader may have the total. */
+    domains?: Readonly<Record<string, number>>
   } | null
   /**
    * The conflicts as Context's Conflicts filter lists them to the person, in its order: pairs of
@@ -1044,12 +1060,10 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     : ask.asOf
       ? `This is how it stands today, not ${ask.asOf}: the records keep no count by date.`
       : null
-  return stands
-    ? {
-        ...found,
-        note: [stands, found.note].filter(Boolean).join(' '),
-      }
-    : found
+  const apart = ask.otherDays ? otherDaysSaid(ask.otherDays) : null
+  const said = [stands, apart, found.note].filter(Boolean).join(' ')
+  const whole = said ? { ...found, note: said } : found
+  return { ...whole, footer: ask.parts?.length ? whole.footer : recordsFooter(whole, ask, world) }
 }
 
 /** Who owns the domains of what an answer lists: the second part of "what is due and who owns it". */
@@ -1085,11 +1099,29 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
     found: recordsAnswerOf({ ...whole, ...part }, world, nowIso),
   }))
   const first = reads[0]!.found
+  const once = (lines: readonly (string | null | undefined)[]) => [
+    ...new Set(lines.filter(Boolean)),
+  ]
+  const footers = reads.map(({ found }, i) =>
+    recordsFooter(found, { ...whole, ...parts[i]!, parts: undefined }, world),
+  )
+  const joined = (pick: (f: AnswerFooter) => string | null) =>
+    once(footers.flatMap((f) => (pick(f) ?? '').split(/(?<=\.)\s+/))).join(' ') || null
+  const clear = reads.flatMap(({ label, found }) =>
+    (found.clear ?? []).map((l) => `${label}: ${l}`),
+  )
   return {
     ...first,
+    domain: new Set(reads.map((r) => r.found.domain?.id ?? null)).size === 1 ? first.domain : null,
+    clear: clear.length ? clear : undefined,
+    footer: {
+      denominator: joined((f) => f.denominator),
+      notSeen: joined((f) => f.notSeen),
+      stale: joined((f) => f.stale),
+    },
     understood: reads.map((r) => r.found.understood).join(', and '),
     read: reads[0]!.found.read,
-    sentence: reads.map((r) => r.found.sentence).join(' '),
+    sentence: once(reads.map((r) => r.found.sentence)).join(' '),
     detail: null,
     detailItem: null,
     columns: [],
@@ -1097,8 +1129,8 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
     total: reads.reduce((sum, r) => sum + r.found.total, 0),
     shown: null,
     more: null,
-    sections: reads.flatMap(({ label, found }) =>
-      found.rows.length
+    sections: reads.flatMap(({ label, found }) => [
+      ...(found.rows.length
         ? [
             {
               title: label,
@@ -1109,16 +1141,12 @@ function partsAnswer(ask: RecordsAsk, world: RecordsWorld, nowIso: string): Reco
               more: found.more,
             },
           ]
-        : [],
-    ),
+        : []),
+      // An analysis of several parts has sections of its own, each still its domain's.
+      ...(found.sections ?? []).map((s) => ({ ...s, title: `${label}: ${s.title}` })),
+    ]),
   }
 }
-
-/** Whether an item is about what the question narrowed a read to: each part, when it names one. */
-const isAbout = (i: RecordsItem, about: RecordsAbout | undefined) =>
-  !about ||
-  ((!about.metrics.length || about.metrics.some((m) => i.metrics?.includes(m))) &&
-    (!about.values.length || about.values.some((v) => i.values?.includes(v))))
 
 function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): RecordsFound {
   const area = ask.domain ? (world.areas.find((a) => a.id === ask.domain) ?? null) : null
@@ -1262,7 +1290,7 @@ function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): 
           ask.kind === 'definition'
             ? 'A definition needs no check: the context written about it does. Context whose definition changed is due for a check too.'
             : null,
-        notSeen: 'Not seen: an item that is wrong before its check date.',
+        footer: notSeen('an item that is wrong before its check date'),
       }
     }
     case 'archived': {
@@ -1368,23 +1396,26 @@ function recordsAnswerOf(ask: RecordsAsk, world: RecordsWorld, nowIso: string): 
       }
     }
     case 'asked_nothing': {
-      const asked = world.asked ?? { rows: [], minimum: 5 }
-      const { nothing, section } = foundNothing(asked)
+      const all = world.asked ?? { rows: [], minimum: 5 }
+      const asked = {
+        ...all,
+        rows: all.rows.filter((r) => !domain || (r.area ?? null) === domain.id),
+      }
+      const { nothing, section, sentence } = foundNothing(asked, domain ? ` in ${domain.name}` : '')
       const n = nothing.length
       return {
         ...base,
         understood: 'Topics agents asked about that found nothing, this week',
         read: 'Read what agents asked this week',
-        sentence: n
-          ? `Agents found nothing for ${count(n)} of ${count(shownTopics(asked.rows, asked.minimum).length)} topics this week.`
-          : `No topic agents asked about ${asked.minimum} times or more this week found nothing.`,
+        sentence,
         columns: section?.columns ?? [],
         rows: section?.rows ?? [],
         total: n,
         shown: section?.shown ?? null,
         note: `A topic asked about fewer than ${asked.minimum} times is not shown, so no small count is given away.`,
-        notSeen:
-          "Not seen: what people ask in Ask, which is kept nowhere, so this counts agents' calls only.",
+        footer: notSeen(
+          "what people ask in Ask, which is kept nowhere, so this counts agents' calls only",
+        ),
       }
     }
     case 'audit':
@@ -1596,7 +1627,7 @@ function comingDue(
     })),
     total: n,
     shown: n > RECORDS_ROWS ? `Showing the ${RECORDS_ROWS} earliest` : null,
-    notSeen: 'Not seen: an item that is wrong before its check date.',
+    footer: notSeen('an item that is wrong before its check date'),
   }
 }
 
@@ -1650,7 +1681,7 @@ function conflictsAnswer(
         }
       : null,
     note: `A conflict is two context items an owner said disagree. A pair kept as both, and unchanged since, is not one.${p ? ' A conflict counts from the day agents started to get both items.' : ''}`,
-    notSeen: 'Not seen: two items that disagree when no owner marked them.',
+    footer: notSeen('two items that disagree when no owner marked them'),
   }
 }
 

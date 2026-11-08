@@ -1,4 +1,5 @@
 import { answer, readAsk, type Answer, type AnswerAsk, type AnswerState } from './answer.ts'
+import { readsFooter } from './answer-footer.ts'
 import { asksNothing, nothingAskedSaid } from './ask-again.ts'
 import { chatSources, fitChat, type ChatTurn, type HeldReading, type HeldWord } from './ask-chat.ts'
 import { chosenMeanings, heldOf, settled } from './ask-held.ts'
@@ -16,6 +17,7 @@ import {
   type AskPlan,
   type PlanCheck,
   type PlanContext,
+  type PlannerAsker,
   type PlannerPrevious,
   type PlannerReason,
 } from './ask-plan.ts'
@@ -29,7 +31,7 @@ import {
 } from './planned-answer.ts'
 import { readsPlainly } from './plain-read.ts'
 import { limitAlone, limitSaid, type RecordsAsk, type RecordsRecognition } from './records.ts'
-import type { AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
+import type { AnswerFooter, AnswerLimit, CannotReason, LimitReason } from './records-answer.ts'
 import {
   cannotSaid,
   contestedAlso,
@@ -147,6 +149,7 @@ export function plannerInputOf(
   question: string,
   turns: readonly ChatTurn[],
   today: string,
+  asker?: PlannerAsker,
 ): PlannerInput {
   const byId = new Map(bundle.items.map((item) => [item.id, item]))
   const numbers = new Map(chatSources(turns).map((id, i) => [id, i + 1]))
@@ -174,7 +177,13 @@ export function plannerInputOf(
   return {
     system: plannerSystem,
     vocabulary: plannerVocabulary(bundle.terms, bundle.areas),
-    prompt: plannerPrompt({ question, today, previous, earlier: earlier.reverse() }),
+    prompt: plannerPrompt({
+      question,
+      today,
+      previous,
+      earlier: earlier.reverse(),
+      ...(asker ? { asker } : {}),
+    }),
   }
 }
 
@@ -242,7 +251,7 @@ export const limitOfReason = (
 /** How a question was read, and what answers it. */
 export type Routed =
   /** The rules' answer, as with no model, under a limit when the words reach beyond what is written. */
-  | { kind: 'rules'; answer: Answer; limit: AnswerLimit | null }
+  | { kind: 'rules'; answer: Answer; limit: AnswerLimit | null; footer: AnswerFooter | null }
   /**
    * A records question, as the rules read it or the planner chose it, with what the planner
    * carried from the last question and the question as it reads alone.
@@ -255,7 +264,13 @@ export type Routed =
       standalone?: string
     }
   /** The planner's reads, run, with what the working line says while they run. */
-  | { kind: 'reads'; planned: PlannedAnswer; working: string; limit: AnswerLimit | null }
+  | {
+      kind: 'reads'
+      planned: PlannedAnswer
+      working: string
+      limit: AnswerLimit | null
+      footer: AnswerFooter | null
+    }
   /**
    * One short question back, the sentence for a question off topic, or the sentence for a message
    * that asks nothing: nothing is looked up.
@@ -309,6 +324,7 @@ export function routeHeld(
       planned,
       working: workingWords(bundle, planned.reads),
       limit: null,
+      footer: readsFooter(bundle, planned.answer, planned.cut),
       reason: null,
       asked: false,
     }
@@ -353,6 +369,8 @@ export async function routeQuestion(c: {
   clock?: () => number
   /** What the records keep about items, for an answer that says who owns what it found. */
   stewards?: (() => Promise<Stewards>) | undefined
+  /** Who is asking, for "my domain": what is theirs, never who they are. */
+  asker?: (() => Promise<PlannerAsker>) | undefined
 }): Promise<Routed & { reason: PlannerReason | null; asked: boolean }> {
   const { bundle, ask, turns, today } = c
   const previous = turns.at(-1) ?? null
@@ -379,8 +397,9 @@ export async function routeQuestion(c: {
   const asks = !!reason && !!c.planner
   // A plan that does not fit the question leaves it honestly unanswered, never to a nearby read.
   let misfit = false
+  const asker = asks ? await c.asker?.() : undefined
   const plan = asks
-    ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today), (raw) => {
+    ? await c.planner!(plannerInputOf(bundle, ask.question, turns, today, asker), (raw) => {
         const checked = checkPlan(
           raw,
           planContextOf(bundle, ask.question, turns, { today, now: c.now, business }),
@@ -406,7 +425,12 @@ export async function routeQuestion(c: {
       if (missed && rules.status === 'need_more_detail') return cannot('unread')
       // No read answers it plainly and nothing read it: what is written, and that it is only part.
       const said = limitOf(ask.question) ?? (!plain && rules.scope ? 'partly' : null)
-      return { kind: 'rules', answer: rules, limit: limitOfReason(said, rules) }
+      return {
+        kind: 'rules',
+        answer: rules,
+        limit: limitOfReason(said, rules),
+        footer: readsFooter(bundle, rules),
+      }
     }
     switch (plan.kind) {
       case 'cannot':
@@ -437,6 +461,7 @@ export async function routeQuestion(c: {
           ...(plan.left ? { left: plan.left } : {}),
           ...(plan.facts ? { facts: plan.facts } : {}),
           ...(plan.unplaced ? { unplaced: plan.unplaced } : {}),
+          ...(plan.otherDays ? { otherDays: plan.otherDays } : {}),
           ...(stewards ? { stewards } : {}),
           ...(c.clock ? { now: c.clock } : {}),
         })
@@ -444,6 +469,7 @@ export async function routeQuestion(c: {
           kind: 'reads',
           planned,
           working: workingWords(bundle, plan.reads),
+          footer: readsFooter(bundle, planned.answer, planned.cut),
           limit: planned.general
             ? { reason: 'general', sentence: generalSaid(planned.general) }
             : limitOfReason(limit, planned.answer),

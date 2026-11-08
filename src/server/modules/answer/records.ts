@@ -43,6 +43,9 @@ import type { ServingBundle } from '../editions/index.ts'
 
 const DAY = 86_400_000
 
+/** A topic that shows no count of the minimum: a row only for a question that names it. */
+export type UnlistedTopic = NonNullable<RecordsWorld['asked']>['rows'][number]
+
 /** The reads a records answer is made from, each as the person's request makes it. */
 export type RecordsReads = {
   /** The Context list's items, as `library.index` gives them to the person. */
@@ -51,8 +54,15 @@ export type RecordsReads = {
   areas: () => Promise<{ id: string; name: string; ownerIds: string[] }[]>
   /** The workspace's people, by name, as Context names owners. */
   people: () => Promise<{ id: string; name: string }[]>
-  /** Asked this week, with its minimum. */
-  asked: () => Promise<{ asked: Asked; minimum: number }>
+  /** What agents asked, as this reader may have it, with its minimum. */
+  asked: () => Promise<{
+    asked: Asked
+    minimum: number
+    unlisted: UnlistedTopic[]
+    domains: Record<string, number>
+  }>
+  /** Whether the person is an administrator, and the domains they own. */
+  reader: () => Promise<{ admin: boolean; areas: readonly string[] }>
   /** The definitions the person's groups may not see, by ref, as the catalogue leaves them out. */
   hidden: () => Promise<readonly string[]>
   /** The conflicts, as Context's Conflicts filter lists them to the person. */
@@ -161,9 +171,7 @@ const needs = (ask: RecordsAsk) => {
   const analysis = ask.intent === 'audit' || ask.intent === 'queue' || !!ask.over
   const reviews = facets.includes('review')
   return {
-    items:
-      !!ask.about ||
-      !['asked_nothing', 'terms', 'values', 'conflicts', 'glossary'].includes(ask.intent),
+    items: !!ask.about || !['asked_nothing', 'terms', 'values', 'glossary'].includes(ask.intent),
     asked:
       ask.intent === 'asked_nothing' ||
       reviews ||
@@ -345,17 +353,22 @@ async function worldFor(
       .map((t) => (t.kind === 'metric' ? { ...t, areaId: bundle.metricArea[t.key] ?? null } : t)),
     asked: asked && {
       minimum: asked.minimum,
-      rows: asked.asked.rows.map((r) => ({
-        title: r.title,
-        count: r.count,
-        atLeast: r.atLeast,
-        nothing: r.nothing,
-        state: r.state,
-        gap: r.gap,
-        area: r.area,
-        metrics: r.scope.metrics,
-        values: Object.values(r.scope.filters).flat(),
-      })),
+      start: asked.asked.week,
+      domains: asked.domains,
+      rows: [
+        ...asked.asked.rows.map((r) => ({
+          title: r.title,
+          count: r.count,
+          atLeast: r.atLeast,
+          nothing: r.nothing,
+          state: r.state,
+          gap: r.gap,
+          area: r.area,
+          metrics: r.scope.metrics,
+          values: Object.values(r.scope.filters).flat(),
+        })),
+        ...asked.unlisted,
+      ],
     },
     // The list shows only pairs the person may read whole, so both titles are there.
     conflicts:

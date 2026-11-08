@@ -71,10 +71,10 @@ import {
   revokeAccessKey,
 } from '../modules/access-keys/index.ts'
 import {
+  askedFor,
   askedThisWeek,
   createBundleCache,
   lookupQuestion,
-  minimumCount,
   planQuestion,
   planWords,
   replayTopic,
@@ -82,6 +82,7 @@ import {
   wordsInputOf,
   writeWords,
   type LookupDeps,
+  type AskTrace,
 } from '../modules/answer/index.ts'
 import {
   createNamesService,
@@ -129,7 +130,7 @@ import {
 } from '../modules/connectors/index.ts'
 import { createGapsService, gapReportsPerMinute } from '../modules/gaps/index.ts'
 import { createLibraryService } from '../modules/library/index.ts'
-import { createObservabilityService } from '../modules/observability/index.ts'
+import { createObservabilityService, readerScope } from '../modules/observability/index.ts'
 import {
   adoptPublished,
   createSavedQuestionsService,
@@ -148,6 +149,8 @@ export interface ApiServices {
   origins: readonly string[]
   /** The language model port for evaluations and Ask's words (the mock unless MODELS=live). */
   models: ModelPort
+  /** What a run of Ask's cases hears or replaces. Never set by the service. */
+  askTrace?: AskTrace
   /** The MCP server's public address (`MCP_RESOURCE_URL`); null when this app serves no MCP. */
   mcpAddress?: string | null
   /** The built-in login server for agents; without it there is nothing to approve or list. */
@@ -180,6 +183,7 @@ export function createRouter({
     registry: new ConnectorRegistry([...(sources?.list() ?? [])]),
   }),
   readPage,
+  askTrace,
 }: ApiServices) {
   const limitGapReports = createLimiter(() => clock.now())
   // The editions the answer engine reads, kept a short while: one for every person.
@@ -1145,27 +1149,30 @@ export function createRouter({
         const plan = await planWords(context.tx, models, context.session!.person.id)
         const log = context.request.log
         // The planner (FR-719): the same model, under the same limits; the scripted one on the mock.
-        const planner: LookupDeps['planner'] = plan
-          ? (asked, check) =>
-              planQuestion(
-                {
-                  database: forRequest(database, context.request.id),
-                  call: plan,
-                  ...(signal ? { signal } : {}),
-                  // Names the failure only, never the question, the last turn or the plan.
-                  onError: (error) =>
-                    log.warn(
-                      { error: error instanceof Error ? error.name : 'unknown' },
-                      'ask plan not used',
-                    ),
-                  onMiss: (miss) => log.warn(miss, 'ask plan not used'),
-                },
-                asked,
-                check,
-              )
-          : models.mode === 'mock'
-            ? scriptedPlan
-            : undefined
+        const planner: LookupDeps['planner'] = askTrace?.planner
+          ? askTrace.planner
+          : plan
+            ? (asked, check) =>
+                planQuestion(
+                  {
+                    database: forRequest(database, context.request.id),
+                    call: plan,
+                    ...(signal ? { signal } : {}),
+                    // Names the failure only, never the question, the last turn or the plan.
+                    onError: (error) =>
+                      log.warn(
+                        { error: error instanceof Error ? error.name : 'unknown' },
+                        'ask plan not used',
+                      ),
+                    onMiss: (miss) => log.warn(miss, 'ask plan not used'),
+                    ...(askTrace?.onPlan ? { onPlan: askTrace.onPlan } : {}),
+                  },
+                  asked,
+                  check,
+                )
+            : models.mode === 'mock'
+              ? scriptedPlan
+              : undefined
         return lookupQuestion(context.tx, clock, answerBundles, input, {
           ...(planner ? { planner } : {}),
           words: plan
@@ -1183,6 +1190,7 @@ export function createRouter({
                         'ask words not written',
                       ),
                     onMiss: (miss) => log.warn(miss, 'ask words not written'),
+                    ...(askTrace?.onDropped ? { onDropped: askTrace.onDropped } : {}),
                   },
                   wordsInputOf(input.question, answer),
                 )
@@ -1192,10 +1200,8 @@ export function createRouter({
             index: () => context.library.getIndex(),
             areas: () => context.areas.list(),
             people: () => listMembers(context.tx),
-            asked: async () => ({
-              asked: await askedThisWeek(context.tx, clock, answerBundles),
-              minimum: await minimumCount(context.tx),
-            }),
+            asked: () => askedFor(context.tx, clock, answerBundles),
+            reader: () => readerScope(context.tx),
             hidden: () => hiddenDefinitions(context.tx),
             conflicts: () => context.conflicts.list({ whose: 'all' }),
             catalogue: () => context.catalogue.list(),

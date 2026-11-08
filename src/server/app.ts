@@ -28,6 +28,7 @@ import {
   type WorkspaceSources,
 } from './modules/connectors/index.ts'
 import type { JobRunner } from './modules/jobs/index.ts'
+import type { AskTrace } from './modules/answer/index.ts'
 import { createModelPort, type ModelPort } from './modules/models/index.ts'
 import { registerLoginRoutes, type LoginServer } from './modules/oauth/index.ts'
 import type { PageReader } from './modules/web/index.ts'
@@ -82,6 +83,8 @@ export interface AppDependencies {
    * forward. `vercel` alone believes the one hop in front. Defaults to none: the connection's peer.
    */
   trustedProxies?: readonly string[]
+  /** What a run of Ask's cases hears or replaces. Never set by the service. */
+  askTrace?: AskTrace
 }
 
 /**
@@ -117,6 +120,7 @@ export function buildApp({
   login,
   readPage,
   trustedProxies = [],
+  askTrace,
 }: AppDependencies): FastifyInstance {
   const app = Fastify({
     loggerInstance: logger,
@@ -192,6 +196,7 @@ export function buildApp({
     sources,
     workspaceSources,
     ...(readPage ? { readPage } : {}),
+    ...(askTrace ? { askTrace } : {}),
   })
 
   app.addHook('onClose', async () => {

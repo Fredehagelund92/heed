@@ -2,8 +2,11 @@ import { createHash } from 'node:crypto'
 import { OWN_VOICE } from '../../../domain/answer-words.ts'
 import { plannerSystem, plannerVocabulary } from '../../../domain/ask-plan.ts'
 import { answer } from '../../../domain/answer.ts'
-import { planProblems, type PlanCase, type PlanOutcome } from './plan-cases.ts'
+import { demoCases } from './burned-cases.ts'
+import { heldBack } from './held-back.ts'
+import { planCases, planProblems, type PlanCase, type PlanOutcome } from './plan-cases.ts'
 import { PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
+import { stewardCases } from './steward-cases.ts'
 
 /*
   The release gate of Ask's promises (FR-720, docs/evaluations.md): the zero-tolerance rules and the
@@ -11,6 +14,10 @@ import { PLAN_TODAY, planAreas, planBundle } from './plan-world.ts'
   case. Pure over a run, so the same gate reads the scripted planner in every build and the real
   model on request (`npm run eval:ask-gate`), reported apart (FR-710).
 */
+
+/** The development cases held back, by id: a run reports them only as counts. */
+export const heldIds = () =>
+  heldBack([...planCases, ...stewardCases, ...demoCases].map((c) => c.id))
 
 /** The last real run's plans: replayed through the check in every build. */
 export const recordedPlansFile = new URL('./recorded-plans.json', import.meta.url)

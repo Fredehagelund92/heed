@@ -191,12 +191,7 @@ const R: PlanCase[] = [
       route: 'records',
       intent: 'asked_nothing',
       state: null,
-      must: [
-        'Orders in Spain | 9',
-        'Orders in Germany | 6 of 6',
-        'Orders in Poland | 6 of 13',
-        'this week',
-      ],
+      must: ['Orders in Spain | 9', 'Orders in Germany | 6', 'Orders in Poland | 6', 'this week'],
       // 9 of 12 would give a count of 3 away, by subtraction (FR-614).
       refuse: [/Net revenue in Norway/, /9 of 12/],
     },
@@ -809,7 +804,13 @@ const S: PlanCase[] = [
     what: 'Dates change, the rest carries.',
     question: 'and in September?',
     after: 'S03',
-    expect: { route: 'planner', plan: ['lookup'], stateIn: ['conflict', 'partial'] },
+    // What is read counts here, not by which read: a look-up and a search of the same names agree.
+    expect: {
+      route: 'planner',
+      keys: ['metric:orders', 'val:market/norway'],
+      period: 'asked',
+      stateIn: ['conflict', 'partial'],
+    },
   },
   {
     id: 'S19',

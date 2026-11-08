@@ -21,6 +21,7 @@ import {
   cannotReasons,
   limitSchema,
   recordsAnswerSchema,
+  footerSchema,
 } from '../domain/records-answer.ts'
 import { tryItInputSchema } from './connect.ts'
 
@@ -255,6 +256,8 @@ export const answerSchema = z.object({
    * sentence it leads with. It changes neither the state nor the items.
    */
   limit: z.optional(limitSchema),
+  /** In Ask's look-up only: what a count is out of, what was not seen, and what may be out of date. */
+  footer: z.optional(footerSchema),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 
@@ -389,7 +392,7 @@ export type LookupEvent = z.infer<typeof lookupEventSchema>
  * a small month could be worked out from it, and `atLeast` is what the shown months add up to.
  */
 export const askedSchema = z.object({
-  /** The first day of the week counted (Monday, UTC). */
+  /** The first of the 7 full days counted, as Observability counts them (UTC). */
   week: z.string(),
   rows: z.array(
     z.object({

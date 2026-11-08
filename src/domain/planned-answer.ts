@@ -15,7 +15,7 @@ import {
 import type { ItemKind } from './item.ts'
 import { canRead } from './links.ts'
 import { compareIds, metricsOf } from './resolver.ts'
-import { scopeWords } from './say.ts'
+import { otherDaysSaid, scopeWords } from './say.ts'
 import { itemTrust } from './status.ts'
 import { readQuestion, type ResolvedScope } from './scope.ts'
 import { anyDate, isAnyDate, overlaps, type DateWindow } from './validity.ts'
@@ -284,8 +284,11 @@ type Strict = { names?: boolean; words?: boolean }
 const wordsAlone = ({ scope, kinds }: ExploreRead) =>
   !scope.metrics.length && !Object.keys(scope.filters).length && (!kinds.length || kinds.length > 3)
 
-/** A read, run: its answer, the reads as they ran, and the values only general items cover. */
-type ReadRun = { answer: Answer; reads: PlannedRead[]; general: string[] }
+/**
+ * A read, run: its answer, the reads as they ran, the values only general items cover, and how many
+ * items fitted past what a search gives.
+ */
+type ReadRun = { answer: Answer; reads: PlannedRead[]; general: string[]; cut: number }
 
 /**
  * A search of the context (`explore`): the items an agent would be given, of the kinds asked,
@@ -300,14 +303,14 @@ export function explore(
   today: string,
   now: () => number = () => 0,
   strict: Strict = {},
-): { answer: Answer; reads: ExploreRead[]; general: string[] } {
+): { answer: Answer; reads: ExploreRead[]; general: string[]; cut: number } {
   const first = searchOnce(bundle, asked, today, now, strict)
   // A kind none of whose items has the words is read whole, apart: a word for guides ("jump")
   // never hides the events asked beside them, and the read says which had the words.
   const found = new Set(first.answer.items.map((item) => item.kind))
   const rest = asked.kinds.filter((kind) => !found.has(kind))
   if (!first.read.words || !found.size || !rest.length)
-    return { answer: first.answer, reads: [first.read], general: first.general }
+    return { answer: first.answer, reads: [first.read], general: first.general, cut: first.cut }
   const matched = searchOnce(
     bundle,
     { ...asked, kinds: asked.kinds.filter((kind) => found.has(kind)) },
@@ -322,6 +325,7 @@ export function explore(
     answer: empty ? matched.answer : combined([matched.answer, whole.answer]),
     reads: empty ? [{ ...matched.read, kinds: asked.kinds }] : [matched.read, whole.read],
     general: matched.general.filter((value) => whole.general.includes(value)),
+    cut: matched.cut + (empty ? 0 : whole.cut),
   }
 }
 
@@ -332,7 +336,7 @@ function searchOnce(
   today: string,
   now: () => number,
   strict: Strict = {},
-): { answer: Answer; read: ExploreRead; general: string[] } {
+): { answer: Answer; read: ExploreRead; general: string[]; cut: number } {
   const { scope } = asked
   const { window } = scope
   const candidates = bundle.items.filter(
@@ -395,7 +399,7 @@ function searchOnce(
     now,
     general,
   )
-  return { answer, read, general }
+  return { answer, read, general, cut: ranked.length - found.length }
 }
 
 /** The sources of the last answer, read again by id: those an agent would still be given. */
@@ -437,7 +441,7 @@ export function runRead(
 ): ReadRun {
   const now = c.now ?? (() => 0)
   if (read.kind === 'explore') return explore(bundle, read, c.today, now, strict)
-  return { answer: engineRead(bundle, read, c, now), reads: [read], general: [] }
+  return { answer: engineRead(bundle, read, c, now), reads: [read], general: [], cut: 0 }
 }
 
 /**
@@ -605,6 +609,8 @@ export type PlannedAnswer = {
   defines: string[]
   /** The names nothing is written about, when what was read applies to everything. */
   general?: string[]
+  /** How many items fitted past what a search gives. */
+  cut: number
 }
 
 /** Runs every read of a plan and says how the question was read (FR-719). */
@@ -628,6 +634,8 @@ export function plannedAnswer(
     stewards?: Stewards
     /** Words of the question that name dates Ask could not place. */
     unplaced?: readonly string[]
+    /** The model and the date reader read the dates apart: the days it did not take. */
+    otherDays?: DateWindow
   },
 ): PlannedAnswer {
   const runs = reads.map((read) =>
@@ -647,6 +655,7 @@ export function plannedAnswer(
           `Ask could not place ${list(c.unplaced.map((w) => `"${w}"`))} as dates, so it read every date.`,
         ]
       : []),
+    ...(c.otherDays ? [otherDaysSaid(c.otherDays)] : []),
     ...factLines(bundle, answered, c),
   ]
   return {
@@ -671,6 +680,7 @@ export function plannedAnswer(
       ...new Set([...ran.flatMap((r) => (r.kind === 'definition' ? r.metrics : [])), ...asked]),
     ],
     ...(general.length ? { general: [...new Set(general)].map((key) => nameOf(bundle, key)) } : {}),
+    cut: runs.reduce((n, r) => n + r.cut, 0),
   }
 }
 

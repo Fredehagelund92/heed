@@ -35,6 +35,8 @@ import { apiDatabase, tableContents, testDatabase, transaction } from './support
 const { client, url } = testDatabase({ seeded: true })
 const today = '2026-10-07'
 const week = '2026-10-05'
+/** The first of the 7 full days Observability counts. */
+const lastSeven = '2026-09-30'
 const logs: string[] = []
 const app = buildApp({
   database: apiDatabase(url),
@@ -129,11 +131,15 @@ async function topicWithCalls(
      on conflict (key) do update set key = excluded.key returning id::text`,
     [key, topic.area, topic.metrics, topic.values, topic.month],
   )
+  // Agents' calls, the last full day: what the service counts them into is the service's.
   if (calls)
     await client.query(
-      `insert into topic_week_counts (topic_id, week, status, calls, no_item_calls)
-       values ($1, $2, 'matched', $3, 0)`,
-      [rows[0]!.id, week, calls],
+      `insert into deliveries (delivered_hour, client_label, caller, edition_seq, overlay_seq,
+                               tool_schema_digest, topic_id, scope, status, answer_state, app_family)
+       select $1, 'claude-code', 'agent', (select seq from live_edition), 0, 'digest', $2, '{}',
+              'matched', 'grounded', 'claude_code'
+         from generate_series(1, $3::int)`,
+      [`2026-10-06T10:00:00Z`, rows[0]!.id, calls],
     )
   return rows[0]!.id
 }
@@ -182,6 +188,10 @@ beforeAll(async () => {
   })
   // This week's topics: what agents asked about, as counts.
   await client.query('delete from topic_week_counts where week = $1', [week])
+  await client.query(
+    `create table if not exists deliveries_2026_10 partition of deliveries
+       for values from ('2026-10-01 00:00Z') to ('2026-11-01 00:00Z')`,
+  )
   await topicWithCalls(
     {
       area: 'area_sales',
@@ -841,7 +851,9 @@ describe('the reach of a draft', () => {
 describe('Asked this week', () => {
   it('lists the topics asked most, with the state each gets now, and never a small count', async () => {
     const asked = await ok<Asked>('GET', '/ask/asked', 'kofi')
-    expect(asked).toMatchObject({ week, hidden: 7 })
+    // Sales' total of 31 shows on its owners' Overview, so a hidden 7 beside the rows' 21 would
+    // give the 3 in September away: it stays hidden.
+    expect(asked).toMatchObject({ week: lastSeven, hidden: null })
     expect(asked.rows.map((r) => [r.title, r.count, r.atLeast, r.months])).toEqual([
       // 12 in October and 3 in September: a total would give the 3 away.
       ['Orders in Norway', null, 12, ['2026-10-01']],
@@ -867,11 +879,11 @@ describe('Asked this week', () => {
     expect(JSON.stringify(asked)).not.toMatch(/per_|@example/)
   })
 
-  it('hides the total when, beside the rows, it would give a small count away', async () => {
-    // 12 + 3 + 9 + 3 + 4 calls this week. The rows show 12 (Norway's 3 in September hidden), 9 and
-    // 7 hidden: a total of 31 would give the 3 away by subtraction (FR-614).
+  it('states the total that the owner page shows', async () => {
+    // 12 + 3 + 9 + 3 + 4 calls this week. Sales' total of 31 shows on its owners' Overview, so Ask
+    // states it too, with the floor of the rows beside it.
     expect(await ok<Asked>('GET', '/ask/asked', 'kofi')).toMatchObject({
-      asked: null,
+      asked: 31,
       askedAtLeast: 21,
     })
   })

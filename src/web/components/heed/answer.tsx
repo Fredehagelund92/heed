@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { marksExceptions } from '@/lib/marks'
+import { AnswerFooter } from '@/components/heed/answer-footer'
 import { TypeGlyph } from '@/components/heed/definition'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { DefinitionHelp, StateHelp } from '@/components/heed/state-help'
@@ -1532,6 +1533,11 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
             <p className="text-sm text-muted-foreground">
               Not answered here: {answer.reading.left}
             </p>
+          )}
+          {answer.footer && (
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <AnswerFooter footer={answer.footer} />
+            </div>
           )}
           {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
           {view?.kind === 'against' && (

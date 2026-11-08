@@ -2340,7 +2340,7 @@ export function describeHeedApi(
         const missing = await records('what definitions are missing?')
         expect(missing.intent).toBe('audit')
         expect(missing.audit?.facets).toContain('no_context')
-        expect(missing.notSeen).toMatch(/^Not seen: /)
+        expect(missing.footer?.notSeen).toMatch(/^Not seen: /)
         for (const section of missing.sections ?? []) {
           expect(section.count).toMatch(/\d+ of \d+|\d+ (?:card|pair|conflict|topic)/)
           expect(section.rows.length).toBeLessThanOrEqual(5)

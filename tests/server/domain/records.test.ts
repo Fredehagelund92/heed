@@ -872,9 +872,51 @@ describe('a records answer', () => {
       ask({ intent: 'asked_nothing' }),
       world([], { asked: { minimum: 5, rows: [] } }),
     )
-    expect(none.sentence).toBe(
-      'No topic agents asked about 5 times or more this week found nothing.',
+    expect(none.sentence).toBe('No topic shows a count of 5 or more this week.')
+  })
+
+  it('says each part of a count by domain with its own denominator, and no domain when they differ', () => {
+    const found = answer(
+      ask({
+        intent: 'created',
+        period: readRecordsPeriod('last 30 days', now)!,
+        parts: [
+          { label: 'Sales', domain: 'sales' },
+          { label: 'Marketing', domain: 'marketing' },
+        ],
+      }),
+      world([
+        item({ id: 'a' }),
+        item({ id: 'b', areaId: 'marketing' }),
+        item({ id: 'c', areaId: 'marketing' }),
+      ]),
     )
+    expect(found.domain).toBeNull()
+    expect(found.footer?.denominator).toContain('in Sales')
+    expect(found.footer?.denominator).toContain('2 live context items in Marketing')
+  })
+
+  it('counts a change over every item, archived or not, and narrows the denominator', () => {
+    const w = world([
+      item({ id: 'a', status: 'archived', archivedAt: at('2026-10-20') }),
+      item({ id: 'b', metrics: ['metric:orders'] }),
+      item({ id: 'c', kind: 'guide' }),
+    ])
+    const changed = answer(
+      ask({ intent: 'changed', period: readRecordsPeriod('last 30 days', now)! }),
+      w,
+    )
+    expect(changed.footer?.denominator).toBe('Out of 3 context items.')
+    const narrowed = answer(
+      ask({
+        intent: 'created',
+        about: { metrics: ['metric:orders'], values: [], words: 'Orders' },
+      }),
+      w,
+    )
+    expect(narrowed.footer?.denominator).toBe('Out of 1 live context item.')
+    const defs = answer(ask({ intent: 'conflicts', kind: 'definition' }), w)
+    expect(defs.footer?.denominator).toBe('Out of 2 live context items.')
   })
 
   it('lists the conflicts as Context does, each opening its pair, five at most', () => {

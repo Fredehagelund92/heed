@@ -10,11 +10,11 @@ import type {
   Replay,
 } from '../../../contract/answer.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
+import type { DroppedSentence } from '../../../domain/answer-words.ts'
 import { chatOf, routeQuestion, type Planner, type RoutedReply } from '../../../domain/ask-route.ts'
 import { overlaps } from '../../../domain/validity.ts'
 import {
   answer,
-  askedTopics,
   reach,
   startersOf,
   topicScope,
@@ -25,13 +25,20 @@ import {
 import { canRead, followedFrom, termShown } from '../../../domain/links.ts'
 import { asksDefinitionInAsk } from '../../../domain/scope.ts'
 import { compareIds } from '../../../domain/resolver.ts'
-import { visibleTotal } from '../../../domain/gaps.ts'
+import { askedTotals } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { quoted } from '../../mcp/outcomes.ts'
+import { createObservabilityService } from '../observability/index.ts'
 import { draftBundle } from '../proposals/index.ts'
-import { answerRecordsOf, momentOf, recogniseRecordsOf, type RecordsReads } from './records.ts'
+import {
+  answerRecordsOf,
+  momentOf,
+  recogniseRecordsOf,
+  type RecordsReads,
+  type UnlistedTopic,
+} from './records.ts'
 
 /**
  * An edition to answer on: its sequence, its label, the overlay of stops and flags now, and, for
@@ -103,6 +110,16 @@ const result = (a: Answer, target: Target): AnswerResult => {
   return { target, ...rest }
 }
 
+/**
+ * What a run of Ask's cases hears or replaces: its plans, what the model wrote for them, and the
+ * sentences the check left out. Never set by the service: these are words, which it keeps nowhere.
+ */
+export type AskTrace = {
+  planner?: Planner
+  onPlan?: (prompt: string, text: string) => void
+  onDropped?: (dropped: readonly DroppedSentence[]) => void
+}
+
 /** What Ask's look-up may call beside the engine, each when the service has it. */
 export type LookupDeps = {
   /**
@@ -158,7 +175,7 @@ export async function lookupQuestion(
     now: momentOf(clock).now,
     planner: deps.planner,
     clock: clockMs,
-    ...(reads ? { stewards: () => stewardsOf(reads) } : {}),
+    ...(reads ? { stewards: () => stewardsOf(reads), asker: once(() => askerOf(reads)) } : {}),
   })
   // A records question is counted and answered inside the request, before the stream starts.
   const found =
@@ -204,15 +221,17 @@ export async function lookupQuestion(
       yield { type: 'plan', plan: { kind: 'reads', working: routed.working } }
       for (const step of planned.steps) yield { type: 'step', step }
       const limit = routed.limit ? { limit: routed.limit } : {}
-      yield { type: 'answer', answer: answered(planned, { reading, ...limit }, defines) }
+      const footer = routed.footer ? { footer: routed.footer } : {}
+      yield { type: 'answer', answer: answered(planned, { reading, ...footer, ...limit }, defines) }
       return
     }
     // The rules' answer, also for a records question when no records are read here.
     const rules =
       routed.kind === 'rules' ? routed.answer : answer(bundle, ask, { today, person: true })
     const limit = routed.kind === 'rules' && routed.limit ? { limit: routed.limit } : {}
+    const footer = routed.kind === 'rules' && routed.footer ? { footer: routed.footer } : {}
     for (const step of rules.steps) yield { type: 'step', step }
-    yield { type: 'answer', answer: answered(rules, limit) }
+    yield { type: 'answer', answer: answered(rules, { ...limit, ...footer }) }
   }
   return (async function* () {
     for (const event of events()) {
@@ -240,6 +259,13 @@ async function stewardsOf(reads: Pick<RecordsReads, 'areas' | 'people' | 'index'
     ),
     checked: Object.fromEntries(index.items.map((i) => [i.id, i.lastChecked?.on ?? null])),
   }
+}
+
+/** Who is asking, as the planner reads it: what is theirs, never who they are. */
+async function askerOf(reads: Pick<RecordsReads, 'areas' | 'reader'>) {
+  const areas = await reads.areas()
+  const { admin, areas: owned } = await reads.reader()
+  return { admin, owns: areas.filter((a) => owned.includes(a.id)) }
 }
 
 /** A reply as Ask sends it: for a question Ask cannot answer, what it can show beside the sentence. */
@@ -435,57 +461,106 @@ async function openGaps(tx: Queryable): Promise<OpenGap[]> {
 }
 
 /**
- * Asked this week (FR-714): the topics agents asked about most this week, one row per metric,
- * market and dimension with its months joined, each with the state Ask gives it now on the live
- * edition for its latest month. Counts only, never the words, and a count under the minimum is
- * never shown or given away by a total (FR-614). An owner sees the Not found card open on a
- * topic of their domain. Beside them, the workspace's first questions, made from what it has
- * written, for when nothing has been asked yet.
+ * Asked this week (FR-714): the topics agents asked about most in the last 7 full days, one row per
+ * metric, market and dimension with its months joined, each with the state Ask gives it now on the
+ * live edition for its latest month. Counts only, never the words. Every count is the reader's own
+ * (`readerSubjects`): what their Observability shows, or the strictest view of the owners of its
+ * domain, so a floor stays a floor and a row under the minimum is not listed (FR-614). An owner sees
+ * the Not found card open on a topic of their domain. Beside them, the workspace's first questions,
+ * made from what it has written, for when nothing has been asked yet.
  */
 export async function askedThisWeek(
   tx: Queryable,
   clock: Clock,
   cache: BundleCache,
 ): Promise<Asked> {
+  return (await askedFor(tx, clock, cache)).asked
+}
+
+/** Asked this week, with the topics that show too little to be listed and the minimum. */
+export async function askedFor(
+  tx: Queryable,
+  clock: Clock,
+  cache: BundleCache,
+): Promise<{
+  asked: Asked
+  minimum: number
+  unlisted: UnlistedTopic[]
+  domains: Record<string, number>
+}> {
   const bundle = await liveBundle(tx, cache)
   const today = clock.today()
-  const minimum = await minimumCount(tx)
-  const { week, topics } = await topicsOfWeek(tx, today)
-  const asked = askedTopics(topics, minimum, today)
+  const { subjects, domains, minimum, start } = await createObservabilityService(tx, clock).asked()
+  const size = (s: (typeof subjects)[number]) => s.count ?? s.atLeast
+  const listed = subjects
+    .filter((s) => size(s) >= minimum)
+    .sort((a, b) => size(b) - size(a) || compareIds(a.key, b.key))
+  const shown = listed.reduce((sum, s) => sum + size(s), 0)
+  const calls = (rows: typeof subjects) => rows.reduce((sum, s) => sum + s.calls, 0)
+  const unshown = subjects.filter((s) => !listed.includes(s))
+  const { asked: askedTotal, hidden } = askedTotals(
+    listed.map((s) => ({ domain: s.domain, size: size(s) })),
+    calls(unshown),
+    calls(subjects),
+    domains,
+    minimum,
+  )
   const gaps = await openGaps(tx)
-  return {
-    week,
-    rows: asked.topics.map((topic) => {
-      const scope = topicScope(topic)
+  const asked: Asked = {
+    week: start,
+    rows: listed.map((subject) => {
+      const month = subject.months[0] ?? today.slice(0, 7)
+      const scope = topicScope({
+        metrics: subject.metrics,
+        values: subject.values,
+        dimensions: subject.dimensions,
+        month: `${month}-01`,
+      })
       const now = answer(bundle, { scope }, { today })
-      const gap = now.state === 'missing' ? gaps.find((g) => partsKey(g) === topic.key) : undefined
+      const gap =
+        now.state === 'missing'
+          ? gaps.find((g) => partsKey(g) === partsKey({ ...subject, area: subject.domain }))
+          : undefined
       return {
         title: topicWords(bundle, scope),
-        area: topic.area,
+        area: subject.domain,
         scope,
-        months: topic.months,
-        count: topic.count,
-        atLeast: topic.atLeast,
+        months: subject.months.map((m) => `${m}-01`),
+        count: subject.count,
+        atLeast: size(subject),
         state: now.state,
         items: now.items.length,
-        nothing: topic.nothing,
+        nothing: subject.nothing,
         gap: gap ? { card: `gap:${gap.id}`, draft: gap.draft } : null,
       }
     }),
-    hidden: asked.hidden,
+    hidden,
     // The total beside the rows: shown only when what it adds over the counts the rows show is
-    // zero or at least the minimum, so it never gives a small month away by subtraction.
-    asked: visibleTotal(
-      topics.reduce((sum, t) => sum + t.calls, 0),
-      asked.topics.reduce((sum, t) => sum + (t.count ?? t.atLeast), 0) + (asked.hidden ?? 0),
-      minimum,
-    ),
-    askedAtLeast: asked.topics.reduce((sum, t) => sum + (t.count ?? t.atLeast), 0),
+    // zero or at least the minimum, so it never gives a small count away by subtraction.
+    asked: askedTotal,
+    askedAtLeast: shown,
     starters: startersOf(bundle, today).map((scope) => ({
       title: topicWords(bundle, scope),
       scope,
     })),
   }
+  const unlisted = unshown
+    .filter((s) => s.seen)
+    .map((subject): UnlistedTopic => {
+      const scope = topicScope({ ...subject, month: `${today.slice(0, 7)}-01` })
+      return {
+        title: topicWords(bundle, scope),
+        count: subject.count,
+        atLeast: subject.atLeast,
+        nothing: subject.nothing,
+        state: 'missing',
+        gap: null,
+        area: subject.domain,
+        metrics: subject.metrics,
+        values: subject.values,
+      }
+    })
+  return { asked, minimum, unlisted, domains }
 }
 
 /**

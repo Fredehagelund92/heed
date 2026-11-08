@@ -6,6 +6,7 @@ import type {
   RecordsRow,
   RecordsSection,
 } from '@domain/records-answer'
+import { AnswerFooter } from '@/components/heed/answer-footer'
 import type { RecordsParts } from '@/components/heed/records-parts'
 
 // A records answer in Ask (FR-718): a question about the context's own records, counted from what
@@ -380,7 +381,7 @@ function RecordsBody({
       {records.ranked && <p className="text-sm">{records.ranked}</p>}
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         {records.note && <p>{records.note}</p>}
-        {records.notSeen && <p>{records.notSeen}</p>}
+        <AnswerFooter footer={records.footer} />
         <p>Agents did not read this answer. It says nothing about what they get.</p>
       </div>
     </div>
