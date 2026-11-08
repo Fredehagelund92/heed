@@ -65,3 +65,15 @@ export {
   type LookupDeps,
 } from './service.ts'
 export type { RecordsReads } from './records.ts'
+export {
+  askToolDefinitions,
+  askToolNames,
+  createAskTools,
+  toolErrorSchema,
+  type AskToolInput,
+  type AskToolName,
+  type AskToolOutput,
+  type AskToolResult,
+  type AskTools,
+} from './tools.ts'
+export { toolReadsIn, type ToolReads, type ToolServices } from './tool-reads.ts'

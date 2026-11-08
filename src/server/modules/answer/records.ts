@@ -135,7 +135,7 @@ const isRecordsKind = (kind: string): kind is RecordsKind =>
  * Each date is the field the list shows: the last check is its `lastChecked`, and an item is due
  * when its `trust` says so.
  */
-async function itemsOf(
+export async function itemsOf(
   tx: Queryable,
   index: LibraryIndex,
   moment: Pick<ReturnType<typeof momentOf>, 'moved'>,
