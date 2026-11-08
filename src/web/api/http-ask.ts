@@ -5,7 +5,7 @@
  * words here are written without a model, the way the mock's matcher writes them: each source's
  * first sentence with its number, then one sentence that fits the state.
  */
-import type { Asked, AnswerResult } from '@contract/answer'
+import type { Asked, AnswerResult, LoopTurn } from '@contract/answer'
 import type { Vocabulary } from '@domain/item'
 import type { Term } from '@domain/vocabulary'
 import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
@@ -343,6 +343,31 @@ export const failedAnswer = (question: string): Answer => ({
   text: '',
   sources: [],
   said: "The check failed. Do not say that nothing is known; say that the check couldn't run.",
+})
+
+/**
+ * A turn of Ask's loop as the chat shows it (FR-718 to FR-720): the model's words with their
+ * numbered sources, or its one question back with the readings as choices, or the fixed sentence
+ * of a turn that stopped. The state, the footer, what was read and the items named but not used
+ * are the service's, written by code from the reads.
+ */
+export const loopAnswerOf = (turn: LoopTurn, question: string): Answer => ({
+  id: 'custom',
+  question,
+  metric: '',
+  markets: [],
+  state: turn.state,
+  text: turn.text,
+  sources: turn.sources,
+  said: '',
+  footer: turn.footer,
+  read: turn.read,
+  reads: turn.reads,
+  ...(turn.nearby.length ? { related: turn.nearby } : {}),
+  ...(turn.conflict.length === 2 ? { conflict: turn.conflict } : {}),
+  ...(turn.definitions.length ? { definitions: turn.definitions } : {}),
+  ...(turn.kind === 'question' ? { reply: 'clarify' as const, choices: turn.choices } : {}),
+  ...(turn.stopped ? { stopped: turn.stopped } : {}),
 })
 
 /** The answer when nothing is shared with agents yet: no context, so nothing applies. */

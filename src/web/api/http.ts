@@ -64,6 +64,7 @@ import {
   examplesOf,
   failedAnswer,
   lookupFields,
+  loopAnswerOf,
   namesOf,
   nothingLiveAnswer,
   type ReadScope,
@@ -853,18 +854,22 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // A short question back, or a question off topic: its one event, and nothing looked up.
     let reply: Extract<LookupEvent, { type: 'reply' }>['reply'] | undefined
     let reading: Extract<LookupEvent, { type: 'records' }>['reading']
+    // Ask's loop, where the service runs it: its one finished turn.
+    let turn: Extract<LookupEvent, { type: 'turn' }>['turn'] | undefined
     try {
       for await (const event of events) {
         if (event.type === 'answer') answer = event.answer
         else if (event.type === 'sentence') written.push(event.text)
         else if (event.type === 'records') ({ records, reading } = event)
         else if (event.type === 'reply') reply = event.reply
+        else if (event.type === 'turn') turn = event.turn
         seen(event)
       }
     } catch (error) {
       // Once the engine's answer is in, a stream that breaks ends the words there; the answer stays.
       if (!answer || signal?.aborted) throw error
     }
+    if (turn) return { turn }
     if (records) return { records, reading }
     if (reply) return { reply }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
@@ -912,6 +917,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const tell = live?.onEvent
       if (!tell) return
       if (event.type === 'plan') tell({ type: 'plan', working: event.plan.working })
+      // Ask's loop says what each read is doing as it starts, on the same working line.
+      else if (event.type === 'progress') tell({ type: 'plan', working: event.working })
       else if (event.type === 'step' && event.step.step === 'looked_up')
         tell({ type: 'found', items: event.step.items.length })
       else if (event.type === 'answer')
@@ -922,6 +929,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       // A follow-up carries the chat's last turns; a question scoped with @ is read as scoped.
       const carry = turns?.length && !example && !scope?.length ? { turns } : {}
       const looked = await lookUp({ question: words, ...fields, ...carry }, seen, live?.signal)
+      if (looked.turn) return { ...loopAnswerOf(looked.turn, words), ...extra }
       if (looked.records)
         return { ...recordsAnswer(words, looked.records, looked.reading), ...extra }
       if (looked.reply) return { ...replyAnswer(words, looked.reply), ...extra }

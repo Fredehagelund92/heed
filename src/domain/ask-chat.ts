@@ -26,6 +26,9 @@ export const HELD_MEANINGS = 8
 export const CHAT_HELD_KEYS = 100
 /** The most characters a chat's turns may hold together; one turn at its largest always fits. */
 export const CHAT_CHARS = 4_000
+/** The longest of Ask's earlier replies the browser sends its loop back, and the most reads of one turn. */
+export const LOOP_REPLY = 4_000
+export const LOOP_READS = 8
 
 /** A word to ask about: how a person writes it, and its meanings in the order the question says them. */
 export type HeldWord = { word: string; meanings: WordMeaning[] }
@@ -70,8 +73,15 @@ export type ChatTurn = {
   audit?: AuditRead | null | undefined
   /** The terms an analysis listed, by key, in order: never their text. */
   rows?: string[] | undefined
+  /**
+   * Ask's loop (FR-719.1): what Ask said, as the person read it, and the reads the turn made, by
+   * tool and input. The service makes each read again before the model sees its result.
+   */
+  reply?: string | undefined
+  reads?: { tool: string; input: Record<string, unknown> }[] | undefined
 }
 
+/** What a turn holds toward `CHAT_CHARS`, the planner's cap; the loop's reply has its own. */
 const charsOf = (t: ChatTurn) =>
   t.question.length +
   (t.understood?.length ?? 0) +

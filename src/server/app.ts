@@ -85,6 +85,8 @@ export interface AppDependencies {
   trustedProxies?: readonly string[]
   /** What a run of Ask's cases hears or replaces. Never set by the service. */
   askTrace?: AskTrace
+  /** HEED_ASK_LOOP: Ask reads with one model and its read tools (FR-718 to FR-720). Off by default. */
+  askLoop?: boolean
 }
 
 /**
@@ -121,6 +123,7 @@ export function buildApp({
   readPage,
   trustedProxies = [],
   askTrace,
+  askLoop = false,
 }: AppDependencies): FastifyInstance {
   const app = Fastify({
     loggerInstance: logger,
@@ -197,6 +200,7 @@ export function buildApp({
     workspaceSources,
     ...(readPage ? { readPage } : {}),
     ...(askTrace ? { askTrace } : {}),
+    askLoop,
   })
 
   app.addHook('onClose', async () => {

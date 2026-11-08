@@ -49,8 +49,11 @@ The login server's own settings are on [Sign in your own agent](ai-sign-in.md#th
 | `MODELS`                    | `mock`  | `mock` is scripted and sends nothing. `live` uses real models |
 | `ANTHROPIC_API_KEY`         | None    | The key for the `anthropic` provider                          |
 | `VERCEL_AI_GATEWAY_API_KEY` | None    | The key for the `vercel-gateway` provider                     |
+| `HEED_ASK_LOOP`             | `off`   | `on` answers Ask with one model on its read tools             |
 
 With `live`, each role's provider and model come from the `models.*` settings, and the service refuses to start when a provider, a model or a key is missing, or the provider does not list the model.
+
+`HEED_ASK_LOOP=on` answers Ask with one model that reads with Heed's own read tools, as the person asking, in place of its fixed rules and planner ([Ask's loop](evaluations.md#asks-loop)). It is for trying it out: what it shows is not checked yet beyond its citations. With `MODELS=mock` it runs a scripted reader.
 
 > **Before you go live.** Questions and answers then leave your company to the named provider and the model's vendor. Real company data needs company approval of them first.
 

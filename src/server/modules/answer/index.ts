@@ -77,3 +77,27 @@ export {
   type AskTools,
 } from './tools.ts'
 export { toolReadsIn, type ToolReads, type ToolServices } from './tool-reads.ts'
+export {
+  askLoop,
+  footerOf,
+  LOOP_MAX_TOKENS,
+  LOOP_SECONDS,
+  LOOP_STEPS,
+  loopSystem,
+  progressOf,
+  readLines,
+  readLoopLimits,
+  stateOf,
+  stoppedSentence,
+  turnOf,
+  type Asker,
+  type LoopDeps,
+  type MadeRead,
+} from './loop.ts'
+export {
+  scriptedLoopChoice,
+  scriptedLoopModel,
+  scriptedPrompt,
+  type ScriptedPrompt,
+  type ScriptedStep,
+} from './loop-mock.ts'

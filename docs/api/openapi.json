@@ -92172,6 +92172,37 @@
                             "type": "string",
                             "maxLength": 120
                           }
+                        },
+                        "reply": {
+                          "type": "string",
+                          "maxLength": 4000
+                        },
+                        "reads": {
+                          "type": "array",
+                          "maxItems": 8,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 40
+                              },
+                              "input": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 40
+                                },
+                                "additionalProperties": {}
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "input"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
@@ -92205,6 +92236,222 @@
                         },
                         "data": {
                           "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "progress"
+                                },
+                                "working": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "working"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "turn"
+                                },
+                                "turn": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "answer",
+                                        "question",
+                                        "stopped"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "text": {
+                                      "type": "string"
+                                    },
+                                    "sources": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "state": {
+                                      "anyOf": [
+                                        {
+                                          "enum": [
+                                            "failed",
+                                            "missing",
+                                            "conflict",
+                                            "partial",
+                                            "stale",
+                                            "grounded"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "footer": {
+                                      "type": "object",
+                                      "properties": {
+                                        "denominator": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "notSeen": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stale": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "denominator",
+                                        "notSeen",
+                                        "stale"
+                                      ]
+                                    },
+                                    "read": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "nearby": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "conflict": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "definitions": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "words": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "tool": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "name",
+                                          "words",
+                                          "tool"
+                                        ]
+                                      }
+                                    },
+                                    "choices": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "reads": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "tool": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 40
+                                          },
+                                          "input": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string",
+                                              "maxLength": 40
+                                            },
+                                            "additionalProperties": {}
+                                          }
+                                        },
+                                        "required": [
+                                          "tool",
+                                          "input"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "stopped": {
+                                      "anyOf": [
+                                        {
+                                          "enum": [
+                                            "steps",
+                                            "time",
+                                            "spending",
+                                            "model"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "text",
+                                    "sources",
+                                    "state",
+                                    "footer",
+                                    "read",
+                                    "nearby",
+                                    "conflict",
+                                    "definitions",
+                                    "choices",
+                                    "reads",
+                                    "stopped"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "turn"
+                              ]
+                            },
                             {
                               "type": "object",
                               "properties": {
