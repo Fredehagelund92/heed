@@ -99,6 +99,7 @@ export function replyOfLoop(a: Answer, read: string[]): Reply {
         (l): l is string => !!l,
       ),
       ...read,
+      ...(a.stopped ? [a.text] : []),
     ],
     // A fixed sentence of a turn that stopped is code's; any other is the model's.
     modelWords: !a.stopped,
@@ -142,9 +143,17 @@ function pageChat(reader: Reader, replyOf: (a: Answer) => Reply) {
  * Ask's loop, where the service runs it: one model on the read tools, through the person's own
  * binding. `read` gives what the loop's last turn read, which the service's trace hears.
  */
-export const loopAnswerer = (read: () => string[]): Answerer => ({
+export const loopAnswerer = (read: () => string[], beforeSend: () => void): Answerer => ({
   name: "Ask's loop",
-  open: (reader) => pageChat(reader, (a) => replyOfLoop(a, read())),
+  open: (reader) => {
+    const chat = pageChat(reader, (a) => replyOfLoop(a, read()))
+    return {
+      send: (message: string) => {
+        beforeSend()
+        return chat.send(message)
+      },
+    }
+  },
 })
 
 /** Today's main: the router, the planner and the words, through the person's own binding. */

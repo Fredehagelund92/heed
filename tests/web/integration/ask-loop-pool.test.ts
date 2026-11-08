@@ -79,15 +79,28 @@ describe("Ask's loop and the service's pool", () => {
   )
 
   it('stops at the spending limits, before a step, and says so', async () => {
-    await world.client.query(
-      `insert into settings_versions (key, version, value, reason)
-       select key, max(version) + 1, '1', 'test' from settings_versions
-        where key = 'limits.llm_daily_micros_per_person' group by key`,
+    const key = 'limits.llm_daily_micros_per_person'
+    const { rows } = await world.client.query<{ value: string }>(
+      'select value from settings_versions where key = $1 order by version desc limit 1',
+      [key],
     )
-    const api = await world.as(ML)
-    const a = await api.ask({ question: 'orders in Norway' })
-    expect(a.stopped).toBe('spending')
-    expect(a.state).toBeNull()
-    expect(a.sources).toEqual([])
+    const earlier = rows[0]?.value
+    const set = (value: string, reason: string) =>
+      world.client.query(
+        `insert into settings_versions (key, version, value, reason)
+         select key, max(version) + 1, $2, $3 from settings_versions
+          where key = $1 group by key`,
+        [key, value, reason],
+      )
+    await set('1', 'test')
+    try {
+      const api = await world.as(ML)
+      const a = await api.ask({ question: 'orders in Norway' })
+      expect(a.stopped).toBe('spending')
+      expect(a.state).toBeNull()
+      expect(a.sources).toEqual([])
+    } finally {
+      if (earlier !== undefined) await set(earlier, 'test: restored')
+    }
   }, 30_000)
 })

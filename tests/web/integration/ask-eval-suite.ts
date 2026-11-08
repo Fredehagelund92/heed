@@ -133,7 +133,10 @@ export function askEvalSuite(side: Answering) {
     ...(loop ? { askLoop: true } : {}),
   })
   const answerer = loop
-    ? loopAnswerer(() => evidenceOfReads([...lastReads.made, ...lastReads.earlier]))
+    ? loopAnswerer(
+        () => evidenceOfReads([...lastReads.made, ...lastReads.earlier]),
+        () => void (lastReads = { made: [], earlier: [] }),
+      )
     : mainAnswerer
   const { expectedRows } = disclosure((name) => world.as(name))
 
