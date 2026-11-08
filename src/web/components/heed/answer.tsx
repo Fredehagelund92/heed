@@ -313,7 +313,7 @@ function LookupCard({
   const raw = agentReply(answer, facts)
   // Looking up and reading come from the look-up's own steps, until its answer is in.
   const running = !stopped && !answered
-  const still = useStillLooking(running && shown === 'looking')
+  const still = useStillLooking(running && shown === 'looking', turn.working)
   const found = turn.found ?? 0
   // What the agent followed with get_related, as the answer says: one step each, never a retired target.
   const { followed, notFollowed, on: enabled } = answer.links ?? NO_LINKS
@@ -1111,7 +1111,7 @@ function AnswerDefinitions({ definitions }: { definitions: AskedDefinition[] }) 
 }
 
 /** The next step that fits the state: for the owner, or for everyone else. */
-function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
+export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const me = useMe()
   const write = useWrite()
   const owns = me.owns.includes('sales') || me.admin
@@ -1153,8 +1153,8 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
     return <ConflictNextStep pairKey={answer.conflict.join('.')} />
   }
   if (answer.state === 'stale') {
-    // An Outdated answer rests on at least one item.
-    const f = facts.find((x) => x.outOfDate) ?? facts[0]!
+    const f = facts.find((x) => x.outOfDate) ?? facts[0]
+    if (!f) return null
     return owns ? (
       <div className="flex flex-wrap gap-2">
         <Button
@@ -1200,7 +1200,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
 const RELATED_SHOWN = 4
 
 /** Items that apply to the scope but not to this question: named, not used. One row each, 44px tall on a touch screen. */
-function Related({ ids }: { ids: string[] }) {
+export function Related({ ids }: { ids: string[] }) {
   const all = useFacts()
   const domains = useDomains()
   const [everything, setAll] = React.useState(false)
@@ -1225,7 +1225,9 @@ function Related({ ids }: { ids: string[] }) {
             </button>
             {titles.get(f.title)! > 1 ? (
               <span>
-                {domains[f.domain]?.name} - checked {f.checkedOn}
+                {[domains[f.domain]?.name, f.checkedOn ? `checked ${f.checkedOn}` : undefined]
+                  .filter(Boolean)
+                  .join(' - ')}
               </span>
             ) : null}
           </li>
