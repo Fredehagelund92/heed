@@ -8,12 +8,14 @@ import { systemClock } from '../../src/server/clock.ts'
 import { createDevVerifier, devIssuer } from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
 import { tools as mcpTools, toolNames } from '../../src/server/mcp/tools.ts'
+import { askToolNames, type AskToolName } from '../../src/server/modules/answer/index.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { accept, foundation, openEdition, people, servingEdition, version } from './fixtures.ts'
 import {
   apiDatabase,
+  askToolsAs,
   contractOperations,
   servingPool,
   testDatabase,
@@ -457,6 +459,48 @@ describe('the audience rule on every read path', () => {
         await wire.close()
       }
     }
+    expect(found).toEqual([])
+  })
+
+  it("gives Ask's tools nothing of the hidden item, as anyone who asks (FR-718.2)", async () => {
+    const asTools = askToolsAs(database, clock)
+    const calls: [AskToolName, object][] = [
+      ['find_context', { words: 'Vaultsunrise harbour Zephyrledger' }],
+      ['find_context', { words: 'harbour holidays', widen: { other_words: 'Quokkamarble' } }],
+      ['get_context', { about: 'orders on holidays', widen: { without: 'period' } }],
+      ['get_context', { about: 'orders' }],
+      ['read_context', { id: hidden.id }],
+      ['read_context', { id: linking.id }],
+      ['definitions', {}],
+      ['records', { show: 'list', limit: 25 }],
+      ['records', { about: ['Orders'], group_by: 'domain' }],
+      ['conflicts', {}],
+      ['conflicts', { item: linking.id }],
+      ['agent_questions', { limit: 25 }],
+      ['inbox', { limit: 25 }],
+    ]
+    // Every tool is swept.
+    expect(new Set(calls.map(([name]) => name))).toEqual(new Set(askToolNames))
+    const found: string[] = []
+    for (const { name: reader } of Object.values(readers))
+      await asTools(members[reader], async (tools) => {
+        for (const [name, input] of calls) {
+          // A result that repeats the words or the id the caller sent tells them nothing new.
+          const words = leaks(JSON.stringify(await tools.run(name, input))).filter(
+            (word) => !JSON.stringify(input).includes(word),
+          )
+          if (words.length)
+            found.push(`${reader} ${name} ${JSON.stringify(input)}: ${words.join(', ')}`)
+        }
+        // The hidden item reads as one that does not exist, and the item naming it as itself.
+        const missing = 'itm_nosuchitem1'
+        const read = await tools.run('read_context', { id: hidden.id })
+        expect(JSON.stringify(read).replace(hidden.id, missing)).toBe(
+          JSON.stringify(await tools.run('read_context', { id: missing })),
+        )
+        const linked = await tools.run('read_context', { id: linking.id })
+        expect(linked).toMatchObject({ found: true, item: { id: linking.id } })
+      })
     expect(found).toEqual([])
   })
 

@@ -1,8 +1,10 @@
 import { beforeAll, expect, it } from 'vitest'
+import { systemClock } from '../../src/server/clock.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
-import { foundation, openEdition } from './fixtures.ts'
-import { testDatabase, transaction } from './support.ts'
-const { client } = testDatabase()
+import { askToolNames, type AskToolName } from '../../src/server/modules/answer/index.ts'
+import { foundation, openEdition, people, servingEdition } from './fixtures.ts'
+import { apiDatabase, askToolsAs, tableContents, testDatabase, transaction } from './support.ts'
+const { client, url } = testDatabase()
 beforeAll(() => foundation(client))
 
 // Exact column contracts catch new identity/content fields even if their names evade a denylist.
@@ -373,3 +375,33 @@ it.each(Object.entries(testLinks))(
       ).toBe(true)
   },
 )
+
+// FR-719.4: the words Ask's tools are given, from a question, a chat or an earlier reply, are read
+// for the turn and kept nowhere. The tools take no logger and write nothing (FR-718.4).
+it("keeps none of the words Ask's tools are given, in any table, and changes nothing", async () => {
+  await transaction(client, () => servingEdition(client))
+  const marker = 'Quillfeather'
+  const calls: [AskToolName, object][] = [
+    ['find_context', { words: `orders ${marker}`, widen: { other_words: `${marker} audit` } }],
+    ['get_context', { about: `orders in Norway after the ${marker} audit` }],
+    ['get_context', { about: `${marker} orders`, widen: { other_name: `${marker} sales` } }],
+    ['read_context', { id: 'itm_target0001' }],
+    ['definitions', { names: [marker, 'Orders'] }],
+    ['records', { about: [marker], show: 'list' }],
+    ['records', { domain: marker }],
+    ['conflicts', { domain: marker }],
+    ['agent_questions', { about: [marker] }],
+    ['inbox', {}],
+    // An input that does not fit is refused, and its words go nowhere either.
+    ['records', { show: marker }],
+  ]
+  expect(new Set(calls.map(([name]) => name))).toEqual(new Set(askToolNames))
+  const before = await tableContents(client)
+  const asTools = askToolsAs(apiDatabase(url), systemClock('2026-10-08'))
+  for (const person of [people.owner, people.stranger, people.admin])
+    await asTools(person, async (tools) => {
+      for (const [name, input] of calls) await tools.run(name, input)
+    })
+  expect(await tableContents(client)).toEqual(before)
+  expect(before.join('\n')).not.toContain(marker)
+})

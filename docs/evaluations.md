@@ -303,6 +303,41 @@ that dies keeps what it paid for: `--resume <journal>` goes on with it, asks onl
 not, and counts its spend against the same ceiling. `--replay <journal>` grades a real run's
 replies and judge findings again on the demo week with no model, after a grader changes.
 
+### Ask's tools
+
+The rebuilt Ask reads through eight read-only tools (`src/server/modules/answer/tools.ts`), each
+run as the person asking, inside a transaction of theirs, through the services their own requests
+use (`requestServices` in `src/server/http/api.ts`). No model calls them yet: the loop will. Each
+takes a typed input, returns a typed result with every id it gave (so a citation can be held to
+the reads of a turn), and answers a wrong input, or a name it does not know, with what was asked
+and the closest name rather than with nothing. `createAskTools(...).ai()` gives them in the AI
+SDK's shape.
+
+- **The engine agents get.** `find_context`, `get_context` and `read_context` run the same code as
+  the MCP tools and Ask's look-up (`createToolService`, `answer`) on the live edition narrowed to
+  the items the person's Context list gives them: a hidden item is not there, so it reads as one
+  that does not exist. They record no delivery, no request and no demand.
+- **The person's own pages.** `definitions` (Definitions), `records` (the Context list, counted,
+  listed and ranked by code, each count with what it is out of), `conflicts` (the Conflicts
+  filter), `agent_questions` (what agents asked, as FR-614 discloses it to that reader: a floor
+  stays a floor, a topic under the minimum is not listed and reads as one never asked) and `inbox`
+  (the person's own cards, never a comment's, a report's or a saved question's words).
+- **No dead ends.** A search that finds nothing says what it searched (the names, the period and
+  the kinds) out of how many published items the person may read, what is nearby and why it does
+  not apply, and who owns the subject. Given `widen`, it searches once more by another name of the
+  same thing or without one part; a read without a part stays nearby and never sets the state.
+
+| Promise                                     | Kept by                                                                                        | Checked by                                                                                                              |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| FR-718.1 as the person, through their reads | Every tool reads the person's own services in their transaction                                | `tests/web/integration/ask-tools.test.ts`: per persona, Definitions, Context's filters, Conflicts, Inbox, Observability |
+| FR-718.2 what is hidden stays hidden        | The edition narrowed to the Context list; per-reader asked counts; no comment or draft is read | `tests/integration/audience.test.ts` (every tool, every role, the hidden item); drafts and small counts per persona     |
+| FR-718.4 read only, not an agent            | No write, no delivery record, no demand                                                        | `ask-tools.test.ts`: every tool for every persona leaves every table as it was                                          |
+| FR-718.5 agents see no change               | The MCP tools are only called, never changed                                                   | `tests/server/ask-tools.test.ts` (the MCP tools and their schema digest); the engine digest in `ask-plan-cases.test.ts` |
+| FR-719.3 no dead ends                       | `searched`, `nothing`, `nearby`, `owners`, `outOf` and one `widen`                             | `ask-tools.test.ts`, "no dead ends"                                                                                     |
+| FR-719.4 a question's words kept nowhere    | The tools keep nothing and log nothing                                                         | `tests/integration/privacy.test.ts`: a marker given to every tool is in no table, and no table changes                  |
+| FR-719.5 text is data                       | An item's words come back only as its fields                                                   | `ask-tools.test.ts`, "text is data": an instruction written into an item                                                |
+| FR-720.2, FR-720.3 citations and numbers    | Every result lists its ids; every count, rank and denominator is computed in code              | `ask-tools.test.ts` (every id is readable and listed); `tests/server/ask-tools.test.ts` (the records tool)              |
+
 ## Quality reads
 
 The quality reads (`/quality/*`), the links between gaps and test questions, and the test

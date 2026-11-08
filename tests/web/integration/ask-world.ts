@@ -1,31 +1,34 @@
 import { afterAll, beforeAll } from 'vitest'
 import { createHttpApi } from '@/api/http'
 import type { HeedApi } from '@/api/client'
-import type { AskTrace } from '../../../src/server/modules/answer/index.ts'
+import type { AskTools, AskTrace } from '../../../src/server/modules/answer/index.ts'
 import type { ModelPort } from '../../../src/server/modules/models/index.ts'
 import { buildApp } from '../../../src/server/app.ts'
 import { systemClock } from '../../../src/server/clock.ts'
 import { createLogger } from '../../../src/server/observability/logger.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
-import { apiDatabase, testDatabase } from '../../integration/support.ts'
+import { apiDatabase, askToolsAs, testDatabase } from '../../integration/support.ts'
 import { devPeople, seedDemoWeek, TODAY } from '../http/demo-week.ts'
 
 /*
   The demo week on the real service, for Ask's persona cases and its differential tests: real
   sign-in, row security and the browser's own binding (createHttpApi), one session for each person
   a test asks as. `models` is the mock's scripted planner unless a run passes real ones, and
-  `askTrace` hears or replaces what the planner and the words do.
+  `askTrace` hears or replaces what the planner and the words do. `withTools` runs Ask's tools as a
+  person, in a transaction of their own with the services a request of theirs has.
 */
 
 export function askWorld(
   options: { models?: ModelPort; askTrace?: AskTrace; assistant?: object } = {},
 ) {
   const { client, url } = testDatabase()
+  const database = apiDatabase(url)
+  const clock = systemClock(TODAY)
   const app = buildApp({
-    database: apiDatabase(url),
+    database,
     jobs: idleJobs(),
     logger: createLogger({ level: 'silent' }),
-    clock: systemClock(TODAY),
+    clock,
     devPeople: devPeople(),
     ...(options.models ? { models: options.models } : {}),
     ...(options.askTrace ? { askTrace: options.askTrace } : {}),
@@ -74,8 +77,21 @@ export function askWorld(
     return api
   }
 
+  const tools = askToolsAs(database, clock)
+  /** Ask's tools as this person, inside one transaction of theirs, as a request makes it. */
+  const withTools = async <T>(name: string, work: (tools: AskTools) => Promise<T>) => {
+    const { rows } = await client.query<{ id: string }>(
+      'select id::text from people where display_name = $1',
+      [name],
+    )
+    const person = rows[0]?.id
+    if (!person) throw new Error(`${name} is not in the demo week`)
+    return tools(person, work)
+  }
+
   return {
     client,
+    withTools,
     /** The person's session, signed in once. */
     as: (name: string) => {
       const known = sessions.get(name)

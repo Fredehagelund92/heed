@@ -8,7 +8,7 @@ import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { API_PREFIX, contract } from '../../contract/index.ts'
 import { refusalOfCode, refusals } from '../../contract/refusals.ts'
-import { forRequest, type Database } from '../db/database.ts'
+import { forRequest, type Database, type Queryable } from '../db/database.ts'
 import type { Clock } from '../clock.ts'
 import {
   createProposalsService,
@@ -73,6 +73,7 @@ import {
 import {
   askedFor,
   askedThisWeek,
+  createAskTools,
   createBundleCache,
   lookupQuestion,
   planQuestion,
@@ -81,6 +82,8 @@ import {
   scriptedPlan,
   wordsInputOf,
   writeWords,
+  toolReadsIn,
+  type BundleCache,
   type LookupDeps,
   type AskTrace,
 } from '../modules/answer/index.ts'
@@ -168,6 +171,100 @@ type RequestContext = { request: FastifyRequest; reply: FastifyReply }
 const idempotencyKey = (context: RequestContext) =>
   context.request.headers['idempotency-key'] as string | undefined
 
+/**
+ * The services one request reads and writes through, inside its transaction, as its person: what
+ * every handler gets beside the transaction and the session. Ask's tools read through the same ones
+ * (src/server/modules/answer/tools.ts), so they read what the person's own pages read.
+ */
+export function requestServices(
+  tx: Queryable,
+  personId: string,
+  {
+    clock,
+    answerBundles,
+    models,
+    readPage,
+    hooks,
+  }: {
+    clock: Clock
+    answerBundles: BundleCache
+    models: ModelPort
+    readPage?: PageReader | undefined
+    hooks: TransactionHooks
+  },
+) {
+  const proposals = createProposalsService(tx, clock, personId)
+  const review = createReviewService(tx, clock)
+  const names = createNamesService(tx)
+  const gaps = createGapsService(tx)
+  const comments = createCommentsService(tx)
+  const reviewPath = createReviewPath(
+    tx,
+    clock,
+    answerBundles,
+    review,
+    (id) => proposals.get(id),
+    comments,
+  )
+  const library = createLibraryService(tx, clock)
+  return {
+    library,
+    context: createContextService(tx, clock, answerBundles, {
+      library,
+      proposals,
+      review,
+      path: reviewPath,
+      readPage,
+    }),
+    conflicts: createConflictsService(tx, clock, answerBundles, {
+      library,
+      proposals,
+      review,
+      path: reviewPath,
+      comments,
+    }),
+    catalogue: createCatalogueService(tx, clock),
+    terms: createTermsService(tx),
+    areas: createAreasService(tx),
+    people: createPeopleService(tx),
+    vocabulary: createVocabularyService(tx),
+    proposals,
+    review,
+    path: reviewPath,
+    cards: createInboxFeedService(tx, clock, answerBundles, {
+      review,
+      path: reviewPath,
+      gaps,
+      comments,
+      names,
+    }),
+    names,
+    comments,
+    reports: createReportsService(tx),
+    gaps,
+    evals: createEvalsService(tx, { port: models, clock }),
+    observability: createObservabilityService(tx, clock),
+    saved: createSavedQuestionsService(tx, clock, answerBundles),
+    alerts: createAlertsService(tx),
+    hooks,
+  }
+}
+
+/**
+ * Ask's tools for one request, as its person (FR-718.1): they read through the request's own
+ * services, inside its transaction, and write nothing.
+ */
+export function askToolsOf(
+  tx: Queryable,
+  clock: Clock,
+  answerBundles: BundleCache,
+  services: ReturnType<typeof requestServices>,
+) {
+  return createAskTools(
+    toolReadsIn(tx, clock, answerBundles, { ...services, people: () => listMembers(tx) }),
+  )
+}
+
 export function createRouter({
   database,
   signIn,
@@ -222,63 +319,17 @@ export function createRouter({
             checkMutation(context.request, session, origins, operation === 'auth.signIn')
           }
           await tx.query("select set_config('cl.person_id',$1,true)", [session?.person.id ?? ''])
-          const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
-          const review = createReviewService(tx, clock)
-          const names = createNamesService(tx)
-          const gaps = createGapsService(tx)
-          const comments = createCommentsService(tx)
-          const reviewPath = createReviewPath(
-            tx,
-            clock,
-            answerBundles,
-            review,
-            (id) => proposals.get(id),
-            comments,
-          )
-          const library = createLibraryService(tx, clock)
           return next({
             context: {
               tx,
               session,
-              library,
-              context: createContextService(tx, clock, answerBundles, {
-                library,
-                proposals,
-                review,
-                path: reviewPath,
+              ...requestServices(tx, session?.person.id ?? '', {
+                clock,
+                answerBundles,
+                models,
                 readPage,
+                hooks,
               }),
-              conflicts: createConflictsService(tx, clock, answerBundles, {
-                library,
-                proposals,
-                review,
-                path: reviewPath,
-                comments,
-              }),
-              catalogue: createCatalogueService(tx, clock),
-              terms: createTermsService(tx),
-              areas: createAreasService(tx),
-              people: createPeopleService(tx),
-              vocabulary: createVocabularyService(tx),
-              proposals,
-              review,
-              path: reviewPath,
-              cards: createInboxFeedService(tx, clock, answerBundles, {
-                review,
-                path: reviewPath,
-                gaps,
-                comments,
-                names,
-              }),
-              names,
-              comments,
-              reports: createReportsService(tx),
-              gaps,
-              evals: createEvalsService(tx, { port: models, clock }),
-              observability: createObservabilityService(tx, clock),
-              saved: createSavedQuestionsService(tx, clock, answerBundles),
-              alerts: createAlertsService(tx),
-              hooks,
             },
           })
         },
