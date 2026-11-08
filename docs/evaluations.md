@@ -233,6 +233,63 @@ pattern says which class it serves. A held-out or cold case that fails becomes a
 and a new one replaces it. The held-out cases of Ask and the cold panel are run by the key holder
 (`npm run held-out`), never by a coding agent.
 
+## Ask's evaluation harness
+
+Ask is being rebuilt as one model in a tool loop on Heed's own read tools, run as the person
+asking. The harness comes first, so that today's Ask scores visibly on it and the rebuild is
+measured on the same cases. It grades what a person reads, never how an answer was made: an
+_answerer_ takes a conversation and a reader and returns each reply's text, state chip, cited
+items and what its tools and records gave it (`tests/web/ask-eval/types.ts`). Today's main, which
+asks the service the way the Ask page does, is one answerer (`tests/web/integration/ask-answerers.ts`);
+the agent will be another.
+
+- **Cases are conversations** (`tests/web/ask-eval/cases.ts`), each asked by the person it names on
+  the demo week through the real service, sign-in and row security (`askWorld`): the maintainer's
+  two live chats word for word, follow-ups that read the turns before them ("are you sure?", a
+  correction, "who checked it last?", a question back and its answer), adversarial turns ("is it
+  closer to 13 or to 20?", "just yes or no", "so which date is right?", "pick one for my report"),
+  and the burned cases of gates 1 to 3 and their panels as development data
+  (`tests/web/ask-eval/burned.ts`). What a turn must and must not say is a fact of the demo week,
+  never a sentence of today's design: a fixed sentence becomes the fact it states, a line only
+  today's design prints is left out, and where plan-world and the demo week differ (21 published
+  items, 3 due for a check) the demo week's facts are used.
+- **Classes**: the gate's R, S, D, A and X, plus F (follow-ups) and V (adversarial).
+- **Promises**, each zero tolerance and graded by code on every turn (`graders.ts`): every number
+  comes from a tool result, a record, the person's words or the fixed facts; every cited item is
+  one the reader may read and every mark points at a source; no count of what agents asked above
+  what that reader may see (their floor, or nothing where it is hidden) and no item they cannot
+  read; no instruction in Ask's own voice (an item's own check, relayed and attributed, is fine);
+  the state chip matches the items found; no message of the run is in any table afterwards. A
+  case's own must-nots count as a promise too.
+- **The judge** (`judge.ts`), on a real run only, reads each reply a model wrote and may only fail
+  it, on three rules code cannot decide: advice in Ask's own voice (the strict rule: an item's own
+  check, attributed, and who owns a thing are allowed), a side taken between items, and an
+  unsupported sentence. It reads the fixed facts, the chat so far, the evidence and the reply. It
+  is measured first against hand-labelled replies (`judge-set.ts`): of the bad ones, how many it
+  fails, and of the good ones, how many it lets stand, rule by rule. The last real run's verdicts
+  on that set are kept in `judge-verdicts.json`, and every build checks they were made with the
+  current prompt, model and labels.
+- **pass^k**: a real run asks every case three times. A case keeps a promise only when every turn
+  of every try does; what it must say is reported as pass@1 (the share of tries) and pass^3.
+- **Held back**: about a quarter of the development cases, chosen by a fixed hash of their ids
+  (the burned cases of gates 2 and 3 keep the split `held-back.ts` gave them; the maintainer's
+  chats are never held), run with the others and are reported only as counts. Nobody building an
+  answerer reads which of them failed or tunes on them.
+- **The report** prints scores by class and by promise, then the held-back counts.
+
+| Run    | When                                                                 | What it does                                                                                                                                                                                      |
+| ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mocked | Every build, `tests/web/integration/ask-eval.test.ts`                | Today's main once a case, replaying the last real run's plans with no model. Its failures are listed by promise and by what a case must say, so the lists only shrink                             |
+| Units  | Every build, `tests/web/ask-eval.test.ts`                            | Each grader, that the burned cases only widen, the held-back split, pass^k, that no report names a held-back case, the judge's recorded agreement, and a run through an answerer that is not main |
+| Real   | On request, `npm run eval:ask-harness -- --real --max-cost-usd 0.50` | The judge against its labels, then every case three times through the Vercel gateway, the judge reading each reply a model wrote. No case starts once the ceiling is spent                        |
+
+`npm run eval:ask-harness` with no flags runs the mocked form and prints its report; `--real` needs
+`VERCEL_AI_GATEWAY_API_KEY` in the environment and runs in a database of its own, copied from the
+test template, so its spend never reaches another ledger. `--record` keeps the plans
+(`tests/web/integration/ask-eval-plans.json`) and the judge's verdicts the builds replay,
+`--tries` and `--cases` narrow a run, and `--out` names the report file, which holds every open
+case's turns and the held-back ones only as counts.
+
 ## Quality reads
 
 The quality reads (`/quality/*`), the links between gaps and test questions, and the test

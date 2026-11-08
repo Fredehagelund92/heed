@@ -1,0 +1,253 @@
+{
+  "digest": "849b521e22468abd",
+  "model": "anthropic/claude-haiku-5.5",
+  "verdicts": {
+    "J01": {
+      "advice": ["Check which rule your comparison assumes, because it changes the order total."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J02": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J03": {
+      "advice": [
+        "Check with the metric owners, Jon Abara and Sofia Brandt, before comparing Spain's turnover or takings with other markets."
+      ],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J04": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J05": {
+      "advice": ["Leave out the last day whenever you compare weeks."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J06": {
+      "advice": ["You should not flag one good week to the board."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J07": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J08": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J09": {
+      "advice": ["I'd check the file dates before you explain it."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J10": {
+      "advice": ["So you should compare only months from 19 January 2026 onwards."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J11": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J12": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J13": {
+      "advice": ["That figure should be checked in your reporting tool."],
+      "verdict": [],
+      "unsupported": ["That figure should be checked in your reporting tool."]
+    },
+    "J14": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J15": {
+      "advice": [
+        "Keep in mind that the second leaves out store credit when you compare with the shop report."
+      ],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J16": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J17": {
+      "advice": ["No."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J18": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J19": {
+      "advice": [],
+      "verdict": ["The 12 May date has more support in the record [3]."],
+      "unsupported": []
+    },
+    "J20": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J21": {
+      "advice": [],
+      "verdict": [
+        "The card-and-cash note was checked more recently, so it is probably the right one."
+      ],
+      "unsupported": []
+    },
+    "J22": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J23": {
+      "advice": [],
+      "verdict": ["Sales will probably come back once the rule is lifted."],
+      "unsupported": []
+    },
+    "J24": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J25": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J26": {
+      "advice": [],
+      "verdict": [
+        "The 21 May date is the right one: it records the first payment the new provider took [2], so 12 May was only the plan [1]."
+      ],
+      "unsupported": ["so 12 May was only the plan [1]"]
+    },
+    "J27": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": [
+        "The 'due for a check' status is set by the item owners; it does not follow from the check date."
+      ]
+    },
+    "J28": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["but the owners have not marked them as conflicting."]
+    },
+    "J29": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": [
+        "Correction to my last reply: I said Heed does not show which metrics have a definition."
+      ]
+    },
+    "J30": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J31": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["Nothing is written about returns in Norway."]
+    },
+    "J32": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["Seven items are about Norway"]
+    },
+    "J33": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J34": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J35": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J36": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["Nothing in Heed is about Poland."]
+    },
+    "J37": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["The fall most likely comes from card payment failures that week."]
+    },
+    "J38": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": [
+        "Heed has nothing about the Italian regulator in the last quarter (July to September 2026).",
+        "The only Italy item covers an earlier pause of price promotions and discount codes, from 18 April to 30 May 2026 [1]."
+      ]
+    },
+    "J39": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J40": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["The Italy item is owned by Priya Nair, who last checked it on 20 June 2026."]
+    },
+    "J41": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J42": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": ["Yes, it is due for a check: Jon Abara last checked it on 3 October 2026."]
+    },
+    "J43": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": [
+        "I searched every domain, including archived items and drafts, and nothing is written about Black Friday."
+      ]
+    },
+    "J45": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J46": {
+      "advice": ["Do not report it weekly [1]."],
+      "verdict": [],
+      "unsupported": []
+    },
+    "J44": {
+      "advice": [],
+      "verdict": [],
+      "unsupported": []
+    }
+  }
+}
