@@ -289,8 +289,12 @@ const namedDefinitionSchema = z.object({
 const findOutput = z.object({
   /** The items found, best first: those that match every word, then those that match some. */
   found: z.number(),
-  /** How many of them match every word of the search. */
+  /** How many of the items read match every word of the search. */
   everyWord: z.number(),
+  /** How many items were read to count everyWord; fewer than found when the search was cut. */
+  readItems: z.number(),
+  /** The search found more than it read, so everyWord counts the first readItems only. */
+  cut: z.boolean(),
   items: z.array(itemSchema.extend({ match: z.enum(['all', 'some', 'scope']) })),
   more: z.number(),
   definitions: z.array(namedDefinitionSchema),
@@ -320,11 +324,14 @@ async function findContext(view: View, input: z.output<typeof findInput>, today:
       () => {},
     )
     const out = result.structuredContent
-    const context = Array.isArray(out.context)
-      ? (out.context as { id: string; match: 'all' | 'some' | 'scope' }[]).filter((c) =>
-          view.readable.has(c.id),
-        )
+    const read = Array.isArray(out.context)
+      ? (out.context as { id: string; match: 'all' | 'some' | 'scope' }[])
       : null
+    const context = read ? read.filter((c) => view.readable.has(c.id)) : null
+    // The engine's own count, less the items read that this person may not read.
+    const total = context
+      ? Math.max(context.length, Number(out.total ?? read!.length) - (read!.length - context.length))
+      : 0
     const used = (out.query_used ?? {}) as { domains?: string[]; terms?: string[] }
     const scope = out.scope_used as ResolvedScope | undefined
     const searched: Searched = {
@@ -346,7 +353,7 @@ async function findContext(view: View, input: z.output<typeof findInput>, today:
     // What matches every word of the search: an item that matches some of them is only nearby.
     const whole = (context ?? []).filter((c) => c.match !== 'some').length
     searched.found = whole
-    return { out, context, searched, whole }
+    return { out, context, searched, whole, total }
   }
   const window = input.from && input.to ? { from: input.from, to: input.to } : undefined
   const part = {
@@ -360,6 +367,8 @@ async function findContext(view: View, input: z.output<typeof findInput>, today:
     return {
       found: 0,
       everyWord: 0,
+      readItems: 0,
+      cut: false,
       items: [],
       more: 0,
       definitions: [],
@@ -416,17 +425,19 @@ async function findContext(view: View, input: z.output<typeof findInput>, today:
       }
     })
   return {
-    found: found.length,
+    found: used.total,
     everyWord: used.whole,
+    readItems: found.length,
+    cut: used.total > found.length,
     items,
-    more: found.length - items.length,
+    more: used.total - items.length,
     definitions,
     searched,
     widened,
     outOf: outOf(view),
     nothing: used.whole
       ? null
-      : `${found.length ? `No item matches every word, so these ${plural(found.length, 'item matches', 'items match')} only some of them. ` : ''}${nothingSaid(searched, view)}`,
+      : `${used.total ? `No item matches every word, so these ${plural(used.total, 'item matches', 'items match')} only some of them. ` : ''}${nothingSaid(searched, view)}`,
     error: null,
     ids: [...items.map((i) => i.id), ...definitions.map((d) => d.id)],
   }
@@ -904,6 +915,7 @@ async function records(view: View, reads: ToolReads, input: z.output<typeof reco
     items,
     areas: view.areas,
     nameOf: (key) => termName(view, key),
+    isShown: (key) => isShown(view, key),
     keysOf: (names) => {
       const keys: string[] = []
       const unknown: string[] = []

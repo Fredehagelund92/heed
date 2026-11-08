@@ -91,6 +91,8 @@ export type RecordsTable = {
   areas: readonly { id: string; name: string }[]
   /** A metric or market key's name, for the groups. */
   nameOf: (key: string) => string
+  /** Whether the person's Definitions show this key; a hidden one is never named. */
+  isShown: (key: string) => boolean
   /** The keys these names name, or why one names nothing known. */
   keysOf: (names: readonly string[]) => { keys: string[]; unknown: string[] }
 }
@@ -232,7 +234,7 @@ function groupsOf(
     else if (by === 'kind') add(kindOf[i.kind])
     else if (by === 'status') add(statusWords[i.status])
     else {
-      const keys = by === 'metric' ? (i.metrics ?? []) : (i.values ?? [])
+      const keys = (by === 'metric' ? (i.metrics ?? []) : (i.values ?? [])).filter(table.isShown)
       if (!keys.length) add(none)
       for (const key of keys) add(table.nameOf(key))
     }

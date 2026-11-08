@@ -146,6 +146,7 @@ const table: RecordsTable = {
       'val:market/norway': 'Norway',
       'val:market/sweden': 'Sweden',
     })[key] ?? key,
+  isShown: (key) => key !== 'metric:roas' && key !== 'val:market/sweden',
   keysOf: (names) => {
     const known: Record<string, string> = { orders: 'metric:orders', norway: 'val:market/norway' }
     return {
@@ -163,6 +164,19 @@ const query = (input: object) => {
 }
 
 describe('the records tool (FR-720.3)', () => {
+  it('never names a metric or value Definitions hides, counting it as unnamed', () => {
+    const named = (by: 'metric' | 'value') => {
+      const groups = query({ group_by: by, show: 'count' }).groups
+      return JSON.stringify(groups)
+    }
+    expect(named('metric')).not.toMatch(/roas|Return on ad spend/)
+    expect(query({ group_by: 'metric', show: 'count' }).groups?.rows).toContainEqual({
+      name: 'no metric named',
+      count: 1,
+    })
+    expect(named('value')).not.toMatch(/sweden|Sweden/)
+  })
+
   it('says what every count is out of, by the domain and the statuses asked', () => {
     expect(query({ show: 'count' })).toMatchObject({
       count: 4,
