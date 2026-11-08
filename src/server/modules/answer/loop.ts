@@ -465,6 +465,7 @@ const stoppedTurn = (text: string, why: NonNullable<LoopTurn['stopped']>): LoopT
   state: null,
   footer: emptyFooter,
   read: [],
+  subject: null,
   nearby: [],
   conflict: [],
   definitions: [],
@@ -492,6 +493,7 @@ const questionTurn = (
   state: null,
   footer: emptyFooter,
   read: [...againLine(earlier), ...readLines(made)],
+  subject: subjectOf(made),
   nearby: [],
   conflict: [],
   definitions: [],
@@ -654,6 +656,22 @@ function disagreeing(made: readonly MadeRead[], sources: readonly string[]): str
     }
   }
   return []
+}
+
+/** What the first get_context read that read a subject read: the names and the days. */
+function subjectOf(made: readonly MadeRead[]): LoopTurn['subject'] {
+  for (const m of made) {
+    if (m.tool !== 'get_context' || !isObj(m.result) || isError(m.result) || !isObj(m.result.read))
+      continue
+    const { names, period, assumedToday } = m.result.read
+    if (!Array.isArray(names) || typeof period !== 'string') continue
+    return {
+      names: names.filter((n): n is string => typeof n === 'string'),
+      period,
+      assumedToday: assumedToday === true,
+    }
+  }
+  return null
 }
 
 /** The items the turn's get_context reads gave as nearby: about the same names, not applying. */
@@ -822,6 +840,7 @@ export function turnOf(
     state,
     footer: footerOf(about, missing ? [] : order, items),
     read: [...againLine(earlier), ...readLines(made)],
+    subject: subjectOf(about),
     nearby: missing ? [...new Set([...order, ...nearbyOf(about)])] : [],
     conflict: state === 'conflict' ? disagreeing(about, order) : [],
     definitions: named.flatMap((id) => {

@@ -929,7 +929,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       // A follow-up carries the chat's last turns; a question scoped with @ is read as scoped.
       const carry = turns?.length && !example && !scope?.length ? { turns } : {}
       const looked = await lookUp({ question: words, ...fields, ...carry }, seen, live?.signal)
-      if (looked.turn) return { ...loopAnswerOf(looked.turn, words), ...extra }
+      if (looked.turn) return { ...loopAnswerOf(looked.turn, words, names), ...extra }
       if (looked.records)
         return { ...recordsAnswer(words, looked.records, looked.reading), ...extra }
       if (looked.reply) return { ...replyAnswer(words, looked.reply), ...extra }

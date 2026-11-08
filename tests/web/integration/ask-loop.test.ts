@@ -66,6 +66,8 @@ describe("Ask's loop", () => {
     const api = await world.as(ML)
     const a = await api.ask({ question: 'Give me all about orders in poland' })
     expect(a.state).toBe('missing')
+    expect(a.metric).toBe('Orders')
+    expect(a.markets).toEqual(['Poland'])
     expect(a.sources).toEqual([])
     expect(a.related?.length).toBeGreaterThan(0)
     expect(a.text).toContain('Out of 21 published context items you may read.')

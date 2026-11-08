@@ -1197,16 +1197,25 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   return null
 }
 
+const RELATED_SHOWN = 4
+
 /** Items that apply to the scope but not to this question: named, not used. One row each, 44px tall on a touch screen. */
 function Related({ ids }: { ids: string[] }) {
   const all = useFacts()
-  const items = ids.map((id) => all.find((f) => f.id === id)).filter((f): f is Fact => !!f)
+  const domains = useDomains()
+  const [everything, setAll] = React.useState(false)
+  const items = [...new Set(ids)]
+    .map((id) => all.find((f) => f.id === id))
+    .filter((f): f is Fact => !!f)
+  const shown = everything ? items : items.slice(0, RELATED_SHOWN)
+  const titles = new Map<string, number>()
+  for (const f of items) titles.set(f.title, (titles.get(f.title) ?? 0) + 1)
   return (
     <div className="text-xs text-muted-foreground">
       <p>Also related, not used here:</p>
       <ul className="mt-0.5 flex flex-col pointer-coarse:gap-0.5">
-        {items.map((f) => (
-          <li key={f.id}>
+        {shown.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center gap-x-2">
             <button
               type="button"
               className="flex min-h-7 items-center rounded-sm text-left text-foreground underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11"
@@ -1214,9 +1223,23 @@ function Related({ ids }: { ids: string[] }) {
             >
               {f.title}
             </button>
+            {titles.get(f.title)! > 1 ? (
+              <span>
+                {domains[f.domain]?.name} - checked {f.checkedOn}
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>
+      {items.length > RELATED_SHOWN && !everything ? (
+        <button
+          type="button"
+          className="mt-0.5 flex min-h-7 items-center rounded-sm underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11"
+          onClick={() => setAll(true)}
+        >
+          Show {items.length - RELATED_SHOWN} more
+        </button>
+      ) : null}
     </div>
   )
 }

@@ -91,8 +91,8 @@ export function namesOf(vocabulary: Vocabulary): Names & {
 }
 
 /** "1 to 31 Aug 2026", "1 Jul to 30 Sep 2026": the days a question was read for. */
-const datesOf = (window: { start: string; end: string | null }) =>
-  windowWords(window).replace(/^(\d+)-/, '$1 to ')
+const datesWords = (words: string) => words.replace(/^(\d+)-/, '$1 to ')
+const datesOf = (window: { start: string; end: string | null }) => datesWords(windowWords(window))
 
 /**
  * An item's first sentence, as the answer says it. An item that opens with a question says what
@@ -351,24 +351,33 @@ export const failedAnswer = (question: string): Answer => ({
  * of a turn that stopped. The state, the footer, what was read and the items named but not used
  * are the service's, written by code from the reads.
  */
-export const loopAnswerOf = (turn: LoopTurn, question: string): Answer => ({
-  id: 'custom',
-  question,
-  metric: '',
-  markets: [],
-  state: turn.state,
-  text: turn.text,
-  sources: turn.sources,
-  said: '',
-  footer: turn.footer,
-  read: turn.read,
-  reads: turn.reads,
-  ...(turn.nearby.length ? { related: turn.nearby } : {}),
-  ...(turn.conflict.length === 2 ? { conflict: turn.conflict } : {}),
-  ...(turn.definitions.length ? { definitions: turn.definitions } : {}),
-  ...(turn.kind === 'question' ? { reply: 'clarify' as const, choices: turn.choices } : {}),
-  ...(turn.stopped ? { stopped: turn.stopped } : {}),
-})
+export const loopAnswerOf = (
+  turn: LoopTurn,
+  question: string,
+  names: ReturnType<typeof namesOf>,
+): Answer => {
+  const subject = turn.subject?.names ?? []
+  const dates = turn.subject && !turn.subject.assumedToday ? datesWords(turn.subject.period) : null
+  return {
+    id: 'custom',
+    question,
+    metric: subject.find((n) => names.metricKey(n)) ?? '',
+    markets: subject.filter((n) => names.marketKey(n)),
+    ...(dates ? { dates } : {}),
+    state: turn.state,
+    text: turn.text,
+    sources: turn.sources,
+    said: '',
+    footer: turn.footer,
+    read: turn.read,
+    reads: turn.reads,
+    ...(turn.nearby.length ? { related: turn.nearby } : {}),
+    ...(turn.conflict.length === 2 ? { conflict: turn.conflict } : {}),
+    ...(turn.definitions.length ? { definitions: turn.definitions } : {}),
+    ...(turn.kind === 'question' ? { reply: 'clarify' as const, choices: turn.choices } : {}),
+    ...(turn.stopped ? { stopped: turn.stopped } : {}),
+  }
+}
 
 /** The answer when nothing is shared with agents yet: no context, so nothing applies. */
 export const nothingLiveAnswer = (question: string): Answer => ({

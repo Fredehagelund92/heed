@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AnswerResult, Asked } from '@contract/answer'
+import type { AnswerResult, Asked, LoopTurn } from '@contract/answer'
 import {
   answerOf,
   askedWeekOf,
@@ -7,6 +7,7 @@ import {
   dayOf,
   examplesOf,
   linksOf,
+  loopAnswerOf,
   lookupFields,
   namesOf,
   type Shelf,
@@ -575,5 +576,47 @@ describe('the links an answer followed', () => {
   it('says nothing of links for an answer that carries none', () => {
     expect(linksOf(result())).toBeUndefined()
     expect(answerOf(result(), 'Orders?', namesOf(vocabulary)).links).toBeUndefined()
+  })
+})
+
+describe("the subject of a loop turn's answer", () => {
+  const turn = (subject: LoopTurn['subject']): LoopTurn => ({
+    kind: 'answer',
+    text: '',
+    sources: [],
+    state: 'missing',
+    footer: { denominator: null, notSeen: null, stale: null },
+    read: [],
+    subject,
+    nearby: [],
+    conflict: [],
+    definitions: [],
+    choices: [],
+    reads: [],
+    stopped: null,
+  })
+
+  it('names the metric, the markets and the days the subject was read for', () => {
+    const a = loopAnswerOf(
+      turn({ names: ['Orders', 'Norway'], period: '1-31 Aug 2026', assumedToday: false }),
+      'Orders in Norway?',
+      names,
+    )
+    expect(a.metric).toBe('Orders')
+    expect(a.markets).toEqual(['Norway'])
+    expect(a.dates).toBe('1 to 31 Aug 2026')
+  })
+
+  it('gives no days when the read assumed today, and no subject when there was none', () => {
+    const today = loopAnswerOf(
+      turn({ names: ['Orders'], period: '8 Nov 2026', assumedToday: true }),
+      'Orders?',
+      names,
+    )
+    expect(today.metric).toBe('Orders')
+    expect(today.dates).toBeUndefined()
+    const none = loopAnswerOf(turn(null), 'Hi', names)
+    expect(none.metric).toBe('')
+    expect(none.markets).toEqual([])
   })
 })

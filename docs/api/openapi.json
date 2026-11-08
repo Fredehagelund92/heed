@@ -92341,6 +92341,35 @@
                                         "type": "string"
                                       }
                                     },
+                                    "subject": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "names": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "period": {
+                                              "type": "string"
+                                            },
+                                            "assumedToday": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "names",
+                                            "period",
+                                            "assumedToday"
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
                                     "nearby": {
                                       "type": "array",
                                       "items": {
@@ -92438,6 +92467,7 @@
                                     "state",
                                     "footer",
                                     "read",
+                                    "subject",
                                     "nearby",
                                     "conflict",
                                     "definitions",

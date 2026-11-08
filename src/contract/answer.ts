@@ -316,6 +316,10 @@ export const loopTurnSchema = z.object({
   state: z.nullable(answerStateSchema),
   footer: footerSchema,
   read: z.array(z.string()),
+  /** What the turn's read about the question's subject read: its names and days; null when none. */
+  subject: z.nullable(
+    z.object({ names: z.array(z.string()), period: z.string(), assumedToday: z.boolean() }),
+  ),
   /** Context items about the same names that do not apply, under Not found: named, not used. */
   nearby: z.array(z.string()),
   /** Under Conflict, two of its sources that disagree, by id, as the reads mark them. */
