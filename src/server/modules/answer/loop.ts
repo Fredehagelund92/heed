@@ -322,14 +322,18 @@ export async function* askLoop(
   const turns = input.turns ?? []
   const limits = { steps: deps.steps, seconds: Math.round(deps.timeoutMs / 1000) }
   const reads = serialReads(deps)
+  const made: MadeRead[] = []
+  let earlier: (ReturnType<typeof earlierReadsOf>[number] & { result: unknown })[] = []
   const stopped = (why: NonNullable<LoopTurn['stopped']>, spend?: SpendStop): LookupEvent => ({
     type: 'turn',
-    turn: stoppedTurn(stoppedSentence(why, limits, spend), why),
+    turn: stoppedTurn(stoppedSentence(why, limits, spend), why, [
+      ...againLine(earlier.map(readOf)),
+      ...readLines(made),
+    ]),
   })
 
   // The chat's earlier reads, made again as the person, now (FR-718.3).
   const wanted = earlierReadsOf(turns)
-  let earlier: (ReturnType<typeof earlierReadsOf>[number] & { result: unknown })[] = []
   if (wanted.length) {
     yield { type: 'progress', working: 'Reading the chat’s earlier reads again…' }
     try {
@@ -342,7 +346,6 @@ export async function* askLoop(
     }
   }
 
-  const made: MadeRead[] = []
   const tools: Record<string, Tool> = Object.fromEntries(
     askToolNames.map((name) => [
       name,
@@ -418,11 +421,7 @@ export async function* askLoop(
     }
     const steps = await result.steps
     const last = steps.at(-1)
-    const again = earlier.map((e) => ({
-      tool: e.read.tool as AskToolName,
-      input: e.read.input,
-      result: e.result,
-    }))
+    const again = earlier.map(readOf)
     deps.onTurn?.(made, again)
     const back = last?.toolCalls.find((c) => c.toolName === 'ask_back')
     const parsed = back ? askBackInput.safeParse(back.input) : null
@@ -458,13 +457,23 @@ export async function* askLoop(
 
 const emptyFooter = { denominator: null, notSeen: null, stale: null }
 
-const stoppedTurn = (text: string, why: NonNullable<LoopTurn['stopped']>): LoopTurn => ({
+const readOf = (e: { read: LoopRead; result: unknown }): MadeRead => ({
+  tool: e.read.tool as AskToolName,
+  input: e.read.input,
+  result: e.result,
+})
+
+const stoppedTurn = (
+  text: string,
+  why: NonNullable<LoopTurn['stopped']>,
+  read: string[],
+): LoopTurn => ({
   kind: 'stopped',
   text,
   sources: [],
   state: null,
   footer: emptyFooter,
-  read: [],
+  read,
   subject: null,
   nearby: [],
   conflict: [],

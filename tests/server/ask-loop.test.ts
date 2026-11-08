@@ -350,6 +350,10 @@ describe("Ask's loop on a scripted model", () => {
     )
     expect(reads).toEqual([true, true, false])
     expect(turn).toMatchObject({ kind: 'stopped', stopped: 'steps', sources: [], state: null })
+    expect(turn.read.length).toBeGreaterThan(0)
+    expect(turn.read.join(' ')).toContain('Searched')
+    expect(turn.reads).toEqual([])
+    expect(turn.subject).toBeNull()
     expect(turn.text).toBe(
       'Ask stopped at its limit of 3 steps before it had an answer, so nothing it wrote is shown.',
     )
