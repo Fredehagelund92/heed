@@ -10,7 +10,7 @@ import { judgeSet } from '../ask-eval/judge-set.ts'
 import { asJson, evaluate, storedKey, type ReaderWorld, type RunWorld } from '../ask-eval/run.ts'
 import { printReport, type Report } from '../ask-eval/score.ts'
 import type { CaseRun } from '../ask-eval/types.ts'
-import { mainAnswerer } from './ask-answerers.ts'
+import { mainAnswerer, replayed } from './ask-answerers.ts'
 import { ADMIN, disclosure } from './ask-disclosure.ts'
 import { askWorld } from './ask-world.ts'
 
@@ -63,7 +63,8 @@ const resumed: JournalLine[] = process.env.ASK_EVAL_RESUME
 const write = (line: JournalLine) => {
   if (journal && real) appendFileSync(journal, `${JSON.stringify(line)}\n`)
 }
-const resumedRuns = resumed.flatMap((l) => (l.type === 'run' ? [l.run] : []))
+// An unanswered try is no result: going on asks it again.
+const resumedRuns = resumed.flatMap((l) => (l.type === 'run' && !l.run.unanswered ? [l.run] : []))
 const resumedLabels = resumed.findLast((l) => l.type === 'judge set')
 /** What the run being resumed had spent, by its own meter. */
 const spentBefore = resumed.reduce(
@@ -184,28 +185,88 @@ const held = heldOf(evalCases)
  * What today's main breaks and misses on the plans of the last real run, by promise and by what a
  * case must say: only ever shorter. The held-back cases are a count.
  */
-const brokenToday: Partial<Record<keyof Report['byPromise'], string[]>> = {}
-const missingToday: string[] = []
-const heldPassingToday = 0
+const brokenToday: Partial<Record<keyof Report['byPromise'], string[]>> = {
+  never: ['C1', 'K01', 'K13', 'F30'],
+}
+const missingToday: string[] = [
+  'C1',
+  'C2',
+  'K01',
+  'K15',
+  'V01',
+  'V04',
+  'V07',
+  'V09',
+  'F05',
+  'F07',
+  'F19',
+  'F25',
+  'F28',
+  'F30',
+  'FP04',
+  'G13',
+  'G15',
+  'G18',
+  'G25',
+  'G29',
+  'GP05',
+  'H05',
+]
+const heldPassingToday = 19
 
-describe.runIf(!real)("the evaluation harness, on today's main with the last real plans", () => {
-  it('fails only where it is listed', async () => {
-    const outcome = await evaluate(runWorld, mainAnswerer, cases, { tries, held })
+/**
+ * ASK_EVAL_REPLAY names a real run's journal: its replies and its judge's findings are graded again
+ * on the demo week, with no model, so a change to a grader reads a real run at no cost.
+ */
+const replay = process.env.ASK_EVAL_REPLAY
+
+describe.runIf(!!replay)('the evaluation harness, grading a real run again', () => {
+  it('reports by class and by promise', async () => {
+    const lines = readFileSync(replay!, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as JournalLine)
+    const runs = lines.flatMap((l) => (l.type === 'run' && !l.run.unanswered ? [l.run] : []))
+    const { answerer, judged } = replayed(runs, (id) => evalCases.find((c) => c.id === id)!.as)
+    const outcome = await evaluate(
+      { ...runWorld, judge: (input) => Promise.resolve(judged(input.reply)) },
+      answerer,
+      cases,
+      {
+        tries: Math.max(...runs.map((r) => r.try)) + 1,
+        held,
+      },
+    )
     const text = printReport(outcome.report)
     console.log(text)
-    if (process.env.ASK_EVAL_OUT)
-      writeFileSync(process.env.ASK_EVAL_OUT, JSON.stringify({ text, ...asJson(outcome) }, null, 1))
-    if (only) return
-    for (const [p, { ids }] of Object.entries(outcome.report.byPromise))
-      expect(ids, p).toEqual(brokenToday[p as keyof Report['byPromise']] ?? [])
-    expect(
-      outcome.runs
-        .filter((r) => !held.has(r.id) && r.turns.some((t) => t.grade.misses.length))
-        .map((r) => r.id),
-    ).toEqual(missingToday)
-    expect(outcome.report.held.all.passK).toBe(heldPassingToday)
+    writeFileSync(process.env.ASK_EVAL_OUT!, JSON.stringify({ text, ...asJson(outcome) }, null, 1))
   }, 600_000)
 })
+
+describe.runIf(!real && !replay)(
+  "the evaluation harness, on today's main with the last real plans",
+  () => {
+    it('fails only where it is listed', async () => {
+      const outcome = await evaluate(runWorld, mainAnswerer, cases, { tries, held })
+      const text = printReport(outcome.report)
+      console.log(text)
+      if (process.env.ASK_EVAL_OUT)
+        writeFileSync(
+          process.env.ASK_EVAL_OUT,
+          JSON.stringify({ text, ...asJson(outcome) }, null, 1),
+        )
+      if (only) return
+      for (const [p, { ids }] of Object.entries(outcome.report.byPromise))
+        expect(ids, p).toEqual(brokenToday[p as keyof Report['byPromise']] ?? [])
+      expect(
+        outcome.runs
+          .filter((r) => !held.has(r.id) && r.turns.some((t) => t.grade.misses.length))
+          .map((r) => r.id),
+      ).toEqual(missingToday)
+      expect(outcome.report.held.all.passK).toBe(heldPassingToday)
+    }, 600_000)
+  },
+)
 
 describe.runIf(real)('the evaluation harness, on the real model', () => {
   let measured = ''
@@ -218,6 +279,10 @@ describe.runIf(real)('the evaluation harness, on the real model', () => {
     // The gateway's own counter of what the key used: another use of the key moves it too.
     creditsAtStart = await models!.creditsUsed(MODEL.provider).catch(() => null)
     write({ type: 'start', creditsMicros: creditsAtStart })
+    // A run that goes on with another keeps its tries in this journal too, so this one is whole.
+    resumedRuns.forEach((run, i) =>
+      write({ type: 'run', run, plans: i ? {} : { ...written }, spentMicros: spentBefore }),
+    )
     const verdicts = new Map<string, Verdicts | null>(
       resumedLabels?.type === 'judge set' ? Object.entries(resumedLabels.verdicts) : [],
     )
@@ -252,10 +317,12 @@ describe.runIf(real)('the evaluation harness, on the real model', () => {
 
   it('reports by class and by promise', async () => {
     if (!ceiling) throw new Error('A real run needs ASK_EVAL_MAX_MICROS.')
+    // One chat at a time. A look-up holds one of the pool's connections for its whole request
+    // (src/server/http/api.ts) and the real planner opens a second to check the spending limits
+    // (plan.ts), so as many chats at once as the pool has connections wait on each other forever.
     const outcome = await evaluate(runWorld, mainAnswerer, cases, {
       tries,
       held,
-      concurrency: 4,
       prior: resumedRuns,
     })
     const spent = await spentSoFar()

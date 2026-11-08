@@ -290,6 +290,17 @@ test template, so its spend never reaches another ledger. `--record` keeps the p
 `--tries` and `--cases` narrow a run, and `--out` names the report file, which holds every open
 case's turns and the held-back ones only as counts.
 
+A real run asks one chat at a time: a look-up holds one of the service's database connections for
+its whole request and the real planner opens a second to check the spending limits, so as many
+live chats at once as the pool has connections wait on each other for good. A message the service
+gives no reply to is sent once more; a second miss ends that try as unanswered, which counts as
+missing what the case must say and is reported apart, never as a promise broken. The run journals
+each graded try next to its report (`<out>.jsonl`) with what has been spent so far, by the
+service's meter and the judge's, and reads the gateway's own counter at its start and end, so a run
+that dies keeps what it paid for: `--resume <journal>` goes on with it, asks only the tries it had
+not, and counts its spend against the same ceiling. `--replay <journal>` grades a real run's
+replies and judge findings again on the demo week with no model, after a grader changes.
+
 ## Quality reads
 
 The quality reads (`/quality/*`), the links between gaps and test questions, and the test

@@ -136,7 +136,17 @@ export function ungroundedNumbers(reply: Reply, ctx: GradeContext): string[] {
       ].join('\n'),
     ),
   )
-  return [...new Set(numbersIn(reply.text).filter((n) => !known.has(n)))]
+  // "Items 6 and 7" names sources by their place, as [6] and [7] do.
+  const places = reply.text.replace(
+    /\bitems? (\d+)((?:,? (?:and |or )?\d+)*)/gi,
+    (all: string, ...[first, rest]: string[]) =>
+      [first, ...(rest ?? '').split(/\D+/)]
+        .filter(Boolean)
+        .every((n) => Number(n) >= 1 && Number(n) <= reply.sources.length)
+        ? ' '
+        : all,
+  )
+  return [...new Set(numbersIn(places).filter((n) => !known.has(n)))]
 }
 
 /** Every item the reply cites is one the reader may read, and every mark points at one. */

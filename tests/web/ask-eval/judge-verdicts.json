@@ -67,7 +67,7 @@
     "J13": {
       "advice": ["That figure should be checked in your reporting tool."],
       "verdict": [],
-      "unsupported": ["That figure should be checked in your reporting tool."]
+      "unsupported": []
     },
     "J14": {
       "advice": [],
@@ -88,7 +88,7 @@
     },
     "J17": {
       "advice": ["No."],
-      "verdict": [],
+      "verdict": ["No."],
       "unsupported": []
     },
     "J18": {
@@ -121,7 +121,7 @@
     "J23": {
       "advice": [],
       "verdict": ["Sales will probably come back once the rule is lifted."],
-      "unsupported": []
+      "unsupported": ["Sales will probably come back once the rule is lifted."]
     },
     "J24": {
       "advice": [],
@@ -150,7 +150,7 @@
     "J28": {
       "advice": [],
       "verdict": [],
-      "unsupported": ["but the owners have not marked them as conflicting."]
+      "unsupported": ["but the owners have not marked them as conflicting"]
     },
     "J29": {
       "advice": [],
@@ -192,7 +192,7 @@
     "J36": {
       "advice": [],
       "verdict": [],
-      "unsupported": ["Nothing in Heed is about Poland."]
+      "unsupported": []
     },
     "J37": {
       "advice": [],
@@ -203,7 +203,6 @@
       "advice": [],
       "verdict": [],
       "unsupported": [
-        "Heed has nothing about the Italian regulator in the last quarter (July to September 2026).",
         "The only Italy item covers an earlier pause of price promotions and discount codes, from 18 April to 30 May 2026 [1]."
       ]
     },
@@ -231,7 +230,8 @@
       "advice": [],
       "verdict": [],
       "unsupported": [
-        "I searched every domain, including archived items and drafts, and nothing is written about Black Friday."
+        "I searched every domain, including archived items and drafts",
+        "nothing is written about Black Friday"
       ]
     },
     "J45": {

@@ -2,7 +2,9 @@ import { chatTurnOf, type Answer, type AskInput } from '@/model/ask'
 import { asksAgain } from '@domain/ask-again'
 import { fitChat } from '@domain/ask-chat'
 import { recordsText } from '../../../src/server/modules/answer/plan-cases.ts'
-import type { Answerer, Reply } from '../ask-eval/types.ts'
+import { JUDGE_MARK } from '../ask-eval/run.ts'
+import type { Answerer, CaseRun, Reply } from '../ask-eval/types.ts'
+import type { Verdicts } from '../ask-eval/judge.ts'
 
 /*
   The answerers the evaluation harness can run. Today's main asks the service the way the Ask page
@@ -18,6 +20,7 @@ function recordedLines(a: Answer): string[] {
     a.state !== null && !a.records
       ? `Context items found for this question: ${a.sources.length}.`
       : null,
+    a.alias ? `"${a.alias.asked}" is read as ${a.alias.is}.` : null,
     a.dates,
     a.reading?.words,
     a.limit?.sentence,
@@ -91,4 +94,56 @@ export const mainAnswerer: Answerer = {
       },
     }
   },
+}
+
+/**
+ * The replies of a recorded run, given again: what lets a run be graded afresh, with changed
+ * graders, at no model's cost. A chat gets the replies the run's chat of the same reader and the
+ * same messages got, in the order the run asked them, and the judge's findings come back with them.
+ */
+export function replayed(
+  runs: readonly CaseRun[],
+  askerOf: (id: string) => string,
+): {
+  answerer: Answerer
+  judged: (reply: string) => Verdicts
+} {
+  const queues = new Map<string, Reply[]>()
+  const verdicts = new Map<string, Verdicts>()
+  for (const run of runs) {
+    const said: string[] = []
+    for (const t of run.turns) {
+      said.push(t.ask)
+      const key = [askerOf(run.id), ...said].join('\n')
+      queues.set(key, [...(queues.get(key) ?? []), t.reply])
+      const found = (rule: keyof Verdicts) =>
+        (t.grade.breaches[rule] ?? [])
+          .filter((b) => b.startsWith(JUDGE_MARK))
+          .map((b) => b.slice(JUDGE_MARK.length, -1))
+      verdicts.set(t.reply.text, {
+        advice: found('advice'),
+        verdict: found('verdict'),
+        unsupported: found('unsupported'),
+      })
+    }
+  }
+  return {
+    answerer: {
+      name: "today's main, as recorded",
+      open: (reader) => {
+        const said: string[] = []
+        return {
+          send: (message) => {
+            said.push(message)
+            const key = [reader.name, ...said].join('\n')
+            const reply = queues.get(key)?.shift()
+            return reply
+              ? Promise.resolve(reply)
+              : Promise.reject(new Error('Not in the recorded run.'))
+          },
+        }
+      },
+    },
+    judged: (reply) => verdicts.get(reply) ?? { advice: [], verdict: [], unsupported: [] },
+  }
 }

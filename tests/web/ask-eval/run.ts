@@ -80,17 +80,25 @@ async function runCase(world: RunWorld, answerer: Answerer, c: EvalCase, n: numb
         reply: reply.text,
       })
       if (!verdicts) judgeErrors++
-      for (const rule of JUDGE_RULES)
-        if (verdicts?.[rule].length)
+      // A sentence copied from what the answerer read is that source speaking: a line code wrote,
+      // an item's own words. The judge's quote of one is no finding, as for the code's own graders.
+      const read = evidenceOf(reply, ctx).join('\n')
+      for (const rule of JUDGE_RULES) {
+        const found = (verdicts?.[rule] ?? []).filter((s) => !read.includes(s.trim()))
+        if (found.length)
           grade.breaches[rule] = [
             ...(grade.breaches[rule] ?? []),
-            ...verdicts[rule].map((s) => `judge: "${s.slice(0, 120)}"`),
+            ...found.map((s) => `${JUDGE_MARK}${s.slice(0, 120)}"`),
           ]
+      }
     }
     turns.push({ ask: turn.ask, reply, grade })
   }
   return { run: { id: c.id, try: n, turns }, judgeErrors }
 }
+
+/** How a judge's finding reads among a turn's breaches. */
+export const JUDGE_MARK = 'judge: "'
 
 const caseOf = (cases: readonly EvalCase[], run: CaseRun) => cases.find((c) => c.id === run.id)!
 

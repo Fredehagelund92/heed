@@ -15,10 +15,12 @@ import { parseArgs } from 'node:util'
     npm run eval:ask-harness
     npm run eval:ask-harness -- --real --max-cost-usd 0.50 [--tries 3] [--record] [--cases C1,K04]
       [--out report.json] [--resume earlier-report.json.jsonl]
+    npm run eval:ask-harness -- --replay earlier-report.json.jsonl
 
   --record keeps the plans and the judge's verdicts the builds replay. A real run journals each
   graded try next to its report (<out>.jsonl), with what it has spent; --resume goes on with such a
-  run, asking only what it had not, and counts its spend against the same ceiling. The key is read
+  run, asking only what it had not, and counts its spend against the same ceiling; --replay grades
+  such a run's replies and judge findings again with no model, after a grader changes. The key is read
   from the environment (VERCEL_AI_GATEWAY_API_KEY) and never printed.
 */
 
@@ -31,6 +33,7 @@ const { values } = parseArgs({
     cases: { type: 'string' },
     out: { type: 'string' },
     resume: { type: 'string' },
+    replay: { type: 'string' },
   },
 })
 
@@ -53,6 +56,7 @@ if (values.tries) env.ASK_EVAL_TRIES = values.tries
 if (values.record) env.ASK_EVAL_RECORD = '1'
 if (values.cases) env.ASK_EVAL_CASES = values.cases
 if (values.resume) env.ASK_EVAL_RESUME = values.resume
+if (values.replay) env.ASK_EVAL_REPLAY = values.replay
 const out = values.out ?? join(mkdtempSync(join(tmpdir(), 'ask-eval-')), 'report.json')
 env.ASK_EVAL_OUT = out
 
