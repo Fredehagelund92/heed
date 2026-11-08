@@ -266,7 +266,9 @@ the agent will be another.
   check, attributed, and who owns a thing are allowed), a side taken between items, and an
   unsupported sentence. It reads the fixed facts, the chat so far, the evidence and the reply. It
   is measured first against hand-labelled replies (`judge-set.ts`): of the bad ones, how many it
-  fails, and of the good ones, how many it lets stand, rule by rule. The last real run's verdicts
+  fails, and of the good ones, how many it lets stand, rule by rule. A call that throws or times
+  out, or a second reply that is not the JSON asked for, is a judge error: counted apart, neither a
+  pass nor a fail, and the run goes on. The last real run's verdicts
   on that set are kept in `judge-verdicts.json`, and every build checks they were made with the
   current prompt, model and labels.
 - **pass^k**: a real run asks every case three times. A case keeps a promise only when every turn
