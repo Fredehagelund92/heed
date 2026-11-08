@@ -90,18 +90,23 @@ export function parseVerdicts(text: string): Verdicts | null {
 
 export type JudgeResult = { verdicts: Verdicts | null; micros: number }
 
-/** One reply judged: tried once more when the JSON is not right, then a judge error (null). */
+/** One reply judged: tried once more when the JSON is not right; a thrown or timed-out call, or a second bad reply, is a judge error (null). */
 export async function judge(choice: ModelChoice, input: JudgeInput): Promise<JudgeResult> {
   let micros = 0
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await generateText({
-      model: choice.model,
-      providerOptions: choice.options,
-      system: judgeSystem,
-      prompt: judgePrompt(input),
-      maxOutputTokens: 800,
-      abortSignal: AbortSignal.timeout(30_000),
-    })
+    let result: Awaited<ReturnType<typeof generateText>>
+    try {
+      result = await generateText({
+        model: choice.model,
+        providerOptions: choice.options,
+        system: judgeSystem,
+        prompt: judgePrompt(input),
+        maxOutputTokens: 800,
+        abortSignal: AbortSignal.timeout(30_000),
+      })
+    } catch {
+      return { verdicts: null, micros }
+    }
     micros += costMicros(choice.prices, {
       inputTokens: result.usage.inputTokens ?? 0,
       outputTokens: result.usage.outputTokens ?? 0,
