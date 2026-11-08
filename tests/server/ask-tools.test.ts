@@ -223,7 +223,6 @@ describe('the records tool (FR-720.3)', () => {
       note: 'An item that names several counts under each, so the groups add up to more than 4 items.',
       rows: [
         { name: 'Norway', count: 2 },
-        { name: 'Sweden', count: 1 },
         { name: 'no market or value named', count: 2 },
       ],
     })

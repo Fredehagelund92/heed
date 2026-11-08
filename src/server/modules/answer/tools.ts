@@ -330,7 +330,10 @@ async function findContext(view: View, input: z.output<typeof findInput>, today:
     const context = read ? read.filter((c) => view.readable.has(c.id)) : null
     // The engine's own count, less the items read that this person may not read.
     const total = context
-      ? Math.max(context.length, Number(out.total ?? read!.length) - (read!.length - context.length))
+      ? Math.max(
+          context.length,
+          Number(out.total ?? read!.length) - (read!.length - context.length),
+        )
       : 0
     const used = (out.query_used ?? {}) as { domains?: string[]; terms?: string[] }
     const scope = out.scope_used as ResolvedScope | undefined
