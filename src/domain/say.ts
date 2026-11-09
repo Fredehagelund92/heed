@@ -203,7 +203,11 @@ export function topicWords(
   const sorted = Object.entries(filters).sort(([a], [b]) => (a < b ? -1 : 1))
   if (!metrics.length) {
     const each = sorted.map(([dimension, vals]) =>
-      scopeWords({ terms }, { metrics: [], filters: { [dimension]: vals }, window }, { show: false }),
+      scopeWords(
+        { terms },
+        { metrics: [], filters: { [dimension]: vals }, window },
+        { show: false },
+      ),
     )
     return `${each.join(', ') || 'Everything'}, no metric named`
   }
