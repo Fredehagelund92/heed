@@ -115,6 +115,39 @@ describe("Ask's loop answer, state by state", () => {
     expect(text(el)).toMatch(/^.*0 of 21 published context items you may read apply/)
   })
 
+  it('makes the chips and the citations the buttons in the words, never a sentence', () => {
+    const el = render(example('loop-conflict'))
+    const words = el.querySelector('[data-answer-words]')!
+    const pressable = [...words.querySelectorAll('[role="button"], button, [tabindex]')]
+    expect(pressable.length).toBeGreaterThan(0)
+    for (const b of pressable)
+      expect(b.getAttribute('aria-label') ?? b.textContent).toMatch(
+        /, (?:metric|value|dimension|domain|person)$|^Source \d+: /,
+      )
+    for (const block of words.querySelectorAll('p, li, span:not([role])'))
+      expect([block.getAttribute('role'), block.getAttribute('tabindex')]).toEqual([null, null])
+  })
+
+  it('leaves the owners out when the words already name each of them', () => {
+    const turn = example('loop-missing')
+    const people = turn.owners.flatMap((o) => o.people)
+    expect(people.length).toBeGreaterThan(0)
+    const named: LoopTurn = {
+      ...turn,
+      body: [
+        ...turn.body,
+        {
+          t: 'p',
+          runs: [
+            { t: 'text', text: 'Its owners are ' },
+            ...people.map((id) => ({ t: 'noun' as const, id })),
+          ],
+        },
+      ],
+    }
+    expect(text(render(named)).match(/owned by/g)).toBeNull()
+  })
+
   it('Conflict: the two that disagree side by side, who decides, and Compare the two', () => {
     const el = render(example('loop-conflict'))
     expect(text(el)).toContain('Two items say different things.')

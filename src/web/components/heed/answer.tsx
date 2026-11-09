@@ -65,7 +65,7 @@ import {
 import { isLive, type Turn } from '@/model/ask-turn'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
-import { openDock, useDock } from '@/lib/dock'
+import { closeDock, openDock, useDock } from '@/lib/dock'
 import { href, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
@@ -729,20 +729,24 @@ function AnswerWords({
           {cites}
         </span>
       )
-    const opens = !live && done
+    // Only a sentence with a source behind it opens: there is nothing to show for Ask's own words.
+    const opens = !live && done && s.cites.length > 0
+    const pressed = opens && open === i + 1
+    // A second press puts the sources away again.
+    const toggle = () => (pressed ? closeDock() : show(i + 1))
     return (
       <span
         key={i}
         role={opens ? 'button' : undefined}
         tabIndex={opens ? 0 : undefined}
-        aria-pressed={opens ? open === i + 1 : undefined}
-        onClick={opens ? () => show(i + 1) : undefined}
+        aria-pressed={opens ? pressed : undefined}
+        onClick={opens ? toggle : undefined}
         onKeyDown={
           opens
             ? (e) => {
                 if (e.key !== 'Enter' && e.key !== ' ') return
                 e.preventDefault()
-                show(i + 1)
+                toggle()
               }
             : undefined
         }
@@ -752,7 +756,7 @@ function AnswerWords({
           // py-1: an inline box is its font's height (about 19px), so one that fits a line is under the
           // 24px target size; the padding makes it 24px or more and leaves the line height alone.
           opens &&
-            'cursor-pointer py-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
+            'cursor-pointer py-1 decoration-muted-foreground/40 underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
         )}
       >
         {words}

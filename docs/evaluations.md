@@ -379,8 +379,11 @@ next, and until it ships the router serves everyone.
   checks each against the chat's reads: a mention no read named is plain words, a reference no read
   holds leaves its sentence out, a long enumeration after a colon becomes a list, and what the
   check found (`checks`) is kept for the answer check, never shown as the words. The turn carries
-  the words as blocks (`body`), the same in plain words (`text`, what the graders read) and as the
-  model wrote them (`said`, what the chat sends back), the nouns, the item rows, the closest
+  the words in plain words (`text`, what the graders read), as the model wrote them with what they
+  cite, by id (`said`, what the chat sends back), and as blocks the page draws beside the evidence
+  (`body`): a mention that trails its clause or follows its own name is drawn on the words that
+  give its name, and under Not found nothing is cited and a list of the items the closest written
+  show is left out, with its lead. Then the nouns, the item rows, the closest
   written under Not found (counted by each other value of whichever dimension the question
   narrowed), the owners, and the definition only when the question asks what it is or turns on a
   word of it. A set asked for as a whole ends the turn with `show_overview`: the groups of an

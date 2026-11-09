@@ -286,7 +286,9 @@ function PersonChip({ name, still }: { name: string; still?: boolean }) {
           <span aria-hidden className="inline-flex">
             <P.PersonAvatar name={name} size={16} />
           </span>
-          <span className="min-w-0 truncate">{name}</span>
+          {/* The name alone sets the chip's baseline, so it sits on the line with the words around
+              it, not the initials in the face. */}
+          <span className="min-w-0 self-baseline truncate">{name}</span>
           <span className="sr-only">, person</span>
         </span>
       }
@@ -524,9 +526,12 @@ export function ItemRow({
           <NounChip key={id} id={id} nouns={nouns} />
         ))}
         {item.domain && <NounChip id={item.domain} nouns={nouns} />}
-        <StatusMark status={status.words} />
-        {status.day && <span>· {status.day}</span>}
-        {twin && <span>· another item with the same title</span>}
+        {/* One run of words, a no-break space before each dot: a wrapped line never starts with one. */}
+        <span className="min-w-0">
+          <StatusMark status={status.words} />
+          {status.day && `\u00a0· ${status.day}`}
+          {twin && '\u00a0· another item with the same title'}
+        </span>
       </span>
     </li>
   )

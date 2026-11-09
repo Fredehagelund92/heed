@@ -1,4 +1,5 @@
 import type { LoopTurn } from '@contract/answer'
+import { loopAnswerOf } from '@/api/http-ask'
 import type { Answer } from '@/model/ask'
 import type { AskLive } from '@/model/ask-turn'
 import { ApiError } from '../errors'
@@ -59,10 +60,7 @@ export async function playAnswer(answer: Answer, live: AskLive): Promise<Answer>
  * the demo week (tests/web/integration/ask-loop-shapes.test.ts writes them): loaded only when asked.
  */
 export async function loopExample(id: string): Promise<Answer> {
-  const [{ default: examples }, { loopAnswerOf }] = await Promise.all([
-    import('./data/loop-examples.json'),
-    import('@/api/http-ask'),
-  ])
+  const { default: examples } = await import('./data/loop-examples.json')
   const found = (examples as unknown as Record<string, { question: string; turn: LoopTurn }>)[id]
   if (!found) throw new ApiError('not-found', 'This example is not offered any more.')
   const names = {

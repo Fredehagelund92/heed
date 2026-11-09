@@ -160,6 +160,16 @@ const plainName = (id: string, nouns: ReadonlyMap<string, Noun>) => {
   return same?.name ?? words.charAt(0).toUpperCase() + words.slice(1)
 }
 
+/** A typed id as a read gives it, when the model wrote its kind twice (`domain:domain:area_x`). */
+const typedId = (id: string) => id.replace(/^([a-z]+):\1:/, '$1:')
+
+/** A name as words, not inside another word, in any case. */
+const nameIn = (name: string) =>
+  new RegExp(
+    `(?<![\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`,
+    'iu',
+  )
+
 /** A path into a read's result: `count`, `outOf`, `groups.rows.0.count`. */
 function valueAt(result: unknown, path: readonly string[]): unknown {
   let at: unknown = result
@@ -215,14 +225,25 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
     for (const m of words.matchAll(TOKEN)) {
       pushRun(runs, { t: 'text', text: words.slice(at, m.index) })
       at = m.index + m[0].length
-      const [whole, mention, ref, path, list, inner, bare] = m
+      const [whole, written, ref, path, list, inner, bare] = m
+      // A typed id in a mark with no @ is a mention where the words need it: a person, or a noun
+      // with words after it in its clause ("owned by [person:p_ada] and …"). At a clause's end,
+      // a metric's or a value's (`… left out [metric:orders].`) marks a definition, no source,
+      // and is left out, as is any that the sentence has named already.
+      const typed = inner?.trim().match(/^([a-z]+:\S+)$/)?.[1]
+      const kind = typed ? nounKindOf(typedId(typed)) : null
+      const needed =
+        kind === 'person' || /^\s*[\p{L}\p{N}]/u.test(words.slice(m.index + whole.length))
+      const mention = written ?? (typed && kind && needed ? typed : undefined)
       if (mention !== undefined) {
-        if (ctx.nouns.has(mention)) pushRun(runs, { t: 'noun', id: mention })
-        else if (ITEM_ID.test(mention) && ctx.known.has(mention))
-          pushRun(runs, { t: 'cite', n: cite(mention) })
+        const id = typedId(mention)
+        const name = ctx.nouns.get(id)?.name ?? plainName(id, ctx.nouns)
+        if (written === undefined && nameIn(name).test(words.slice(0, m.index))) continue
+        if (ctx.nouns.has(id)) pushRun(runs, { t: 'noun', id })
+        else if (ITEM_ID.test(id) && ctx.known.has(id)) pushRun(runs, { t: 'cite', n: cite(id) })
         else {
           check('mention', mention)
-          pushRun(runs, { t: 'text', text: plainName(mention, ctx.nouns) })
+          pushRun(runs, { t: 'text', text: name })
         }
       } else if (ref !== undefined && path !== undefined) {
         const read = ctx.reads.find((r) => r.ref === ref)
@@ -581,9 +602,9 @@ export function overviewWords(
 }
 
 /**
- * The blocks as the model writes them: each noun as its typed mention, each citation as its mark,
- * each number and day in words. What the chat sends back as Ask's earlier reply, so the model reads
- * its own words as it wrote them.
+ * The blocks as the model writes them: each noun as its typed mention, each citation as the id it
+ * cites, each number and day in words. What the chat sends back as Ask's earlier reply, so the
+ * model reads its own words as it wrote them.
  */
 export function bodyMarkup(
   body: readonly LoopBlock[],
@@ -591,9 +612,16 @@ export function bodyMarkup(
   items: ReadonlyMap<string, Omit<LoopItem, 'n'>>,
   cited: readonly string[],
 ): string {
+  const mark = (n: number) => `[${cited[n - 1] ?? n}]`
   const marked = (runs: readonly LoopRun[]) =>
     runWords(
-      runs.map((r) => (r.t === 'noun' ? { t: 'text' as const, text: `[@${r.id}]` } : r)),
+      runs.map((r) =>
+        r.t === 'noun'
+          ? { t: 'text' as const, text: `[@${r.id}]` }
+          : r.t === 'cite'
+            ? { t: 'text' as const, text: mark(r.n) }
+            : r,
+      ),
       nouns,
     )
   return body
@@ -602,9 +630,154 @@ export function bodyMarkup(
         ? marked(b.runs)
         : b.t === 'ul'
           ? b.items.map((i) => `- ${marked(i)}`).join('\n')
-          : bodyWords([b], nouns, items, cited),
+          : b.rows.map((id) => `- ${items.get(id)?.title ?? id} [${id}]`).join('\n'),
     )
     .join('\n\n')
+}
+
+/** Where the last sentence in some words begins, just after the space that ends the one before; -1 when none ends in them. */
+const lastSentenceStart = (text: string) => {
+  let at = -1
+  for (const m of text.matchAll(/[.!?]["'”’)]*\s+/g)) at = m.index + m[0].length
+  return at
+}
+
+/**
+ * Which runs only trail their clause: marks after the words, with nothing but more marks, space
+ * and the clause's end after them ("… the Poland market [@metric:orders] [@value:market/poland].").
+ */
+function trailingRuns(runs: readonly LoopRun[]): boolean[] {
+  const trailing = runs.map(() => false)
+  let tail = true
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const r = runs[i]!
+    if (r.t === 'text') tail = /^[\s"'”’)]*(?:[.,;:!?]|$)/.test(r.text)
+    else if (r.t === 'noun' || r.t === 'cite') trailing[i] = tail
+    else tail = false
+  }
+  return trailing
+}
+
+/**
+ * A sentence's runs with each noun's chip where the sentence names it: a mention that follows its
+ * own name, or that only trails its clause after words that give its name, is drawn on those words
+ * instead ("the [Poland] market", not "the Poland market [Poland]"), and a trailing mention of a
+ * noun the sentence has drawn already is left out. A mention anywhere else stays where it is.
+ */
+function placed(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): LoopRun[] {
+  const out: LoopRun[] = []
+  const trailing = trailingRuns(runs)
+  // Where the sentence being read starts: a run, and the place in it when it is words.
+  let from = { run: 0, at: 0 }
+  const inSentence = (i: number, at: number) => i > from.run || (i === from.run && at >= from.at)
+  /** Where the words so far give a name: where they end with it, or its first place this sentence. */
+  const find = (name: RegExp, ending: boolean) => {
+    if (ending) {
+      const i = out.length - 1
+      const x = out[i]
+      const m = x?.t === 'text' ? new RegExp(`${name.source}\\s*$`, 'iu').exec(x.text) : null
+      return m && inSentence(i, m.index) ? { i, at: m.index, length: m[0].trimEnd().length } : null
+    }
+    for (let i = from.run; i < out.length; i++) {
+      const x = out[i]!
+      if (x.t !== 'text') continue
+      const start = i === from.run ? from.at : 0
+      const m = name.exec(x.text.slice(start))
+      if (m) return { i, at: start + m.index, length: m[0].length }
+    }
+    return null
+  }
+  runs.forEach((r, n) => {
+    if (r.t === 'noun') {
+      if (trailing[n] && out.slice(from.run).some((x) => x.t === 'noun' && x.id === r.id)) return
+      const name = nouns.get(r.id)?.name
+      const found = name
+        ? (find(nameIn(name), true) ?? (trailing[n] ? find(nameIn(name), false) : null))
+        : null
+      if (!found) {
+        out.push(r)
+        return
+      }
+      const x = out[found.i] as Extract<LoopRun, { t: 'text' }>
+      const after = x.text.slice(found.at + found.length)
+      out.splice(
+        found.i,
+        1,
+        ...(found.at ? [{ t: 'text' as const, text: x.text.slice(0, found.at) }] : []),
+        r,
+        ...(after ? [{ t: 'text' as const, text: after }] : []),
+      )
+    } else if (r.t === 'text') {
+      const last = out.at(-1)
+      const start = lastSentenceStart(r.text)
+      if (last?.t === 'text') {
+        if (start >= 0) from = { run: out.length - 1, at: last.text.length + start }
+        out[out.length - 1] = { ...last, text: last.text + r.text }
+      } else {
+        if (start >= 0) from = { run: out.length, at: start }
+        out.push({ ...r })
+      }
+    } else out.push(r)
+  })
+  return out.flatMap((x): LoopRun[] => {
+    if (x.t !== 'text') return [x]
+    const text = x.text.replace(/[ \t]+([.,;:!?)])/g, '$1').replace(/[ \t]{2,}/g, ' ')
+    return text ? [{ ...x, text }] : []
+  })
+}
+
+/** A paragraph without its last sentence; null when it is that one sentence. */
+function withoutLastSentence(runs: readonly LoopRun[]): LoopRun[] | null {
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const r = runs[i]!
+    if (r.t !== 'text') continue
+    // The colon that leads into the list ends the sentence: look before it.
+    const at = lastSentenceStart(i === runs.length - 1 ? r.text.replace(/:\s*$/, '') : r.text)
+    if (at < 0) continue
+    const kept = trimRuns([
+      ...runs.slice(0, i).map((x) => ({ ...x })),
+      { ...r, text: r.text.slice(0, at) },
+    ])
+    return kept.length ? kept : null
+  }
+  return null
+}
+
+/**
+ * The words as the page shows them beside code's evidence (FR-720), from the blocks as written:
+ * each noun's chip where its sentence names it first; under Not found, no citation, since nothing
+ * cited is a source, and no list of the items the closest written show below it, nor the line
+ * that leads into one. What the chat sends back and what is graded keep the words as written.
+ */
+export function shownBody(
+  written: readonly LoopBlock[],
+  nouns: ReadonlyMap<string, Noun>,
+  notFound: { cited: readonly string[]; closest: ReadonlySet<string> } | null,
+): LoopBlock[] {
+  const out: LoopBlock[] = []
+  const closest = (runs: readonly LoopRun[]) =>
+    runs.some((r) => r.t === 'cite' && notFound?.closest.has(notFound.cited[r.n - 1] ?? ''))
+  for (const b of written) {
+    if (
+      notFound &&
+      (b.t === 'list' || (b.t === 'ul' && b.items.filter(closest).length * 2 >= b.items.length))
+    ) {
+      const lead = out.at(-1)
+      const last = lead?.t === 'p' ? lead.runs.at(-1) : undefined
+      if (lead?.t === 'p' && last?.t === 'text' && /:\s*$/.test(last.text)) {
+        const rest = withoutLastSentence(lead.runs)
+        if (rest) lead.runs = rest
+        else out.pop()
+      }
+      continue
+    }
+    const shown = (runs: readonly LoopRun[]) =>
+      placed(notFound ? runs.filter((r) => r.t !== 'cite') : runs, nouns)
+    if (b.t === 'p') out.push({ ...b, runs: shown(b.runs) })
+    else if (b.t === 'ul') out.push({ ...b, items: b.items.map(shown) })
+    else out.push(b)
+  }
+  return out
 }
 
 /** The blocks in plain words: paragraphs, then each list's lines with "- ". */

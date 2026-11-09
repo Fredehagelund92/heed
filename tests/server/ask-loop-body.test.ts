@@ -254,6 +254,100 @@ describe("the model's words, checked against the reads", () => {
     expect(w.body).toEqual([{ t: 'p', runs: [{ t: 'text', text: 'Ask reads as you.' }] }])
     expect(w.checks).toEqual([])
   })
+
+  it('reads a typed id with no @ as its mention where the words need it, and a kind written twice', () => {
+    // A person, or a noun with words after it in its clause, is that mention.
+    expect(turnOf('Billing is owned by [person:p_ada] and no one else.', made, []).text).toBe(
+      'Billing is owned by Ada Okafor and no one else.',
+    )
+    expect(turnOf('It is owned by [person:p_ada].', made, []).text).toBe(
+      'It is owned by Ada Okafor.',
+    )
+    expect(turnOf('[metric:tickets_closed] has a rule [itm_aaaa1111].', made, []).text).toBe(
+      'Tickets closed has a rule [1].',
+    )
+    // Named already in the sentence, it is the name again, left out.
+    expect(turnOf('Ada Okafor [person:p_ada] owns it.', made, []).text).toBe('Ada Okafor owns it.')
+    const twice = turnOf('It sits in [@domain:domain:area_support].', made, [])
+    expect(runs(twice)).toContainEqual({ t: 'noun', id: 'domain:area_support' })
+    expect(twice.checks).toEqual([])
+  })
+})
+
+describe('the words as the page shows them, beside the evidence', () => {
+  const made = [
+    lookup('grounded', [row('itm_aaaa1111', ['metric:tickets_closed', 'value:team/billing'])]),
+  ]
+
+  it('draws a mention on the words that already give its name, not again after them', () => {
+    const t = turnOf(
+      'Nothing covers tickets closed for Billing. The Tickets closed metric is in Support, and nothing applies to the Billing team [@metric:tickets_closed] [@value:team/billing].',
+      made,
+      [],
+    )
+    expect(t.body).toEqual([
+      {
+        t: 'p',
+        runs: [
+          { t: 'text', text: 'Nothing covers tickets closed for Billing. The ' },
+          { t: 'noun', id: 'metric:tickets_closed' },
+          { t: 'text', text: ' metric is in Support, and nothing applies to the ' },
+          { t: 'noun', id: 'value:team/billing' },
+          { t: 'text', text: ' team.' },
+        ],
+      },
+    ])
+    // What is graded, and what the chat sends back, keep the words as the model wrote them.
+    expect(t.text).toContain('the Billing team Tickets closed Billing.')
+    expect(t.said).toContain('the Billing team [@metric:tickets_closed] [@value:team/billing].')
+  })
+
+  it('draws a mention after its own name on the name, and leaves one inside a clause where it is', () => {
+    const t = turnOf(
+      'Ada Okafor [@person:p_ada] owns [@metric:tickets_closed], and [@metric:tickets_closed] for Billing counts once.',
+      made,
+      [],
+    )
+    expect(runs(t)).toEqual([
+      { t: 'noun', id: 'person:p_ada' },
+      { t: 'text', text: ' owns ' },
+      { t: 'noun', id: 'metric:tickets_closed' },
+      { t: 'text', text: ', and ' },
+      { t: 'noun', id: 'metric:tickets_closed' },
+      { t: 'text', text: ' for Billing counts once.' },
+    ])
+  })
+
+  it('leaves out, under Not found, a list of the items the closest written show, and its lead', () => {
+    const nearby = [
+      { id: 'itm_pppp1111', about: ['metric:tickets_closed', 'value:team/platform'] },
+      { id: 'itm_qqqq1111', about: ['metric:tickets_closed', 'value:sprint/s41'] },
+    ]
+    const t = turnOf(
+      'Nothing written covers [@metric:tickets_closed] for [@value:team/billing]. The nearest items are about other teams:\n- Platform closes merged tickets once [itm_pppp1111]\n- Sprint 41 ran a day short [itm_qqqq1111]\n\nThat is all [itm_pppp1111].',
+      [lookup('missing', [], nearby)],
+      [],
+    )
+    expect(t.state).toBe('missing')
+    expect(t.closest?.items).toEqual(['itm_pppp1111', 'itm_qqqq1111'])
+    expect(t.body).toEqual([
+      {
+        t: 'p',
+        runs: [
+          { t: 'text', text: 'Nothing written covers ' },
+          { t: 'noun', id: 'metric:tickets_closed' },
+          { t: 'text', text: ' for ' },
+          { t: 'noun', id: 'value:team/billing' },
+          { t: 'text', text: '.' },
+        ],
+      },
+      // Nothing cited under Not found is a source.
+      { t: 'p', runs: [{ t: 'text', text: 'That is all.' }] },
+    ])
+    // The graded words keep the list; the chat's copy keeps what each line cited, by id.
+    expect(t.text).toContain('- Platform closes merged tickets once')
+    expect(t.said).toContain('- Platform closes merged tickets once [itm_pppp1111]')
+  })
 })
 
 describe('the evidence, by code from the reads', () => {
@@ -284,7 +378,7 @@ describe('the evidence, by code from the reads', () => {
     })
     expect(t.owners).toEqual([{ domain: 'domain:area_support', people: ['person:p_ada'] }])
     expect(t.footer.denominator).toBe(
-      '0 of 12 published context items you may read apply to Tickets closed and Billing.',
+      '0 of 12 published context items you may read apply.',
     )
     expect(JSON.stringify(t)).not.toMatch(/market/i)
   })

@@ -209,7 +209,7 @@ describe('what code writes from the reads', () => {
     const t = turnOf('Nothing.', made, [])
     expect(t.footer).toEqual({
       denominator: '0 of 21 published context items you may read apply.',
-      notSeen: 'The reads found 2 items more than they listed for Ask.',
+      notSeen: '2 more items were found and not listed.',
       stale: null,
     })
   })
@@ -437,5 +437,31 @@ describe("Ask's loop on a scripted model", () => {
     expect(seenChat).not.toContain('itm_hidden0001')
     // The earlier read, made again, gives the item only as nearby to a subject with nothing written.
     expect(turn).toMatchObject({ sources: [], state: 'missing', nearby: ['itm_germany01'] })
+    // What the turn sends back as its own reply cites by id, a nearby item too: what it wrote.
+    expect(turn.said).toBe('Still nothing, as before [itm_germany01].')
+  })
+
+  it("holds an earlier reply's citations by id to what the reads return now, as its [n] marks", async () => {
+    let seenChat = ''
+    await turnWith(
+      ({ prompt }) => {
+        seenChat = JSON.stringify(prompt)
+        return { text: 'Still nothing.' }
+      },
+      {
+        turns: [
+          {
+            question: 'orders in poland',
+            sources: [],
+            reply:
+              'Nothing on Poland. Germany lags [itm_germany01]. Another item [itm_hidden0001] said more.',
+            reads: [{ tool: 'get_context', input: { about: 'orders in poland' } }],
+          },
+        ],
+      },
+    )
+    expect(seenChat).toContain('Nothing on Poland. Germany lags [itm_germany01].')
+    expect(seenChat).not.toContain('said more')
+    expect(seenChat).not.toContain('itm_hidden0001')
   })
 })

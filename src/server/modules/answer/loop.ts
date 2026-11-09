@@ -40,6 +40,7 @@ import {
   overviewOf,
   overviewProblem,
   overviewWords,
+  shownBody,
   wordsOf,
   type NumberedRead,
   type WordsContext,
@@ -263,22 +264,23 @@ const idsOf = (result: unknown): string[] =>
     : []
 
 /**
- * An earlier reply as the model reads it: its [n] marks back to the ids they cited, while the
- * chat's reads, made again now, still return them. A sentence that cites one they no longer
- * return is left out whole: what Ask said of an item the person may not read now is not said
- * again (FR-718.3), whatever the browser sent.
+ * An earlier reply as the model reads it: its [n] marks back to the ids they cited (the loop's
+ * own replies cite by id), while the chat's reads, made again now, still return them. A sentence
+ * that cites one they no longer return is left out whole: what Ask said of an item the person may
+ * not read now is not said again (FR-718.3), whatever the browser sent.
  */
 function earlierReply(turn: ChatTurnInput, known: ReadonlySet<string>) {
   const text = turn.reply ?? turn.headline ?? turn.asked ?? ''
-  const idOf = (n: string) => {
-    const id = turn.sources[Number(n) - 1]
+  const idOf = (mark: string) => {
+    const id = /^\d+$/.test(mark) ? turn.sources[Number(mark) - 1] : mark
     return id && known.has(id) ? id : null
   }
-  const resolves = (part: string) => [...part.matchAll(/\[(\d+)\]/g)].every(([, n]) => idOf(n!))
+  const marks = /\[(\d+|itm_[a-z0-9]{8,16})\]/g
+  const resolves = (part: string) => [...part.matchAll(marks)].every(([, m]) => idOf(m!))
   const kept = resolves(text)
     ? text
     : text
-        .split(/(?<=[.!?](?:\s*\[\d+\])*)(\s+)/)
+        .split(/(?<=[.!?](?:\s*\[(?:\d+|itm_[a-z0-9]{8,16})\])*)(\s+)/)
         .reduce<string[]>((all, part, i, parts) => {
           // A sentence, then the space after it: the space goes with the sentence it follows.
           if (i % 2) return all
@@ -286,7 +288,7 @@ function earlierReply(turn: ChatTurnInput, known: ReadonlySet<string>) {
         }, [])
         .join('')
         .trim()
-  return kept.replace(/\[(\d+)\]/g, (_all, n: string) => `[${idOf(n)}]`)
+  return kept.replace(marks, (_all, m: string) => `[${idOf(m)}]`)
 }
 
 /** The chat as model messages: each turn's question, its reads made again, and what Ask said. */
@@ -922,7 +924,8 @@ export function readLines(made: readonly MadeRead[]): string[] {
 
 /**
  * The footer (FR-720.5), by code from the reads: what a count is out of, said once, with what the
- * subject's read found; what the reads found and did not read; and what may be out of date.
+ * subject's read found (the read line under the question names the subject); what the reads found
+ * and did not read; and what may be out of date.
  */
 export function footerOf(
   made: readonly MadeRead[],
@@ -938,13 +941,9 @@ export function footerOf(
   )
   const of = outOf ? `${num(outOf.count).toLocaleString('en-GB')} ${str(outOf.of)}` : ''
   const applying = (r: Obj) => {
-    const searched = arr(r.searched)
-    const named = (s: Obj) => listWords(Array.isArray(s.names) ? (s.names as string[]) : [])
     const n = arr(r.items).length
-    const first = `${n.toLocaleString('en-GB')} of ${of} ${n === 1 ? 'applies' : 'apply'}${named(searched[0] ?? {}) ? ` to ${named(searched[0] ?? {})}` : ''}`
-    const wider = isObj(r.wider) ? arr(r.wider.items).length : null
-    const then = searched[1]
-    return `${first}${wider !== null && then ? `; then, wider, ${wider.toLocaleString('en-GB')} to ${named(then) || 'the rest'}` : ''}.`
+    const wider = isObj(r.wider) && arr(r.searched)[1] ? arr(r.wider.items).length : null
+    return `${n.toLocaleString('en-GB')} of ${of} ${n === 1 ? 'applies' : 'apply'}${wider !== null ? `; a wider read found ${wider.toLocaleString('en-GB')}` : ''}.`
   }
   const denominator = records
     ? `Counted ${str((records.result as Obj).counted)}.`
@@ -956,7 +955,7 @@ export function footerOf(
   const more = ok.reduce((n, r) => n + num(r.more), 0)
   const notSeen = [
     more
-      ? `The reads found ${counted(more, 'item', 'items')} more than they listed for Ask.`
+      ? `${counted(more, 'more item was', 'more items were')} found and not listed.`
       : null,
     made.some((m) => m.tool === 'agent_questions')
       ? 'A topic agents asked about fewer times than the minimum is not listed.'
@@ -1172,7 +1171,7 @@ export function turnOf(
   const { items, about, state, subject } = evidenceOf(made, earlier, words.cited, true)
   const missing = state === 'missing'
   // Under Not found nothing is written about the subject: what the words cite is nearby, not used.
-  const body: LoopBlock[] = missing
+  const stripped: LoopBlock[] = missing
     ? words.body.flatMap((b): LoopBlock[] =>
         b.t === 'list'
           ? []
@@ -1182,12 +1181,19 @@ export function turnOf(
       )
     : words.body
   const sources = missing ? [] : words.cited
-  const plain = bodyWords(body, ctx.nouns, ctx.items, sources)
+  const plain = bodyWords(stripped, ctx.nouns, ctx.items, sources)
     .replace(/[ \t]+([.,;:!?)])/g, '$1')
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
   const closest = missing ? closestOf(about, subject, ctx.items, []) : null
-  const listed = body.flatMap((b) => (b.t === 'list' ? b.rows : []))
+  const listed = stripped.flatMap((b) => (b.t === 'list' ? b.rows : []))
+  // The page draws the words beside the evidence: under Not found, not the items the closest
+  // written list again (FR-720).
+  const body = shownBody(
+    words.body,
+    ctx.nouns,
+    missing ? { cited: words.cited, closest: new Set(closest?.items ?? []) } : null,
+  )
   return {
     kind: 'answer',
     text: plain,
@@ -1208,7 +1214,8 @@ export function turnOf(
     reads: readsBack(made),
     stopped: null,
     body,
-    said: bodyMarkup(body, ctx.nouns, ctx.items, sources),
+    // The words as the model wrote them, with what they cite, nearby items too: what it said.
+    said: bodyMarkup(words.body, ctx.nouns, ctx.items, words.cited),
     nouns: [...ctx.nouns.values()],
     items: rowsOf([...sources, ...listed, ...(closest?.items ?? [])], ctx, sources),
     closest,

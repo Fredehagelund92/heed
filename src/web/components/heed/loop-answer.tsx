@@ -337,7 +337,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
               <span className="font-medium">{item.title}</span>
               <span className="text-xs text-muted-foreground">
                 {status.words}
-                {status.day && ` · ${status.day}`}
+                {status.day && `\u00a0· ${status.day}`}
               </span>
             </button>
           )
@@ -363,16 +363,32 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
   )
 }
 
-/** Who owns the subject: "Orders is in Sales, owned by …", or each domain with its owners. */
+/** The people the words name: by their mention, or by their name in plain words. */
+function namedIn(body: LoopTurn['body'], nouns: Nouns): Set<string> {
+  const runs = body.flatMap((b) => (b.t === 'p' ? b.runs : b.t === 'ul' ? b.items.flat() : []))
+  const words = runs.map((r) => (r.t === 'text' ? r.text : '')).join(' ')
+  const named = new Set<string>()
+  for (const r of runs) if (r.t === 'noun' && r.id.startsWith('person:')) named.add(r.id)
+  for (const n of nouns.values())
+    if (n.id.startsWith('person:') && words.includes(n.name)) named.add(n.id)
+  return named
+}
+
+/**
+ * Who owns the subject: "Orders is in Sales, owned by …", or each domain with its owners; only
+ * the domains whose owners the words do not name already, so it adds something.
+ */
 function Owners({ loop, nouns }: { loop: LoopTurn; nouns: Nouns }) {
-  const owned = loop.owners.filter((o) => o.people.length)
+  const named = namedIn(loop.body, nouns)
+  const all = loop.owners.filter((o) => o.people.length)
+  const owned = all.filter((o) => !o.people.every((p) => named.has(p)))
   if (!owned.length) return null
   const metrics = (loop.subject?.about ?? []).filter((id) => id.startsWith('metric:'))
   return (
     <div className="flex max-w-reading flex-col gap-1 text-sm">
       {owned.map((o, i) => (
         <p key={o.domain}>
-          {i === 0 && metrics.length === 1 && owned.length === 1 ? (
+          {i === 0 && metrics.length === 1 && all.length === 1 ? (
             <>
               <NounChip id={metrics[0]!} nouns={nouns} /> is in{' '}
               <NounChip id={o.domain} nouns={nouns} />, owned by{' '}
@@ -729,9 +745,11 @@ function Overview({
                         <NounChip key={id} id={id} nouns={maps.nouns} />
                       ))}
                       {row.domain && <NounChip id={row.domain} nouns={maps.nouns} />}
-                      {row.status && <span>{row.status}</span>}
-                      {row.date && (
-                        <span className="tabular-nums">· {dayText(row.date, true)}</span>
+                      {(row.status || row.date) && (
+                        <span className="min-w-0 tabular-nums">
+                          {row.status}
+                          {row.date && `${row.status ? '\u00a0· ' : ''}${dayText(row.date, true)}`}
+                        </span>
                       )}
                     </span>
                   </li>
