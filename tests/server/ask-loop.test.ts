@@ -589,6 +589,20 @@ describe('an overview, whatever the model sends of it', () => {
     ])
   })
 
+  it('keeps the model text when the overview it asked for failed and it then answered with a body', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : step === 1
+            ? { calls: [{ toolName: 'show_overview', input: { from: 'r9', groups: ['nope'] } }] }
+            : { text: 'Two cards are due:\n- Germany lags [itm_germany01]\n- Another' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(turn.overview).toBeNull()
+    expect(turn.body.map((b) => b.t)).toEqual(['p', 'ul'])
+  })
+
   it('keeps words that answer from the Inbox when they list what they answer', async () => {
     const { turn } = await turnWith(
       ({ step }) =>

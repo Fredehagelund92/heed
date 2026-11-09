@@ -1257,11 +1257,9 @@ function overviewFor(
   }
   const read = [...made].reverse().find((m) => m.ref && !overviewProblem({ from: m.ref }, reads))
   if (!read?.ref) return null
-  if (!asked) {
-    if (read.tool !== 'inbox') return null
-    const words = wordsOf(text, wordsContext(question, made, earlier))
-    if (words.cited.length || words.body.some((b) => b.t !== 'p')) return null
-  }
+  if (!asked && read.tool !== 'inbox') return null
+  const words = wordsOf(text, wordsContext(question, made, earlier))
+  if (words.cited.length || words.body.some((b) => b.t !== 'p')) return null
   const note = asked?.ask?.note
   return overviewTurn(question, { from: read.ref, ...(note ? { note } : {}) }, made, earlier)
 }
