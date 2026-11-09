@@ -47,7 +47,8 @@ const { loopParts } = await import('@/components/heed/loop-parts')
 const { AnswerActions, ReportLine, SomethingWrong } = await import('@/components/heed/answer')
 const parts = { ...loopParts, AnswerActions, ReportLine, SomethingWrong }
 const { loopAnswerOf } = await import('@/api/http-ask')
-const { doneTurn } = await import('@/model/ask-turn')
+const turnModule = await import('@/model/ask-turn')
+const { doneTurn } = turnModule
 
 beforeAll(() => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -185,6 +186,46 @@ describe("Ask's loop answer, state by state", () => {
   })
 })
 
+describe('while the loop reads', () => {
+  it('shows each read as a step, the done ones with what they found and their chips, the current one moving', () => {
+    const { askedTurn } = turnModule
+    const turn = {
+      ...askedTurn('t1', 'Tickets closed by billing?'),
+      reads: {
+        steps: [
+          {
+            runs: [
+              { t: 'text' as const, text: 'Looked up what applies to ' },
+              { t: 'noun' as const, id: 'value:team/billing' },
+              { t: 'text' as const, text: ': ' },
+              { t: 'count' as const, value: '2', of: null },
+              { t: 'text' as const, text: ' apply' },
+            ],
+            done: true,
+          },
+          { runs: [{ t: 'text' as const, text: 'Reading a context item…' }], done: false },
+        ],
+        nouns: [
+          {
+            id: 'value:team/billing',
+            name: 'Billing',
+            of: { id: 'dimension:team', name: 'Team' },
+            type: null,
+          },
+        ],
+      },
+    }
+    host = document.createElement('div')
+    document.body.append(host)
+    root = createRoot(host)
+    act(() => root!.render(React.createElement(LoopAnswerBody, { parts, turn })))
+    const steps = [...host.querySelectorAll('ol > li')].map(text)
+    expect(steps).toEqual(['Looked up what applies to Billing: 2 apply', 'Reading a context item…'])
+    expect(buttons(host, /^Billing, value$/)).toHaveLength(1)
+    expect(host.querySelector('[aria-busy="true"]')).not.toBeNull()
+  })
+})
+
 describe('the nouns of an answer on any workspace', () => {
   const invented: LoopTurn = {
     ...example('loop-checked'),
@@ -249,6 +290,14 @@ describe('the nouns of an answer on any workspace', () => {
     expect(billing[0]!.querySelector('svg')?.getAttribute('class')).toMatch(/tag/)
     expect(text(el)).toContain('; again Billing.')
     expect(text(el)).not.toMatch(/market/i)
+    // Drawn again, the first mention is still the chip.
+    const answer = loopAnswerOf(invented, 'Tickets closed by billing?', names)
+    act(() =>
+      root!.render(
+        React.createElement(LoopAnswerBody, { parts, turn: doneTurn(answer), latest: true }),
+      ),
+    )
+    expect(buttons(el, /^Billing, value$/)).toHaveLength(1)
   })
 
   it("opens a value's card on a press, which says what it is a value of", () => {

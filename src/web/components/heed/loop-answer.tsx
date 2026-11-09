@@ -637,7 +637,8 @@ function Overview({
 }) {
   const P = useParts()
   const [open, setOpen] = React.useState<Record<number, boolean>>({})
-  const seen = React.useMemo(() => new Set<string>(), [])
+  // Which nouns the words have named so far, afresh each render: a chip the first time only.
+  const seen = new Set<string>()
   return (
     <div data-answer-words className="flex max-w-reading flex-col gap-5">
       <div className="flex flex-col gap-1">
@@ -930,7 +931,8 @@ function Finished({
 }) {
   const P = useParts()
   const maps = useMaps(loop)
-  const seen = React.useMemo(() => new Set<string>(), [])
+  // Which nouns the words have named so far, afresh each render: a chip the first time only.
+  const seen = new Set<string>()
   const used = loop.sources.flatMap((_, i) => {
     const item = maps.numbered.get(i + 1)
     return item && !loop.conflict.includes(item.id) ? [item] : []
