@@ -14,6 +14,8 @@ import {
   CHAT_SOURCES,
   CHAT_TURNS,
   HELD_MEANINGS,
+  LOOP_READS,
+  LOOP_REPLY,
 } from '../domain/ask-chat.ts'
 import { itemKinds } from '../domain/item.ts'
 import {
@@ -293,6 +295,45 @@ export const heldReadingSchema = z.strictObject({
   defines: z.optional(z.boolean()),
 })
 
+/** One read of Ask's loop: the tool, by its name, and its input, as the model gave it. */
+export const loopReadSchema = z.strictObject({
+  tool: z.string().check(z.minLength(1), z.maxLength(40)),
+  input: z.record(z.string().check(z.maxLength(40)), z.unknown()),
+})
+export type LoopRead = z.infer<typeof loopReadSchema>
+
+/**
+ * A turn of Ask's loop once it is done (FR-719, FR-720): the model's words, or one question back
+ * with the readings it sees as choices, or a fixed sentence when the turn stopped at a limit or
+ * its model failed. Everything else is written by code from the reads: the sources (the context
+ * items its words cite, by id, [n] for the nth), the state (FR-720.4), the footer (FR-720.5),
+ * what was read (FR-720.9), the definitions it named, and the reads the next turn sends back.
+ */
+export const loopTurnSchema = z.object({
+  kind: z.enum(['answer', 'question', 'stopped']),
+  text: z.string(),
+  sources: z.array(z.string()),
+  state: z.nullable(answerStateSchema),
+  footer: footerSchema,
+  read: z.array(z.string()),
+  /** What the turn's read about the question's subject read: its names and days; null when none. */
+  subject: z.nullable(
+    z.object({ names: z.array(z.string()), period: z.string(), assumedToday: z.boolean() }),
+  ),
+  /** Context items about the same names that do not apply, under Not found: named, not used. */
+  nearby: z.array(z.string()),
+  /** Under Conflict, two of its sources that disagree, by id, as the reads mark them. */
+  conflict: z.array(z.string()),
+  definitions: z.array(
+    z.object({ name: z.string(), words: z.nullable(z.string()), tool: z.string() }),
+  ),
+  choices: z.array(z.string()),
+  reads: z.array(loopReadSchema),
+  /** Why a turn stopped: its step or time limit, the spending limits, or its model failed. */
+  stopped: z.nullable(z.enum(['steps', 'time', 'spending', 'model'])),
+})
+export type LoopTurn = z.infer<typeof loopTurnSchema>
+
 /**
  * One turn of the chat, sent from the browser with each question so Ask can carry what it asked
  * (FR-713, FR-719): its question, how it was read, in words and as keys, its answer state and one
@@ -314,6 +355,13 @@ export const chatTurnSchema = z.strictObject({
   headline: z.optional(z.nullable(z.string().check(z.maxLength(CHAT_LINE)))),
   audit: z.optional(z.nullable(auditReadSchema)),
   rows: z.optional(z.array(z.string().check(z.maxLength(120))).check(z.maxLength(CHAT_SOURCES))),
+  /**
+   * Ask's loop (FR-719.1): what Ask said, as the person read it, and the reads it made, by tool
+   * and input. The service reads each again as the person before the model sees its result, so a
+   * result is never taken from the browser (FR-718.3).
+   */
+  reply: z.optional(z.string().check(z.maxLength(LOOP_REPLY))),
+  reads: z.optional(z.array(loopReadSchema).check(z.maxLength(LOOP_READS))),
 })
 export type ChatTurnInput = z.infer<typeof chatTurnSchema>
 
@@ -344,8 +392,13 @@ export type LookupInput = z.infer<typeof lookupInputSchema>
  * the working line can say it; then the reads' steps and answer as above, or one `reply`: a short
  * question back, the sentence for a question off topic, or the sentence for a message that asks
  * nothing, with nothing looked up and no state.
+ *
+ * When the service runs Ask's loop instead (FR-718 to FR-720, `HEED_ASK_LOOP`), a `progress` line
+ * comes as each read starts, written by code from what it reads, then one `turn`.
  */
 export const lookupEventSchema = z.union([
+  z.object({ type: z.literal('progress'), working: z.string() }),
+  z.object({ type: z.literal('turn'), turn: loopTurnSchema }),
   z.object({
     type: z.literal('plan'),
     plan: z.object({

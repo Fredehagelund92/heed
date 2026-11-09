@@ -39,6 +39,7 @@ describe('loadConfig', () => {
       trustedProxies: [],
       fixedToday: undefined,
       models: 'mock',
+      askLoop: false,
       modelEnv: {},
       cubeModelDir: undefined,
       serverFolders: {},
@@ -343,6 +344,14 @@ describe('loadConfig', () => {
     expect(config).toMatchObject({ models: 'mock', modelEnv: {} })
     // Which keys a live service needs depends on the models.* settings, checked at start-up.
     expect(loadConfig({ DATABASE_URL: databaseUrl, MODELS: 'live' }).models).toBe('live')
+  })
+
+  it('answers Ask with its router unless HEED_ASK_LOOP=on, and takes only on or off', () => {
+    expect(loadConfig({ DATABASE_URL: databaseUrl }).askLoop).toBe(false)
+    expect(loadConfig({ DATABASE_URL: databaseUrl, HEED_ASK_LOOP: 'on' }).askLoop).toBe(true)
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, HEED_ASK_LOOP: 'yes' })).toThrow(
+      /HEED_ASK_LOOP/,
+    )
   })
 
   it('refuses the replaced MODEL_PROVIDER and says what replaces it', () => {

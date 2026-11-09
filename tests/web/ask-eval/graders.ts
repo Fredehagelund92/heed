@@ -95,7 +95,8 @@ const MONTH = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?'
 const DATE = new RegExp(
   [
     `\\b\\d{1,2}(?:\\s*(?:to|-|–|and)\\s*\\d{1,2})?\\s+${MONTH}(?:\\s+\\d{4})?`,
-    `\\b${MONTH}\\s+\\d{1,2}(?:,?\\s+\\d{4})?`,
+    // A day of a month, not the first digits of a year ("October 2026" is a month and a year).
+    `\\b${MONTH}\\s+\\d{1,2}\\b(?:,?\\s+\\d{4})?`,
     `\\b${MONTH}\\s+\\d{4}`,
     '\\b\\d{4}-\\d{2}-\\d{2}\\b',
     '\\b\\d{1,2}:\\d{2}\\b',

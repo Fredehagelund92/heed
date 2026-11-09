@@ -493,6 +493,7 @@ export function AskChat({
                       draft={draft}
                       docked={compact}
                       onRetry={retry(i)}
+                      {...(i === turns.length - 1 ? { onAsk: (q: string) => void add(q) } : {})}
                       onRevealing={onRevealing}
                       latest={i === turns.length - 1}
                     />

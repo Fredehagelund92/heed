@@ -116,6 +116,10 @@ describe('the code graders', () => {
     expect(asked('Agents asked about Return on ad spend in Sweden fewer than 5 times.')).toEqual([])
     expect(asked('Agents asked about return on ad spend in Sweden 6 times.')).toHaveLength(1)
     expect(asked('Agents asked about Orders in Norway 31 times, 16 to 22 Oct.')).toEqual([])
+    // A month and its year count nothing: "October 2026" is no 26.
+    expect(asked('Agents asked about Net revenue in Norway in October 2026, 13+ times.')).toEqual(
+      [],
+    )
     // A line about the metric with no asking in the reply counts nothing.
     expect(asked('Net revenue in Norway rose 17 percent.')).toEqual([])
     expect(asked('Card payments in Spain failed on 3 October.')).toEqual([

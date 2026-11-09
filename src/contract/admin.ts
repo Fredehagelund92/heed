@@ -77,6 +77,10 @@ export const settingSchemas = {
   'review.open_issue_days': days,
   // Stop switches must reach new requests within 60 seconds (FR-805).
   'serving.max_overlay_age_seconds': int(1, 60),
+  // Ask's loop (FR-719.7): the most model steps one turn may take, the last of them with no tools,
+  // and the longest it may take. A turn that reaches either says so in a fixed sentence.
+  'ask.max_steps': int(2, 12),
+  'ask.time_limit_seconds': int(5, 120),
   'evals.tries': int(1, 20),
   // The majority of the repeats decides a flip, so the count is odd.
   'evals.flip_repeats': int(1, 15).check(z.refine((n) => n % 2 === 1, 'Expected an odd number')),

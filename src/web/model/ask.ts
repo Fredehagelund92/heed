@@ -1,4 +1,10 @@
-import { CHAT_LINE, CHAT_SOURCES, type ChatTurn, type HeldReading } from '@domain/ask-chat'
+import {
+  CHAT_LINE,
+  CHAT_SOURCES,
+  LOOP_REPLY,
+  type ChatTurn,
+  type HeldReading,
+} from '@domain/ask-chat'
 import { notLookedUp } from '@domain/say'
 import type { AnswerFooter, AnswerLimit, RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
@@ -200,6 +206,17 @@ export type Answer = {
    * asked. `question` and `parts` stay what they typed.
    */
   again?: { question: string; parts?: QuestionPart[]; scope?: MentionRef[] }
+  /**
+   * An answer of Ask's loop (FR-718 to FR-720): what it read, each line written by code from its
+   * reads (FR-720.9), and the reads themselves, by tool and input, which the next question sends
+   * back so the service reads them again.
+   */
+  read?: string[]
+  reads?: { tool: string; input: Record<string, unknown> }[]
+  /** The readings Ask's question back offers, each a reply the person can send. */
+  choices?: string[]
+  /** Why the loop stopped before an answer, when it did: its fixed sentence is the text. */
+  stopped?: 'steps' | 'time' | 'spending' | 'model'
 }
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
@@ -275,6 +292,7 @@ export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
           : {}),
         ...(a.reply === 'clarify' ? { asked: a.text } : {}),
         ...(a.held ? { held: a.held, ...(a.held.window ? { dated: true } : {}) } : {}),
+        ...(a.reads ? { reply: a.text.slice(0, LOOP_REPLY), reads: a.reads } : {}),
       }
     : undefined
 

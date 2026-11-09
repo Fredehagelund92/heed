@@ -3,22 +3,31 @@
 // words or more are marked, so the marking never claims more than it shows; words with no match
 // are the owner's own wording and stay unmarked.
 
-export type Sentence = { text: string; cites: number[] }
+/** A sentence, the sources it cites, and whether it starts a new paragraph of the answer. */
+export type Sentence = { text: string; cites: number[]; starts?: boolean }
 
-/** The answer as sentences, each with its [n] markers taken off and kept as numbers. */
+/**
+ * The answer as sentences, each with its [n] markers taken off and kept as numbers. A blank line
+ * starts a paragraph: its first sentence says so.
+ */
 export function sentencesOf(text: string): Sentence[] {
-  const normal = text
-    .replace(/\s+(\[\d+\])/g, '$1')
-    .replace(/(\[\d+\])([.,;:])/g, '$2$1')
-    .trim()
-  if (!normal) return []
-  return normal
-    .split(/(?<=[.!?](?:\[\d+\])*)\s+/)
-    .map((chunk) => ({
-      text: chunk.replace(/\[\d+\]/g, '').trim(),
-      cites: [...chunk.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])),
-    }))
-    .filter((s) => s.text)
+  const all: Sentence[] = []
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    const normal = paragraph
+      .replace(/\s+(\[\d+\])/g, '$1')
+      .replace(/(\[\d+\])([.,;:])/g, '$2$1')
+      .trim()
+    if (!normal) continue
+    const sentences = normal
+      .split(/(?<=[.!?](?:\[\d+\])*)\s+/)
+      .map((chunk) => ({
+        text: chunk.replace(/\[\d+\]/g, '').trim(),
+        cites: [...chunk.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])),
+      }))
+      .filter((s) => s.text)
+    sentences.forEach((s, i) => all.push(i === 0 && all.length ? { ...s, starts: true } : s))
+  }
+  return all
 }
 
 type Word = { word: string; start: number; end: number }

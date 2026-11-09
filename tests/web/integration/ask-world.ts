@@ -14,12 +14,13 @@ import { devPeople, seedDemoWeek, TODAY } from '../http/demo-week.ts'
   The demo week on the real service, for Ask's persona cases and its differential tests: real
   sign-in, row security and the browser's own binding (createHttpApi), one session for each person
   a test asks as. `models` is the mock's scripted planner unless a run passes real ones, and
-  `askTrace` hears or replaces what the planner and the words do. `withTools` runs Ask's tools as a
+  `askTrace` hears or replaces what the planner, the words and the loop do. `askLoop` runs Ask's
+  loop in place of its router (HEED_ASK_LOOP). `withTools` runs Ask's tools as a
   person, in a transaction of their own with the services a request of theirs has.
 */
 
 export function askWorld(
-  options: { models?: ModelPort; askTrace?: AskTrace; assistant?: object } = {},
+  options: { models?: ModelPort; askTrace?: AskTrace; assistant?: object; askLoop?: boolean } = {},
 ) {
   const { client, url } = testDatabase()
   const database = apiDatabase(url)
@@ -32,6 +33,7 @@ export function askWorld(
     devPeople: devPeople(),
     ...(options.models ? { models: options.models } : {}),
     ...(options.askTrace ? { askTrace: options.askTrace } : {}),
+    ...(options.askLoop ? { askLoop: true } : {}),
   })
   let address = ''
   const sessions = new Map<string, Promise<HeedApi>>()

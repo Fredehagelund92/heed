@@ -5,7 +5,7 @@
  * words here are written without a model, the way the mock's matcher writes them: each source's
  * first sentence with its number, then one sentence that fits the state.
  */
-import type { Asked, AnswerResult } from '@contract/answer'
+import type { Asked, AnswerResult, LoopTurn } from '@contract/answer'
 import type { Vocabulary } from '@domain/item'
 import type { Term } from '@domain/vocabulary'
 import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
@@ -91,8 +91,8 @@ export function namesOf(vocabulary: Vocabulary): Names & {
 }
 
 /** "1 to 31 Aug 2026", "1 Jul to 30 Sep 2026": the days a question was read for. */
-const datesOf = (window: { start: string; end: string | null }) =>
-  windowWords(window).replace(/^(\d+)-/, '$1 to ')
+const datesWords = (words: string) => words.replace(/^(\d+)-/, '$1 to ')
+const datesOf = (window: { start: string; end: string | null }) => datesWords(windowWords(window))
 
 /**
  * An item's first sentence, as the answer says it. An item that opens with a question says what
@@ -344,6 +344,40 @@ export const failedAnswer = (question: string): Answer => ({
   sources: [],
   said: "The check failed. Do not say that nothing is known; say that the check couldn't run.",
 })
+
+/**
+ * A turn of Ask's loop as the chat shows it (FR-718 to FR-720): the model's words with their
+ * numbered sources, or its one question back with the readings as choices, or the fixed sentence
+ * of a turn that stopped. The state, the footer, what was read and the items named but not used
+ * are the service's, written by code from the reads.
+ */
+export const loopAnswerOf = (
+  turn: LoopTurn,
+  question: string,
+  names: ReturnType<typeof namesOf>,
+): Answer => {
+  const subject = turn.subject?.names ?? []
+  const dates = turn.subject && !turn.subject.assumedToday ? datesWords(turn.subject.period) : null
+  return {
+    id: 'custom',
+    question,
+    metric: subject.find((n) => names.metricKey(n)) ?? '',
+    markets: subject.filter((n) => names.marketKey(n)),
+    ...(dates ? { dates } : {}),
+    state: turn.state,
+    text: turn.text,
+    sources: turn.sources,
+    said: '',
+    footer: turn.footer,
+    read: turn.read,
+    reads: turn.reads,
+    ...(turn.nearby.length ? { related: turn.nearby } : {}),
+    ...(turn.conflict.length === 2 ? { conflict: turn.conflict } : {}),
+    ...(turn.definitions.length ? { definitions: turn.definitions } : {}),
+    ...(turn.kind === 'question' ? { reply: 'clarify' as const, choices: turn.choices } : {}),
+    ...(turn.stopped ? { stopped: turn.stopped } : {}),
+  }
+}
 
 /** The answer when nothing is shared with agents yet: no context, so nothing applies. */
 export const nothingLiveAnswer = (question: string): Answer => ({
