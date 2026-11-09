@@ -281,15 +281,7 @@ const BlockLabel = ({ icon: Icon, children }: { icon?: LucideIcon; children: Rea
  * A subject as a sentence says it, with its chips: its metrics, then the values it narrowed,
  * "Orders in Poland"; the connecting word is the kind's, never a dimension's name.
  */
-function Subject({
-  ids,
-  nouns,
-  still,
-}: {
-  ids: readonly string[]
-  nouns: Nouns
-  still?: boolean
-}) {
+function Subject({ ids, nouns, still }: { ids: readonly string[]; nouns: Nouns; still?: boolean }) {
   const metrics = ids.filter((id) => !id.startsWith('value:'))
   const values = ids.filter((id) => id.startsWith('value:'))
   return (
@@ -862,9 +854,10 @@ function AnswerOfLoop({ turn, docked, onRetry, onAsk, latest }: Props) {
     () => (loop ? loop.sources.flatMap((id) => facts.find((f) => f.id === id) ?? []) : []),
     [loop, facts],
   )
+  const { keepShown } = P
   React.useEffect(() => {
-    if (done) P.keepShown(key, { answer, facts: cited })
-  }, [done, key, answer, cited])
+    if (done) keepShown(key, { answer, facts: cited })
+  }, [done, key, answer, cited, keepShown])
   if (!done || !loop)
     return (
       <div className="flex min-w-0 flex-col gap-4" aria-busy={P.isLive(turn)}>
