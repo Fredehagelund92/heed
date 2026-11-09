@@ -44,6 +44,13 @@ const places = [
   '/ask?example=missing',
   // Marked text: the sentences that disagree, an item that disagrees, a failed read, a refused key.
   '/ask?example=conflict',
+  // Ask's loop answers, as the service wrote them on the demo week: chips, rows, evidence and an
+  // overview.
+  '/ask?example=loop-missing',
+  '/ask?example=loop-conflict',
+  '/ask?example=loop-stale',
+  '/ask?example=loop-list',
+  '/ask?example=loop-overview',
   '/context/itm_gift_store_credit',
   // Conflicts: the Context list filtered to them, a pair's page, the dock, a pair across two
   // domains, a near copy.

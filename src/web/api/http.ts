@@ -2085,8 +2085,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     getAskExamples: async () =>
       examplesOf(await readAsked()).map(({ scope: _scope, ...example }) => example),
     listChats: async () => chats.list((await signedIn()).id),
-    saveChat: async ({ id, question }) =>
-      chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
+    saveChat: async ({ id, question, answers }) =>
+      answers
+        ? chats.keep((await signedIn()).id, id, question, answers)
+        : chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
     renameChat: async ({ id, title }) => chats.rename((await signedIn()).id, id, title),
     deleteChat: async ({ id }) => chats.remove((await signedIn()).id, id),
     // A named report: the question, the part and the words the person sent, with their name.

@@ -265,7 +265,10 @@ describe("Ask's loop answers, as the page draws them", () => {
     expect(o.from).toBe('records')
     expect(o.by).toBe('domain')
     expect(o.total).toBe(o.groups.reduce((n, g) => n + g.count, 0))
-    for (const row of o.groups.flatMap((g) => g.rows)) expect(row.status).toMatch(/due/)
+    // Each row says why it is due, and its day is the one that says it.
+    for (const row of o.groups.flatMap((g) => g.rows))
+      expect(row.status).toMatch(/^its (check date passed|definition changed|source is missing)$/)
+    expect(loop.footer.denominator).toBeNull()
   })
 
   it("answers how a domain stands as an overview of its records, what needs a check first", async () => {

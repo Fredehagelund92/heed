@@ -145,11 +145,15 @@ const LIST_LINE = /^\s*\[list:(r\d+)\]\s*$/
 /** A sentence's end, with any marks after it: where one sentence stops and the next begins. */
 const SENTENCE_END = /(?<=[.!?](?:\s*\[[^[\]\n]{1,200}\])*)\s+/
 
-/** An id's words when no read named it: its last part, as words. */
-const plainName = (id: string) => {
+/**
+ * An id's words when no read named it: the name of a noun a read named that the id spells
+ * (`person:ada_okafor` for Ada Okafor), else its last part as words. Never a chip.
+ */
+const plainName = (id: string, nouns: ReadonlyMap<string, Noun>) => {
   const tail = id.slice(id.indexOf(':') + 1).split('/').at(-1) ?? id
-  const words = tail.replace(/_/g, ' ')
-  return words.charAt(0).toUpperCase() + words.slice(1)
+  const words = tail.replace(/[_-]+/g, ' ').trim()
+  const same = [...nouns.values()].find((n) => n.name.toLowerCase() === words.toLowerCase())
+  return same?.name ?? words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /** A path into a read's result: `count`, `outOf`, `groups.rows.0.count`. */
@@ -214,7 +218,7 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
           pushRun(runs, { t: 'cite', n: cite(mention) })
         else {
           check('mention', mention)
-          pushRun(runs, { t: 'text', text: plainName(mention) })
+          pushRun(runs, { t: 'text', text: plainName(mention, ctx.nouns) })
         }
       } else if (ref !== undefined && path !== undefined) {
         const read = ctx.reads.find((r) => r.ref === ref)
@@ -226,10 +230,9 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
         }
       } else if (list !== undefined) check('list', whole)
       else if (inner !== undefined) {
-        for (const id of inner.split(/[,;]\s*|\s+/).map((x) => x.trim().replace(/^@/, ''))) {
+        // A mark cites items; any other id in one (a definition's) is no source, and is left out.
+        for (const id of inner.split(/[,;]\s*|\s+/).map((x) => x.trim()))
           if (ITEM_ID.test(id) && ctx.known.has(id)) pushRun(runs, { t: 'cite', n: cite(id) })
-          else if (ctx.nouns.has(id)) pushRun(runs, { t: 'noun', id })
-        }
       } else if (bare !== undefined) {
         if (ctx.known.has(bare)) pushRun(runs, { t: 'cite', n: cite(bare) })
         else pushRun(runs, { t: 'text', text: bare })
@@ -356,10 +359,14 @@ export function enumeration(said: string): { lead: string; items: string[] } | n
     }
   }
   parts.push(rest.slice(from))
+  // The last part's last "and" joins the last two things named; no other "and" splits.
   const last = parts.pop() ?? ''
-  const tail = last.split(/\s+and\s+(?![^[]*\])/)
-  const items = [...parts, ...tail].map((p) => p.replace(/^\s*(?:and\s+)?/, '').trim()).filter(Boolean)
-  return items.length >= 4 ? { lead, items } : null
+  const and = last.search(/\s+and\s+(?!.*\sand\s)(?![^[]*\])/)
+  const tail = and < 0 ? [last] : [last.slice(0, and), last.slice(and).replace(/^\s+and\s+/, '')]
+  const items = [...parts, ...tail].map((p) => p.replace(/^\s*and\s+/, '').trim()).filter(Boolean)
+  // Things named, not clauses: four or more, each a few words.
+  const short = items.every((i) => i.replace(/\[[^[\]]*\]/g, '').trim().split(/\s+/).length <= 8)
+  return items.length >= 4 && short ? { lead, items } : null
 }
 
 /** The items of a read the words asked for as a list (`[list:r1]`): each row cited as it comes. */
@@ -466,11 +473,12 @@ export function overviewOf(
         item,
         about: strs(row.about),
         domain: str(row.domainId) || null,
-        status: str(row.status),
+        status: str(row.why) || str(row.status),
+        // The day that says why: a passed check date, else the last check.
         date:
           read.tool === 'inbox'
             ? str(row.date) || null
-            : str(row.status).startsWith('due')
+            : row.why === 'its check date passed'
               ? str(row.checkDate) || null
               : str(row.lastChecked) || null,
         card: read.tool === 'inbox' ? str(row.id) || null : null,
@@ -547,6 +555,33 @@ export function overviewWords(o: LoopOverview, nouns: ReadonlyMap<string, Noun>,
   }
   if (o.note) lines.push(runWords(o.note, nouns))
   return lines.join('\n')
+}
+
+/**
+ * The blocks as the model writes them: each noun as its typed mention, each citation as its mark,
+ * each number and day in words. What the chat sends back as Ask's earlier reply, so the model reads
+ * its own words as it wrote them.
+ */
+export function bodyMarkup(
+  body: readonly LoopBlock[],
+  nouns: ReadonlyMap<string, Noun>,
+  items: ReadonlyMap<string, Omit<LoopItem, 'n'>>,
+  cited: readonly string[],
+): string {
+  const marked = (runs: readonly LoopRun[]) =>
+    runWords(
+      runs.map((r) => (r.t === 'noun' ? { t: 'text' as const, text: `[@${r.id}]` } : r)),
+      nouns,
+    )
+  return body
+    .map((b) =>
+      b.t === 'p'
+        ? marked(b.runs)
+        : b.t === 'ul'
+          ? b.items.map((i) => `- ${marked(i)}`).join('\n')
+          : bodyWords([b], nouns, items, cited),
+    )
+    .join('\n\n')
 }
 
 /** The blocks in plain words: paragraphs, then each list's lines with "- ". */

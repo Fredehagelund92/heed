@@ -105,8 +105,8 @@ describe('what code writes from the reads', () => {
     )
     expect(t.text).toBe('Germany lags [1]. Also [2]. And.')
     expect(t.sources).toEqual(['itm_germany01', 'itm_france001'])
-    // A definition's id is shown with the answer, not as a source.
-    expect(t.definitions).toEqual([{ name: 'Orders', words: 'Paid orders.', tool: 'Cube' }])
+    // A definition's id is no source, and the question asks nothing a definition adds to.
+    expect(t.definitions).toEqual([])
   })
 
   it('cites an id the words name bare, when a read returned it', () => {
@@ -208,8 +208,8 @@ describe('what code writes from the reads', () => {
     ])
     const t = turnOf('Nothing.', made, [])
     expect(t.footer).toEqual({
-      denominator: 'Out of 21 published context items you may read.',
-      notSeen: '2 more results found were not listed.',
+      denominator: '0 of 21 published context items you may read apply.',
+      notSeen: 'The reads found 2 items more than they listed for Ask.',
       stale: null,
     })
   })
@@ -315,8 +315,25 @@ describe("Ask's loop on a scripted model", () => {
         ? { text: 'Germany lags [itm_germany01].' }
         : { calls: [{ toolName: 'find_context', input: { words: 'germany' } }] },
     )
+    // Each read as it starts, then once done, with what it found: by code, from the read.
     expect(events.filter((e) => e.type === 'progress')).toEqual([
-      { type: 'progress', working: 'Searching the context for “germany”…' },
+      {
+        type: 'progress',
+        working: 'Searching the context for “germany”…',
+        steps: [{ runs: [{ t: 'text', text: 'Searching the context for “germany”…' }], done: false }],
+        nouns: [],
+      },
+      {
+        type: 'progress',
+        working: 'Writing the answer…',
+        steps: [
+          {
+            runs: [{ t: 'text', text: 'Searched “payment provider”, any date: 1 found' }],
+            done: true,
+          },
+        ],
+        nouns: [],
+      },
     ])
     expect(turn).toMatchObject({ kind: 'answer', sources: ['itm_germany01'], state: 'grounded' })
     expect(turn.reads).toEqual([{ tool: 'find_context', input: { words: 'germany', limit: 10 } }])

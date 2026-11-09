@@ -58,7 +58,10 @@ describe("Ask's loop", () => {
     expect(a.text).toMatch(/\[1\]/)
     expect(a.state).toBe('conflict')
     expect(a.read?.[0]).toMatch(/^Looked up Orders and Norway, /)
-    expect(a.footer?.denominator).toBe('Out of 21 published context items you may read.')
+    // What applies, out of what the person may read, said once by code.
+    expect(a.footer?.denominator).toBe(
+      '3 of 21 published context items you may read apply to Orders and Norway.',
+    )
     expect(a.reads?.map((r) => r.tool)).toEqual(['get_context', 'find_context'])
   })
 

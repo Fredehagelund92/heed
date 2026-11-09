@@ -842,7 +842,8 @@ export function createMockApi() {
           ).text.replace(/\[\d+\]/g, ''),
         })),
       ),
-    saveChat: ({ id, question }) => now(() => chats.add(id, question)),
+    saveChat: ({ id, question, answers }) =>
+      now(() => (answers ? chats.keep(id, answers) : chats.add(id, question))),
     renameChat: ({ id, title }) => now(() => chats.rename(id, title)),
     deleteChat: ({ id }) => now(() => remember(chats.remove(id))),
     // A named report waits in this visit's memory; the demo's owners don't act on it here.

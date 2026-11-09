@@ -1615,7 +1615,7 @@
                 "domain": "domain:area_sales",
                 "status": "asked 9 times",
                 "date": "2026-11-09",
-                "card": "01a1bf43-ab89-7de5-b120-e4546214085d"
+                "card": "01a1bf52-029c-753d-87c7-959f037af3e6"
               }
             ],
             "more": 0
@@ -1632,7 +1632,7 @@
                 "domain": "domain:area_sales",
                 "status": "reported wrong",
                 "date": "2026-11-09",
-                "card": "report:01a1bf43-afd6-71e2-bab3-5d83c67d0b07"
+                "card": "report:01a1bf52-05aa-7b10-8365-575b33b07a85"
               }
             ],
             "more": 0
@@ -1666,7 +1666,7 @@
                 "domain": "domain:area_customer_value",
                 "status": "an alert",
                 "date": "2026-11-09",
-                "card": "alert:01a1bf43-bcbc-7f2d-9566-9da3ee8727e1"
+                "card": "alert:01a1bf52-0951-7e29-ac14-a0e475ddf115"
               }
             ],
             "more": 0
@@ -1750,7 +1750,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-a60d-7a02-9a1b-66e86b38deff"
+                "card": "01a1bf51-fbdb-79c1-b1f7-d3652b7cab4a"
               },
               {
                 "title": "Online sales to Norway stopped on 4 August 2026",
@@ -1762,7 +1762,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-a745-7adf-970a-8f6fe39d4100"
+                "card": "01a1bf51-fcaa-7205-ba7c-af822bb3cf53"
               },
               {
                 "title": "Returns changed definition on 28 April 2026",
@@ -1774,7 +1774,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-a802-7ae8-b854-6094fcc30aa4"
+                "card": "01a1bf51-fd70-7f80-aa9f-4fdd5b097f47"
               },
               {
                 "title": "What to rule out before explaining a jump in Gross margin",
@@ -1786,7 +1786,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-a8ac-77d3-9466-01613e76aaaa"
+                "card": "01a1bf51-fe15-73ed-8e5b-6e45b336e3c7"
               },
               {
                 "title": "What to rule out before explaining a jump in Orders",
@@ -1798,7 +1798,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-a954-7e86-bf32-40810ced1ff3"
+                "card": "01a1bf51-ffd2-7b33-a5ce-a4224c86ad5f"
               },
               {
                 "title": "Payment provider switched in France on 12 May 2026",
@@ -1810,7 +1810,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1bf43-aa00-79f9-a49c-2423b1d457cf"
+                "card": "01a1bf52-0113-704b-a564-b001d50dcc42"
               },
               {
                 "title": "Payment provider delays order data in Poland",
@@ -1819,7 +1819,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1bf43-aa9b-7c11-8fe7-a05bfea5d305"
+                "card": "01a1bf52-01d4-7922-8e6a-8e2874ff5d02"
               },
               {
                 "title": "Norway orders leave out store credit from 1 November 2026",
@@ -1828,7 +1828,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1bf43-ac4b-7a04-90dc-c4444196285c"
+                "card": "01a1bf52-0347-7627-a40f-4e5626e1fa3f"
               },
               {
                 "title": "Data for Orders before 19 January 2026 is not reliable",
@@ -1840,7 +1840,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests to archive",
                 "date": "2026-10-23",
-                "card": "01a1bf43-ad58-74c6-b7bb-2a4031447cfc"
+                "card": "01a1bf52-03d2-7b81-a555-a335853fbc50"
               },
               {
                 "title": "Orders in Germany include marketplace orders from 15 October 2026",
@@ -1849,7 +1849,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1bf43-bb1b-72a0-9c3f-9d876cf54c7d"
+                "card": "01a1bf52-089c-708e-8792-20d98b630e39"
               },
               {
                 "title": "Units sold counts a bundle as one unit",
@@ -1858,7 +1858,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1bf43-bb9b-7b87-b45a-7190e2f884bd"
+                "card": "01a1bf52-08ce-79aa-a0a5-470e885a97bd"
               }
             ],
             "more": 0
@@ -1881,7 +1881,7 @@
       ],
       "state": null,
       "footer": {
-        "denominator": "Counted 3 of 3 context items due for a check you may read.",
+        "denominator": null,
         "notSeen": null,
         "stale": null
       },
@@ -2061,7 +2061,7 @@
                   "value:market/norway"
                 ],
                 "domain": "domain:area_sales",
-                "status": "due for a check",
+                "status": "its check date passed",
                 "date": "2026-10-02",
                 "card": null
               },
@@ -2073,8 +2073,8 @@
                   "value:market/spain"
                 ],
                 "domain": "domain:area_sales",
-                "status": "due for a check",
-                "date": "2027-03-01",
+                "status": "its definition changed",
+                "date": "2026-09-30",
                 "card": null
               }
             ],
@@ -2093,7 +2093,7 @@
                   "value:market/italy"
                 ],
                 "domain": "domain:area_marketing",
-                "status": "due for a check",
+                "status": "its check date passed",
                 "date": "2026-09-18",
                 "card": null
               }
@@ -2130,7 +2130,7 @@
       ],
       "state": null,
       "footer": {
-        "denominator": "Counted 15 of 15 context items in Sales you may read.",
+        "denominator": null,
         "notSeen": "The reads found 5 items more than they listed for Ask.",
         "stale": null
       },
@@ -2506,7 +2506,7 @@
                   "value:market/norway"
                 ],
                 "domain": "domain:area_sales",
-                "status": "due for a check",
+                "status": "its check date passed",
                 "date": "2026-10-02",
                 "card": null
               },
@@ -2518,8 +2518,8 @@
                   "value:market/spain"
                 ],
                 "domain": "domain:area_sales",
-                "status": "due for a check",
-                "date": "2027-03-01",
+                "status": "its definition changed",
+                "date": "2026-09-30",
                 "card": null
               }
             ],

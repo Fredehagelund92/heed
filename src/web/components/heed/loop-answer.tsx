@@ -149,14 +149,16 @@ export function LoopReadLine({
     <p className="flex max-w-22/25 flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right text-xs text-muted-foreground @lg:max-w-4/5">
       <span>{subject.carried ? 'Read with' : 'Read as'}</span>
       {about.map((id, i) => (
-        <React.Fragment key={id}>
+        <span key={id} className="inline-flex items-center gap-1.5 whitespace-nowrap">
           {i > 0 && <span aria-hidden>·</span>}
           <NounChip id={id} nouns={nouns} />
-        </React.Fragment>
+        </span>
       ))}
-      <span aria-hidden>·</span>
-      <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-px font-medium text-foreground">
-        {subject.assumedToday ? 'Today · assumed' : subject.period}
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        {about.length > 0 && <span aria-hidden>·</span>}
+        <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-px font-medium text-foreground">
+          {subject.assumedToday ? 'Today · assumed' : subject.period}
+        </span>
       </span>
       {subject.carried && <span>carried from your last question</span>}
       {onRescope && (
@@ -654,7 +656,12 @@ function Overview({
             {o.page.why ? `: ${o.page.why}` : '.'}
           </p>
         )}
-        {o.order && <p className="text-xs text-muted-foreground">In {o.order}.</p>}
+        {o.order && (
+          <p className="text-xs text-muted-foreground">
+            {o.order.charAt(0).toUpperCase()}
+            {o.order.slice(1)}.
+          </p>
+        )}
       </div>
       {o.groups.map((g, i) => {
         const Icon = (g.key && groupIcons[g.key]) || LayersIcon
@@ -662,12 +669,14 @@ function Overview({
         const rows = open[i] ? g.rows : g.rows.slice(0, GROUP_SHOWN)
         return (
           <section key={`${g.key}-${g.name}`} className="flex flex-col gap-2" aria-label={g.name}>
-            <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
-              <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-              <span>{g.name}</span>
-              <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums">
-                {g.count.toLocaleString('en-GB')}
-              </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                <span>{g.name}</span>
+                <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums">
+                  {g.count.toLocaleString('en-GB')}
+                </span>
+              </h3>
               {page && (
                 <a
                   href={page.href}
@@ -677,7 +686,7 @@ function Overview({
                   <ArrowRightIcon aria-hidden className="size-3.5" />
                 </a>
               )}
-            </h3>
+            </div>
             <ul className="ml-6 flex flex-col gap-2.5">
               {rows.map((row, j) => {
                 const n = row.item ? loop.sources.indexOf(row.item) + 1 : 0

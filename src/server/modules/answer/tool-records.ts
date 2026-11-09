@@ -226,6 +226,14 @@ export function queryRecords(input: RecordsInput, table: RecordsTable) {
 const aboutOf = (i: RecordsItem, table: RecordsTable) =>
   [...(i.metrics ?? []), ...(i.values ?? [])].filter(table.isShown).map(nounId)
 
+/** Why an item is due for a check, in words: its definition or source changed, or its date passed. */
+const dueWhy = (i: RecordsItem) =>
+  i.checkFlag === 'needs_check'
+    ? 'its definition changed'
+    : i.checkFlag === 'source_missing'
+      ? 'its source is missing'
+      : 'its check date passed'
+
 /** The most items a group lists; `more` counts the rest. */
 export const GROUP_ITEMS = 25
 /** The statuses in the order a group of them is read: what needs a check first. */
@@ -288,6 +296,7 @@ function groupsOf(
           domainId: `domain:${i.areaId}`,
           about: aboutOf(i, table),
           status: statusWords[i.status],
+          why: i.status === 'due' ? dueWhy(i) : null,
           lastChecked: isoDay(i.checkedAt),
           checkDate: i.reviewDate,
         })),

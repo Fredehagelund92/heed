@@ -442,6 +442,8 @@ export const loopTurnSchema = z.object({
    * same in plain words. Every noun is one a read returned, every count and day a read's own.
    */
   body: z.array(loopBlockSchema),
+  /** The same as the model writes it, each noun as its typed mention: what the chat sends back. */
+  said: z.string(),
   nouns: z.array(loopNounSchema),
   items: z.array(loopItemSchema),
   /** The items written nearest a Not found's subject, counted by each value of the dimension it narrowed. */

@@ -33,6 +33,7 @@ import {
 } from '../models/index.ts'
 import { askToolDefinitions, askToolNames, type AskToolName, type AskTools } from './tools.ts'
 import {
+  bodyMarkup,
   bodyWords,
   itemRows,
   nounsRead,
@@ -123,7 +124,7 @@ How to work:
 What an answer may say:
 - Only what a tool returned, what the person wrote, and these fixed facts: ${productName} keeps no business figures (no order values, revenue, counts of customers or other numbers from the business itself), only what is written about them, the definitions its source tools hold, and counts of its own records; and today's date.
 - Each result has a ref, r1, r2 and so on. Write every number, count and day a tool returned as a reference to it, never as digits of your own: [#r1.count] for a count, [#r1.outOf] for what it is out of, or any path into the result, such as [#r2.items.0.checked.date]. The page fills each one in from the read. Never count, add up or rank by yourself; the records tool counts and ranks. Give a count with what it is out of.
-- Name each metric, dimension, value of a dimension, domain and person the first time you name it as a typed mention of its id from a result's names: [@metric:<id>], [@dimension:<id>], [@value:<dimension>/<value>], [@domain:<id>], [@person:<id>]. The page shows each as its chip; a mention no read named shows as plain words.
+- Name each metric, dimension, value of a dimension, domain and person the first time you name it as a typed mention, in place of its name: [@metric:<id>], [@dimension:<id>], [@value:<dimension>/<value>], [@domain:<id>], [@person:<id>], the id copied exactly from a result's names. The page shows each as its chip, with its name; a mention no read named shows as plain words. Never write the name beside its mention, and never put a definition's id in brackets.
 - Cite each context item you use by its id in square brackets, right after the words it supports, such as [itm_ab12cd34]; in a list, on the line it supports. Never gather citations at the end of a sentence. The page turns each id into a numbered link to the item; an item named without its id is not shown as a source. Cite only ids a tool returned in this chat. An item you name only because it does not apply, such as one nearby about other names, is not cited.
 - Never tell the person what to do, check, ask or decide, in your own voice. You may repeat what an item itself says to check or do, attributed to that item and cited, and you may say who owns something and that the decision is theirs, as a fact, never as someone to go to.
 - When items disagree, or an owner marked a conflict, give each side with its source and choose none. Never say which one is right, likelier or better supported, and never say what will happen.
@@ -133,7 +134,7 @@ What an answer may say:
 
 How to write it:
 - Lead with the answer in one to three short sentences, in the person's language, in the third person: never I or me, and never how you worked. State each fact; the page's state says how sure it is.
-- Say that nothing is written only of what was read: nothing written covers it, never that nothing exists.
+- Say that nothing is written only of what was read: nothing written covers it, never that nothing exists. When nothing covers the subject, say so in one sentence: the page lists what is written nearest.
 - No markdown, no headings and no bold. For three or more parallel facts, write a short list: one line each, starting with a dash and a space. To show the items a read returned, write [list:r1] on a line of its own: the page draws them as rows.
 - The page shows, beside your words and from the reads: the state, what was searched and out of how many, the items written nearest, who owns the subject, the definition when it helps, and what may be out of date. Never say these yourself, never restate a definition, and never describe the reads or how the tools work.
 - End with the answer: offer no further reads, and ask nothing, since only ask_back asks.
@@ -592,6 +593,7 @@ const emptyFooter = { denominator: null, notSeen: null, stale: null }
 /** What a turn that drew no answer of its own carries of the answer's fields: nothing. */
 const noBody = {
   body: [],
+  said: '',
   nouns: [],
   items: [],
   closest: null,
@@ -1184,6 +1186,7 @@ export function turnOf(
     reads: readsBack(made),
     stopped: null,
     body,
+    said: bodyMarkup(body, ctx.nouns, ctx.items, sources),
     nouns: [...ctx.nouns.values()],
     items: rowsOf([...sources, ...listed, ...(closest?.items ?? [])], ctx, sources),
     closest,
@@ -1229,7 +1232,8 @@ export function overviewTurn(
     text: overviewWords(built.overview, ctx.nouns, cited),
     sources: cited,
     state,
-    footer: footerOf(about, cited, items),
+    // The headline says what the groups are out of: the footer says it once, and not again.
+    footer: { ...footerOf(about, cited, items), denominator: null },
     read: [...againLine(earlier), ...readLines(made)],
     subject,
     nearby: [],
@@ -1239,6 +1243,7 @@ export function overviewTurn(
     reads: readsBack(made),
     stopped: null,
     body: [],
+    said: '',
     nouns: [...ctx.nouns.values()],
     items: rowsOf(cited, { ...ctx, items: rows }, cited),
     closest: null,

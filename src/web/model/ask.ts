@@ -298,7 +298,10 @@ export const chatTurnOf = (a: Answer): ChatTurn | undefined =>
           : {}),
         ...(a.reply === 'clarify' ? { asked: a.text } : {}),
         ...(a.held ? { held: a.held, ...(a.held.window ? { dated: true } : {}) } : {}),
-        ...(a.reads ? { reply: a.text.slice(0, LOOP_REPLY), reads: a.reads } : {}),
+        // Ask's loop reads its earlier reply as it wrote it: its nouns as their typed mentions.
+        ...(a.reads
+          ? { reply: (a.loop?.said || a.text).slice(0, LOOP_REPLY), reads: a.reads }
+          : {}),
       }
     : undefined
 
@@ -410,6 +413,11 @@ export type Thread = {
   seed?: boolean
   /** What its first answer said, without the source marks: what the history search reads. */
   preview: string
+  /**
+   * Ask's loop: the chat's finished answers, kept in the browser with it (FR-717), so opening it
+   * again shows them as they were and asks nothing again.
+   */
+  answers?: Answer[]
 }
 
 /** What Ask is asked: typed words with their mentions and scope, or one of the curated examples. */

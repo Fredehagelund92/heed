@@ -481,7 +481,8 @@ export interface HeedApi {
   getAskExamples: () => Promise<Example[]>
   /** The person's chats under Ask, newest first. */
   listChats: () => Promise<Thread[]>
-  saveChat: (input: { id: string; question: string }) => Promise<void>
+  /** A chat, new, or with its finished answers of Ask's loop to keep with it in the browser. */
+  saveChat: (input: { id: string; question: string; answers?: Answer[] }) => Promise<void>
   renameChat: (input: { id: string; title: string }) => Promise<void>
   deleteChat: (input: { id: string }) => Promise<Undoable>
   /**

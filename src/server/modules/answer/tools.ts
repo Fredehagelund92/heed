@@ -1072,6 +1072,8 @@ const recordsOutput = z.object({
               domainId: z.string(),
               about: z.array(z.string()),
               status: z.string(),
+              /** Why it is due for a check, when it is. */
+              why: z.nullable(z.string()),
               lastChecked: z.nullable(z.string()),
               checkDate: z.nullable(z.string()),
             }),
