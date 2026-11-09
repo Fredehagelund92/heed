@@ -20,7 +20,14 @@ import { devPeople, seedDemoWeek, TODAY } from '../http/demo-week.ts'
 */
 
 export function askWorld(
-  options: { models?: ModelPort; askTrace?: AskTrace; assistant?: object; askLoop?: boolean } = {},
+  options: {
+    models?: ModelPort
+    askTrace?: AskTrace
+    assistant?: object
+    askLoop?: boolean
+    /** Every pair the mock marks as disagreeing, not only Norway's (seedDemoWeek). */
+    allConflicts?: boolean
+  } = {},
 ) {
   const { client, url } = testDatabase()
   const database = apiDatabase(url)
@@ -40,7 +47,7 @@ export function askWorld(
 
   beforeAll(async () => {
     await client.query('reset role')
-    await seedDemoWeek(url)
+    await seedDemoWeek(url, { allConflicts: options.allConflicts ?? false })
     // A run asks more than the default 600 requests a minute; the limit is not what it tests.
     await client.query(
       `insert into settings_versions (key, version, value, reason)

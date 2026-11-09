@@ -176,10 +176,12 @@ export function scriptedLoopModel(): ModelChoice {
       ? objs(get.items)
       : objs(find.items).filter((i) => i.match === 'all')
     if (items.length) {
-      const names = isObj(get.read) && Array.isArray(get.read.names) ? get.read.names : []
+      // The subject's names as typed mentions of what the read named, as the page draws them.
+      const about = isObj(get.read) && Array.isArray(get.read.about) ? get.read.about : []
+      const names = about.map((id) => `[@${String(id)}]`)
       return {
         text: [
-          names.length ? `What is written for ${list(names as string[])}.` : 'What is written.',
+          names.length ? `What is written for ${list(names)}.` : 'What is written.',
           ...items
             .slice(0, 4)
             .map(

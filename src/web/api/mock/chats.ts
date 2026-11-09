@@ -41,6 +41,10 @@ export function createChats() {
   ]
   return {
     list: () => threads,
+    /** Ask's loop: a chat's finished answers, kept with it until the page reloads. */
+    keep(id: string, answers: Thread['answers']) {
+      threads = threads.map((t) => (t.id === id ? { ...t, answers } : t))
+    },
     /** A chat the person just started, at the top of Today. */
     add(id: string, q: string) {
       const now = new Date()

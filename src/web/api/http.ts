@@ -917,9 +917,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const tell = live?.onEvent
       if (!tell) return
       if (event.type === 'plan') tell({ type: 'plan', working: event.plan.working })
-      // Ask's loop says what each read is doing as it starts, on the same working line.
-      else if (event.type === 'progress') tell({ type: 'plan', working: event.working })
-      else if (event.type === 'step' && event.step.step === 'looked_up')
+      // Ask's loop says what each read is doing as it starts, and once done what it found.
+      else if (event.type === 'progress') {
+        tell({ type: 'plan', working: event.working })
+        if (event.steps)
+          tell({ type: 'reads', reads: { steps: event.steps, nouns: event.nouns ?? [] } })
+      } else if (event.type === 'step' && event.step.step === 'looked_up')
         tell({ type: 'found', items: event.step.items.length })
       else if (event.type === 'answer')
         tell({ type: 'answer', answer: answerOf(event.answer, words, names, extra) })
@@ -2081,8 +2084,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     getAskExamples: async () =>
       examplesOf(await readAsked()).map(({ scope: _scope, ...example }) => example),
     listChats: async () => chats.list((await signedIn()).id),
-    saveChat: async ({ id, question }) =>
-      chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
+    saveChat: async ({ id, question, answers }) =>
+      answers
+        ? chats.keep((await signedIn()).id, id, question, answers)
+        : chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
     renameChat: async ({ id, title }) => chats.rename((await signedIn()).id, id, title),
     deleteChat: async ({ id }) => chats.remove((await signedIn()).id, id),
     // A named report: the question, the part and the words the person sent, with their name.

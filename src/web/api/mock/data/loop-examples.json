@@ -1,0 +1,2529 @@
+{
+  "loop-checked": {
+    "question": "Why is the last day of Germany's orders always low?",
+    "turn": {
+      "kind": "answer",
+      "text": "The payment files for Germany reach the source tool the morning after, so the last day of Orders is always short [1].",
+      "sources": ["itm_0tmqp7o1"],
+      "state": "grounded",
+      "footer": {
+        "denominator": "1 of 21 published context items you may read applies.",
+        "notSeen": null,
+        "stale": null
+      },
+      "read": [
+        "Looked up Orders and Germany, 1-23 Oct 2026: 1 item applies, 8 nearby items do not."
+      ],
+      "subject": {
+        "names": ["Orders", "Germany"],
+        "about": ["metric:orders", "value:market/germany"],
+        "period": "1-23 Oct 2026",
+        "assumedToday": false,
+        "carried": false,
+        "uncovered": []
+      },
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "get_context",
+          "input": {
+            "about": "orders in Germany",
+            "from": "2026-10-01",
+            "to": "2026-10-23"
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "text",
+              "text": "The payment files for "
+            },
+            {
+              "t": "noun",
+              "id": "value:market/germany"
+            },
+            {
+              "t": "text",
+              "text": " reach the source tool the morning after, so the last day of "
+            },
+            {
+              "t": "noun",
+              "id": "metric:orders"
+            },
+            {
+              "t": "text",
+              "text": " is always short "
+            },
+            {
+              "t": "cite",
+              "n": 1
+            },
+            {
+              "t": "text",
+              "text": "."
+            }
+          ]
+        }
+      ],
+      "said": "The payment files for [@value:market/germany] reach the source tool the morning after, so the last day of [@metric:orders] is always short [itm_0tmqp7o1].",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/germany",
+          "name": "Germany",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:25a8735f-76bb-4631-8614-1c9af887664d",
+          "name": "Jon Abara",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:db6d5653-79bd-4395-8787-7ab023c4f97d",
+          "name": "Sofia Brandt",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_0tmqp7o1",
+          "title": "Orders lags by one day in the source tool",
+          "kind": "warning",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/germany"],
+          "status": "live",
+          "checked": "2026-09-12",
+          "outOfDate": null,
+          "n": 1
+        }
+      ],
+      "closest": null,
+      "owners": [
+        {
+          "domain": "domain:area_sales",
+          "people": [
+            "person:25a8735f-76bb-4631-8614-1c9af887664d",
+            "person:db6d5653-79bd-4395-8787-7ab023c4f97d"
+          ]
+        }
+      ],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-missing": {
+    "question": "Give me all about orders in poland",
+    "turn": {
+      "kind": "answer",
+      "text": "Nothing written covers Orders in Poland.",
+      "sources": [],
+      "state": "missing",
+      "footer": {
+        "denominator": "0 of 21 published context items you may read apply; a wider read found 7.",
+        "notSeen": null,
+        "stale": null
+      },
+      "read": [
+        "Looked up Orders and Poland, 23 Oct 2026: 0 items apply, 9 nearby items do not; then, wider, “orders in Poland” (read as Orders), 23 Oct 2026, without the values: 7 found."
+      ],
+      "subject": {
+        "names": ["Orders", "Poland"],
+        "about": ["metric:orders", "value:market/poland"],
+        "period": "23 Oct 2026",
+        "assumedToday": true,
+        "carried": false,
+        "uncovered": []
+      },
+      "nearby": [
+        "itm_norwaystop",
+        "itm_franceswitch21",
+        "itm_franceswitch12",
+        "itm_spe2w9kh",
+        "itm_0tmqp7o1",
+        "itm_2a1wp53q",
+        "itm_giftcardonly",
+        "itm_giftstorecredit",
+        "itm_r6lyl1pc"
+      ],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "get_context",
+          "input": {
+            "about": "orders in Poland",
+            "widen": {
+              "without": "values"
+            }
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "text",
+              "text": "Nothing written covers "
+            },
+            {
+              "t": "noun",
+              "id": "metric:orders"
+            },
+            {
+              "t": "text",
+              "text": " in "
+            },
+            {
+              "t": "noun",
+              "id": "value:market/poland"
+            },
+            {
+              "t": "text",
+              "text": "."
+            }
+          ]
+        }
+      ],
+      "said": "Nothing written covers [@metric:orders] in [@value:market/poland].",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/germany",
+          "name": "Germany",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/poland",
+          "name": "Poland",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:25a8735f-76bb-4631-8614-1c9af887664d",
+          "name": "Jon Abara",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:db6d5653-79bd-4395-8787-7ab023c4f97d",
+          "name": "Sofia Brandt",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_norwaystop",
+          "title": "Online sales to Norway stopped on 4 August 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-03",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_franceswitch21",
+          "title": "Payment provider switched in France on 21 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-10-23",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_franceswitch12",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-05-12",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_spe2w9kh",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_0tmqp7o1",
+          "title": "Orders lags by one day in the source tool",
+          "kind": "warning",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/germany"],
+          "status": "live",
+          "checked": "2026-09-12",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_2a1wp53q",
+          "title": "What to rule out before explaining a jump in Orders",
+          "kind": "guide",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-10-01",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_giftcardonly",
+          "title": "Norway orders are card and cash payments only",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-02",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_giftstorecredit",
+          "title": "Norway orders count store credit",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-09-05",
+          "outOfDate": null,
+          "n": null
+        },
+        {
+          "id": "itm_r6lyl1pc",
+          "title": "Data for Orders before 19 January 2026 is not reliable",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/sweden"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": null
+        }
+      ],
+      "closest": {
+        "by": "dimension:market",
+        "counts": [
+          {
+            "id": "value:market/france",
+            "count": 4
+          },
+          {
+            "id": "value:market/norway",
+            "count": 3
+          },
+          {
+            "id": "value:market/germany",
+            "count": 1
+          },
+          {
+            "id": "value:market/sweden",
+            "count": 1
+          }
+        ],
+        "items": [
+          "itm_norwaystop",
+          "itm_franceswitch21",
+          "itm_franceswitch12",
+          "itm_spe2w9kh",
+          "itm_0tmqp7o1",
+          "itm_2a1wp53q",
+          "itm_giftcardonly",
+          "itm_giftstorecredit",
+          "itm_r6lyl1pc"
+        ]
+      },
+      "owners": [
+        {
+          "domain": "domain:area_sales",
+          "people": [
+            "person:25a8735f-76bb-4631-8614-1c9af887664d",
+            "person:db6d5653-79bd-4395-8787-7ab023c4f97d"
+          ]
+        }
+      ],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-conflict": {
+    "question": "Does net revenue in Spain include VAT?",
+    "turn": {
+      "kind": "answer",
+      "text": "Two items disagree. One in Sales says it includes VAT [1]; one in Paid media says it excludes VAT [2].",
+      "sources": ["itm_spainvatin", "itm_spainvatout"],
+      "state": "conflict",
+      "footer": {
+        "denominator": "2 of 21 published context items you may read apply.",
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Looked up Net revenue and Spain, 23 Oct 2026: 2 items apply."],
+      "subject": {
+        "names": ["Net revenue", "Spain"],
+        "about": ["metric:net_revenue", "value:market/spain"],
+        "period": "23 Oct 2026",
+        "assumedToday": true,
+        "carried": false,
+        "uncovered": []
+      },
+      "nearby": [],
+      "conflict": ["itm_spainvatin", "itm_spainvatout"],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "get_context",
+          "input": {
+            "about": "net revenue in Spain"
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "text",
+              "text": "Two items disagree. One in "
+            },
+            {
+              "t": "noun",
+              "id": "domain:area_sales"
+            },
+            {
+              "t": "text",
+              "text": " says it includes VAT "
+            },
+            {
+              "t": "cite",
+              "n": 1
+            },
+            {
+              "t": "text",
+              "text": "; one in "
+            },
+            {
+              "t": "noun",
+              "id": "domain:area_paid_media"
+            },
+            {
+              "t": "text",
+              "text": " says it excludes VAT "
+            },
+            {
+              "t": "cite",
+              "n": 2
+            },
+            {
+              "t": "text",
+              "text": "."
+            }
+          ]
+        }
+      ],
+      "said": "Two items disagree. One in [@domain:area_sales] says it includes VAT [itm_spainvatin]; one in [@domain:area_paid_media] says it excludes VAT [itm_spainvatout].",
+      "nouns": [
+        {
+          "id": "metric:net_revenue",
+          "name": "Net revenue",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_paid_media",
+          "name": "Paid media",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:25a8735f-76bb-4631-8614-1c9af887664d",
+          "name": "Jon Abara",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:db6d5653-79bd-4395-8787-7ab023c4f97d",
+          "name": "Sofia Brandt",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:d8c06a17-6a1f-4a95-813c-0d920a7c5446",
+          "name": "Priya Nair",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_spainvatin",
+          "title": "Net revenue in Spain includes VAT",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:net_revenue", "value:market/spain"],
+          "status": "live",
+          "checked": "2026-10-12",
+          "outOfDate": null,
+          "n": 1
+        },
+        {
+          "id": "itm_spainvatout",
+          "title": "Net revenue in Spain excludes VAT",
+          "kind": "rule",
+          "domain": "domain:area_paid_media",
+          "about": ["metric:net_revenue", "value:market/spain"],
+          "status": "live",
+          "checked": "2026-10-03",
+          "outOfDate": null,
+          "n": 2
+        }
+      ],
+      "closest": null,
+      "owners": [
+        {
+          "domain": "domain:area_sales",
+          "people": [
+            "person:25a8735f-76bb-4631-8614-1c9af887664d",
+            "person:db6d5653-79bd-4395-8787-7ab023c4f97d"
+          ]
+        },
+        {
+          "domain": "domain:area_paid_media",
+          "people": ["person:d8c06a17-6a1f-4a95-813c-0d920a7c5446"]
+        }
+      ],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-stale": {
+    "question": "What happened with price promotions in Italy?",
+    "turn": {
+      "kind": "answer",
+      "text": "The regulator paused price promotions in Italy, so discount cost there dropped to near zero [1]. The item was last checked on 20 June 2026.",
+      "sources": ["itm_pfet8zj3"],
+      "state": "stale",
+      "footer": {
+        "denominator": "Out of 21 published context items you may read.",
+        "notSeen": null,
+        "stale": "“Regulator paused price promotions in Italy on 18 April 2026” may be out of date: its check date has passed."
+      },
+      "read": ["Searched “price promotions Italy” (read as Italy), any date: 1 found."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "find_context",
+          "input": {
+            "words": "price promotions Italy",
+            "limit": 10
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "text",
+              "text": "The regulator paused price promotions in "
+            },
+            {
+              "t": "noun",
+              "id": "value:market/italy"
+            },
+            {
+              "t": "text",
+              "text": ", so discount cost there dropped to near zero "
+            },
+            {
+              "t": "cite",
+              "n": 1
+            },
+            {
+              "t": "text",
+              "text": ". The item was last checked on "
+            },
+            {
+              "t": "date",
+              "day": "2026-06-20"
+            },
+            {
+              "t": "text",
+              "text": "."
+            }
+          ]
+        }
+      ],
+      "said": "The regulator paused price promotions in [@value:market/italy], so discount cost there dropped to near zero [itm_pfet8zj3]. The item was last checked on 20 June 2026.",
+      "nouns": [
+        {
+          "id": "metric:discount_cost",
+          "name": "Discount cost",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/italy",
+          "name": "Italy",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "metric:return_on_ad_spend",
+          "name": "Return on ad spend",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:gross_margin",
+          "name": "Gross margin",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_marketing",
+          "name": "Marketing",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_pfet8zj3",
+          "title": "Regulator paused price promotions in Italy on 18 April 2026",
+          "kind": "event",
+          "domain": "domain:area_marketing",
+          "about": ["metric:discount_cost", "value:market/italy"],
+          "status": "due",
+          "checked": "2026-06-20",
+          "outOfDate": "its check date has passed",
+          "n": 1
+        }
+      ],
+      "closest": null,
+      "owners": [],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-list": {
+    "question": "List the events in Sales",
+    "turn": {
+      "kind": "answer",
+      "text": "Sales has 4 of 13 published context items in Sales you may read.\n\n- Online sales to Norway stopped on 4 August 2026 [1]\n- Payment provider switched in France on 12 May 2026 [2]\n- Payment provider switched in France on 12 May 2026 [3]\n- Payment provider switched in France on 21 May 2026 [4]",
+      "sources": ["itm_norwaystop", "itm_franceswitch12", "itm_spe2w9kh", "itm_franceswitch21"],
+      "state": null,
+      "footer": {
+        "denominator": "Counted 4 of 13 published context items in Sales you may read.",
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Counted 4 of 13 published context items in Sales you may read."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "records",
+          "input": {
+            "kinds": ["event"],
+            "status": ["live", "due"],
+            "domain": "Sales",
+            "show": "list",
+            "sort_by": "title",
+            "order": "newest_first",
+            "limit": 10
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "noun",
+              "id": "domain:area_sales"
+            },
+            {
+              "t": "text",
+              "text": " has "
+            },
+            {
+              "t": "count",
+              "value": "4",
+              "of": null
+            },
+            {
+              "t": "text",
+              "text": " of "
+            },
+            {
+              "t": "count",
+              "value": "13",
+              "of": "published context items in Sales you may read"
+            },
+            {
+              "t": "text",
+              "text": "."
+            }
+          ]
+        },
+        {
+          "t": "list",
+          "rows": ["itm_norwaystop", "itm_franceswitch12", "itm_spe2w9kh", "itm_franceswitch21"],
+          "more": 0
+        }
+      ],
+      "said": "[@domain:area_sales] has 4 of 13 published context items in Sales you may read.\n\n- Online sales to Norway stopped on 4 August 2026 [itm_norwaystop]\n- Payment provider switched in France on 12 May 2026 [itm_franceswitch12]\n- Payment provider switched in France on 12 May 2026 [itm_spe2w9kh]\n- Payment provider switched in France on 21 May 2026 [itm_franceswitch21]",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_norwaystop",
+          "title": "Online sales to Norway stopped on 4 August 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-03",
+          "outOfDate": null,
+          "n": 1
+        },
+        {
+          "id": "itm_franceswitch12",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-05-12",
+          "outOfDate": null,
+          "n": 2
+        },
+        {
+          "id": "itm_spe2w9kh",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-08-20",
+          "outOfDate": null,
+          "n": 3
+        },
+        {
+          "id": "itm_franceswitch21",
+          "title": "Payment provider switched in France on 21 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-10-23",
+          "outOfDate": null,
+          "n": 4
+        }
+      ],
+      "closest": null,
+      "owners": [],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-long": {
+    "question": "What should I know about orders in Norway?",
+    "turn": {
+      "kind": "answer",
+      "text": "3 items apply to Orders in Norway, and two of them disagree:\n\n- Online sales to Norway stopped on 4 August 2026 [1]\n- Norway orders are card and cash payments only [2]\n- Norway orders count store credit [3]",
+      "sources": ["itm_norwaystop", "itm_giftcardonly", "itm_giftstorecredit"],
+      "state": "conflict",
+      "footer": {
+        "denominator": "3 of 21 published context items you may read apply.",
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Looked up Orders and Norway, 23 Oct 2026: 3 items apply, 6 nearby items do not."],
+      "subject": {
+        "names": ["Orders", "Norway"],
+        "about": ["metric:orders", "value:market/norway"],
+        "period": "23 Oct 2026",
+        "assumedToday": true,
+        "carried": false,
+        "uncovered": []
+      },
+      "nearby": [],
+      "conflict": ["itm_giftcardonly", "itm_giftstorecredit"],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "get_context",
+          "input": {
+            "about": "orders in Norway"
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [
+        {
+          "t": "p",
+          "runs": [
+            {
+              "t": "count",
+              "value": "3",
+              "of": null
+            },
+            {
+              "t": "text",
+              "text": " items apply to "
+            },
+            {
+              "t": "noun",
+              "id": "metric:orders"
+            },
+            {
+              "t": "text",
+              "text": " in "
+            },
+            {
+              "t": "noun",
+              "id": "value:market/norway"
+            },
+            {
+              "t": "text",
+              "text": ", and two of them disagree:"
+            }
+          ]
+        },
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "text",
+                "text": "Online sales to Norway stopped on 4 August 2026 "
+              },
+              {
+                "t": "cite",
+                "n": 1
+              }
+            ],
+            [
+              {
+                "t": "text",
+                "text": "Norway orders are card and cash payments only "
+              },
+              {
+                "t": "cite",
+                "n": 2
+              }
+            ],
+            [
+              {
+                "t": "text",
+                "text": "Norway orders count store credit "
+              },
+              {
+                "t": "cite",
+                "n": 3
+              }
+            ]
+          ]
+        }
+      ],
+      "said": "3 items apply to [@metric:orders] in [@value:market/norway], and two of them disagree:\n\n- Online sales to Norway stopped on 4 August 2026 [itm_norwaystop]\n- Norway orders are card and cash payments only [itm_giftcardonly]\n- Norway orders count store credit [itm_giftstorecredit]",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/germany",
+          "name": "Germany",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:25a8735f-76bb-4631-8614-1c9af887664d",
+          "name": "Jon Abara",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "person:db6d5653-79bd-4395-8787-7ab023c4f97d",
+          "name": "Sofia Brandt",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_norwaystop",
+          "title": "Online sales to Norway stopped on 4 August 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-03",
+          "outOfDate": null,
+          "n": 1
+        },
+        {
+          "id": "itm_giftcardonly",
+          "title": "Norway orders are card and cash payments only",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-02",
+          "outOfDate": null,
+          "n": 2
+        },
+        {
+          "id": "itm_giftstorecredit",
+          "title": "Norway orders count store credit",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-09-05",
+          "outOfDate": null,
+          "n": 3
+        }
+      ],
+      "closest": null,
+      "owners": [
+        {
+          "domain": "domain:area_sales",
+          "people": [
+            "person:25a8735f-76bb-4631-8614-1c9af887664d",
+            "person:db6d5653-79bd-4395-8787-7ab023c4f97d"
+          ]
+        }
+      ],
+      "overview": null,
+      "checks": []
+    }
+  },
+  "loop-overview": {
+    "question": "what do i need to handle?",
+    "turn": {
+      "kind": "answer",
+      "text": "20 cards wait on you in your Inbox, in 7 groups.\nNot found (1):\n- Orders in Spain, October 2026\nReported (1):\n- A report that an answer was wrong\nSaved questions (1):\n- 2 saved questions need a look\nAlerts (2):\n- Cube local model did not sync\n- Google Drive did not sync\nMentioned you (1):\n- Regulator paused price promotions in Norway on 9 May 2026 [1]\nDue for a check (3):\n- What to rule out before explaining a jump in Gross margin [2]\n- Returns changed definition on 28 April 2026 [3]\n- Regulator paused price promotions in Italy on 18 April 2026 [4]\nSuggestions (11):\n- Units sold excludes test accounts [5]\n- Online sales to Norway stopped on 4 August 2026 [6]\n- Returns changed definition on 28 April 2026 [3]\n- What to rule out before explaining a jump in Gross margin [2]\n- What to rule out before explaining a jump in Orders [7]\n- Payment provider switched in France on 12 May 2026 [8]\n- Payment provider delays order data in Poland\n- Norway orders leave out store credit from 1 November 2026\n- Data for Orders before 19 January 2026 is not reliable [9]\n- Orders in Germany include marketplace orders from 15 October 2026\n- Units sold counts a bundle as one unit",
+      "sources": [
+        "itm_za26xpzv",
+        "itm_kcy22j54",
+        "itm_ra39ow6c",
+        "itm_pfet8zj3",
+        "itm_s90n5xps",
+        "itm_norwaystop",
+        "itm_2a1wp53q",
+        "itm_spe2w9kh",
+        "itm_r6lyl1pc"
+      ],
+      "state": null,
+      "footer": {
+        "denominator": null,
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Read your Inbox: 20 cards."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "inbox",
+          "input": {
+            "limit": 25
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [],
+      "said": "",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "metric:return_on_ad_spend",
+          "name": "Return on ad spend",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "metric:gross_margin",
+          "name": "Gross margin",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:returns",
+          "name": "Returns",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:discount_cost",
+          "name": "Discount cost",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/italy",
+          "name": "Italy",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "metric:units_sold",
+          "name": "Units sold",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_customer_value",
+          "name": "Customer value",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_marketing",
+          "name": "Marketing",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_za26xpzv",
+          "title": "Regulator paused price promotions in Norway on 9 May 2026",
+          "kind": "",
+          "domain": "domain:area_marketing",
+          "about": ["metric:return_on_ad_spend", "value:market/norway"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 1
+        },
+        {
+          "id": "itm_kcy22j54",
+          "title": "What to rule out before explaining a jump in Gross margin",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:gross_margin", "value:market/spain"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 2
+        },
+        {
+          "id": "itm_ra39ow6c",
+          "title": "Returns changed definition on 28 April 2026",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:returns", "value:market/norway"],
+          "status": "due",
+          "checked": null,
+          "outOfDate": null,
+          "n": 3
+        },
+        {
+          "id": "itm_pfet8zj3",
+          "title": "Regulator paused price promotions in Italy on 18 April 2026",
+          "kind": "",
+          "domain": "domain:area_marketing",
+          "about": ["metric:discount_cost", "value:market/italy"],
+          "status": "due",
+          "checked": null,
+          "outOfDate": null,
+          "n": 4
+        },
+        {
+          "id": "itm_s90n5xps",
+          "title": "Units sold excludes test accounts",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:units_sold", "value:market/norway"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 5
+        },
+        {
+          "id": "itm_norwaystop",
+          "title": "Online sales to Norway stopped on 4 August 2026",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 6
+        },
+        {
+          "id": "itm_2a1wp53q",
+          "title": "What to rule out before explaining a jump in Orders",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 7
+        },
+        {
+          "id": "itm_spe2w9kh",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 8
+        },
+        {
+          "id": "itm_r6lyl1pc",
+          "title": "Data for Orders before 19 January 2026 is not reliable",
+          "kind": "",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/sweden"],
+          "status": "live",
+          "checked": null,
+          "outOfDate": null,
+          "n": 9
+        }
+      ],
+      "closest": null,
+      "owners": [],
+      "overview": {
+        "from": "inbox",
+        "by": "group",
+        "total": 20,
+        "headline": [
+          {
+            "t": "count",
+            "value": "20",
+            "of": null
+          },
+          {
+            "t": "text",
+            "text": " cards wait on you in your Inbox, in "
+          },
+          {
+            "t": "count",
+            "value": "7",
+            "of": null
+          },
+          {
+            "t": "text",
+            "text": " groups."
+          }
+        ],
+        "page": null,
+        "order": "the Inbox's own order: what needs you first",
+        "groups": [
+          {
+            "key": "gap",
+            "name": "Not found",
+            "count": 1,
+            "rows": [
+              {
+                "title": "Orders in Spain, October 2026",
+                "item": null,
+                "about": ["metric:orders", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "asked 9 times",
+                "date": "2026-11-09",
+                "card": "01a1c09a-480a-7c43-ba82-28aea1f66f40"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "flag",
+            "name": "Reported",
+            "count": 1,
+            "rows": [
+              {
+                "title": "A report that an answer was wrong",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "reported wrong",
+                "date": "2026-11-09",
+                "card": "report:01a1c09a-4b86-71d0-a577-eec84c597ac0"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "look",
+            "name": "Saved questions",
+            "count": 1,
+            "rows": [
+              {
+                "title": "2 saved questions need a look",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "needs a look",
+                "date": "2026-11-09",
+                "card": "look:area_sales"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "alert",
+            "name": "Alerts",
+            "count": 2,
+            "rows": [
+              {
+                "title": "Cube local model did not sync",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_customer_value",
+                "status": "an alert",
+                "date": "2026-11-09",
+                "card": "alert:01a1c09a-5241-75d0-a22d-37a78ee2e588"
+              },
+              {
+                "title": "Google Drive did not sync",
+                "item": null,
+                "about": [],
+                "domain": null,
+                "status": "an alert",
+                "date": "2026-11-09",
+                "card": "alert:01a1c09a-5242-784b-8d18-9155ad3169d2"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "mention",
+            "name": "Mentioned you",
+            "count": 1,
+            "rows": [
+              {
+                "title": "Regulator paused price promotions in Norway on 9 May 2026",
+                "item": "itm_za26xpzv",
+                "about": ["metric:return_on_ad_spend", "value:market/norway"],
+                "domain": "domain:area_marketing",
+                "status": "from Tomas Eriksen",
+                "date": "2026-10-23",
+                "card": "mention:context:itm_za26xpzv"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "check",
+            "name": "Due for a check",
+            "count": 3,
+            "rows": [
+              {
+                "title": "What to rule out before explaining a jump in Gross margin",
+                "item": "itm_kcy22j54",
+                "about": ["metric:gross_margin", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "its source changed",
+                "date": "2026-10-23",
+                "card": "check:itm_kcy22j54"
+              },
+              {
+                "title": "Returns changed definition on 28 April 2026",
+                "item": "itm_ra39ow6c",
+                "about": ["metric:returns", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "its check date passed",
+                "date": "2026-10-02",
+                "card": "check:itm_ra39ow6c"
+              },
+              {
+                "title": "Regulator paused price promotions in Italy on 18 April 2026",
+                "item": "itm_pfet8zj3",
+                "about": ["metric:discount_cost", "value:market/italy"],
+                "domain": "domain:area_marketing",
+                "status": "its check date passed",
+                "date": "2026-09-18",
+                "card": "check:itm_pfet8zj3"
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "suggestion",
+            "name": "Suggestions",
+            "count": 11,
+            "rows": [
+              {
+                "title": "Units sold excludes test accounts",
+                "item": "itm_s90n5xps",
+                "about": ["metric:units_sold", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-40a3-7146-8b0b-114192b2b309"
+              },
+              {
+                "title": "Online sales to Norway stopped on 4 August 2026",
+                "item": "itm_norwaystop",
+                "about": ["metric:orders", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-4207-738a-9b95-a9a71c0e642c"
+              },
+              {
+                "title": "Returns changed definition on 28 April 2026",
+                "item": "itm_ra39ow6c",
+                "about": ["metric:returns", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-42ff-725e-b9ab-cc56cef8ae29"
+              },
+              {
+                "title": "What to rule out before explaining a jump in Gross margin",
+                "item": "itm_kcy22j54",
+                "about": ["metric:gross_margin", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-442a-7fbc-afed-d187dc36d485"
+              },
+              {
+                "title": "What to rule out before explaining a jump in Orders",
+                "item": "itm_2a1wp53q",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-45b2-7cf7-9e43-5fc3236e58cc"
+              },
+              {
+                "title": "Payment provider switched in France on 12 May 2026",
+                "item": "itm_spe2w9kh",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "suggests a change",
+                "date": "2026-10-23",
+                "card": "01a1c09a-46ac-72a2-b625-a9689fda4b32"
+              },
+              {
+                "title": "Payment provider delays order data in Poland",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "suggests a new item",
+                "date": "2026-10-23",
+                "card": "01a1c09a-476b-715d-b663-19aff20a958f"
+              },
+              {
+                "title": "Norway orders leave out store credit from 1 November 2026",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "suggests a new item",
+                "date": "2026-10-23",
+                "card": "01a1c09a-48bf-76e7-a807-0b24dc929fab"
+              },
+              {
+                "title": "Data for Orders before 19 January 2026 is not reliable",
+                "item": "itm_r6lyl1pc",
+                "about": ["metric:orders", "value:market/sweden"],
+                "domain": "domain:area_sales",
+                "status": "suggests to archive",
+                "date": "2026-10-23",
+                "card": "01a1c09a-496a-7019-ad1e-1bf9206dd65c"
+              },
+              {
+                "title": "Orders in Germany include marketplace orders from 15 October 2026",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "suggests a new item",
+                "date": "2026-10-23",
+                "card": "01a1c09a-508a-727e-befa-f8e3ea2c9a91"
+              },
+              {
+                "title": "Units sold counts a bundle as one unit",
+                "item": null,
+                "about": [],
+                "domain": "domain:area_sales",
+                "status": "suggests a new item",
+                "date": "2026-10-23",
+                "card": "01a1c09a-5134-7e4b-823d-bdcfaaff9945"
+              }
+            ],
+            "more": 0
+          }
+        ],
+        "note": null
+      },
+      "checks": []
+    }
+  },
+  "loop-overview-due": {
+    "question": "What is out of date?",
+    "turn": {
+      "kind": "answer",
+      "text": "3 of 3 context items due for a check you may read, by domain.\nSales (2):\n- Returns changed definition on 28 April 2026 [1]\n- What to rule out before explaining a jump in Gross margin [2]\nMarketing (1):\n- Regulator paused price promotions in Italy on 18 April 2026 [3]",
+      "sources": ["itm_ra39ow6c", "itm_kcy22j54", "itm_pfet8zj3"],
+      "state": null,
+      "footer": {
+        "denominator": null,
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Counted 3 of 3 context items due for a check you may read."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "records",
+          "input": {
+            "status": ["due"],
+            "show": "list",
+            "group_by": "domain",
+            "sort_by": "title",
+            "order": "newest_first",
+            "limit": 10
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [],
+      "said": "",
+      "nouns": [
+        {
+          "id": "metric:discount_cost",
+          "name": "Discount cost",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/italy",
+          "name": "Italy",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "metric:returns",
+          "name": "Returns",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "metric:gross_margin",
+          "name": "Gross margin",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_marketing",
+          "name": "Marketing",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_ra39ow6c",
+          "title": "Returns changed definition on 28 April 2026",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:returns", "value:market/norway"],
+          "status": "due",
+          "checked": "2026-07-02",
+          "outOfDate": "its check date passed on 2026-10-02",
+          "n": 1
+        },
+        {
+          "id": "itm_kcy22j54",
+          "title": "What to rule out before explaining a jump in Gross margin",
+          "kind": "guide",
+          "domain": "domain:area_sales",
+          "about": ["metric:gross_margin", "value:market/spain"],
+          "status": "due",
+          "checked": "2026-09-30",
+          "outOfDate": "its check date passed on 2027-03-01",
+          "n": 2
+        },
+        {
+          "id": "itm_pfet8zj3",
+          "title": "Regulator paused price promotions in Italy on 18 April 2026",
+          "kind": "event",
+          "domain": "domain:area_marketing",
+          "about": ["metric:discount_cost", "value:market/italy"],
+          "status": "due",
+          "checked": "2026-06-20",
+          "outOfDate": "its check date passed on 2026-09-18",
+          "n": 3
+        }
+      ],
+      "closest": null,
+      "owners": [],
+      "overview": {
+        "from": "records",
+        "by": "domain",
+        "total": 3,
+        "headline": [
+          {
+            "t": "count",
+            "value": "3",
+            "of": null
+          },
+          {
+            "t": "text",
+            "text": " of "
+          },
+          {
+            "t": "count",
+            "value": "3",
+            "of": "context items due for a check you may read"
+          },
+          {
+            "t": "text",
+            "text": ", by domain."
+          }
+        ],
+        "page": null,
+        "order": "the largest first",
+        "groups": [
+          {
+            "key": "domain:area_sales",
+            "name": "Sales",
+            "count": 2,
+            "rows": [
+              {
+                "title": "Returns changed definition on 28 April 2026",
+                "item": "itm_ra39ow6c",
+                "about": ["metric:returns", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "its check date passed",
+                "date": "2026-10-02",
+                "card": null
+              },
+              {
+                "title": "What to rule out before explaining a jump in Gross margin",
+                "item": "itm_kcy22j54",
+                "about": ["metric:gross_margin", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "its definition changed",
+                "date": "2026-09-30",
+                "card": null
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "domain:area_marketing",
+            "name": "Marketing",
+            "count": 1,
+            "rows": [
+              {
+                "title": "Regulator paused price promotions in Italy on 18 April 2026",
+                "item": "itm_pfet8zj3",
+                "about": ["metric:discount_cost", "value:market/italy"],
+                "domain": "domain:area_marketing",
+                "status": "its check date passed",
+                "date": "2026-09-18",
+                "card": null
+              }
+            ],
+            "more": 0
+          }
+        ],
+        "note": null
+      },
+      "checks": []
+    }
+  },
+  "loop-overview-domain": {
+    "question": "How does Sales stand?",
+    "turn": {
+      "kind": "answer",
+      "text": "15 of 15 context items in Sales you may read, by status.\ndue for a check (2):\n- Returns changed definition on 28 April 2026 [1]\n- What to rule out before explaining a jump in Gross margin [2]\nlive (11):\n- Data for Orders before 19 January 2026 is not reliable [3]\n- Net revenue in Spain includes VAT [4]\n- Norway orders are card and cash payments only [5]\n- Norway orders count store credit [6]\n- Online sales to Norway stopped on 4 August 2026 [7]\n- Orders lags by one day in the source tool [8]\n- Payment provider switched in France on 12 May 2026 [9]\n- Payment provider switched in France on 12 May 2026 [10]\n- Payment provider switched in France on 21 May 2026 [11]\n- Units sold excludes test accounts [12]\n- What to rule out before explaining a jump in Orders [13]\narchived (2):\n- Orders lag by two days in the source tool [14]\n- Payment provider switched in Norway on 9 July 2025 [15]",
+      "sources": [
+        "itm_ra39ow6c",
+        "itm_kcy22j54",
+        "itm_r6lyl1pc",
+        "itm_spainvatin",
+        "itm_giftcardonly",
+        "itm_giftstorecredit",
+        "itm_norwaystop",
+        "itm_0tmqp7o1",
+        "itm_franceswitch12",
+        "itm_spe2w9kh",
+        "itm_franceswitch21",
+        "itm_s90n5xps",
+        "itm_2a1wp53q",
+        "itm_lagtwodays",
+        "itm_kh4llvi9"
+      ],
+      "state": null,
+      "footer": {
+        "denominator": null,
+        "notSeen": "5 more items were found and not listed.",
+        "stale": null
+      },
+      "read": ["Counted 15 of 15 context items in Sales you may read."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": [],
+      "reads": [
+        {
+          "tool": "records",
+          "input": {
+            "domain": "Sales",
+            "show": "list",
+            "group_by": "status",
+            "sort_by": "title",
+            "order": "newest_first",
+            "limit": 10
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [],
+      "said": "",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "metric:net_revenue",
+          "name": "Net revenue",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/germany",
+          "name": "Germany",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "metric:returns",
+          "name": "Returns",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:gross_margin",
+          "name": "Gross margin",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:units_sold",
+          "name": "Units sold",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "metric:support_contacts",
+          "name": "Support contacts",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "id": "itm_ra39ow6c",
+          "title": "Returns changed definition on 28 April 2026",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:returns", "value:market/norway"],
+          "status": "due",
+          "checked": "2026-07-02",
+          "outOfDate": "its check date passed on 2026-10-02",
+          "n": 1
+        },
+        {
+          "id": "itm_kcy22j54",
+          "title": "What to rule out before explaining a jump in Gross margin",
+          "kind": "guide",
+          "domain": "domain:area_sales",
+          "about": ["metric:gross_margin", "value:market/spain"],
+          "status": "due",
+          "checked": "2026-09-30",
+          "outOfDate": "its check date passed on 2027-03-01",
+          "n": 2
+        },
+        {
+          "id": "itm_r6lyl1pc",
+          "title": "Data for Orders before 19 January 2026 is not reliable",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/sweden"],
+          "status": "live",
+          "checked": "2026-09-14",
+          "outOfDate": null,
+          "n": 3
+        },
+        {
+          "id": "itm_spainvatin",
+          "title": "Net revenue in Spain includes VAT",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:net_revenue", "value:market/spain"],
+          "status": "live",
+          "checked": "2026-10-12",
+          "outOfDate": null,
+          "n": 4
+        },
+        {
+          "id": "itm_giftcardonly",
+          "title": "Norway orders are card and cash payments only",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-02",
+          "outOfDate": null,
+          "n": 5
+        },
+        {
+          "id": "itm_giftstorecredit",
+          "title": "Norway orders count store credit",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-09-05",
+          "outOfDate": null,
+          "n": 6
+        },
+        {
+          "id": "itm_norwaystop",
+          "title": "Online sales to Norway stopped on 4 August 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-10-03",
+          "outOfDate": null,
+          "n": 7
+        },
+        {
+          "id": "itm_0tmqp7o1",
+          "title": "Orders lags by one day in the source tool",
+          "kind": "warning",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/germany"],
+          "status": "live",
+          "checked": "2026-09-12",
+          "outOfDate": null,
+          "n": 8
+        },
+        {
+          "id": "itm_franceswitch12",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-05-12",
+          "outOfDate": null,
+          "n": 9
+        },
+        {
+          "id": "itm_spe2w9kh",
+          "title": "Payment provider switched in France on 12 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-08-20",
+          "outOfDate": null,
+          "n": 10
+        },
+        {
+          "id": "itm_franceswitch21",
+          "title": "Payment provider switched in France on 21 May 2026",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-10-23",
+          "outOfDate": null,
+          "n": 11
+        },
+        {
+          "id": "itm_s90n5xps",
+          "title": "Units sold excludes test accounts",
+          "kind": "rule",
+          "domain": "domain:area_sales",
+          "about": ["metric:units_sold", "value:market/norway"],
+          "status": "live",
+          "checked": "2026-07-02",
+          "outOfDate": null,
+          "n": 12
+        },
+        {
+          "id": "itm_2a1wp53q",
+          "title": "What to rule out before explaining a jump in Orders",
+          "kind": "guide",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/france"],
+          "status": "live",
+          "checked": "2026-10-01",
+          "outOfDate": null,
+          "n": 13
+        },
+        {
+          "id": "itm_lagtwodays",
+          "title": "Orders lag by two days in the source tool",
+          "kind": "warning",
+          "domain": "domain:area_sales",
+          "about": ["metric:orders", "value:market/germany"],
+          "status": "archived",
+          "checked": "2026-03-03",
+          "outOfDate": null,
+          "n": 14
+        },
+        {
+          "id": "itm_kh4llvi9",
+          "title": "Payment provider switched in Norway on 9 July 2025",
+          "kind": "event",
+          "domain": "domain:area_sales",
+          "about": ["metric:support_contacts", "value:market/norway"],
+          "status": "archived",
+          "checked": "2026-01-12",
+          "outOfDate": null,
+          "n": 15
+        }
+      ],
+      "closest": null,
+      "owners": [],
+      "overview": {
+        "from": "records",
+        "by": "status",
+        "total": 15,
+        "headline": [
+          {
+            "t": "count",
+            "value": "15",
+            "of": null
+          },
+          {
+            "t": "text",
+            "text": " of "
+          },
+          {
+            "t": "count",
+            "value": "15",
+            "of": "context items in Sales you may read"
+          },
+          {
+            "t": "text",
+            "text": ", by status."
+          }
+        ],
+        "page": null,
+        "order": "what needs a check first",
+        "groups": [
+          {
+            "key": "due",
+            "name": "due for a check",
+            "count": 2,
+            "rows": [
+              {
+                "title": "Returns changed definition on 28 April 2026",
+                "item": "itm_ra39ow6c",
+                "about": ["metric:returns", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "its check date passed",
+                "date": "2026-10-02",
+                "card": null
+              },
+              {
+                "title": "What to rule out before explaining a jump in Gross margin",
+                "item": "itm_kcy22j54",
+                "about": ["metric:gross_margin", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "its definition changed",
+                "date": "2026-09-30",
+                "card": null
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "live",
+            "name": "live",
+            "count": 11,
+            "rows": [
+              {
+                "title": "Data for Orders before 19 January 2026 is not reliable",
+                "item": "itm_r6lyl1pc",
+                "about": ["metric:orders", "value:market/sweden"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-09-14",
+                "card": null
+              },
+              {
+                "title": "Net revenue in Spain includes VAT",
+                "item": "itm_spainvatin",
+                "about": ["metric:net_revenue", "value:market/spain"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-10-12",
+                "card": null
+              },
+              {
+                "title": "Norway orders are card and cash payments only",
+                "item": "itm_giftcardonly",
+                "about": ["metric:orders", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-10-02",
+                "card": null
+              },
+              {
+                "title": "Norway orders count store credit",
+                "item": "itm_giftstorecredit",
+                "about": ["metric:orders", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-09-05",
+                "card": null
+              },
+              {
+                "title": "Online sales to Norway stopped on 4 August 2026",
+                "item": "itm_norwaystop",
+                "about": ["metric:orders", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-10-03",
+                "card": null
+              },
+              {
+                "title": "Orders lags by one day in the source tool",
+                "item": "itm_0tmqp7o1",
+                "about": ["metric:orders", "value:market/germany"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-09-12",
+                "card": null
+              },
+              {
+                "title": "Payment provider switched in France on 12 May 2026",
+                "item": "itm_franceswitch12",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-05-12",
+                "card": null
+              },
+              {
+                "title": "Payment provider switched in France on 12 May 2026",
+                "item": "itm_spe2w9kh",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-08-20",
+                "card": null
+              },
+              {
+                "title": "Payment provider switched in France on 21 May 2026",
+                "item": "itm_franceswitch21",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-10-23",
+                "card": null
+              },
+              {
+                "title": "Units sold excludes test accounts",
+                "item": "itm_s90n5xps",
+                "about": ["metric:units_sold", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-07-02",
+                "card": null
+              },
+              {
+                "title": "What to rule out before explaining a jump in Orders",
+                "item": "itm_2a1wp53q",
+                "about": ["metric:orders", "value:market/france"],
+                "domain": "domain:area_sales",
+                "status": "live",
+                "date": "2026-10-01",
+                "card": null
+              }
+            ],
+            "more": 0
+          },
+          {
+            "key": "archived",
+            "name": "archived",
+            "count": 2,
+            "rows": [
+              {
+                "title": "Orders lag by two days in the source tool",
+                "item": "itm_lagtwodays",
+                "about": ["metric:orders", "value:market/germany"],
+                "domain": "domain:area_sales",
+                "status": "archived",
+                "date": "2026-03-03",
+                "card": null
+              },
+              {
+                "title": "Payment provider switched in Norway on 9 July 2025",
+                "item": "itm_kh4llvi9",
+                "about": ["metric:support_contacts", "value:market/norway"],
+                "domain": "domain:area_sales",
+                "status": "archived",
+                "date": "2026-01-12",
+                "card": null
+              }
+            ],
+            "more": 0
+          }
+        ],
+        "note": null
+      },
+      "checks": []
+    }
+  },
+  "loop-question": {
+    "question": "When did the payment provider switch?",
+    "turn": {
+      "kind": "question",
+      "text": "Which switch do you mean?",
+      "sources": [],
+      "state": null,
+      "footer": {
+        "denominator": null,
+        "notSeen": null,
+        "stale": null
+      },
+      "read": ["Searched “payment provider switch”, any date: 0 found."],
+      "subject": null,
+      "nearby": [],
+      "conflict": [],
+      "definitions": [],
+      "choices": ["In France", "In Spain"],
+      "reads": [
+        {
+          "tool": "find_context",
+          "input": {
+            "words": "payment provider switch",
+            "limit": 10
+          }
+        }
+      ],
+      "stopped": null,
+      "body": [],
+      "said": "",
+      "nouns": [
+        {
+          "id": "metric:orders",
+          "name": "Orders",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/france",
+          "name": "France",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "dimension:market",
+          "name": "Market",
+          "of": null,
+          "type": "string"
+        },
+        {
+          "id": "metric:first_time_buyers",
+          "name": "First-time buyers",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "value:market/spain",
+          "name": "Spain",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/norway",
+          "name": "Norway",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/germany",
+          "name": "Germany",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "value:market/sweden",
+          "name": "Sweden",
+          "of": {
+            "id": "dimension:market",
+            "name": "Market"
+          },
+          "type": "string"
+        },
+        {
+          "id": "domain:area_sales",
+          "name": "Sales",
+          "of": null,
+          "type": null
+        },
+        {
+          "id": "domain:area_customer_value",
+          "name": "Customer value",
+          "of": null,
+          "type": null
+        }
+      ],
+      "items": [],
+      "closest": null,
+      "owners": [],
+      "overview": null,
+      "checks": []
+    }
+  }
+}

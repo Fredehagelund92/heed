@@ -356,13 +356,18 @@ export const loopAnswerOf = (
   question: string,
   names: ReturnType<typeof namesOf>,
 ): Answer => {
-  const subject = turn.subject?.names ?? []
+  const nouns = new Map(turn.nouns.map((n) => [n.id, n.name]))
+  const about = turn.subject?.about ?? []
+  const named = (kind: string) =>
+    about.flatMap((id) => (id.startsWith(`${kind}:`) ? [nouns.get(id) ?? names.value(id)] : []))
   const dates = turn.subject && !turn.subject.assumedToday ? datesWords(turn.subject.period) : null
   return {
     id: 'custom',
     question,
-    metric: subject.find((n) => names.metricKey(n)) ?? '',
-    markets: subject.filter((n) => names.marketKey(n)),
+    loop: turn,
+    // What the question was read as: its metric, and the values it narrowed, of any dimension.
+    metric: named('metric')[0] ?? '',
+    markets: named('value'),
     ...(dates ? { dates } : {}),
     state: turn.state,
     text: turn.text,
@@ -458,7 +463,18 @@ export function examplesOf(asked: Asked | null): (Example & { scope: ReadScope }
 
 /* ---------- the person's chats, in their browser ---------- */
 
-type StoredChat = { id: string; title: string; question: string; at: number; preview: string }
+type StoredChat = {
+  id: string
+  title: string
+  question: string
+  at: number
+  preview: string
+  /** Ask's loop: its finished answers, for the newest chats only (`KEPT_ANSWERS`). */
+  answers?: Answer[]
+}
+
+/** The most chats that keep their answers in the browser; an older one asks again when opened. */
+export const KEPT_ANSWERS = 20
 
 const SHORT_MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0)
@@ -536,6 +552,7 @@ export function createChatShelf(shelf: Shelf, now: () => number = Date.now) {
           title: c.title,
           question: c.question,
           preview: c.preview,
+          ...(c.answers?.length ? { answers: c.answers } : {}),
           ...dayOf(c.at, now()),
         })),
     /** A chat the person just started, at the top of Today, with what its first answer said. */
@@ -544,6 +561,25 @@ export function createChatShelf(shelf: Shelf, now: () => number = Date.now) {
         { id, title: question, question, at: now(), preview },
         ...read(person).filter((c) => c.id !== id),
       ])
+    },
+    /**
+     * The finished answers of a chat of Ask's loop, kept with it: the newest chats keep theirs, so
+     * what the browser holds stays small.
+     */
+    keep(person: string, id: string, question: string, answers: Answer[]) {
+      const chats = read(person)
+      const at = chats.find((c) => c.id === id)
+      const kept = at
+        ? chats.map((c) => (c.id === id ? { ...c, answers } : c))
+        : [{ id, title: question, question, at: now(), preview: '', answers }, ...chats]
+      const newest = [...kept]
+        .sort((a, b) => b.at - a.at)
+        .slice(0, KEPT_ANSWERS)
+        .map((c) => c.id)
+      write(
+        person,
+        kept.map(({ answers: a, ...c }) => (a && newest.includes(c.id) ? { ...c, answers: a } : c)),
+      )
     },
     rename(person: string, id: string, title: string) {
       write(

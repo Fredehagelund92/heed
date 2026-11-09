@@ -22,6 +22,8 @@ vi.mock('@/lib/workspace', () => ({
   useFacts: () => world.facts,
   useMe: () => world.me,
   useDomains: () => ({ sales: { name: 'Sales' }, finance: { name: 'Finance' } }),
+  // What Ask hands its loop's answer (loop-parts.ts); never called here.
+  usePeople: () => [],
 }))
 vi.mock('@/api/queries', () => ({ useWrite: () => vi.fn() }))
 

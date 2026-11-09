@@ -170,10 +170,9 @@ describe('the records tool (FR-720.3)', () => {
       return JSON.stringify(groups)
     }
     expect(named('metric')).not.toMatch(/roas|Return on ad spend/)
-    expect(query({ group_by: 'metric', show: 'count' }).groups?.rows).toContainEqual({
-      name: 'no metric named',
-      count: 1,
-    })
+    expect(query({ group_by: 'metric', show: 'count' }).groups?.rows).toContainEqual(
+      expect.objectContaining({ key: null, name: 'no metric named', count: 1, more: 0 }),
+    )
     expect(named('value')).not.toMatch(/sweden|Sweden/)
   })
 
@@ -218,14 +217,24 @@ describe('the records tool (FR-720.3)', () => {
       query({ dated: { field: 'published', from: '2026-10-01', to: '2026-10-20' } }),
     ).toMatchObject({ count: 1, filters: { period: 'published 1-20 Oct 2026' } })
     expect(query({ kinds: ['rule'], show: 'count' })).toMatchObject({ count: 2 })
-    expect(query({ group_by: 'value', show: 'count' }).groups).toEqual({
+    const groups = query({ group_by: 'value', show: 'count' }).groups
+    expect(groups).toMatchObject({
       by: 'value',
       note: 'An item that names several counts under each, so the groups add up to more than 4 items.',
-      rows: [
-        { name: 'Norway', count: 2 },
-        { name: 'no market or value named', count: 2 },
-      ],
+      order: 'the largest first',
     })
+    // Each group by the id a typed mention writes, with its items as rows, in the list's order.
+    expect(groups?.rows.map(({ key, name, count, more }) => ({ key, name, count, more }))).toEqual([
+      { key: 'value:market/norway', name: 'Norway', count: 2, more: 0 },
+      { key: null, name: 'no value named', count: 2, more: 0 },
+    ])
+    expect(groups?.rows[0]?.items.map((i) => i.id)).toHaveLength(2)
+    // By status, what needs a check comes first, whatever the counts.
+    expect(query({ group_by: 'status', show: 'count' }).groups?.rows.map((r) => r.key)).toEqual([
+      'due',
+      'live',
+      'archived',
+    ])
   })
 
   it('names what it does not know instead of counting nothing', () => {

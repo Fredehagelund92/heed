@@ -37,6 +37,8 @@ export default defineConfig({
     // And Details' and the review Preview's.
     /\/visual-details\.spec\.ts$/,
     /\/visual-review-preview\.spec\.ts$/,
+    // The loop answers' baselines are the mock's examples, opened by their address.
+    /\/visual-ask-loop\.spec\.ts$/,
     /\/docs-controls\.spec\.ts$/,
     // J8 asks the mock for a loading, failed or offline state (?state=), which the service has not.
     /\/j8-states\.spec\.ts$/,

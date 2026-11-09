@@ -105,8 +105,8 @@ describe('what code writes from the reads', () => {
     )
     expect(t.text).toBe('Germany lags [1]. Also [2]. And.')
     expect(t.sources).toEqual(['itm_germany01', 'itm_france001'])
-    // A definition's id is shown with the answer, not as a source.
-    expect(t.definitions).toEqual([{ name: 'Orders', words: 'Paid orders.', tool: 'Cube' }])
+    // A definition's id is no source, and the question asks nothing a definition adds to.
+    expect(t.definitions).toEqual([])
   })
 
   it('cites an id the words name bare, when a read returned it', () => {
@@ -208,8 +208,8 @@ describe('what code writes from the reads', () => {
     ])
     const t = turnOf('Nothing.', made, [])
     expect(t.footer).toEqual({
-      denominator: 'Out of 21 published context items you may read.',
-      notSeen: '2 more results found were not listed.',
+      denominator: '0 of 21 published context items you may read apply.',
+      notSeen: '2 more items were found and not listed.',
       stale: null,
     })
   })
@@ -315,8 +315,27 @@ describe("Ask's loop on a scripted model", () => {
         ? { text: 'Germany lags [itm_germany01].' }
         : { calls: [{ toolName: 'find_context', input: { words: 'germany' } }] },
     )
+    // Each read as it starts, then once done, with what it found: by code, from the read.
     expect(events.filter((e) => e.type === 'progress')).toEqual([
-      { type: 'progress', working: 'Searching the context for “germany”…' },
+      {
+        type: 'progress',
+        working: 'Searching the context for “germany”…',
+        steps: [
+          { runs: [{ t: 'text', text: 'Searching the context for “germany”…' }], done: false },
+        ],
+        nouns: [],
+      },
+      {
+        type: 'progress',
+        working: 'Writing the answer…',
+        steps: [
+          {
+            runs: [{ t: 'text', text: 'Searched “payment provider”, any date: 1 found' }],
+            done: true,
+          },
+        ],
+        nouns: [],
+      },
     ])
     expect(turn).toMatchObject({ kind: 'answer', sources: ['itm_germany01'], state: 'grounded' })
     expect(turn.reads).toEqual([{ tool: 'find_context', input: { words: 'germany', limit: 10 } }])
@@ -418,5 +437,181 @@ describe("Ask's loop on a scripted model", () => {
     expect(seenChat).not.toContain('itm_hidden0001')
     // The earlier read, made again, gives the item only as nearby to a subject with nothing written.
     expect(turn).toMatchObject({ sources: [], state: 'missing', nearby: ['itm_germany01'] })
+    // What the turn sends back as its own reply cites by id, a nearby item too: what it wrote.
+    expect(turn.said).toBe('Still nothing, as before [itm_germany01].')
+  })
+
+  it("holds an earlier reply's citations by id to what the reads return now, as its [n] marks", async () => {
+    let seenChat = ''
+    await turnWith(
+      ({ prompt }) => {
+        seenChat = JSON.stringify(prompt)
+        return { text: 'Still nothing.' }
+      },
+      {
+        turns: [
+          {
+            question: 'orders in poland',
+            sources: [],
+            reply:
+              'Nothing on Poland. Germany lags [itm_germany01]. Another item [itm_hidden0001] said more.',
+            reads: [{ tool: 'get_context', input: { about: 'orders in poland' } }],
+          },
+        ],
+      },
+    )
+    expect(seenChat).toContain('Nothing on Poland. Germany lags [itm_germany01].')
+    expect(seenChat).not.toContain('said more')
+    expect(seenChat).not.toContain('itm_hidden0001')
+  })
+})
+
+describe('an overview, whatever the model sends of it', () => {
+  // The person's Inbox as the inbox tool returns it: two groups, one card about a context item.
+  const inbox = {
+    count: 3,
+    groupsAdd: 3,
+    differs: null,
+    order: "the Inbox's own order: what needs you first",
+    groups: [
+      {
+        group: 'mention',
+        name: 'Mentioned you',
+        count: 1,
+        cards: [
+          {
+            id: 'c1',
+            group: 'mention',
+            title: 'A mention',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: null,
+            about: [],
+            status: 'from Ada',
+            date: '2026-10-20',
+          },
+        ],
+        more: 0,
+      },
+      {
+        group: 'check',
+        name: 'Due for a check',
+        count: 2,
+        cards: [
+          {
+            id: 'c2',
+            group: 'check',
+            title: 'Germany lags',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: 'itm_germany01',
+            about: [],
+            status: 'its check date passed',
+            date: '2026-10-02',
+          },
+          {
+            id: 'c3',
+            group: 'check',
+            title: 'Another',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: null,
+            about: [],
+            status: 'its check date passed',
+            date: '2026-10-01',
+          },
+        ],
+        more: 0,
+      },
+    ],
+    note: '',
+    names: [],
+    ids: ['c1', 'c2', 'itm_germany01', 'c3'],
+  }
+  /** Tools whose Inbox read takes `delay` milliseconds, as a first read on a cold service may. */
+  const slowInbox = (delay: number): AskTools =>
+    ({
+      run: (name: string) =>
+        name === 'inbox'
+          ? new Promise((done) => setTimeout(() => done(inbox), delay))
+          : Promise.resolve({ ids: [] }),
+      ai: () => ({}),
+    }) as unknown as AskTools
+  const groupsOf = (turn: LoopTurn) => turn.overview?.groups.map((g) => [g.key, g.rows.length])
+
+  it('waits for a read asked for in the same step before it draws the overview of it', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? {
+              calls: [
+                { toolName: 'inbox', input: {} },
+                { toolName: 'show_overview', input: { from: 'r1' } },
+              ],
+            }
+          : { text: 'Here is the overview by group.' },
+      { toolsIn: () => slowInbox(40) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+    expect(turn.text.split('\n')[0]).toBe('3 cards wait on you in your Inbox, in 2 groups.')
+  })
+
+  it('draws the Inbox read as an overview when the words only lead into one', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : { text: 'Your Inbox holds [#r1.count] cards in total. Here is the overview by group.' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+  })
+
+  it('draws the read itself when the overview the model asked for names no read the page can draw', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : step === 1
+            ? { calls: [{ toolName: 'show_overview', input: { from: 'r9', groups: ['nope'] } }] }
+            : { text: 'Here it is.' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+  })
+
+  it('keeps the model text when the overview it asked for failed and it then answered with a body', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : step === 1
+            ? { calls: [{ toolName: 'show_overview', input: { from: 'r9', groups: ['nope'] } }] }
+            : { text: 'Two cards are due:\n- Germany lags [itm_germany01]\n- Another' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(turn.overview).toBeNull()
+    expect(turn.body.map((b) => b.t)).toEqual(['p', 'ul'])
+  })
+
+  it('keeps words that answer from the Inbox when they list what they answer', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : { text: 'Two cards are due:\n- Germany lags [itm_germany01]\n- Another' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(turn.overview).toBeNull()
+    expect(turn.body.map((b) => b.t)).toEqual(['p', 'ul'])
   })
 })
