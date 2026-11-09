@@ -185,6 +185,20 @@ describe("the model's words, checked against the reads", () => {
     expect(t.checks).toEqual([{ kind: 'number', words: '[#r1.tickets]' }])
   })
 
+  it('cites an item the words name by a reference to its id, and keeps the sentence', () => {
+    const t = turnOf(
+      'Reopened tickets count once for Billing [#r1.items.0.id]. Its check date is [#r1.items.0.checked.date].',
+      made,
+      [],
+    )
+    expect(t.sources).toEqual(['itm_aaaa1111'])
+    expect(t.state).toBe('grounded')
+    expect(t.text).toBe(
+      'Reopened tickets count once for Billing [1]. Its check date is 2 October 2026.',
+    )
+    expect(t.checks).toEqual([])
+  })
+
   it("flags a digit no read gave, as the model's own count", () => {
     const t = turnOf('Billing closed 57 tickets [itm_aaaa1111].', made, [])
     expect(t.checks).toContainEqual({ kind: 'digits', words: '57' })

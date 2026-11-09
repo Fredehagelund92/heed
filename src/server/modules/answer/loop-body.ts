@@ -344,8 +344,12 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
         }
       } else if (ref !== undefined && path !== undefined) {
         const read = ctx.reads.find((r) => r.ref === ref)
-        const run = read ? numberRun(valueAt(read.result, path.slice(1).split('.'))) : null
-        if (!run) {
+        const value = read ? valueAt(read.result, path.slice(1).split('.')) : undefined
+        const run = numberRun(value)
+        // A reference to an item's id that a read returned is that item's citation, not a number.
+        if (typeof value === 'string' && ITEM_ID.test(value) && ctx.known.has(value))
+          pushRun(runs, { t: 'cite', n: cite(value) })
+        else if (!run) {
           check('number', whole)
           failed = true
         } else if (saidAlready(runs, run)) check('twice', whole)
