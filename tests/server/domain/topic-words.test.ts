@@ -49,5 +49,8 @@ describe('the words of a topic', () => {
     expect(topic([], ['val:market/norway'])).toBe('Norway, no metric named')
     expect(topic([], ['val:channel/webshop'])).toBe('Webshop, no metric named')
     expect(topic([])).toBe('Everything, no metric named')
+    expect(topic([], ['val:channel/webshop', 'val:product_line/footwear'])).toBe(
+      'Webshop, Footwear, no metric named',
+    )
   })
 })

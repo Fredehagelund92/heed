@@ -199,16 +199,19 @@ export function topicWords(
   for (const dimension of dimensions) filters[dimension] ??= []
   for (const value of values) (filters[`dim:${value.slice(4).split('/')[0]}`] ??= []).push(value)
   const terms = [...metrics, ...values, ...dimensions].map((key) => ({ key, name: name(key) }))
-  const words = scopeWords(
+  const window = { start: '1970-01-01', end: null }
+  const sorted = Object.entries(filters).sort(([a], [b]) => (a < b ? -1 : 1))
+  if (!metrics.length) {
+    const each = sorted.map(([dimension, vals]) =>
+      scopeWords({ terms }, { metrics: [], filters: { [dimension]: vals }, window }, { show: false }),
+    )
+    return `${each.join(', ') || 'Everything'}, no metric named`
+  }
+  return scopeWords(
     { terms },
-    {
-      metrics: [...metrics],
-      filters: Object.fromEntries(Object.entries(filters).sort(([a], [b]) => (a < b ? -1 : 1))),
-      window: { start: '1970-01-01', end: null },
-    },
+    { metrics: [...metrics], filters: Object.fromEntries(sorted), window },
     { show: false },
   )
-  return metrics.length ? words : `${words || 'Everything'}, no metric named`
 }
 
 /** When an item applies, as a sentence start: "From 4 August 2026 on", "In August 2026". */
