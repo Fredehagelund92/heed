@@ -1,18 +1,24 @@
 import * as React from 'react'
 import type { LoopItem, LoopRun, LoopTurn } from '@contract/answer'
 import { dimensionHue, nounKindOf } from '@domain/ask-nouns'
-import { CalendarIcon, GlobeIcon, SigmaIcon, SplitIcon, TagIcon } from '@/components/icons'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { PersonAvatar } from '@/components/heed/bits'
-import { kindIcons } from '@/components/heed/kind-icons'
-import { StatusDot } from '@/components/heed/list'
-import { useDefinitions } from '@/lib/definitions'
-import { openDock } from '@/lib/dock'
-import { chipTone, domainHue } from '@/lib/tones'
-import { cn } from '@/lib/utils'
-import { useDomains, useFacts, usePeople } from '@/lib/workspace'
 import type { Domain } from '@/model/people'
 import type { Kind, Status } from '@/model/items'
+import type { AnswerActions, ReportLine, SomethingWrong } from '@/components/heed/answer'
+import type { LoopPartsOfAsk } from '@/components/heed/loop-parts'
+
+/** What the loop's answer uses of Ask, handed to it by Ask (loop-parts.ts). */
+export type LoopParts = LoopPartsOfAsk & {
+  AnswerActions: typeof AnswerActions
+  ReportLine: typeof ReportLine
+  SomethingWrong: typeof SomethingWrong
+}
+export const PartsContext = React.createContext<LoopParts | null>(null)
+/** Ask's parts, as the answer was given them. */
+export function useParts(): LoopParts {
+  const parts = React.useContext(PartsContext)
+  if (!parts) throw new Error('A loop answer is drawn inside its parts.')
+  return parts
+}
 
 /*
   The nouns of Ask's loop answers, one look each, the same in the words, the rows, the read line
@@ -32,15 +38,25 @@ const key = (id: string) => id.slice(id.indexOf(':') + 1)
 
 /** A domain of the workspace by a noun's id: its own id, or the service's `area_` one. */
 function useDomainOf(id: string | null | undefined): Domain | undefined {
-  const domains = useDomains()
+  const P = useParts()
+  const domains = P.useDomains()
   if (!id) return undefined
   const k = key(id)
   return domains[k] ?? domains[k.replace(/^area_/, '')]
 }
 
-/** The icon a dimension's source value type picks: a day for time, a globe for places, else a tag. */
-export const dimensionIcon = (type: string | null) =>
-  type === 'time' ? CalendarIcon : type === 'geo' ? GlobeIcon : TagIcon
+/**
+ * A dimension's icon, or its value's: the dimension's own split, or the icon its source's value
+ * type picks for a value: a day for time, a globe for places, else a tag.
+ */
+function DimensionGlyph({ dimension, type }: { dimension: boolean; type: string | null }) {
+  const P = useParts()
+  const cls = 'size-3 shrink-0'
+  if (dimension) return <P.SplitIcon aria-hidden className={cls} />
+  if (type === 'time') return <P.CalendarIcon aria-hidden className={cls} />
+  if (type === 'geo') return <P.GlobeIcon aria-hidden className={cls} />
+  return <P.TagIcon aria-hidden className={cls} />
+}
 
 const MONTHS = [
   'January',
@@ -81,11 +97,12 @@ function HoverCard({
   children: React.ReactNode
   onOpen?: () => void
 }) {
+  const P = useParts()
   const [open, setOpen] = React.useState(false)
   const returning = React.useRef(false)
   const card = React.useRef<HTMLDivElement>(null)
   return (
-    <Popover
+    <P.Popover
       open={open}
       onOpenChange={(next, { reason }) => {
         const o = reason === 'trigger-press' ? !open || next : next
@@ -93,7 +110,7 @@ function HoverCard({
         setOpen(o)
       }}
     >
-      <PopoverTrigger
+      <P.PopoverTrigger
         openOnHover
         delay={120}
         closeDelay={100}
@@ -105,7 +122,7 @@ function HoverCard({
         }}
         onClick={onOpen}
       />
-      <PopoverContent
+      <P.PopoverContent
         side="top"
         align="start"
         initialFocus={false}
@@ -114,8 +131,8 @@ function HoverCard({
         className="w-72 gap-1.5 p-3"
       >
         {children}
-      </PopoverContent>
-    </Popover>
+      </P.PopoverContent>
+    </P.Popover>
   )
 }
 
@@ -129,31 +146,38 @@ const kindWords: Record<string, string> = {
 
 /** One noun as its chip, with its card. */
 export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
+  const P = useParts()
   const noun = nouns.get(id)
   const kind = nounKindOf(id)
   const domain = useDomainOf(kind === 'domain' ? id : null)
   const name = noun?.name ?? (kind === 'domain' ? domain?.name : undefined) ?? key(id)
   const label = `${name}, ${kind ? kindWords[kind] : 'name'}`
   const button = (className: string, style?: React.CSSProperties, body?: React.ReactNode) => (
-    <span role="button" tabIndex={0} aria-label={label} style={style} className={cn(chip, className)}>
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      style={style}
+      className={P.cn(chip, className)}
+    >
       {body}
     </span>
   )
   switch (kind) {
     case 'metric': {
-      const tone = chipTone('metric')
+      const tone = P.chipTone('metric')
       return (
         <HoverCard
           label={name}
           trigger={button(
-            cn(tone.className, 'cursor-pointer'),
+            P.cn(tone.className, 'cursor-pointer'),
             tone.style,
             <>
-              <SigmaIcon aria-hidden className="size-3 shrink-0" />
+              <P.SigmaIcon aria-hidden className="size-3 shrink-0" />
               <span className="min-w-0 truncate">{name}</span>
             </>,
           )}
-          onOpen={() => openDock('def', name)}
+          onOpen={() => P.openDock('def', name)}
         >
           <MetricCard name={name} />
         </HoverCard>
@@ -162,7 +186,6 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
     case 'value':
     case 'dimension': {
       const dimension = kind === 'value' ? noun?.of : { id, name }
-      const Icon = kind === 'dimension' ? SplitIcon : dimensionIcon(noun?.type ?? null)
       // The outline in the dimension's own hue, the chip dot's: 3:1 or more in both themes.
       const style = {
         '--chip-h': dimensionHue(dimension?.id ?? id),
@@ -172,13 +195,13 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
         <HoverCard
           label={name}
           trigger={button(
-            cn(
+            P.cn(
               'border bg-transparent text-chip-foreground',
               kind === 'dimension' && 'border-dashed',
             ),
             style,
             <>
-              <Icon aria-hidden className="size-3 shrink-0" />
+              <DimensionGlyph dimension={kind === 'dimension'} type={noun?.type ?? null} />
               <span className="min-w-0 truncate">{name}</span>
             </>,
           )}
@@ -196,7 +219,7 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
       )
     }
     case 'domain': {
-      const hue = domainHue(key(id).replace(/^area_/, ''))
+      const hue = P.domainHue(key(id).replace(/^area_/, ''))
       return (
         <HoverCard
           label={name}
@@ -230,7 +253,8 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
 }
 
 function PersonChip({ name, label }: { name: string; label: string }) {
-  const person = usePeople().find((p) => p.name === name)
+  const P = useParts()
+  const person = P.usePeople().find((p) => p.name === name)
   return (
     <HoverCard
       label={name}
@@ -239,20 +263,18 @@ function PersonChip({ name, label }: { name: string; label: string }) {
           role="button"
           tabIndex={0}
           aria-label={label}
-          className={cn(chip, 'items-center px-0.5 font-normal')}
+          className={P.cn(chip, 'items-center px-0.5 font-normal')}
         >
-          <PersonAvatar name={name} size={16} />
+          <P.PersonAvatar name={name} size={16} />
           <span className="min-w-0 truncate">{name}</span>
         </span>
       }
     >
       <div className="flex items-center gap-2.5">
-        <PersonAvatar name={name} size={32} />
+        <P.PersonAvatar name={name} size={32} />
         <div className="min-w-0">
           <p className="truncate font-medium">{name}</p>
-          {person?.role && (
-            <p className="truncate text-xs text-muted-foreground">{person.role}</p>
-          )}
+          {person?.role && <p className="truncate text-xs text-muted-foreground">{person.role}</p>}
           {person?.email && (
             <p className="truncate text-xs text-muted-foreground">{person.email}</p>
           )}
@@ -264,7 +286,8 @@ function PersonChip({ name, label }: { name: string; label: string }) {
 
 /** A metric's card: its definition as its tool words it, its domain and owners, and the way to it. */
 function MetricCard({ name }: { name: string }) {
-  const d = useDefinitions().find((x) => x.name === name && x.type === 'metric')
+  const P = useParts()
+  const d = P.useDefinitions().find((x) => x.name === name && x.type === 'metric')
   const domain = useDomainOf(d?.domain ? `domain:${d.domain}` : null)
   return (
     <>
@@ -282,7 +305,7 @@ function MetricCard({ name }: { name: string }) {
       )}
       <button
         type="button"
-        onClick={() => openDock('def', name)}
+        onClick={() => P.openDock('def', name)}
         className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         Open the definition
@@ -309,8 +332,20 @@ export function statusWords(item: Pick<LoopItem, 'status' | 'checked' | 'outOfDa
   }
 }
 
+/** A status with its dot, as the Context list draws it: live green, needs checking amber. */
+function StatusMark({ status }: { status: Status }) {
+  const dot = status === 'Live' ? 'bg-good' : status === 'Needs checking' ? 'bg-caution' : 'bg-off'
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
+      {status}
+    </span>
+  )
+}
+
 /** A citation: its number where it is cited; its card names the item, and a press opens it. */
 export function CiteMark({ n, item }: { n: number; item?: LoopItem }) {
+  const P = useParts()
   const marker =
     'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
   if (!item)
@@ -323,11 +358,16 @@ export function CiteMark({ n, item }: { n: number; item?: LoopItem }) {
     <HoverCard
       label={item.title}
       trigger={
-        <span role="button" tabIndex={0} aria-label={`Source ${n}: ${item.title}`} className={marker}>
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={`Source ${n}: ${item.title}`}
+          className={marker}
+        >
           {n}
         </span>
       }
-      onOpen={() => openDock('context', item.id)}
+      onOpen={() => P.openDock('context', item.id)}
     >
       <ItemCard item={item} />
     </HoverCard>
@@ -336,9 +376,10 @@ export function CiteMark({ n, item }: { n: number; item?: LoopItem }) {
 
 /** An item's card: its kind and domain, its status, who checked it and when, what it says. */
 function ItemCard({ item }: { item: LoopItem }) {
-  const fact = useFacts().find((f) => f.id === item.id)
+  const P = useParts()
+  const fact = P.useFacts().find((f) => f.id === item.id)
   const domain = useDomainOf(item.domain)
-  const Icon = kindIcons[kindOf(item.kind)]
+  const Icon = P.kindIcons[kindOf(item.kind)]
   const status = statusWords(item)
   return (
     <>
@@ -349,12 +390,18 @@ function ItemCard({ item }: { item: LoopItem }) {
       <p className="text-sm leading-snug font-medium">{item.title}</p>
       <p className="text-xs text-muted-foreground">
         {status.words}
-        {fact?.checkedBy ? ` · checked by ${fact.checkedBy}, ${fact.checkedOn}` : status.day ? ` · ${status.day}` : ''}
+        {fact?.checkedBy
+          ? ` · checked by ${fact.checkedBy}, ${fact.checkedOn}`
+          : status.day
+            ? ` · ${status.day}`
+            : ''}
       </p>
-      {fact?.summary && <p className="line-clamp-3 text-sm text-muted-foreground">{fact.summary}</p>}
+      {fact?.summary && (
+        <p className="line-clamp-3 text-sm text-muted-foreground">{fact.summary}</p>
+      )}
       <button
         type="button"
-        onClick={() => openDock('context', item.id)}
+        onClick={() => P.openDock('context', item.id)}
         className="w-fit rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         Open it
@@ -385,7 +432,8 @@ export function Runs({
           case 'text':
             return <React.Fragment key={i}>{r.text}</React.Fragment>
           case 'noun': {
-            if (seen?.has(r.id)) return <React.Fragment key={i}>{nouns.get(r.id)?.name ?? key(r.id)}</React.Fragment>
+            if (seen?.has(r.id))
+              return <React.Fragment key={i}>{nouns.get(r.id)?.name ?? key(r.id)}</React.Fragment>
             seen?.add(r.id)
             return <NounChip key={i} id={r.id} nouns={nouns} />
           }
@@ -429,7 +477,8 @@ export function ItemRow({
   /** Another row has the same title. */
   twin?: boolean
 }) {
-  const Icon = kindIcons[kindOf(item.kind)]
+  const P = useParts()
+  const Icon = P.kindIcons[kindOf(item.kind)]
   const status = statusWords(item)
   const values = item.about.filter((id) => id.startsWith('value:'))
   return (
@@ -442,7 +491,7 @@ export function ItemRow({
         )}
         <button
           type="button"
-          onClick={() => openDock('context', item.id)}
+          onClick={() => P.openDock('context', item.id)}
           className="rounded-sm text-left font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {item.n && <Icon aria-hidden className="mr-1 inline size-3.5 text-muted-foreground" />}
@@ -454,7 +503,7 @@ export function ItemRow({
           <NounChip key={id} id={id} nouns={nouns} />
         ))}
         {item.domain && <NounChip id={item.domain} nouns={nouns} />}
-        <StatusDot status={status.words} label />
+        <StatusMark status={status.words} />
         {status.day && <span>· {status.day}</span>}
         {twin && <span>· another item with the same title</span>}
       </span>

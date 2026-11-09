@@ -65,6 +65,11 @@ export async function loopExample(id: string): Promise<Answer> {
   ])
   const found = (examples as unknown as Record<string, { question: string; turn: LoopTurn }>)[id]
   if (!found) throw new ApiError('not-found', 'This example is not offered any more.')
-  const names = { metric: (k: string) => k, value: (k: string) => k, metricKey: () => undefined, marketKey: () => undefined }
+  const names = {
+    metric: (k: string) => k,
+    value: (k: string) => k,
+    metricKey: () => undefined,
+    marketKey: () => undefined,
+  }
   return { ...loopAnswerOf(found.turn, found.question, names), id: `example-${id}` }
 }

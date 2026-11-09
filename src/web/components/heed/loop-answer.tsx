@@ -1,48 +1,20 @@
 import * as React from 'react'
-import { toast } from 'sonner'
 import type { LoopBlock, LoopItem, LoopOverview, LoopTurn } from '@contract/answer'
-import { answerLines } from '@domain/words'
-import {
-  ArrowLeftRightIcon,
-  ArrowRightIcon,
-  AtSignIcon,
-  BellIcon,
-  CalendarClockIcon,
-  CheckIcon,
-  CircleDashedIcon,
-  CircleStopIcon,
-  FlagIcon,
-  GitPullRequestArrowIcon,
-  LayersIcon,
-  PencilIcon,
-  RefreshCwIcon,
-  SearchIcon,
-  TableIcon,
-  TagIcon,
-  TriangleAlertIcon,
-  type LucideIcon,
-} from '@/components/icons'
-import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
-import { FoldTrigger } from '@/components/heed/fold'
-import { ReadingLine } from '@/components/heed/reading'
-import { StateHelp } from '@/components/heed/state-help'
-import { AnswerActions, ReportLine, SomethingWrong } from '@/components/heed/answer'
+import type { LucideIcon } from '@/components/icons'
 import {
   ItemRow,
   NounChip,
   Runs,
   dayText,
   statusWords,
+  PartsContext,
+  useParts,
+  type LoopParts,
   type Nouns,
 } from '@/components/heed/loop-nouns'
-import { useWrite } from '@/api/queries'
-import { openDock } from '@/lib/dock'
-import { href } from '@/lib/router'
-import { answerKey, keepShown } from '@/lib/shown-answers'
-import { useFacts, useMe } from '@/lib/workspace'
-import { askedOf, type Answer, type QuestionPart } from '@/model/ask'
-import { isLive, type Turn } from '@/model/ask-turn'
+import type { Answer, QuestionPart } from '@/model/ask'
+import type { Turn } from '@/model/ask-turn'
+import type { Fact } from '@/model/items'
 
 /*
   An answer of Ask's loop, as direction C draws it (FR-349, FR-718 to FR-720): the state and its
@@ -84,6 +56,7 @@ function useMaps(loop: LoopTurn) {
 
 /** Each read as a step, the one under way moving; Stop and Escape stop it (the chat's own). */
 export function LoopProgress({ turn }: { turn: Turn }) {
+  const P = useParts()
   const reads = turn.reads
   const nouns: Nouns = React.useMemo(
     () => new Map((reads?.nouns ?? []).map((n) => [n.id, n])),
@@ -96,7 +69,7 @@ export function LoopProgress({ turn }: { turn: Turn }) {
       {steps.map((s, i) => (
         <li key={i} className="flex items-center gap-2">
           {s.done ? (
-            <CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <P.CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
           ) : (
             <span aria-hidden className="size-4 shrink-0" />
           )}
@@ -105,22 +78,22 @@ export function LoopProgress({ turn }: { turn: Turn }) {
               <Runs runs={s.runs} nouns={nouns} items={new Map()} />
             </span>
           ) : (
-            <ReadingLine running={!turn.stopped}>
+            <P.ReadingLine running={!turn.stopped}>
               <Runs runs={s.runs} nouns={nouns} items={new Map()} />
-            </ReadingLine>
+            </P.ReadingLine>
           )}
         </li>
       ))}
       {(done || !steps.length) && (
         <li className="flex items-center gap-2">
           <span aria-hidden className="size-4 shrink-0" />
-          <ReadingLine running={!turn.stopped}>
+          <P.ReadingLine running={!turn.stopped}>
             {turn.stopped
               ? 'Stopped while reading'
               : done
                 ? 'Writing the answer…'
                 : (turn.working ?? 'Reading…')}
-          </ReadingLine>
+          </P.ReadingLine>
         </li>
       )}
     </ol>
@@ -133,13 +106,26 @@ export function LoopProgress({ turn }: { turn: Turn }) {
  * How the question was read, under it: its nouns as chips and its days, and Change, which puts the
  * question back in the box with them; a follow-up says what it carried from the last question.
  */
+/** How the question was read, under it, with Ask's parts (loop-parts.ts). */
 export function LoopReadLine({
+  parts,
+  ...props
+}: { parts: LoopParts } & React.ComponentProps<typeof ReadLine>) {
+  return (
+    <PartsContext.Provider value={parts}>
+      <ReadLine {...props} />
+    </PartsContext.Provider>
+  )
+}
+
+function ReadLine({
   answer,
   onRescope,
 }: {
   answer: Answer
   onRescope?: (parts: QuestionPart[]) => void
 }) {
+  const P = useParts()
   const loop = answer.loop!
   const subject = loop.subject
   const nouns: Nouns = React.useMemo(() => new Map(loop.nouns.map((n) => [n.id, n])), [loop])
@@ -167,7 +153,7 @@ export function LoopReadLine({
           className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           onClick={() =>
             onRescope([
-              `${askedOf(answer)} `,
+              `${P.askedOf(answer)} `,
               ...about.flatMap((id) => {
                 const label = nouns.get(id)?.name ?? id
                 return [{ id: mentionOf(id, label), label }, ' ']
@@ -323,6 +309,7 @@ function Joined({ ids, nouns }: { ids: readonly string[]; nouns: Nouns }) {
 
 /** The two that disagree, side by side, and who decides which holds. */
 function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useMaps> }) {
+  const P = useParts()
   const pair = loop.conflict.flatMap((id) => {
     const n = loop.sources.indexOf(id) + 1
     const item = maps.numbered.get(n)
@@ -332,7 +319,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
   const domains = [...new Set(pair.flatMap((i) => (i.domain ? [i.domain] : [])))]
   return (
     <div className="flex max-w-reading flex-col gap-2">
-      <BlockLabel icon={TriangleAlertIcon}>These two disagree</BlockLabel>
+      <BlockLabel icon={P.TriangleAlertIcon}>These two disagree</BlockLabel>
       <div className="grid gap-2 @lg:grid-cols-2">
         {pair.map((item) => {
           const status = statusWords(item)
@@ -340,7 +327,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
             <button
               key={item.id}
               type="button"
-              onClick={() => openDock('context', item.id)}
+              onClick={() => P.openDock('context', item.id)}
               className="flex flex-col gap-1.5 rounded-lg border bg-background px-3 py-2.5 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <span className="flex items-center gap-1.5 text-xs">
@@ -363,14 +350,14 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
             decide.
           </span>
         )}
-        <Button
+        <P.Button
           size="sm"
           variant="outline"
-          onClick={() => openDock('conflict', loop.conflict.join('.'))}
+          onClick={() => P.openDock('conflict', loop.conflict.join('.'))}
         >
-          <ArrowLeftRightIcon data-icon="inline-start" />
+          <P.ArrowLeftRightIcon data-icon="inline-start" />
           Compare the two
-        </Button>
+        </P.Button>
       </div>
     </div>
   )
@@ -449,15 +436,20 @@ function Closest({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useMa
 
 /** What Ask read, folded under the footer: each read in code's words, and the reads by tool. */
 function WhatAskRead({ loop, footer }: { loop: LoopTurn; footer: string[] }) {
+  const P = useParts()
   return (
-    <Collapsible className="flex flex-col gap-2 text-xs text-muted-foreground">
+    <P.Collapsible className="flex flex-col gap-2 text-xs text-muted-foreground">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
         {footer.map((line, i) => (
           <span key={i}>{line}</span>
         ))}
-        <FoldTrigger variant="inline" label="What Ask read" className="px-1 text-xs text-foreground" />
+        <P.FoldTrigger
+          variant="inline"
+          label="What Ask read"
+          className="px-1 text-xs text-foreground"
+        />
       </p>
-      <CollapsibleContent>
+      <P.CollapsibleContent>
         <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-sm">
           {loop.read.length ? (
             <ul className="flex flex-col gap-1.5">
@@ -473,49 +465,59 @@ function WhatAskRead({ loop, footer }: { loop: LoopTurn; footer: string[] }) {
             this chat are read again before they are used.
           </p>
           {!!loop.reads.length && (
-            <Collapsible>
-              <FoldTrigger
+            <P.Collapsible>
+              <P.FoldTrigger
                 variant="inline"
                 label="Developer details"
                 className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
               />
-              <CollapsibleContent>
+              <P.CollapsibleContent>
                 <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
                   {JSON.stringify({ reads: loop.reads, checks: loop.checks }, null, 2)}
                 </pre>
-              </CollapsibleContent>
-            </Collapsible>
+              </P.CollapsibleContent>
+            </P.Collapsible>
           )}
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </P.CollapsibleContent>
+    </P.Collapsible>
   )
 }
 
 /** What to do next that fits the state: write the missing context, or check what may be old. */
-function Next({ loop, nouns, items }: { loop: LoopTurn; nouns: Nouns; items: readonly LoopItem[] }) {
-  const me = useMe()
-  const write = useWrite()
+function Next({
+  loop,
+  nouns,
+  items,
+}: {
+  loop: LoopTurn
+  nouns: Nouns
+  items: readonly LoopItem[]
+}) {
+  const P = useParts()
+  const me = P.useMe()
+  const write = P.useWrite()
   const subject = loop.subject
   const owned = new Set(loop.owners.map((o) => o.domain.replace(/^domain:(area_)?/, '')))
   const owns = me.admin || me.owns.some((d) => owned.has(d.replace(/^area_/, '')))
   if (loop.state === 'missing' || loop.state === 'partial') {
     // What is not written: the subject under Not found, what no item covers under Partial.
-    const about = (loop.state === 'partial' ? (subject?.uncovered ?? []) : (subject?.about ?? []))
-      .filter((id) => nouns.has(id))
+    const about = (
+      loop.state === 'partial' ? (subject?.uncovered ?? []) : (subject?.about ?? [])
+    ).filter((id) => nouns.has(id))
     if (!owns || !about.length) return null
     const names = about.map((id) => nouns.get(id)!.name)
     return (
-      <Button
+      <P.Button
         size="sm"
         variant="outline"
         className="w-fit"
         nativeButton={false}
-        render={<a href={href('/context/new', { about: names.join('|') })} />}
+        render={<a href={P.href('/context/new', { about: names.join('|') })} />}
       >
-        <PencilIcon data-icon="inline-start" />
+        <P.PencilIcon data-icon="inline-start" />
         Write context for <Subject ids={about} nouns={nouns} />
-      </Button>
+      </P.Button>
     )
   }
   if (loop.state === 'stale') {
@@ -523,7 +525,7 @@ function Next({ loop, nouns, items }: { loop: LoopTurn; nouns: Nouns; items: rea
     if (!f || !owns) return null
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Button
+        <P.Button
           size="sm"
           variant="outline"
           onClick={() =>
@@ -531,22 +533,22 @@ function Next({ loop, nouns, items }: { loop: LoopTurn; nouns: Nouns; items: rea
               id: f.id,
               patch: { status: 'Live', outOfDate: undefined, checkedBy: me.name },
             }).then(() =>
-              toast('Checked: still true', {
+              P.toast('Checked: still true', {
                 description: 'Agents get it without the warning from now on.',
               }),
             )
           }
         >
           Mark it still true
-        </Button>
-        <Button
+        </P.Button>
+        <P.Button
           size="sm"
           variant="ghost"
           nativeButton={false}
-          render={<a href={href(`/context/${f.id}/edit`)} />}
+          render={<a href={P.href(`/context/${f.id}/edit`)} />}
         >
           Edit
-        </Button>
+        </P.Button>
       </div>
     )
   }
@@ -594,25 +596,28 @@ function Marked({ words, mark }: { words: string; mark: string }) {
 }
 
 /** Each overview group's icon, by what it holds: the Inbox's own, else what it is by. */
-const groupIcons: Record<string, LucideIcon> = {
-  names: TagIcon,
-  gap: CircleDashedIcon,
-  flag: FlagIcon,
-  look: TriangleAlertIcon,
-  alert: BellIcon,
-  mention: AtSignIcon,
-  check: CalendarClockIcon,
-  suggestion: GitPullRequestArrowIcon,
-  due: CalendarClockIcon,
-}
+const groupIcons = (P: LoopParts): Record<string, LucideIcon> => ({
+  names: P.TagIcon,
+  gap: P.CircleDashedIcon,
+  flag: P.FlagIcon,
+  look: P.TriangleAlertIcon,
+  alert: P.BellIcon,
+  mention: P.AtSignIcon,
+  check: P.CalendarClockIcon,
+  suggestion: P.GitPullRequestArrowIcon,
+  due: P.CalendarClockIcon,
+})
 
 /** Where a group is shown filtered, when a page shows it: due items in Context, a domain's items. */
-function groupPage(o: LoopOverview, key: string | null) {
+function groupPage(P: LoopParts, o: LoopOverview, key: string | null) {
   if (!key) return null
   if ((o.from === 'inbox' && key === 'check') || (o.from === 'records' && key === 'due'))
     return { href: '/context?due=1', label: 'Open in Context' }
   if (o.from === 'records' && key.startsWith('domain:'))
-    return { href: href('/context', { domain: key.slice('domain:'.length) }), label: 'Open in Context' }
+    return {
+      href: P.href('/context', { domain: key.slice('domain:'.length) }),
+      label: 'Open in Context',
+    }
   return null
 }
 
@@ -630,6 +635,7 @@ function Overview({
   loop: LoopTurn
   maps: ReturnType<typeof useMaps>
 }) {
+  const P = useParts()
   const [open, setOpen] = React.useState<Record<number, boolean>>({})
   const seen = React.useMemo(() => new Set<string>(), [])
   return (
@@ -645,7 +651,7 @@ function Overview({
                 className="inline-flex items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 Open the Inbox
-                <ArrowRightIcon aria-hidden className="size-3.5" />
+                <P.ArrowRightIcon aria-hidden className="size-3.5" />
               </a>
             </>
           )}
@@ -664,8 +670,8 @@ function Overview({
         )}
       </div>
       {o.groups.map((g, i) => {
-        const Icon = (g.key && groupIcons[g.key]) || LayersIcon
-        const page = groupPage(o, g.key)
+        const Icon = (g.key && groupIcons(P)[g.key]) || P.LayersIcon
+        const page = groupPage(P, o, g.key)
         const rows = open[i] ? g.rows : g.rows.slice(0, GROUP_SHOWN)
         return (
           <section key={`${g.key}-${g.name}`} className="flex flex-col gap-2" aria-label={g.name}>
@@ -683,7 +689,7 @@ function Overview({
                   className="ml-auto inline-flex items-center gap-1 rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   {page.label}
-                  <ArrowRightIcon aria-hidden className="size-3.5" />
+                  <P.ArrowRightIcon aria-hidden className="size-3.5" />
                 </a>
               )}
             </div>
@@ -700,7 +706,7 @@ function Overview({
                       ) : null}
                       {row.card ? (
                         <a
-                          href={href('/inbox', { card: row.card })}
+                          href={P.href('/inbox', { card: row.card })}
                           className="rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
                           {row.title}
@@ -708,7 +714,7 @@ function Overview({
                       ) : item ? (
                         <button
                           type="button"
-                          onClick={() => openDock('context', item.id)}
+                          onClick={() => P.openDock('context', item.id)}
                           className="rounded-sm text-left font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
                           {row.title}
@@ -723,7 +729,9 @@ function Overview({
                       ))}
                       {row.domain && <NounChip id={row.domain} nouns={maps.nouns} />}
                       {row.status && <span>{row.status}</span>}
-                      {row.date && <span className="tabular-nums">· {dayText(row.date, true)}</span>}
+                      {row.date && (
+                        <span className="tabular-nums">· {dayText(row.date, true)}</span>
+                      )}
                     </span>
                   </li>
                 )
@@ -760,19 +768,23 @@ const copyOf = (answer: Answer) => answer.text.replace(/\[\d+\]/g, '')
 
 /** The state on one line with its fixed sentence, or From Heed's records for a records answer. */
 function StateRow({ loop, words }: { loop: LoopTurn; words: React.RefObject<HTMLElement | null> }) {
+  const P = useParts()
   if (!loop.state)
-    return loop.reads.some((r) => ['records', 'agent_questions', 'inbox', 'conflicts'].includes(r.tool)) &&
-      !loop.overview ? (
+    return loop.reads.some((r) =>
+      ['records', 'agent_questions', 'inbox', 'conflicts'].includes(r.tool),
+    ) && !loop.overview ? (
       <p className="flex w-fit items-center gap-2 rounded-md bg-muted px-2 py-1 text-sm font-semibold">
-        <TableIcon aria-hidden className="size-4" />
-        From Heed&apos;s records
+        <P.TableIcon aria-hidden className="size-4" />
+        From {P.PRODUCT}&apos;s records
       </p>
     ) : null
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <StateHelp state={loop.state} words={words} />
+      <P.StateHelp state={loop.state} words={words} />
       {loop.state !== 'grounded' && (
-        <span className="text-sm text-muted-foreground">{answerLines[loop.state].sentence}</span>
+        <span className="text-sm text-muted-foreground">
+          {P.ANSWER_LINES.find((l) => l.state === loop.state)!.sentence}
+        </span>
       )}
     </div>
   )
@@ -780,36 +792,37 @@ function StateRow({ loop, words }: { loop: LoopTurn; words: React.RefObject<HTML
 
 /** The footer's lines, said once each: what was found out of what, and what may be out of date. */
 const footerLines = (loop: LoopTurn) =>
-  [loop.footer.denominator, loop.footer.stale, loop.footer.notSeen].filter(
-    (x): x is string => !!x,
-  )
+  [loop.footer.denominator, loop.footer.stale, loop.footer.notSeen].filter((x): x is string => !!x)
 
 /** A turn of the loop that stopped: its fixed sentence, Ask again, and a search for its words. */
 function Stopped({ answer, onRetry }: { answer: Answer; onRetry?: () => void }) {
+  const P = useParts()
   return (
     <div className="flex flex-col gap-3">
       <p className="flex items-start gap-2 text-base leading-chat">
-        <CircleStopIcon aria-hidden className="mt-1 size-4 shrink-0 text-muted-foreground" />
+        <P.CircleStopIcon aria-hidden className="mt-1 size-4 shrink-0 text-muted-foreground" />
         {answer.text}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {onRetry && (
-          <Button variant="outline" size="sm" onClick={onRetry}>
-            <RefreshCwIcon data-icon="inline-start" />
+          <P.Button variant="outline" size="sm" onClick={onRetry}>
+            <P.RefreshCwIcon data-icon="inline-start" />
             Ask again
-          </Button>
+          </P.Button>
         )}
-        <Button
+        <P.Button
           variant="ghost"
           size="sm"
           nativeButton={false}
-          render={<a href={href('/search', { q: askedOf(answer) })} />}
+          render={<a href={P.href('/search', { q: P.askedOf(answer) })} />}
         >
-          <SearchIcon data-icon="inline-start" />
+          <P.SearchIcon data-icon="inline-start" />
           Search for these words
-        </Button>
+        </P.Button>
       </div>
-      <p className="text-xs text-muted-foreground">Nothing it wrote was checked, so nothing is shown.</p>
+      <p className="text-xs text-muted-foreground">
+        Nothing it wrote was checked, so nothing is shown.
+      </p>
     </div>
   )
 }
@@ -818,43 +831,71 @@ function Stopped({ answer, onRetry }: { answer: Answer; onRetry?: () => void }) 
  * The loop's answer in the chat: while it reads, each read as a step; once in, the answer, its
  * evidence, the next step, the footer and the actions, in direction C's order.
  */
-export function LoopAnswerBody({ turn, docked, onRetry, onAsk, latest }: Props) {
+/** The loop's answer in the chat, with Ask's parts (loop-parts.ts). */
+export function LoopAnswerBody({ parts, ...props }: Props & { parts: LoopParts }) {
+  return (
+    <PartsContext.Provider value={parts}>
+      <AnswerOfLoop {...props} />
+    </PartsContext.Provider>
+  )
+}
+
+function AnswerOfLoop({ turn, docked, onRetry, onAsk, latest }: Props) {
+  const P = useParts()
   const { answer, stopped } = turn
   const loop = answer.loop
   const done = turn.stage === 'done' && !!loop
   const words = React.useRef<HTMLDivElement>(null)
-  const facts = useFacts()
+  const facts = P.useFacts()
   const [wrong, setWrong] = React.useState(false)
   const [sent, setSent] = React.useState<Answer['report']>(undefined)
-  const key = answerKey(answer)
+  const key = P.answerKey(answer)
   const cited = React.useMemo(
     () => (loop ? loop.sources.flatMap((id) => facts.find((f) => f.id === id) ?? []) : []),
     [loop, facts],
   )
   React.useEffect(() => {
-    if (done) keepShown(key, { answer, facts: cited })
+    if (done) P.keepShown(key, { answer, facts: cited })
   }, [done, key, answer, cited])
   if (!done || !loop)
     return (
-      <div className="flex min-w-0 flex-col gap-4" aria-busy={isLive(turn)}>
+      <div className="flex min-w-0 flex-col gap-4" aria-busy={P.isLive(turn)}>
         <LoopProgress turn={turn} />
         {stopped && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
-              <CircleStopIcon className="size-4 shrink-0" aria-hidden />
+              <P.CircleStopIcon className="size-4 shrink-0" aria-hidden />
               You stopped it before an answer. Nothing was shown.
             </span>
             {onRetry && (
-              <Button variant="outline" size="sm" onClick={onRetry}>
-                <RefreshCwIcon data-icon="inline-start" />
+              <P.Button variant="outline" size="sm" onClick={onRetry}>
+                <P.RefreshCwIcon data-icon="inline-start" />
                 Ask again
-              </Button>
+              </P.Button>
             )}
           </div>
         )}
       </div>
     )
-  return <Finished loop={loop} answer={answer} {...{ docked, onRetry, onAsk, latest, words, wrong, setWrong, sent, setSent, cited, answerId: key }} />
+  return (
+    <Finished
+      loop={loop}
+      answer={answer}
+      {...{
+        docked,
+        onRetry,
+        onAsk,
+        latest,
+        words,
+        wrong,
+        setWrong,
+        sent,
+        setSent,
+        cited,
+        answerId: key,
+      }}
+    />
+  )
 }
 
 function Finished({
@@ -883,9 +924,10 @@ function Finished({
   setWrong: (w: boolean) => void
   sent: Answer['report']
   setSent: (s: Answer['report']) => void
-  cited: ReturnType<typeof useFacts>
+  cited: Fact[]
   answerId: string
 }) {
+  const P = useParts()
   const maps = useMaps(loop)
   const seen = React.useMemo(() => new Set<string>(), [])
   const used = loop.sources.flatMap((_, i) => {
@@ -911,18 +953,27 @@ function Finished({
                 {loop.text}
               </p>
             ) : (
-              <Body body={loop.body} nouns={maps.nouns} numbered={maps.numbered} byId={maps.byId} seen={seen} />
+              <Body
+                body={loop.body}
+                nouns={maps.nouns}
+                numbered={maps.numbered}
+                byId={maps.byId}
+                seen={seen}
+              />
             )}
           </div>
           {loop.kind === 'question' && loop.choices.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {loop.choices.map((choice) =>
                 onAsk ? (
-                  <Button key={choice} variant="outline" size="sm" onClick={() => onAsk(choice)}>
+                  <P.Button key={choice} variant="outline" size="sm" onClick={() => onAsk(choice)}>
                     {choice}
-                  </Button>
+                  </P.Button>
                 ) : (
-                  <span key={choice} className="rounded-full border px-3 py-1 text-sm text-muted-foreground">
+                  <span
+                    key={choice}
+                    className="rounded-full border px-3 py-1 text-sm text-muted-foreground"
+                  >
                     {choice}
                   </span>
                 ),
@@ -930,9 +981,9 @@ function Finished({
             </div>
           )}
           {loop.state === 'partial' && !!loop.subject?.uncovered.length && (
-            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-              <span className="font-medium">Not covered:</span>
-              <Subject ids={loop.subject.uncovered} nouns={maps.nouns} />
+            <p className="text-xs leading-6 text-muted-foreground">
+              Nothing is written about <Subject ids={loop.subject.uncovered} nouns={maps.nouns} />{' '}
+              yet.
             </p>
           )}
           {loop.state === 'conflict' && <Disagree loop={loop} maps={maps} />}
@@ -946,12 +997,14 @@ function Finished({
           {showOwners && <Owners loop={loop} nouns={maps.nouns} />}
           <Definitions loop={loop} nouns={maps.nouns} />
           <Next loop={loop} nouns={maps.nouns} items={used} />
-          {(footer.length > 0 || loop.read.length > 0) && <WhatAskRead loop={loop} footer={footer} />}
+          {(footer.length > 0 || loop.read.length > 0) && (
+            <WhatAskRead loop={loop} footer={footer} />
+          )}
         </>
       )}
-      {sent && <ReportLine report={sent} />}
+      {sent && <P.ReportLine report={sent} />}
       {wrong && !sent && cited.length > 0 && (
-        <SomethingWrong
+        <P.SomethingWrong
           answer={answer}
           facts={cited}
           onClose={() => setWrong(false)}
@@ -961,7 +1014,7 @@ function Finished({
           }}
         />
       )}
-      <AnswerActions
+      <P.AnswerActions
         answer={answer}
         copyText={loop.kind === 'stopped' ? '' : copyOf(answer)}
         facts={cited}
@@ -977,4 +1030,3 @@ function Finished({
     </div>
   )
 }
-

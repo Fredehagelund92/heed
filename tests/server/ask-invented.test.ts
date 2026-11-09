@@ -18,7 +18,12 @@ import { bundle } from './mcp/fixtures.ts'
   question narrowed.
 */
 
-const term = (key: string, kind: 'metric' | 'dimension' | 'dimension_value', name: string, parentKey: string | null = null) => ({
+const term = (
+  key: string,
+  kind: 'metric' | 'dimension' | 'dimension_value',
+  name: string,
+  parentKey: string | null = null,
+) => ({
   key,
   kind,
   name,
@@ -58,12 +63,20 @@ function helpDesk(): ServingBundle {
     ],
     metricArea: { 'metric:tickets_closed': 'area_support' },
     areas: [
-      { id: 'area_support', name: 'Support', team: 'Support', summary: 'The help desk.', description: '' },
+      {
+        id: 'area_support',
+        name: 'Support',
+        team: 'Support',
+        summary: 'The help desk.',
+        description: '',
+      },
     ],
     refMarks: {},
     links: [],
     items: [
-      item('itm_platform01', 'Platform closes merged tickets once', [['dim:team', 'val:team/platform']]),
+      item('itm_platform01', 'Platform closes merged tickets once', [
+        ['dim:team', 'val:team/platform'],
+      ]),
       item('itm_platform02', 'Platform tickets before Sprint 41 are not tagged', [
         ['dim:team', 'val:team/platform'],
         ['dim:sprint', 'val:sprint/s41'],
@@ -116,10 +129,25 @@ describe('a workspace of teams and sprints', () => {
     if (!('state' in result)) throw new Error(result.error)
     expect(result.state).toBe('missing')
     expect(result.read?.about).toEqual(['metric:tickets_closed', 'value:team/billing'])
-    expect(result.names).toContainEqual({ id: 'value:team/billing', name: 'Billing', of: 'Team', type: 'string' })
-    expect(result.names).toContainEqual({ id: 'value:sprint/s41', name: 'Sprint 41', of: 'Sprint', type: 'time' })
+    expect(result.names).toContainEqual({
+      id: 'value:team/billing',
+      name: 'Billing',
+      of: 'Team',
+      type: 'string',
+    })
+    expect(result.names).toContainEqual({
+      id: 'value:sprint/s41',
+      name: 'Sprint 41',
+      of: 'Sprint',
+      type: 'time',
+    })
     expect(result.owners).toEqual([
-      { domain: 'Support', owners: ['Ada Okafor'], id: 'domain:area_support', people: ['person:p_ada'] },
+      {
+        domain: 'Support',
+        owners: ['Ada Okafor'],
+        id: 'domain:area_support',
+        people: ['person:p_ada'],
+      },
     ])
     // A nearby item applies to other values of the dimension the subject names: as data.
     expect(result.nearby.map((n) => [n.id, n.reason])).toEqual(
@@ -150,10 +178,21 @@ describe('a workspace of teams and sprints', () => {
       'value:sprint/s41',
     ])
     expect(found.items.every((i) => i.domainId === 'domain:area_support')).toBe(true)
-    const turn = turnOf('[list:r1]', [{ tool: 'find_context', ref: 'r1', input: {}, result: found }], [])
+    const turn = turnOf(
+      '[list:r1]',
+      [{ tool: 'find_context', ref: 'r1', input: {}, result: found }],
+      [],
+    )
     expect(turn.body[0]?.t).toBe('list')
     expect(turn.items.length).toBeGreaterThan(0)
     // An overview needs a read with groups; a search has none.
-    expect(overviewTurn('x', { from: 'r1' }, [{ tool: 'find_context', ref: 'r1', input: {}, result: found }], [])).toBeNull()
+    expect(
+      overviewTurn(
+        'x',
+        { from: 'r1' },
+        [{ tool: 'find_context', ref: 'r1', input: {}, result: found }],
+        [],
+      ),
+    ).toBeNull()
   })
 })

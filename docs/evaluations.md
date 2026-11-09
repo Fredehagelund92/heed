@@ -368,8 +368,27 @@ next, and until it ships the router serves everyone.
   reads returned and numbered as a source; a mark to an id no read returned is dropped. The state
   comes from the get_context reads about the question's subject, the least sure of several; an
   answer whose items only the records listed carries none; under Not found, what the reads found
-  nearby is listed and not used. Then the footer, what was read line by line, and a progress line
-  as each read starts.
+  nearby is listed and not used. Then the footer, what was read line by line, and a step as each
+  read starts and once it is done.
+- **The answer as the page draws it** (`src/server/modules/answer/loop-body.ts`). Each result has a
+  ref (`r1`) and names every noun it returns by the id a typed mention writes
+  (`src/domain/ask-nouns.ts`): `metric:<id>`, `dimension:<id>`, `value:<dimension>/<value>`,
+  `domain:<id>`, `person:<id>`, a value always with its own dimension. The model writes
+  `[@value:<dimension>/<value>]` for a noun, `[#r1.count]` for a number or a day a read holds,
+  `[list:r1]` for a read's items as rows, and lines that start with a dash for a short list. Code
+  checks each against the chat's reads: a mention no read named is plain words, a reference no read
+  holds leaves its sentence out, a long enumeration after a colon becomes a list, and what the
+  check found (`checks`) is kept for the answer check, never shown as the words. The turn carries
+  the words as blocks (`body`), the same in plain words (`text`, what the graders read) and as the
+  model wrote them (`said`, what the chat sends back), the nouns, the item rows, the closest
+  written under Not found (counted by each other value of whichever dimension the question
+  narrowed), the owners, and the definition only when the question asks what it is or turns on a
+  word of it. A set asked for as a whole ends the turn with `show_overview`: the groups of an
+  inbox read, or of a records read with `group_by`, with their counts and rows by code, the total
+  the groups add up to, and the page's own count beside it, with why, when the two differ. Nothing
+  in the tools, the prompt or the page knows a dimension, a domain or a person by name. Ask on the
+  web keeps a chat's finished loop answers in the browser with the chat, so opening it again shows
+  them and asks nothing.
 - **The pool.** The request ends before the model's first step. Each read, spending check and meter
   line is a transaction of its own as the person, and a turn's reads take one connection at a
   time, so no turn holds a connection while its model works or while it waits for another.
@@ -386,6 +405,8 @@ next, and until it ships the router serves everyone.
 | FR-719.7 limits, said                            | `ask.max_steps`, `ask.time_limit_seconds`, the spending limits, fixed sentences                                          | `tests/server/ask-loop.test.ts` (steps, time, a failing model); `ask-loop-pool.test.ts` (spending)                                               |
 | FR-720.2 citations                               | Every mark held to the ids the chat's reads returned                                                                     | `tests/server/ask-loop.test.ts`; the harness's citation grader                                                                                   |
 | FR-720.4, FR-720.5, FR-720.9 state, footer, read | Written by code from the reads                                                                                           | `tests/server/ask-loop.test.ts`; the harness's state grader                                                                                      |
+| FR-720.2, FR-720.3 nouns, numbers and lists      | Every typed mention, reference and list held to the chat's reads; the words as blocks                                    | `tests/server/ask-loop-body.test.ts`, `tests/server/ask-invented.test.ts` (a workspace of teams and sprints)                                     |
+| The answer's shapes, overviews among them        | The evidence, the overview's groups and total, by code                                                                   | `tests/web/integration/ask-loop-shapes.test.ts` (the demo week); `tests/web/loop-answer.test.ts`; `tests/e2e/visual-ask-loop.spec.ts`            |
 | The pool                                         | No connection held across a model call; one at a time per turn                                                           | `ask-loop-pool.test.ts`: 4 and 8 live asks at once on a pool of 4, with a slow scripted model                                                    |
 
 Without the answer check, these are the model's own: every number from a read (FR-720.3, beyond

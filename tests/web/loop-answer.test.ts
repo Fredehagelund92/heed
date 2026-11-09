@@ -23,7 +23,13 @@ vi.mock('@/lib/workspace', () => ({
   useFact: () => undefined,
   useMe: () => world.me,
   useDomains: () => ({
-    area_sales: { id: 'area_sales', name: 'Sales', owners: ['Jon Abara'], covers: 'Orders.', text: '' },
+    area_sales: {
+      id: 'area_sales',
+      name: 'Sales',
+      owners: ['Jon Abara'],
+      covers: 'Orders.',
+      text: '',
+    },
   }),
   usePeople: () => [world.me],
 }))
@@ -32,11 +38,14 @@ vi.mock('@/api/queries', () => ({ useWrite: () => vi.fn(() => Promise.resolve())
 vi.mock('@/lib/dock', () => ({ openDock: vi.fn(), useDock: () => null }))
 vi.mock('@/lib/shown-answers', () => ({ answerKey: () => 'k', keepShown: () => {} }))
 vi.mock('@/lib/router', async (original) => ({
-  ...(await original<typeof import('@/lib/router')>()),
+  ...(await original<Record<string, unknown>>()),
   useRoute: () => ({ path: '/ask', query: new URLSearchParams() }),
 }))
 
 const { LoopAnswerBody } = await import('@/components/heed/loop-answer')
+const { loopParts } = await import('@/components/heed/loop-parts')
+const { AnswerActions, ReportLine, SomethingWrong } = await import('@/components/heed/answer')
+const parts = { ...loopParts, AnswerActions, ReportLine, SomethingWrong }
 const { loopAnswerOf } = await import('@/api/http-ask')
 const { doneTurn } = await import('@/model/ask-turn')
 
@@ -49,13 +58,22 @@ afterEach(() => {
   act(() => root?.unmount())
   host?.remove()
 })
-const names = { metric: (k: string) => k, value: (k: string) => k, metricKey: () => undefined, marketKey: () => undefined }
+const names = {
+  metric: (k: string) => k,
+  value: (k: string) => k,
+  metricKey: () => undefined,
+  marketKey: () => undefined,
+}
 function render(turn: LoopTurn, question = 'A question?') {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
   const answer = loopAnswerOf(turn, question, names)
-  act(() => root!.render(React.createElement(LoopAnswerBody, { turn: doneTurn(answer), latest: true })))
+  act(() =>
+    root!.render(
+      React.createElement(LoopAnswerBody, { parts, turn: doneTurn(answer), latest: true }),
+    ),
+  )
   return host
 }
 const example = (id: keyof typeof examples) => examples[id].turn as unknown as LoopTurn
@@ -103,7 +121,9 @@ describe("Ask's loop answer, state by state", () => {
     const el = render(example('loop-stale'))
     expect(text(el)).toContain('Some of this may be old.')
     expect(text(el)).toContain('Needs checking')
-    expect([...el.querySelectorAll('button')].some((b) => text(b) === 'Mark it still true')).toBe(true)
+    expect([...el.querySelectorAll('button')].some((b) => text(b) === 'Mark it still true')).toBe(
+      true,
+    )
     // The day a read gave is drawn as a day, never as the model's digits.
     expect(el.querySelector('time')?.getAttribute('dateTime')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
@@ -112,7 +132,11 @@ describe("Ask's loop answer, state by state", () => {
     const el = render(example('loop-list'))
     const bold = [...el.querySelectorAll('.font-semibold.tabular-nums')].map(text)
     expect(bold.length).toBeGreaterThanOrEqual(2)
-    expect(el.querySelectorAll('li').length).toBe(example('loop-list').body.find((b) => b.t === 'list')?.t === 'list' ? (example('loop-list').body.find((b) => b.t === 'list') as { rows: string[] }).rows.length : 0)
+    expect(el.querySelectorAll('li').length).toBe(
+      example('loop-list').body.find((b) => b.t === 'list')?.t === 'list'
+        ? (example('loop-list').body.find((b) => b.t === 'list') as { rows: string[] }).rows.length
+        : 0,
+    )
     expect(text(el)).toContain('From Heed')
   })
 
@@ -140,10 +164,14 @@ describe("Ask's loop answer, state by state", () => {
     const all = [...el.querySelectorAll('button')].find((b) => text(b) === `Show all ${long.count}`)
     expect(all).toBeDefined()
     act(() => all!.click())
-    const section = [...el.querySelectorAll('section')].find((s) => s.getAttribute('aria-label') === long.name)!
+    const section = [...el.querySelectorAll('section')].find(
+      (s) => s.getAttribute('aria-label') === long.name,
+    )!
     expect(section.querySelectorAll('li').length).toBe(long.rows.length)
     // A group a page shows filtered links there.
-    expect([...el.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/context?due=1')).toBe(true)
+    expect(
+      [...el.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/context?due=1'),
+    ).toBe(true)
   })
 
   it('An overview of the records: by status, what needs a check first', () => {
@@ -182,8 +210,18 @@ describe('the nouns of an answer on any workspace', () => {
     ],
     nouns: [
       { id: 'metric:tickets_closed', name: 'Tickets closed', of: null, type: null },
-      { id: 'value:team/billing', name: 'Billing', of: { id: 'dimension:team', name: 'Team' }, type: 'string' },
-      { id: 'value:sprint/s41', name: 'Sprint 41', of: { id: 'dimension:sprint', name: 'Sprint' }, type: 'time' },
+      {
+        id: 'value:team/billing',
+        name: 'Billing',
+        of: { id: 'dimension:team', name: 'Team' },
+        type: 'string',
+      },
+      {
+        id: 'value:sprint/s41',
+        name: 'Sprint 41',
+        of: { id: 'dimension:sprint', name: 'Sprint' },
+        type: 'time',
+      },
       { id: 'dimension:team', name: 'Team', of: null, type: 'string' },
     ],
     closest: null,

@@ -399,8 +399,7 @@ export async function* askLoop(
   const limits = { steps: deps.steps, seconds: Math.round(deps.timeoutMs / 1000) }
   const reads = serialReads(deps)
   const made: MadeRead[] = []
-  let earlier: (ReturnType<typeof earlierReadsOf>[number] & { result: unknown; ref: string })[] =
-    []
+  let earlier: (ReturnType<typeof earlierReadsOf>[number] & { result: unknown; ref: string })[] = []
   // Each read as it runs and once done: the progress steps, by code (FR-720.9).
   const steps: { call: string; runs: LoopRun[]; done: boolean }[] = []
   const progress = (working: string): LookupEvent => ({
@@ -456,7 +455,7 @@ export async function* askLoop(
     }))
   tools.show_overview = tool({
     description:
-      'Answer with an overview of a set the person asked for as a whole: the groups of one read (an inbox read, or a records read with group_by), each with its count and rows, drawn by the page in the read\'s own order. This ends your turn.',
+      "Answer with an overview of a set the person asked for as a whole: the groups of one read (an inbox read, or a records read with group_by), each with its count and rows, drawn by the page in the read's own order. This ends your turn.",
     inputSchema: overviewInput,
     execute: (input: z.infer<typeof overviewInput>) => {
       const problem = overviewProblem(input, numbered())
@@ -538,7 +537,12 @@ export async function* askLoop(
         if (step && read) {
           step.runs = stepRuns(read)
           step.done = true
-          yield progress(steps.find((x) => !x.done)?.runs.map(plainOf).join('') ?? 'Writing the answer…')
+          yield progress(
+            steps
+              .find((x) => !x.done)
+              ?.runs.map(plainOf)
+              .join('') ?? 'Writing the answer…',
+          )
         }
       } else if (part.type === 'error') throw part.error
     }
@@ -929,7 +933,8 @@ export function footerOf(
   const outOf = ok.flatMap((r) => (isObj(r.outOf) ? [r.outOf] : []))[0]
   const records = made.find((m) => m.tool === 'records' && isObj(m.result) && !isError(m.result))
   const subject = made.find(
-    (m) => m.tool === 'get_context' && isObj(m.result) && !isError(m.result) && isObj(m.result.read),
+    (m) =>
+      m.tool === 'get_context' && isObj(m.result) && !isError(m.result) && isObj(m.result.read),
   )
   const of = outOf ? `${num(outOf.count).toLocaleString('en-GB')} ${str(outOf.of)}` : ''
   const applying = (r: Obj) => {
@@ -968,7 +973,11 @@ export function footerOf(
 
 /** The reads of the chat as the words may cite them, by ref, this turn's after the earlier ones. */
 const numberedOf = (made: readonly MadeRead[], earlier: readonly MadeRead[]): NumberedRead[] =>
-  [...earlier, ...made].map((m, i) => ({ ref: m.ref ?? `r${i + 1}`, tool: m.tool, result: m.result }))
+  [...earlier, ...made].map((m, i) => ({
+    ref: m.ref ?? `r${i + 1}`,
+    tool: m.tool,
+    result: m.result,
+  }))
 
 /** What the words may name and cite: the chat's reads, and the digits in them and in the question. */
 function wordsContext(
@@ -991,7 +1000,9 @@ function wordsContext(
 
 /** Words too short or too common to be what a question turns on. */
 const COMMON = new Set(
-  'about after also any are been before being both but can could did does doing for from had has have how into its just last many more most much not now off once only other our out over same should some such than that the their them then there these they this those too under until very was were what when where which while who why will with would yes you your'.split(' '),
+  'about after also any are been before being both but can could did does doing for from had has have how into its just last many more most much not now off once only other our out over same should some such than that the their them then there these they this those too under until very was were what when where which while who why will with would yes you your'.split(
+    ' ',
+  ),
 )
 const wordsIn = (text: string) =>
   (text.toLowerCase().match(/\p{L}[\p{L}\p{N}'-]*/gu) ?? []).filter(
@@ -1018,7 +1029,9 @@ function definitionsShown(
     values: (subject?.about ?? []).some((id) => id.startsWith('value:')),
     dates: !!subject && !subject.assumedToday,
   })
-  const named = new Set(wordsIn([...(subject?.names ?? []), ...candidates.map((d) => d.name)].join(' ')))
+  const named = new Set(
+    wordsIn([...(subject?.names ?? []), ...candidates.map((d) => d.name)].join(' ')),
+  )
   const asked = wordsIn(question).filter((w) => !named.has(w))
   const said = ` ${wordsIn(text).join(' ')} `
   return candidates.flatMap((d) => {
@@ -1029,7 +1042,9 @@ function definitionsShown(
     if (asks) return [d]
     const word = asked.find((w) => own.includes(w))
     if (!word) return []
-    const mark = d.words!.match(new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'))?.[0]
+    const mark = d.words!.match(
+      new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
+    )?.[0]
     return mark ? [{ ...d, mark }] : []
   })
 }
@@ -1082,7 +1097,9 @@ const ownersOf = (about: readonly MadeRead[]): LoopTurn['owners'] => {
         if (id && !out.has(id))
           out.set(
             id,
-            Array.isArray(o.people) ? o.people.filter((p): p is string => typeof p === 'string') : [],
+            Array.isArray(o.people)
+              ? o.people.filter((p): p is string => typeof p === 'string')
+              : [],
           )
       }
   return [...out].map(([domain, people]) => ({ domain, people }))
@@ -1181,7 +1198,12 @@ export function turnOf(
     subject,
     nearby: missing ? [...new Set([...words.cited, ...nearbyOf(about)])] : [],
     conflict: state === 'conflict' ? disagreeing(about, sources) : [],
-    definitions: definitionsShown(question, plain, definitionsRead([...made, ...earlier].map((m) => m.result)), subject),
+    definitions: definitionsShown(
+      question,
+      plain,
+      definitionsRead([...made, ...earlier].map((m) => m.result)),
+      subject,
+    ),
     choices: [],
     reads: readsBack(made),
     stopped: null,

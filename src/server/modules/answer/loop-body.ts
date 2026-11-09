@@ -150,7 +150,11 @@ const SENTENCE_END = /(?<=[.!?](?:\s*\[[^[\]\n]{1,200}\])*)\s+/
  * (`person:ada_okafor` for Ada Okafor), else its last part as words. Never a chip.
  */
 const plainName = (id: string, nouns: ReadonlyMap<string, Noun>) => {
-  const tail = id.slice(id.indexOf(':') + 1).split('/').at(-1) ?? id
+  const tail =
+    id
+      .slice(id.indexOf(':') + 1)
+      .split('/')
+      .at(-1) ?? id
   const words = tail.replace(/[_-]+/g, ' ').trim()
   const same = [...nouns.values()].find((n) => n.name.toLowerCase() === words.toLowerCase())
   return same?.name ?? words.charAt(0).toUpperCase() + words.slice(1)
@@ -316,7 +320,8 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
       } else if (BULLET.test(line)) {
         endProse()
         bullets.push(line.replace(BULLET, ''))
-      } else if (bullets.length && /^\s{2,}/.test(line)) bullets[bullets.length - 1] += ` ${line.trim()}`
+      } else if (bullets.length && /^\s{2,}/.test(line))
+        bullets[bullets.length - 1] += ` ${line.trim()}`
       else {
         endBullets()
         prose.push(line.trim())
@@ -345,7 +350,10 @@ export function enumeration(said: string): { lead: string; items: string[] } | n
   const colon = said.indexOf(': ')
   if (colon < 0) return null
   const lead = said.slice(0, colon + 1)
-  const rest = said.slice(colon + 2).replace(/[.!]\s*((?:\[[^[\]\n]{1,200}\]\s*)*)$/, ' $1').trim()
+  const rest = said
+    .slice(colon + 2)
+    .replace(/[.!]\s*((?:\[[^[\]\n]{1,200}\]\s*)*)$/, ' $1')
+    .trim()
   const parts: string[] = []
   let depth = 0
   let from = 0
@@ -365,7 +373,13 @@ export function enumeration(said: string): { lead: string; items: string[] } | n
   const tail = and < 0 ? [last] : [last.slice(0, and), last.slice(and).replace(/^\s+and\s+/, '')]
   const items = [...parts, ...tail].map((p) => p.replace(/^\s*and\s+/, '').trim()).filter(Boolean)
   // Things named, not clauses: four or more, each a few words.
-  const short = items.every((i) => i.replace(/\[[^[\]]*\]/g, '').trim().split(/\s+/).length <= 8)
+  const short = items.every(
+    (i) =>
+      i
+        .replace(/\[[^[\]]*\]/g, '')
+        .trim()
+        .split(/\s+/).length <= 8,
+  )
   return items.length >= 4 && short ? { lead, items } : null
 }
 
@@ -394,7 +408,8 @@ export type OverviewAsk = { from: string; groups?: readonly string[]; note?: str
 /** Why an overview cannot be drawn from what was asked, said to the model; null when it can. */
 export function overviewProblem(ask: OverviewAsk, reads: readonly NumberedRead[]): string | null {
   const read = reads.find((r) => r.ref === ask.from)
-  if (!read) return `No read is ${ask.from}: name one of ${reads.map((r) => r.ref).join(', ') || 'none'}.`
+  if (!read)
+    return `No read is ${ask.from}: name one of ${reads.map((r) => r.ref).join(', ') || 'none'}.`
   const groups = groupsOf(read)
   if (!groups)
     return `${ask.from} has no groups. An overview shows the inbox read, or a records read with group_by.`
@@ -492,7 +507,10 @@ export function overviewOf(
   if (read.tool === 'inbox') {
     headline = [
       count(total),
-      { t: 'text', text: ` ${plural(total, 'card waits', 'cards wait')} on you in your Inbox, in ` },
+      {
+        t: 'text',
+        text: ` ${plural(total, 'card waits', 'cards wait')} on you in your Inbox, in `,
+      },
       count(groups.length),
       { t: 'text', text: ` ${plural(groups.length, 'group', 'groups')}.` },
     ]
@@ -544,9 +562,14 @@ export function overviewOf(
 }
 
 /** An overview in plain words: what the chat sends back, copies and shows in History. */
-export function overviewWords(o: LoopOverview, nouns: ReadonlyMap<string, Noun>, cited: readonly string[]) {
+export function overviewWords(
+  o: LoopOverview,
+  nouns: ReadonlyMap<string, Noun>,
+  cited: readonly string[],
+) {
   const lines = [runWords(o.headline, nouns)]
-  if (o.page) lines.push(`${o.page.count.toLocaleString('en-GB')} as the page counts them: ${o.page.why}`)
+  if (o.page)
+    lines.push(`${o.page.count.toLocaleString('en-GB')} as the page counts them: ${o.page.why}`)
   for (const g of o.groups) {
     lines.push(`${g.name} (${g.count.toLocaleString('en-GB')}):`)
     for (const row of g.rows)

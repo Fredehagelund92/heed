@@ -1428,9 +1428,7 @@ async function inbox(view: View, reads: ToolReads, input: z.output<typeof inboxI
   )
   const open = feed.cards.filter(
     (c) =>
-      !c.done &&
-      groupWords[c.group] &&
-      !(c.group === 'suggestion' && drafts.has(c.proposalId)),
+      !c.done && groupWords[c.group] && !(c.group === 'suggestion' && drafts.has(c.proposalId)),
   )
   // A card's id in the app: a suggestion, and a Not found card with a draft, by what it reviews.
   const appId = (c: (typeof open)[number]) =>

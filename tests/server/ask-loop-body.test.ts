@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopRun, LoopTurn } from '../../src/contract/answer.ts'
 import { dimensionHue, dimensionOf, nounId, termKeyOf } from '../../src/domain/ask-nouns.ts'
-import { enumeration, wordsOf, type WordsContext } from '../../src/server/modules/answer/loop-body.ts'
+import {
+  enumeration,
+  wordsOf,
+  type WordsContext,
+} from '../../src/server/modules/answer/loop-body.ts'
 import { overviewTurn, turnOf, type MadeRead } from '../../src/server/modules/answer/index.ts'
 
 /*
@@ -63,7 +67,12 @@ const lookup = (
     uncovered: [],
     wider: null,
     owners: [
-      { domain: 'Support', owners: ['Ada Okafor'], id: 'domain:area_support', people: ['person:p_ada'] },
+      {
+        domain: 'Support',
+        owners: ['Ada Okafor'],
+        id: 'domain:area_support',
+        people: ['person:p_ada'],
+      },
     ],
     searched: [
       {
@@ -110,7 +119,9 @@ describe('the nouns, by the ids a typed mention writes', () => {
 })
 
 describe("the model's words, checked against the reads", () => {
-  const made = [lookup('grounded', [row('itm_aaaa1111', ['metric:tickets_closed', 'value:team/billing'])])]
+  const made = [
+    lookup('grounded', [row('itm_aaaa1111', ['metric:tickets_closed', 'value:team/billing'])]),
+  ]
 
   it('draws a mention a read named as its noun, and one no read named as plain words, flagged', () => {
     const t = turnOf(
@@ -140,7 +151,7 @@ describe("the model's words, checked against the reads", () => {
     expect(t.nouns.map((n) => n.id)).toContain('dimension:team')
   })
 
-  it("fills a number from its read, and leaves out the sentence whose number no read holds", () => {
+  it('fills a number from its read, and leaves out the sentence whose number no read holds', () => {
     const t = turnOf(
       'Of [#r1.outOf], [#r1.items.length] apply. It was checked on [#r1.items.0.checked.date]. It closed [#r1.tickets] tickets.',
       made,
@@ -204,7 +215,9 @@ describe("the model's words, checked against the reads", () => {
   })
 
   it('turns a long enumeration after a colon into a list, and flags one with no colon', () => {
-    expect(enumeration('They cover: reopened tickets, merged tickets, spam and duplicates.')).toEqual({
+    expect(
+      enumeration('They cover: reopened tickets, merged tickets, spam and duplicates.'),
+    ).toEqual({
       lead: 'They cover:',
       items: ['reopened tickets', 'merged tickets', 'spam', 'duplicates'],
     })
@@ -244,15 +257,22 @@ describe("the model's words, checked against the reads", () => {
 })
 
 describe('the evidence, by code from the reads', () => {
-  it("lists the closest written to a Not found, counted by each other value of the dimension it narrowed", () => {
+  it('lists the closest written to a Not found, counted by each other value of the dimension it narrowed', () => {
     const t = turnOf(
       'Nothing written covers [@metric:tickets_closed] for [@value:team/billing].',
       [
-        lookup('missing', [], [
-          { id: 'itm_pppp1111', about: ['metric:tickets_closed', 'value:team/platform'] },
-          { id: 'itm_pppp2222', about: ['metric:tickets_closed', 'value:team/platform', 'value:sprint/s41'] },
-          { id: 'itm_qqqq1111', about: ['metric:tickets_closed', 'value:sprint/s41'] },
-        ]),
+        lookup(
+          'missing',
+          [],
+          [
+            { id: 'itm_pppp1111', about: ['metric:tickets_closed', 'value:team/platform'] },
+            {
+              id: 'itm_pppp2222',
+              about: ['metric:tickets_closed', 'value:team/platform', 'value:sprint/s41'],
+            },
+            { id: 'itm_qqqq1111', about: ['metric:tickets_closed', 'value:sprint/s41'] },
+          ],
+        ),
       ],
       [],
     )
@@ -291,15 +311,28 @@ describe('the evidence, by code from the reads', () => {
         },
       },
     ]
-    const turnsOn = turnOf('It counts them once [itm_aaaa1111].', withDefinition, [], 'Are reopened tickets in tickets closed?')
+    const turnsOn = turnOf(
+      'It counts them once [itm_aaaa1111].',
+      withDefinition,
+      [],
+      'Are reopened tickets in tickets closed?',
+    )
     expect(turnsOn.definitions).toEqual([
       expect.objectContaining({ id: 'metric:tickets_closed', mark: 'reopened', tool: 'Cube' }),
     ])
-    const asks = turnOf('It counts them once [itm_aaaa1111].', withDefinition, [], 'What does tickets closed mean?')
+    const asks = turnOf(
+      'It counts them once [itm_aaaa1111].',
+      withDefinition,
+      [],
+      'What does tickets closed mean?',
+    )
     expect(asks.definitions).toHaveLength(1)
     expect(asks.definitions[0]?.mark).toBeUndefined()
     // Not when the question turns on nothing in it, and never when the words already say it.
-    expect(turnOf('It counts once [itm_aaaa1111].', withDefinition, [], 'Why did tickets closed drop?').definitions).toEqual([])
+    expect(
+      turnOf('It counts once [itm_aaaa1111].', withDefinition, [], 'Why did tickets closed drop?')
+        .definitions,
+    ).toEqual([])
     expect(
       turnOf(
         'Tickets marked solved in the help desk, reopened ones counted once [itm_aaaa1111].',
@@ -330,10 +363,17 @@ describe('an overview, by code from the read the model named', () => {
     result: {
       count: 4,
       groupsAdd: 5,
-      differs: '1 mention is on a card’s own thread, so the Inbox counts it with that card: 4 cards, while the groups add up to 5.',
+      differs:
+        '1 mention is on a card’s own thread, so the Inbox counts it with that card: 4 cards, while the groups add up to 5.',
       order: "the Inbox's own order: what needs you first",
       groups: [
-        { group: 'mention', name: 'Mentioned you', count: 1, cards: [card('c1', 'mention')], more: 0 },
+        {
+          group: 'mention',
+          name: 'Mentioned you',
+          count: 1,
+          cards: [card('c1', 'mention')],
+          more: 0,
+        },
         {
           group: 'check',
           name: 'Due for a check',
@@ -341,7 +381,13 @@ describe('an overview, by code from the read the model named', () => {
           cards: [card('c2', 'check', 'itm_aaaa1111'), card('c3', 'check', 'itm_bbbb2222')],
           more: 1,
         },
-        { group: 'suggestion', name: 'Suggestions', count: 1, cards: [card('c4', 'suggestion')], more: 0 },
+        {
+          group: 'suggestion',
+          name: 'Suggestions',
+          count: 1,
+          cards: [card('c4', 'suggestion')],
+          more: 0,
+        },
       ],
       note: '',
       names,
@@ -374,7 +420,12 @@ describe('an overview, by code from the read the model named', () => {
     expect(some.overview?.groups.map((g) => g.key)).toEqual(['check'])
     expect(some.overview?.page).toBeNull()
     expect(some.overview?.note?.some((r) => r.t === 'noun')).toBe(true)
-    const filler = overviewTurn('what is due?', { from: 'r1', note: 'That is all for now.' }, [inbox], [])!
+    const filler = overviewTurn(
+      'what is due?',
+      { from: 'r1', note: 'That is all for now.' },
+      [inbox],
+      [],
+    )!
     expect(filler.overview?.note).toBeNull()
     expect(filler.checks).toContainEqual({ kind: 'note', words: 'That is all for now.' })
     // A read with no groups has no overview.

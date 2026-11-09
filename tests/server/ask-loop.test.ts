@@ -320,7 +320,9 @@ describe("Ask's loop on a scripted model", () => {
       {
         type: 'progress',
         working: 'Searching the context for “germany”…',
-        steps: [{ runs: [{ t: 'text', text: 'Searching the context for “germany”…' }], done: false }],
+        steps: [
+          { runs: [{ t: 'text', text: 'Searching the context for “germany”…' }], done: false },
+        ],
         nouns: [],
       },
       {

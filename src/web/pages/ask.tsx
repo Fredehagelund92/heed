@@ -424,12 +424,10 @@ export function AskChat({
   // Ask's loop: once every answer is in, the chat keeps them, so it opens again as it was.
   const finished = turns.every((t) => t.stage === 'done' && !t.error && !t.stopped)
   const kept = finished && turns.length > 0 && turns.every((t) => !!t.answer.loop)
-  const keepKey = kept ? turns.map((t) => t.answer.id).join(' ') : ''
-  const answersRef = React.useRef(turns)
-  answersRef.current = turns
+  const keptAnswers = React.useMemo(() => (kept ? turns.map((t) => t.answer) : null), [kept, turns])
   React.useEffect(() => {
-    if (keepKey) onAnswers?.(answersRef.current.map((t) => t.answer))
-  }, [keepKey, onAnswers])
+    if (keptAnswers) onAnswers?.(keptAnswers)
+  }, [keptAnswers, onAnswers])
 
   // A new question scrolls to the top of the view, so the answer arrives under it.
   const count = turns.length
@@ -1035,7 +1033,7 @@ export function AskPage() {
     refetchOnWindowFocus: false,
   })
   const initial = React.useMemo(
-    () => (restored ? stored! : first.data ? [first.data] : []),
+    () => (restored ? stored : first.data ? [first.data] : []),
     [restored, stored, first.data],
   )
   const [sheet, setSheet] = React.useState(false)

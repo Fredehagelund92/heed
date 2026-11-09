@@ -522,7 +522,10 @@ describe("the person's chats in the browser", () => {
     chats.add('per_jon', 'c1', 'First?', '')
     chats.keep('per_jon', 'c1', 'First?', [answer('First?'), answer('And then?')])
     // Opened again, the chat has its answers: nothing need be asked again.
-    expect(chats.list('per_jon')[0]?.answers?.map((a) => a.question)).toEqual(['First?', 'And then?'])
+    expect(chats.list('per_jon')[0]?.answers?.map((a) => a.question)).toEqual([
+      'First?',
+      'And then?',
+    ])
     for (let i = 2; i <= KEPT_ANSWERS + 1; i++) {
       now += 60_000
       chats.keep('per_jon', `c${i}`, `Q${i}?`, [answer(`Q${i}?`)])
@@ -614,9 +617,16 @@ describe('the links an answer followed', () => {
 describe("the subject of a loop turn's answer", () => {
   const nouns = [
     { id: 'metric:tickets', name: 'Tickets closed', of: null, type: null },
-    { id: 'value:team/billing', name: 'Billing', of: { id: 'dimension:team', name: 'Team' }, type: null },
+    {
+      id: 'value:team/billing',
+      name: 'Billing',
+      of: { id: 'dimension:team', name: 'Team' },
+      type: null,
+    },
   ]
-  const turn = (subject: Omit<NonNullable<LoopTurn['subject']>, 'carried' | 'uncovered'> | null): LoopTurn => ({
+  const turn = (
+    subject: Omit<NonNullable<LoopTurn['subject']>, 'carried' | 'uncovered'> | null,
+  ): LoopTurn => ({
     kind: 'answer',
     text: '',
     sources: [],

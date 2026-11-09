@@ -23,7 +23,9 @@ export type AskEvent =
   | { type: 'reads'; reads: LoopReads }
 
 /** What Ask's loop has read so far in a turn: each read's step, and the nouns its chips draw. */
-export type LoopReads = Required<Pick<Extract<LookupEvent, { type: 'progress' }>, 'steps' | 'nouns'>>
+export type LoopReads = Required<
+  Pick<Extract<LookupEvent, { type: 'progress' }>, 'steps' | 'nouns'>
+>
 
 /** The calls a live answer gets: its events as they come, and a signal that stops it. */
 export type AskLive = { signal?: AbortSignal; onEvent?: (event: AskEvent) => void }

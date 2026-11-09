@@ -28,7 +28,9 @@ const arr = (v: unknown): Obj[] => (Array.isArray(v) ? v.filter(isObj) : [])
 const readOf = (prompt: ScriptedPrompt, tool: string) => {
   const found = [...prompt.results].reverse().find((r) => r.toolName === tool)
   const value = isObj(found?.value) ? found.value : {}
-  return { ...value, ref: typeof value.ref === 'string' ? value.ref : 'r0' } as Obj & { ref: string }
+  return { ...value, ref: typeof value.ref === 'string' ? value.ref : 'r0' } as Obj & {
+    ref: string
+  }
 }
 const mention = (id: unknown) => `[@${String(id)}]`
 
@@ -63,7 +65,10 @@ const cases: Case[] = [
     id: 'loop-missing',
     question: 'Give me all about orders in poland',
     calls: [
-      { toolName: 'get_context', input: { about: 'orders in Poland', widen: { without: 'values' } } },
+      {
+        toolName: 'get_context',
+        input: { about: 'orders in Poland', widen: { without: 'values' } },
+      },
     ],
     write: (p) => {
       const r = readOf(p, 'get_context')
@@ -98,11 +103,16 @@ const cases: Case[] = [
   {
     id: 'loop-list',
     question: 'List the events in Sales',
-    calls: [{ toolName: 'records', input: { kinds: ['event'], domain: 'Sales', status: ['live', 'due'] } }],
+    calls: [
+      {
+        toolName: 'records',
+        input: { kinds: ['event'], domain: 'Sales', status: ['live', 'due'] },
+      },
+    ],
     write: (p) => {
       const r = readOf(p, 'records')
       return {
-        text: `${mention((arr(r.items)[0]?.domainId as string) ?? 'domain:area_sales')} has [#${r.ref}.count] of [#${r.ref}.outOf].\n\n[list:${r.ref}]`,
+        text: `${mention(arr(r.items)[0]?.domainId ?? 'domain:area_sales')} has [#${r.ref}.count] of [#${r.ref}.outOf].\n\n[list:${r.ref}]`,
       }
     },
   },
@@ -243,7 +253,8 @@ describe("Ask's loop answers, as the page draws them", () => {
     const loop = await ask(cases[5]!)
     const ul = loop.body.find((b) => b.t === 'ul')
     expect(ul?.t === 'ul' && ul.items.length).toBeGreaterThanOrEqual(2)
-    if (ul?.t === 'ul') for (const line of ul.items) expect(line.some((r) => r.t === 'cite')).toBe(true)
+    if (ul?.t === 'ul')
+      for (const line of ul.items) expect(line.some((r) => r.t === 'cite')).toBe(true)
   })
 
   it('answers what needs the person as an overview of their Inbox: groups, counts and rows by code', async () => {
@@ -271,7 +282,7 @@ describe("Ask's loop answers, as the page draws them", () => {
     expect(loop.footer.denominator).toBeNull()
   })
 
-  it("answers how a domain stands as an overview of its records, what needs a check first", async () => {
+  it('answers how a domain stands as an overview of its records, what needs a check first', async () => {
     const loop = await ask(cases[8]!)
     const o = loop.overview!
     expect(o.by).toBe('status')
@@ -289,7 +300,10 @@ describe("Ask's loop answers, as the page draws them", () => {
     const out = process.env.LOOP_SHAPES_OUT
     if (!out) return
     const examples = Object.fromEntries(
-      Object.entries(turns).map(([id, a]) => [id, { question: a.question, turn: a.loop as LoopTurn }]),
+      Object.entries(turns).map(([id, a]) => [
+        id,
+        { question: a.question, turn: a.loop as LoopTurn },
+      ]),
     )
     writeFileSync(out, `${JSON.stringify(examples, null, 2)}\n`)
   })

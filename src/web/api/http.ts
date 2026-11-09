@@ -922,8 +922,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         tell({ type: 'plan', working: event.working })
         if (event.steps)
           tell({ type: 'reads', reads: { steps: event.steps, nouns: event.nouns ?? [] } })
-      }
-      else if (event.type === 'step' && event.step.step === 'looked_up')
+      } else if (event.type === 'step' && event.step.step === 'looked_up')
         tell({ type: 'found', items: event.step.items.length })
       else if (event.type === 'answer')
         tell({ type: 'answer', answer: answerOf(event.answer, words, names, extra) })

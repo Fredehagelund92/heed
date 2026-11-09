@@ -572,7 +572,10 @@ export function createChatShelf(shelf: Shelf, now: () => number = Date.now) {
       const kept = at
         ? chats.map((c) => (c.id === id ? { ...c, answers } : c))
         : [{ id, title: question, question, at: now(), preview: '', answers }, ...chats]
-      const newest = [...kept].sort((a, b) => b.at - a.at).slice(0, KEPT_ANSWERS).map((c) => c.id)
+      const newest = [...kept]
+        .sort((a, b) => b.at - a.at)
+        .slice(0, KEPT_ANSWERS)
+        .map((c) => c.id)
       write(
         person,
         kept.map(({ answers: a, ...c }) => (a && newest.includes(c.id) ? { ...c, answers: a } : c)),

@@ -24,6 +24,7 @@ import { DefinitionHelp, StateHelp } from '@/components/heed/state-help'
 import { asksWhatItIs } from '@domain/scope'
 import { SharePopover } from '@/components/heed/share-answer'
 import { recordsParts } from '@/components/heed/records-parts'
+import { loopParts } from '@/components/heed/loop-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
 import { sentencesOf, type Sentence } from '@/lib/where'
@@ -128,6 +129,9 @@ function IconButton({
 
 /* ---------- the question ---------- */
 
+/** What Ask's loop answer is handed of Ask: its parts, and the answer's own actions. */
+const loopAnswerParts = () => ({ ...loopParts, AnswerActions, ReportLine, SomethingWrong })
+
 /** Ask's loop draws its own answer, loaded with the first one: most chats never need it. */
 const LoopAnswerBody = React.lazy(() =>
   import('@/components/heed/loop-answer').then((m) => ({ default: m.LoopAnswerBody })),
@@ -183,7 +187,7 @@ export function Question({
       </div>
       {answer.loop && (
         <React.Suspense fallback={null}>
-          <LoopReadLine answer={answer} onRescope={onRescope} />
+          <LoopReadLine parts={loopAnswerParts()} answer={answer} onRescope={onRescope} />
         </React.Suspense>
       )}
       {/* Copy, and Edit to put the question back in the box: under the bubble, so it keeps its width; always there on a touch screen. */}
@@ -1349,7 +1353,7 @@ export function AnswerBody(props: AnswerBodyProps) {
       <React.Suspense
         fallback={<ReadingLine running>{props.turn.working ?? 'Reading…'}</ReadingLine>}
       >
-        <LoopAnswerBody {...props} />
+        <LoopAnswerBody parts={loopAnswerParts()} {...props} />
       </React.Suspense>
     )
   if (!records) return <ContextAnswerBody {...props} />
