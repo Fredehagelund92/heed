@@ -123,6 +123,18 @@ describe("the model's words, checked against the reads", () => {
     lookup('grounded', [row('itm_aaaa1111', ['metric:tickets_closed', 'value:team/billing'])]),
   ]
 
+  it('does not number an item that only a dropped sentence cited', () => {
+    const two = [
+      lookup('grounded', [
+        row('itm_aaaa1111', ['metric:tickets_closed']),
+        row('itm_bbbb2222', ['value:team/billing']),
+      ]),
+    ]
+    const cited: string[] = []
+    wordsOf('Tickets closed [itm_bbbb2222] and [#r9.outOf] more. Billing is fine [itm_aaaa1111].', ctxOf(two), cited)
+    expect(cited).toEqual(['itm_aaaa1111'])
+  })
+
   it('draws a mention a read named as its noun, and one no read named as plain words, flagged', () => {
     const t = turnOf(
       '[@metric:tickets_closed] for [@value:team/billing] count reopened tickets once [itm_aaaa1111]. [@value:team/mobile] is not read.',

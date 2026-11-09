@@ -220,6 +220,7 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
   /** One sentence's runs, or null when a number in it is not one a read holds. */
   const sentence = (words: string): LoopRun[] | null => {
     const runs: LoopRun[] = []
+    const citedBefore = cited.length
     let at = 0
     let failed = false
     for (const m of words.matchAll(TOKEN)) {
@@ -264,7 +265,10 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
       }
     }
     pushRun(runs, { t: 'text', text: words.slice(at) })
-    if (failed) return null
+    if (failed) {
+      cited.length = citedBefore
+      return null
+    }
     // A citation sits right after what it supports: three or more at a sentence's end are a pile.
     let piled = 0
     for (let i = runs.length - 1; i >= 0; i--) {
@@ -292,6 +296,8 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
     for (const said of words.split(SENTENCE_END).filter((x) => x.trim())) {
       const parts = enumeration(said)
       if (parts) {
+        const citedBefore = cited.length
+        const checksBefore = checks.length
         const lead = sentence(parts.lead)
         const items = parts.items.map(sentence)
         if (lead && items.every(Boolean)) {
@@ -301,6 +307,8 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
           blocks.push({ t: 'ul', items: items.map((i) => trimRuns(i!)) })
           continue
         }
+        cited.length = citedBefore
+        checks.length = checksBefore
       }
       const one = sentence(said)
       if (!one) continue
