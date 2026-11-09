@@ -12,6 +12,7 @@ import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
 import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
+import { ALL_VALUES } from '@/model/observability'
 import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
 import {
   closestNames,
@@ -409,7 +410,7 @@ export function askedWeekOf(asked: Asked | null, names: Names): AskedWeek {
       topic: {
         id: `${r.title}|${month}`,
         metric: r.scope.metrics[0] ? names.metric(r.scope.metrics[0]) : '',
-        where: markets.length ? markets.map(names.value).join(' and ') : 'All markets',
+        where: markets.length ? markets.map(names.value).join(' and ') : ALL_VALUES,
         ...(r.area ? { domain: r.area } : {}),
         month: month.slice(0, 7),
       },

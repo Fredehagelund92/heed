@@ -185,6 +185,32 @@ export function appliesWords(
   return `${words ? sentence(words) : 'Everything in its domain'}.`
 }
 
+/**
+ * A topic of what agents asked, as people read it, whatever its dimensions: "Orders in Norway",
+ * "Units sold" over every value, "Orders by channel", "Returns in Tents"; with no metric, "Norway,
+ * no metric named". The values are grouped by their dimension, as a question's filters are.
+ */
+export function topicWords(
+  topic: { metrics: readonly string[]; values: readonly string[]; dimensions: readonly string[] },
+  name: (key: string) => string,
+): string {
+  const { metrics, values, dimensions } = topic
+  const filters: Record<string, string[]> = Object.create(null) as Record<string, string[]>
+  for (const dimension of dimensions) filters[dimension] ??= []
+  for (const value of values) (filters[`dim:${value.slice(4).split('/')[0]}`] ??= []).push(value)
+  const terms = [...metrics, ...values, ...dimensions].map((key) => ({ key, name: name(key) }))
+  const words = scopeWords(
+    { terms },
+    {
+      metrics: [...metrics],
+      filters: Object.fromEntries(Object.entries(filters).sort(([a], [b]) => (a < b ? -1 : 1))),
+      window: { start: '1970-01-01', end: null },
+    },
+    { show: false },
+  )
+  return metrics.length ? words : `${words || 'Everything'}, no metric named`
+}
+
 /** When an item applies, as a sentence start: "From 4 August 2026 on", "In August 2026". */
 export const whenWords = (validity: Parameters<typeof periodWords>[0]) =>
   sentence(periodWords(validity))

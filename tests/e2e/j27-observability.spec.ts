@@ -241,7 +241,7 @@ test("Overview's topics: views with counts, a filter as a chip, and a view saved
 }) => {
   await go(page, '/observability/questions')
   const views = page.getByRole('radiogroup', { name: 'Views' })
-  // Views count exact topics (16); the table groups them by metric and market, so Germany's two months are one row.
+  // Views count exact topics (16); the table groups them by metric and values, so Germany's two months are one row.
   await expect(views.getByRole('radio', { name: /^All topics 16/ })).toHaveAttribute(
     'aria-checked',
     'true',

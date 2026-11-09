@@ -18,7 +18,14 @@ import {
   type FilterKey,
   type Filters,
 } from '@/lib/obs-views'
-import { observability, SHOWN, type ObsData, type Shown, type Topic } from '@/model/observability'
+import {
+  ALL_VALUES,
+  observability,
+  SHOWN,
+  type ObsData,
+  type Shown,
+  type Topic,
+} from '@/model/observability'
 
 // Overview's filter bar: the chips as the address keeps them, how they change, and the facets'
 // counts, which must never let a reader work out a hidden count (FR-614): every number a facet
@@ -169,7 +176,7 @@ describe('changing the chips', () => {
 
 const MIN = 5
 const DOMAINS = ['sales', 'marketing', null] as const
-const MARKETS = ['Norway', 'Spain', 'All markets']
+const MARKETS = ['Norway', 'Spain', ALL_VALUES]
 const METRICS = ['Orders', 'Revenue']
 
 type World = {
@@ -350,7 +357,7 @@ describe('the facets', () => {
     expect(market.map((f) => [f.value, f.topics, f.count?.visible])).toEqual([
       ['Norway', 1, 15],
       ['Spain', 1, 8],
-      ['All markets', 0, 0],
+      [ALL_VALUES, 0, 0],
     ])
   })
 
