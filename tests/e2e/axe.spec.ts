@@ -163,6 +163,10 @@ async function violations(page: Page) {
   )
 }
 
+/** Whether the page is no wider than the screen. */
+const fitsTheScreen = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+
 for (const { name, width, height } of widths) {
   for (const theme of themes) {
     test.describe(`${name}, ${theme}`, () => {
@@ -187,37 +191,47 @@ for (const { name, width, height } of widths) {
       })
 
       // Where dbt's file lives (CON-701): each place with its fields and recipe, each storage
-      // service, and what a test's read found; none of it wider than the screen.
-      test('where a file lives: every place, every service, and a test read', async ({ page }) => {
-        const fits = () =>
-          page.evaluate(
-            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-          )
-        await page.goto(withTheme('/settings/integrations/dbt-metricflow/connect?step=2', theme))
-        for (const place of ['Server folder', 'Git repository', 'Address', 'Object storage']) {
+      // service with its list open and closed, and what a test's read found; none of it wider
+      // than the screen. One test each: a scan takes a second or two on a busy machine, and
+      // thirteen in one test ran past its time.
+      const connect = '/settings/integrations/dbt-metricflow/connect?step=2'
+      for (const place of ['Server folder', 'Git repository', 'Address', 'Object storage']) {
+        test(`where a file lives: ${place}`, async ({ page }) => {
+          await page.goto(withTheme(connect, theme))
           await page.getByRole('radio', { name: new RegExp(`^${place}`) }).click()
           expect(await violations(page)).toEqual([])
-          expect(await fits()).toBe(true)
-        }
-        for (const service of [
-          'S3-compatible store',
-          'Google Cloud Storage',
-          'Azure Blob Storage',
-          'Amazon S3',
-        ]) {
+          expect(await fitsTheScreen(page)).toBe(true)
+        })
+      }
+      for (const service of [
+        'S3-compatible store',
+        'Google Cloud Storage',
+        'Azure Blob Storage',
+        'Amazon S3',
+      ]) {
+        test(`where a file lives: ${service}`, async ({ page }) => {
+          await page.goto(withTheme(connect, theme))
+          await page.getByRole('radio', { name: /^Object storage/ }).click()
           await page.getByLabel('Storage service').click()
-          await expect(page.getByRole('listbox')).toBeVisible()
-          expect(await violations(page)).toEqual([])
           await page.getByRole('option', { name: service }).click()
           await expect(page.getByRole('listbox')).toBeHidden()
           expect(await violations(page)).toEqual([])
-          expect(await fits()).toBe(true)
-        }
+          expect(await fitsTheScreen(page)).toBe(true)
+          await page.getByLabel('Storage service').click()
+          await expect(page.getByRole('listbox')).toBeVisible()
+          expect(await violations(page)).toEqual([])
+        })
+      }
+      test('where a file lives: a test read', async ({ page }) => {
+        await page.goto(withTheme(connect, theme))
+        await page.getByRole('radio', { name: /^Object storage/ }).click()
+        await page.getByLabel('Storage service').click()
+        await page.getByRole('option', { name: 'Amazon S3' }).click()
         await page.getByLabel('File address').fill('https://b.s3.amazonaws.com/f.json')
         await page.getByRole('button', { name: 'Test connection' }).click()
         await expect(page.getByText('A read would hold', { exact: false })).toBeVisible()
         expect(await violations(page)).toEqual([])
-        expect(await fits()).toBe(true)
+        expect(await fitsTheScreen(page)).toBe(true)
       })
 
       // Publishing without review (FR-421): the dialog that sets a policy, the policy on the domain
