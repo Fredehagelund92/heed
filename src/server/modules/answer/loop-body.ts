@@ -54,6 +54,23 @@ export function nounsRead(results: readonly unknown[]): Map<string, Noun> {
 const statusOf = (words: string, outOfDate: unknown): LoopItem['status'] =>
   words === 'archived' ? 'archived' : words.startsWith('due') || outOfDate ? 'due' : 'live'
 
+/** The reason the records give when an item is due because its check date passed (tool-records.ts). */
+const DATE_PASSED = 'its check date passed'
+
+/**
+ * Why a row is due, in the read's own words: an item's `outOfDate`, or the records' `why`, with
+ * the day only when the reason is that day passing ("its check date passed on 2 Oct 2026"). A due
+ * row whose read gives no reason says none: a check date may still be ahead of an item whose
+ * definition or source changed.
+ */
+function dueWords(o: Obj): string | null {
+  if (typeof o.outOfDate === 'string') return o.outOfDate
+  if (!str(o.status).startsWith('due')) return null
+  const why = str(o.why)
+  const day = str(o.checkDate)
+  return why === DATE_PASSED && isCalendarDate(day) ? `${why} on ${shortDay(day)}` : why || null
+}
+
 /** The context items the reads returned, as a row shows each: the first read that gave it wins. */
 export function itemRows(results: readonly unknown[]): Map<string, Omit<LoopItem, 'n'>> {
   const rows = new Map<string, Omit<LoopItem, 'n'>>()
@@ -69,12 +86,7 @@ export function itemRows(results: readonly unknown[]): Map<string, Omit<LoopItem
       about: strs(o.about),
       status: statusOf(str(o.status), o.outOfDate),
       checked: checked || null,
-      outOfDate:
-        typeof o.outOfDate === 'string'
-          ? o.outOfDate
-          : str(o.status).startsWith('due') && o.checkDate
-            ? `its check date passed on ${str(o.checkDate)}`
-            : null,
+      outOfDate: dueWords(o),
     })
   }
   for (const r of results) {
@@ -97,6 +109,12 @@ export const dayWords = (day: string) =>
     year: 'numeric',
     timeZone: 'UTC',
   })
+
+/** A day as a row says it, as the page writes every row's day: "4 Aug 2026", "2 Sep 2026". */
+const shortDay = (day: string) => {
+  const [y, m, d] = day.split('-').map(Number)
+  return `${d} ${dayWords(day).split(' ')[1]?.slice(0, 3) ?? m} ${y}`
+}
 
 /** The plain words of runs: a noun by its name, a citation as [n], a count with what it is out of. */
 export function runWords(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): string {
@@ -194,6 +212,84 @@ function numberRun(value: unknown): LoopRun | null {
   return null
 }
 
+const MONTHS =
+  'January February March April May June July August September October November December'
+    .split(' ')
+    .map((m) => m.slice(0, 3))
+/** A day in words or as a date ("2 October 2026", "19 May", "2026-10-02"); a month by its capital. */
+const DAY = new RegExp(
+  `\\b(\\d{1,2})\\s+(${MONTHS.join('|')})[a-z]*\\.?(?:,?\\s+(\\d{4}))?(?!\\d)|\\b(\\d{4})-(\\d{2})-(\\d{2})\\b`,
+  'g',
+)
+/** A number in words, not a part of a word or of another number: "4", "1,240", "13+". */
+const NUMBER = /(?<![\p{L}\p{N}_.,])\d(?:[\d,]*\d)?(?:\.\d+)?\+?/gu
+const valueOf = (number: string) => Number(number.replace(/[,+]/g, ''))
+
+/** The words of the clause so far, as the model wrote them: since the sentence's last , ; or : */
+function clauseSoFar(runs: readonly LoopRun[]): string {
+  let words = ''
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const r = runs[i]!
+    if (r.t !== 'text') continue
+    const cut = [...r.text.matchAll(/[,;:](?=\s|$)/g)].at(-1)
+    if (cut) return r.text.slice(cut.index + 1) + words
+    words = r.text + words
+  }
+  return words
+}
+
+/**
+ * Whether the model's own words already say a number reference's value (FR-720.3): the words of
+ * its clause give the same value, by value ("4 items [#r1.count]", "on 3 October 2026 [#r2…]"),
+ * or the words right before it give a value of its kind, another one run into it ("on 19 May
+ * [#r1…]"). Either way the reference is the value said twice and is left out; when it is a floor
+ * ("13+") and the words give its number bare, the words' number becomes the floor.
+ */
+function saidAlready(runs: LoopRun[], run: LoopRun): boolean {
+  const clause = clauseSoFar(runs)
+  if (run.t === 'date') {
+    const [y, m, d] = run.day.split('-').map(Number)
+    const same = [...clause.matchAll(DAY)].some((x) =>
+      x[4]
+        ? x[4] === String(y) && Number(x[5]) === m && Number(x[6]) === d
+        : Number(x[1]) === d &&
+          MONTHS.indexOf(x[2]!) + 1 === m &&
+          (x[3] === undefined || Number(x[3]) === y),
+    )
+    if (same) return true
+  } else if (run.t === 'count') {
+    const value = valueOf(run.value)
+    const stated = [...clause.replace(DAY, (x) => ' '.repeat(x.length)).matchAll(NUMBER)]
+      .filter((x) => valueOf(x[0]) === value)
+      .at(-1)
+    if (stated) {
+      if (run.value.endsWith('+') && !stated[0].endsWith('+')) floorIn(runs, stated[0])
+      return true
+    }
+  } else return false
+  const last = runs.at(-1)
+  const before = last?.t === 'text' ? last.text.trimEnd() : ''
+  const day = [...before.matchAll(DAY)].at(-1)
+  const ends = (x: RegExpExecArray | undefined) => !!x && x.index + x[0].length === before.length
+  if (ends(day)) return run.t === 'date'
+  // A year the words end with ("written in 2026") is no count run into the reference.
+  const number = [...before.matchAll(NUMBER)].at(-1)
+  return run.t === 'count' && ends(number) && !/^(?:19|20)\d{2}$/.test(number![0])
+}
+
+/** A number the words gave bare, the last time they gave it, written as the floor it is: "13+". */
+function floorIn(runs: LoopRun[], number: string) {
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const r = runs[i]!
+    if (r.t !== 'text') continue
+    const at = [...r.text.matchAll(NUMBER)].filter((x) => x[0] === number).at(-1)
+    if (at) {
+      r.text = `${r.text.slice(0, at.index + number.length)}+${r.text.slice(at.index + number.length)}`
+      return
+    }
+  }
+}
+
 /** Runs of words, a run of plain words merged with the one before it. */
 function pushRun(runs: LoopRun[], run: LoopRun) {
   const last = runs.at(-1)
@@ -249,11 +345,11 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
       } else if (ref !== undefined && path !== undefined) {
         const read = ctx.reads.find((r) => r.ref === ref)
         const run = read ? numberRun(valueAt(read.result, path.slice(1).split('.'))) : null
-        if (run) pushRun(runs, run)
-        else {
+        if (!run) {
           check('number', whole)
           failed = true
-        }
+        } else if (saidAlready(runs, run)) check('twice', whole)
+        else pushRun(runs, run)
       } else if (list !== undefined) check('list', whole)
       else if (inner !== undefined) {
         // A mark cites items; any other id in one (a definition's) is no source, and is left out.
@@ -282,7 +378,8 @@ export function wordsOf(text: string, ctx: WordsContext, cited: string[] = []): 
       if (r.t === 'text')
         for (const d of r.text.match(/\d+(?:[.,]\d+)*/g) ?? [])
           if (!ctx.digits.has(d.replace(/,/g, ''))) check('digits', d)
-    return runs
+    // A name the words give is said once: a mention after it is drawn on it (FR-720.3).
+    return placed(runs, ctx.nouns)
   }
   /** A paragraph's sentences; a long enumeration after a colon as a lead and a list. */
   const paragraph = (words: string): LoopBlock[] => {
@@ -371,45 +468,63 @@ function trimRuns(runs: LoopRun[]): LoopRun[] {
   return runs.filter((r) => r.t !== 'text' || r.text)
 }
 
+/** How deep in brackets, square or round, each character of some words sits; the brackets at their outer depth. */
+function depths(words: string): number[] {
+  const at: number[] = []
+  let depth = 0
+  for (let i = 0; i < words.length; i++) {
+    const c = words[i]
+    if (c === ']' || c === ')') depth = Math.max(0, depth - 1)
+    at.push(depth)
+    if (c === '[' || c === '(') depth++
+  }
+  return at
+}
+
+/** Where a pattern matches outside every bracket. */
+const outside = (words: string, pattern: RegExp) => {
+  const depth = depths(words)
+  return [...words.matchAll(new RegExp(pattern.source, 'g'))].filter((m) => depth[m.index] === 0)
+}
+
+/** Words that make a part of a sentence a clause, not the name of a thing. */
+const CLAUSE =
+  /\b(?:it|this|that|they|there)(?:'s|\s+is|\s+are|\s+was|\s+were)\b|\b(?:whose|which|who)\b/i
+
 /**
  * A sentence that names four or more things after a colon ("They cover: a, b, c and d."), as its
- * lead and its items; null for any other sentence. Commas inside a mark or a mention never split.
+ * lead and its items; null for any other sentence. Only a colon outside brackets ends a lead (a
+ * "(source: …)" ends none), only commas and an "and" outside brackets split, and each item is a
+ * thing named in a few words, never a clause ("it is owned by …", "whose owners are …"): any
+ * other sentence stays whole.
  */
 export function enumeration(said: string): { lead: string; items: string[] } | null {
-  const colon = said.indexOf(': ')
-  if (colon < 0) return null
+  if (depths(`${said} `).at(-1)) return null
+  const colon = outside(said, /: /)[0]?.index
+  if (colon === undefined) return null
   const lead = said.slice(0, colon + 1)
   const rest = said
     .slice(colon + 2)
     .replace(/[.!]\s*((?:\[[^[\]\n]{1,200}\]\s*)*)$/, ' $1')
     .trim()
   const parts: string[] = []
-  let depth = 0
   let from = 0
-  for (let i = 0; i < rest.length; i++) {
-    const c = rest[i]
-    if (c === '[') depth++
-    else if (c === ']') depth--
-    else if (depth === 0 && c === ',') {
-      parts.push(rest.slice(from, i))
-      from = i + 1
-    }
+  for (const comma of outside(rest, /,/)) {
+    parts.push(rest.slice(from, comma.index))
+    from = comma.index + 1
   }
   parts.push(rest.slice(from))
   // The last part's last "and" joins the last two things named; no other "and" splits.
   const last = parts.pop() ?? ''
-  const and = last.search(/\s+and\s+(?!.*\sand\s)(?![^[]*\])/)
-  const tail = and < 0 ? [last] : [last.slice(0, and), last.slice(and).replace(/^\s+and\s+/, '')]
+  const and = outside(last, /\s+and\s+/).at(-1)
+  const tail = and ? [last.slice(0, and.index), last.slice(and.index + and[0].length)] : [last]
   const items = [...parts, ...tail].map((p) => p.replace(/^\s*and\s+/, '').trim()).filter(Boolean)
   // Things named, not clauses: four or more, each a few words.
-  const short = items.every(
-    (i) =>
-      i
-        .replace(/\[[^[\]]*\]/g, '')
-        .trim()
-        .split(/\s+/).length <= 8,
-  )
-  return items.length >= 4 && short ? { lead, items } : null
+  const named = items.every((i) => {
+    const words = i.replace(/\[[^[\]]*\]/g, '').trim()
+    return words.split(/\s+/).length <= 8 && !CLAUSE.test(words)
+  })
+  return items.length >= 4 && named ? { lead, items } : null
 }
 
 /** The items of a read the words asked for as a list (`[list:r1]`): each row cited as it comes. */
@@ -735,7 +850,7 @@ function placed(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): Loo
 }
 
 /** A paragraph without its last sentence; null when it is that one sentence. */
-function withoutLastSentence(runs: readonly LoopRun[]): LoopRun[] | null {
+export function withoutLastSentence(runs: readonly LoopRun[]): LoopRun[] | null {
   for (let i = runs.length - 1; i >= 0; i--) {
     const r = runs[i]!
     if (r.t !== 'text') continue

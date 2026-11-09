@@ -3,6 +3,7 @@ import type { LoopRun, LoopTurn } from '../../src/contract/answer.ts'
 import { dimensionHue, dimensionOf, nounId, termKeyOf } from '../../src/domain/ask-nouns.ts'
 import {
   enumeration,
+  itemRows,
   wordsOf,
   type WordsContext,
 } from '../../src/server/modules/answer/loop-body.ts'
@@ -252,6 +253,127 @@ describe("the model's words, checked against the reads", () => {
     expect(t.checks.map((c) => c.kind)).toContain('enumeration')
   })
 
+  it('keeps a sentence whole when its colon is inside brackets or its parts are clauses', () => {
+    // The demo's Poland chat, as the model wrote it: once drawn as four broken bullets.
+    expect(
+      enumeration(
+        'The Orders metric is defined as the value of orders customers completed and paid for, in euros at the daily rate, with cancelled orders and failed payments left out (source: Cube local model), it is owned by the Sales domain, whose owners are Jon Abara, Sofia Brandt [@metric:orders] [@domain:area_sales] [@person:p_jon] [@person:p_sofia].',
+      ),
+    ).toBeNull()
+    // The demo's "what do i need to handle?": a comma inside brackets splits nothing.
+    expect(
+      enumeration(
+        'Several cards need attention beyond suggestions: three context items are due for a check, including [itm_aaaa1111] (Returns changed definition on 28 April 2026, for [@value:market/norway]) and [itm_bbbb2222] (a Marketing item on price promotions in [@value:market/italy]).',
+      ),
+    ).toBeNull()
+    expect(
+      enumeration('It covers: reopened tickets, which count once, merged ones and spam.'),
+    ).toBeNull()
+    // Things named after a colon outside brackets are still a list, a bracket's comma kept in its item.
+    expect(
+      enumeration('They cover: reopened tickets (once, by id), merged tickets, spam and bots.'),
+    ).toEqual({
+      lead: 'They cover:',
+      items: ['reopened tickets (once, by id)', 'merged tickets', 'spam', 'bots'],
+    })
+    const two = {
+      ...made[0]!,
+      result: {
+        ...(made[0]!.result as object),
+        names: [...names, { id: 'person:p_ben', name: 'Ben Ito', of: null, type: null }],
+      },
+    }
+    const t = turnOf(
+      'The Tickets closed metric is defined as tickets the customer confirmed solved, in the help desk time zone, with merged and spam tickets left out (source: Zendesk export), it is owned by the Support domain, whose owners are Ada Okafor, Ben Ito [@metric:tickets_closed] [@domain:area_support] [@person:p_ada] [@person:p_ben].',
+      [two],
+      [],
+    )
+    expect(t.body.map((b) => b.t)).toEqual(['p'])
+    expect(runs(t).filter((r) => r.t === 'noun')).toEqual([
+      { t: 'noun', id: 'metric:tickets_closed' },
+      { t: 'noun', id: 'domain:area_support' },
+      { t: 'noun', id: 'person:p_ada' },
+      { t: 'noun', id: 'person:p_ben' },
+    ])
+    expect(t.text).toBe(
+      'The Tickets closed metric is defined as tickets the customer confirmed solved, in the help desk time zone, with merged and spam tickets left out (source: Zendesk export), it is owned by the Support domain, whose owners are Ada Okafor, Ben Ito.',
+    )
+  })
+
+  it('says a number or a name once when the words give it and its reference or mention too', () => {
+    const said = (words: string) => turnOf(words, made, [])
+    // A reference whose value the clause already gives, by value: the words stay, the reference goes.
+    const twelve = said('Billing has 12 published context items [#r1.outOf.count], and 1 applies.')
+    expect(twelve.text).toBe('Billing has 12 published context items, and 1 applies.')
+    expect(twelve.checks).toContainEqual({ kind: 'twice', words: '[#r1.outOf.count]' })
+    expect(said('It was checked on 2 October 2026 [#r1.items.0.checked.date].').text).toBe(
+      'It was checked on 2 October 2026.',
+    )
+    // Another value run into the reference: the words' own stays, never two days in a row.
+    expect(
+      said('Finance removed them on 19 May [#r1.items.0.checked.date] [itm_aaaa1111].').text,
+    ).toBe('Finance removed them on 19 May [1].')
+    // A value in another clause, or none in the words, leaves the reference as it is.
+    expect(said('Of 3 teams, [#r1.outOf.count] items are published.').text).toBe(
+      'Of 3 teams, 12 items are published.',
+    )
+    expect(said('In 2026 [#r1.outOf.count] items are published.').text).toBe(
+      'In 2026 12 items are published.',
+    )
+    // A floor the words give bare is the floor.
+    const asked: MadeRead = {
+      tool: 'records',
+      ref: 'r2',
+      input: {},
+      result: { asked: { count: '13+' }, names: [], ids: [] },
+    }
+    expect(
+      turnOf('Agents asked 13 times [#r2.asked.count] this week.', [...made, asked], []).text,
+    ).toBe('Agents asked 13+ times this week.')
+    // A name the words give, its mention after it: one name, drawn as its chip.
+    const owners = said(
+      'Its owners are Ada Okafor and the Support team [@person:p_ada] [@domain:area_support].',
+    )
+    expect(owners.text).toBe('Its owners are Ada Okafor and the Support team.')
+    expect(owners.said).toBe('Its owners are [@person:p_ada] and the [@domain:area_support] team.')
+    expect(
+      runs(owners)
+        .filter((r) => r.t === 'noun')
+        .map((r) => r.t === 'noun' && r.id),
+    ).toEqual(['person:p_ada', 'domain:area_support'])
+  })
+
+  it('says why a row is due as its read does, and the day only when it has passed', () => {
+    const rows = itemRows([
+      {
+        items: [
+          {
+            id: 'itm_aaaa1111',
+            title: 'Changed',
+            status: 'due for a check',
+            why: 'its definition changed',
+            checkDate: '2027-03-01',
+          },
+          {
+            id: 'itm_bbbb2222',
+            title: 'Passed',
+            status: 'due for a check',
+            why: 'its check date passed',
+            checkDate: '2026-09-18',
+          },
+          { id: 'itm_cccc3333', title: 'Live', status: 'live', why: null, checkDate: '2027-01-01' },
+          { id: 'itm_dddd4444', title: 'Item', outOfDate: 'its source is missing' },
+        ],
+      },
+    ])
+    expect([...rows.values()].map((r) => [r.status, r.outOfDate])).toEqual([
+      ['due', 'its definition changed'],
+      ['due', 'its check date passed on 18 Sep 2026'],
+      ['live', null],
+      ['due', 'its source is missing'],
+    ])
+  })
+
   it('flags citations piled at the end of a sentence', () => {
     const three = [
       lookup('grounded', [
@@ -313,9 +435,13 @@ describe('the words as the page shows them, beside the evidence', () => {
         ],
       },
     ])
-    // What is graded, and what the chat sends back, keep the words as the model wrote them.
-    expect(t.text).toContain('the Billing team Tickets closed Billing.')
-    expect(t.said).toContain('the Billing team [@metric:tickets_closed] [@value:team/billing].')
+    // What is graded, and what the chat sends back, say each name once, the mention on its name.
+    expect(t.text).toContain(
+      'The Tickets closed metric is in Support, and nothing applies to the Billing team.',
+    )
+    expect(t.said).toContain(
+      'The [@metric:tickets_closed] metric is in Support, and nothing applies to the [@value:team/billing] team.',
+    )
   })
 
   it('draws a mention after its own name on the name, and leaves one inside a clause where it is', () => {

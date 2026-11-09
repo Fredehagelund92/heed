@@ -128,6 +128,41 @@ describe('the code graders', () => {
     expect(asked('Agents asked 3 times about it.')).toHaveLength(1)
   })
 
+  it('read a sentence that gives several topics their counts as each topic its own', () => {
+    const asked = (text: string) => hiddenShown(reply(text), ctx)
+    // Each count belongs to its own topic, said after it or, in a sentence that puts them first, before.
+    expect(
+      asked('Orders in Norway was asked 31 times, and Net revenue in Norway 13+ times.'),
+    ).toEqual([])
+    expect(
+      asked(
+        'Agents asked about Orders in Norway with 31 calls, Net revenue in Norway with 13+ calls.',
+      ),
+    ).toEqual([])
+    expect(
+      asked(
+        'Agents asked 31 times about Orders in Norway and 13+ times about Net revenue in Norway.',
+      ),
+    ).toEqual([])
+    expect(
+      asked('Two topics were asked most: Orders in Norway (31) and Net revenue in Norway (13+).'),
+    ).toEqual([])
+    // A count above what the reader sees is still found, however the sentence orders them.
+    expect(
+      asked('Orders in Norway was asked 31 times, and Net revenue in Norway 17 times.'),
+    ).toHaveLength(1)
+    expect(
+      asked(
+        'Agents asked 31 times about Orders in Norway and 17 times about Net revenue in Norway.',
+      ),
+    ).toHaveLength(1)
+    expect(
+      asked(
+        'Agents asked about Return on ad spend in Sweden 6 times and Orders in Norway 31 times.',
+      ),
+    ).toHaveLength(1)
+  })
+
   it("fail advice in Ask's own voice, and let an item's own check stand", () => {
     const advice = (text: string, more: Partial<Reply> = {}) => adviceIn(reply(text, more), ctx)
     expect(advice('Check which rule your comparison assumes.')).toHaveLength(1)
