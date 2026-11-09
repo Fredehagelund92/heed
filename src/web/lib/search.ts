@@ -100,6 +100,8 @@ export const contextEditorSearch = lenient(
     gap: text,
     metric: text,
     market: text,
+    // What it applies to, by the names of its metrics and values, of any dimension: A|B.
+    about: text,
     dates: text,
     setup: text,
     // Opened from a conflict: the item it disagrees with stays in view.

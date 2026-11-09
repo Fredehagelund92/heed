@@ -8,6 +8,7 @@ import {
 import { notLookedUp } from '@domain/say'
 import type { AnswerFooter, AnswerLimit, RecordsAnswer } from '@domain/records-answer'
 import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
+import type { LoopTurn } from '@contract/answer'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
 import type { DomainId } from './items'
@@ -113,6 +114,11 @@ export function scopeText(a: Pick<Answer, 'metric' | 'markets' | 'dates'>) {
 export type Answer = {
   id: string
   question: string
+  /**
+   * Ask's loop (FR-718 to FR-720): the turn as the service wrote it, which the loop's own answer
+   * draws (src/web/components/heed/loop-answer.tsx); the fields below are read from it.
+   */
+  loop?: LoopTurn
   metric: string
   markets: string[]
   dates?: string

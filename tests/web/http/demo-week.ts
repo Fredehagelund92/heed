@@ -1010,6 +1010,19 @@ async function seedAgentConnections(client: pg.Client) {
   }
 }
 
+/**
+ * The pairs an owner marked as disagreeing, as the mock marks them (a fact's `disagreesWith`),
+ * each once, in the order the mock lists them: Norway's payment scope, Spain's VAT and France's
+ * switch date.
+ */
+const disagreeing = () => {
+  const pairs: [string, string][] = []
+  for (const f of facts)
+    if (f.disagreesWith && !pairs.some((p) => p.includes(f.id) && p.includes(f.disagreesWith!)))
+      pairs.push([f.id, f.disagreesWith])
+  return pairs.map(([a, b]) => [serverItemId(a), serverItemId(b)] as [string, string])
+}
+
 export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   let flag: string | undefined
   let topics: Map<string, string> | undefined
@@ -1017,7 +1030,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   await client.connect()
   try {
     await bulkSeed(client, demoLibrary(), {
-      conflicts: [[serverItemId('itm_gift_store_credit'), serverItemId('itm_gift_card_only')]],
+      conflicts: disagreeing(),
       replaces: facts.flatMap((f) =>
         f.replaces ? [[serverItemId(f.id), serverItemId(f.replaces)] as const] : [],
       ),

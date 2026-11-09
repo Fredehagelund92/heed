@@ -356,13 +356,18 @@ export const loopAnswerOf = (
   question: string,
   names: ReturnType<typeof namesOf>,
 ): Answer => {
-  const subject = turn.subject?.names ?? []
+  const nouns = new Map(turn.nouns.map((n) => [n.id, n.name]))
+  const about = turn.subject?.about ?? []
+  const named = (kind: string) =>
+    about.flatMap((id) => (id.startsWith(`${kind}:`) ? [nouns.get(id) ?? names.value(id)] : []))
   const dates = turn.subject && !turn.subject.assumedToday ? datesWords(turn.subject.period) : null
   return {
     id: 'custom',
     question,
-    metric: subject.find((n) => names.metricKey(n)) ?? '',
-    markets: subject.filter((n) => names.marketKey(n)),
+    loop: turn,
+    // What the question was read as: its metric, and the values it narrowed, of any dimension.
+    metric: named('metric')[0] ?? '',
+    markets: named('value'),
     ...(dates ? { dates } : {}),
     state: turn.state,
     text: turn.text,

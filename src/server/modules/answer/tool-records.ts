@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { nounId } from '../../../domain/ask-nouns.ts'
 import { windowWords } from '../../../domain/dates.ts'
 import { kindFilters } from '../../../domain/mcp-text.ts'
 import type { RecordsItem, RecordsKind } from '../../../domain/records.ts'
@@ -52,7 +53,7 @@ export const recordsInput = z.strictObject({
     .max(6)
     .optional()
     .describe(
-      'Metric or market names, such as Orders or Norway: only items about each kind named (any of the metrics, and any of the markets).',
+      'Names of metrics or of values of dimensions: only items about each kind named (any of the metrics, and any of the values).',
     ),
   dated: z
     .strictObject({
@@ -72,7 +73,7 @@ export const recordsInput = z.strictObject({
     .enum(groupings)
     .optional()
     .describe(
-      'Count by domain, kind, status, metric, or market (or another dimension value) as well.',
+      'Count by domain, kind, status, metric or value of a dimension as well, each group with its items: what an overview shows.',
     ),
   sort_by: z
     .enum(sorts)
@@ -89,7 +90,7 @@ export type RecordsInput = z.output<typeof recordsInput>
 export type RecordsTable = {
   items: readonly RecordsItem[]
   areas: readonly { id: string; name: string }[]
-  /** A metric or market key's name, for the groups. */
+  /** A metric or value key's name, for the groups. */
   nameOf: (key: string) => string
   /** Whether the person's Definitions show this key; a hidden one is never named. */
   isShown: (key: string) => boolean
@@ -178,7 +179,7 @@ export function queryRecords(input: RecordsInput, table: RecordsTable) {
     return input.sort_by === 'title' || input.order === 'oldest_first' ? before : -before
   })
   const areaName = (id: string) => table.areas.find((a) => a.id === id)?.name ?? id
-  const groups = input.group_by ? groupsOf(matching, input.group_by, table, areaName) : undefined
+  const groups = input.group_by ? groupsOf(sorted, input.group_by, table, areaName) : undefined
   const listed = input.show === 'list' ? sorted.slice(0, input.limit) : []
   const out = populationWords(input.status, population.length, area?.name ?? null)
   return {
@@ -203,6 +204,8 @@ export function queryRecords(input: RecordsInput, table: RecordsTable) {
       title: i.title,
       kind: kindOf[i.kind],
       domain: areaName(i.areaId),
+      domainId: `domain:${i.areaId}`,
+      about: aboutOf(i, table),
       status: statusWords[i.status],
       published: isoDay(i.publishedAt),
       changed: isoDay(i.changedAt),
@@ -219,26 +222,45 @@ export function queryRecords(input: RecordsInput, table: RecordsTable) {
   }
 }
 
-/** The matching items counted by one part; an item that names several counts under each. */
+/** What an item applies to, by typed id: the metrics and values the person may see. */
+const aboutOf = (i: RecordsItem, table: RecordsTable) =>
+  [...(i.metrics ?? []), ...(i.values ?? [])].filter(table.isShown).map(nounId)
+
+/** The most items a group lists; `more` counts the rest. */
+export const GROUP_ITEMS = 25
+/** The statuses in the order a group of them is read: what needs a check first. */
+const statusOrder: readonly (typeof statuses)[number][] = ['due', 'live', 'archived']
+
+/**
+ * The matching items counted by one part, each group with its first items in the list's order; an
+ * item that names several counts under each. Groups by status come in the order of what needs a
+ * check first; any other, the largest first, and the items that name none last.
+ */
 function groupsOf(
   items: readonly RecordsItem[],
   by: (typeof groupings)[number],
   table: RecordsTable,
   areaName: (id: string) => string,
 ) {
-  const counts = new Map<string, number>()
-  const add = (name: string) => counts.set(name, (counts.get(name) ?? 0) + 1)
-  const none = by === 'metric' ? 'no metric named' : 'no market or value named'
+  const groups = new Map<string, { key: string | null; name: string; ids: RecordsItem[] }>()
+  const add = (key: string | null, name: string, item: RecordsItem) => {
+    const g = groups.get(name) ?? { key, name, ids: [] }
+    g.ids.push(item)
+    groups.set(name, g)
+  }
+  const none = by === 'metric' ? 'no metric named' : 'no value named'
   for (const i of items) {
-    if (by === 'domain') add(areaName(i.areaId))
-    else if (by === 'kind') add(kindOf[i.kind])
-    else if (by === 'status') add(statusWords[i.status])
+    if (by === 'domain') add(`domain:${i.areaId}`, areaName(i.areaId), i)
+    else if (by === 'kind') add(kindOf[i.kind], kindOf[i.kind], i)
+    else if (by === 'status') add(i.status, statusWords[i.status], i)
     else {
       const keys = (by === 'metric' ? (i.metrics ?? []) : (i.values ?? [])).filter(table.isShown)
-      if (!keys.length) add(none)
-      for (const key of keys) add(table.nameOf(key))
+      if (!keys.length) add(null, none, i)
+      for (const key of keys) add(nounId(key), table.nameOf(key), i)
     }
   }
+  const rank = (g: { key: string | null }) =>
+    by === 'status' ? statusOrder.indexOf(g.key as (typeof statuses)[number]) : 0
   return {
     by,
     ...(by === 'metric' || by === 'value'
@@ -246,14 +268,30 @@ function groupsOf(
           note: `An item that names several counts under each, so the groups add up to more than ${plural(items.length, 'item', 'items')}.`,
         }
       : {}),
-    // The items that name none come last, whatever their count.
-    rows: [...counts]
+    order: by === 'status' ? 'what needs a check first' : 'the largest first',
+    rows: [...groups.values()]
       .sort(
         (a, b) =>
-          Number(a[0] === none) - Number(b[0] === none) ||
-          b[1] - a[1] ||
-          a[0].localeCompare(b[0], 'en'),
+          rank(a) - rank(b) ||
+          Number(a.name === none) - Number(b.name === none) ||
+          b.ids.length - a.ids.length ||
+          a.name.localeCompare(b.name, 'en'),
       )
-      .map(([name, count]) => ({ name, count })),
+      .map((g) => ({
+        key: g.key,
+        name: g.name,
+        count: g.ids.length,
+        items: g.ids.slice(0, GROUP_ITEMS).map((i) => ({
+          id: i.id,
+          title: i.title,
+          kind: kindOf[i.kind],
+          domainId: `domain:${i.areaId}`,
+          about: aboutOf(i, table),
+          status: statusWords[i.status],
+          lastChecked: isoDay(i.checkedAt),
+          checkDate: i.reviewDate,
+        })),
+        more: Math.max(0, g.ids.length - GROUP_ITEMS),
+      })),
   }
 }

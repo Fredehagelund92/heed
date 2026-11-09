@@ -40,7 +40,7 @@ import {
   readQuestion,
 } from './data/ask'
 import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
-import { playAnswer } from './ask-live'
+import { loopExample, playAnswer } from './ask-live'
 import { cannotAnswer, followsOn, heldFor, plannedFor } from './planner'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
@@ -812,6 +812,8 @@ export function createMockApi() {
         return { metric: read.metric, markets: read.markets }
       }),
     ask: (input, live) => {
+      // Ask's loop answers, as the service wrote them on the demo week: shown by address only.
+      if (input.example?.startsWith('loop-')) return loopExample(input.example)
       const answered = now(() => {
         const a = answer(input)
         // What an agent follows from the answer's items, with the switch as it is now.

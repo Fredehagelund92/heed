@@ -128,6 +128,14 @@ function IconButton({
 
 /* ---------- the question ---------- */
 
+/** Ask's loop draws its own answer, loaded with the first one: most chats never need it. */
+const LoopAnswerBody = React.lazy(() =>
+  import('@/components/heed/loop-answer').then((m) => ({ default: m.LoopAnswerBody })),
+)
+const LoopReadLine = React.lazy(() =>
+  import('@/components/heed/loop-answer').then((m) => ({ default: m.LoopReadLine })),
+)
+
 /** True when the question was read as something its words don't say: a synonym, a metric or market it doesn't name, or dates it doesn't give. */
 function readDifferently(answer: Answer) {
   const q = answer.question.toLowerCase()
@@ -151,10 +159,15 @@ export function Question({
 }) {
   const [copied, copy] = useCopied()
   // Scoped with '@', the answer's header says how; read by the planner, how it read it and what
-  // it carried; otherwise one quiet line, only when the reading differs from the words.
+  // it carried; otherwise one quiet line, only when the reading differs from the words. Ask's
+  // loop says what it read as, with its chips, every time.
   const reading = !answer.scope?.length ? answer.reading : undefined
   const showReadAs =
-    !reading && !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
+    !answer.loop &&
+    !reading &&
+    !answer.scope?.length &&
+    !!scopeText(answer) &&
+    readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
       <div className="max-w-22/25 min-w-0 rounded-surface bg-muted px-4 py-2.5 text-base leading-chat wrap-anywhere whitespace-pre-line @lg:max-w-4/5 [&_.mention-chip]:bg-background">
@@ -168,6 +181,11 @@ export function Question({
             )
           : answer.question}
       </div>
+      {answer.loop && (
+        <React.Suspense fallback={null}>
+          <LoopReadLine answer={answer} onRescope={onRescope} />
+        </React.Suspense>
+      )}
       {/* Copy, and Edit to put the question back in the box: under the bubble, so it keeps its width; always there on a touch screen. */}
       <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
         <IconButton
@@ -877,7 +895,7 @@ function SourceChip({
 
 /** The Something wrong? form: a flag, or a suggestion when a correction is given. */
 /** What became of your report, in this chat only: sent, then what the owner did. */
-function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
+export function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
   return (
     <p
       role="status"
@@ -896,7 +914,7 @@ function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
   )
 }
 
-function SomethingWrong({
+export function SomethingWrong({
   answer,
   facts,
   figure,
@@ -1325,6 +1343,15 @@ const RecordsAnswerBody = React.lazy(() =>
 export function AnswerBody(props: AnswerBodyProps) {
   const { records } = props.turn.answer
   if (props.turn.error) return <Unanswered error={props.turn.error} onRetry={props.onRetry} />
+  // Ask's loop: from its first read's step to its answer, drawn by its own body.
+  if (props.turn.answer.loop || props.turn.reads)
+    return (
+      <React.Suspense
+        fallback={<ReadingLine running>{props.turn.working ?? 'Reading…'}</ReadingLine>}
+      >
+        <LoopAnswerBody {...props} />
+      </React.Suspense>
+    )
   if (!records) return <ContextAnswerBody {...props} />
   return (
     <React.Suspense
@@ -1710,7 +1737,7 @@ function ContextAnswerBody({
  * and More with the rest (Something wrong?, Save question, Share). The last answer always shows
  * them; an earlier one on hover or focus, and always on a touch screen.
  */
-function AnswerActions({
+export function AnswerActions({
   answer,
   copyText,
   facts,

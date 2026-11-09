@@ -1,3 +1,4 @@
+import type { LookupEvent } from '@contract/answer'
 import type { Answer } from './ask'
 
 // One question and its answer in Ask's chat, as the look-up's events arrive (docs/product.md,
@@ -18,6 +19,11 @@ export type AskEvent =
   | { type: 'answer'; answer: Answer }
   /** A sentence of a model's words that passed the check. */
   | { type: 'sentence'; text: string }
+  /** Ask's loop: each read so far, by code, and the nouns they named. */
+  | { type: 'reads'; reads: LoopReads }
+
+/** What Ask's loop has read so far in a turn: each read's step, and the nouns its chips draw. */
+export type LoopReads = Required<Pick<Extract<LookupEvent, { type: 'progress' }>, 'steps' | 'nouns'>>
 
 /** The calls a live answer gets: its events as they come, and a signal that stops it. */
 export type AskLive = { signal?: AbortSignal; onEvent?: (event: AskEvent) => void }
@@ -40,6 +46,8 @@ export type Turn = {
   working: string | null
   /** A model's words so far, a sentence at a time; with none, the answer's own words show. */
   sentences: string[]
+  /** What Ask's loop has read so far, while it reads. */
+  reads?: LoopReads
 }
 
 /** A question just sent: it shows at once, looking up. */
@@ -126,6 +134,8 @@ export function turnReducer(turn: Turn, action: TurnAction): Turn {
       }
     case 'sentence':
       return { ...turn, stage: 'writing', sentences: [...turn.sentences, action.text] }
+    case 'reads':
+      return { ...turn, reads: action.reads }
     case 'done':
       return {
         ...turn,
