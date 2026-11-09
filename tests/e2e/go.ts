@@ -199,8 +199,8 @@ export const test = base.extend<{ demoWeek: void }>({
   and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags
   become what they stand for: `?state=offline` takes the browser offline, `?state=failed` makes
   the first try of a decision, and of adding or removing a synonym, fail, `?bulk=fail` makes the
-  last row of the first change to many rows fail, `?quality=failed` makes the last check of the saved questions one that stopped
-  after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
+  last row of the first change to many rows fail, `?quality=failed` makes the last check of the
+  saved questions one that stopped after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
   `?demo=setup` starts on an empty workspace, `?links=off` (or `on`) switches following links
   for agents in Agents and access, on the service, before the page loads, `?figures=on|off` switches
   Cube's figures, and Ask's `?example=` asks the example's question in the composer (`figconflict`
