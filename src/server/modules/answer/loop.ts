@@ -1237,11 +1237,11 @@ export function turnOf(
 }
 
 /**
- * The overview a turn ends with (FR-720): the one the model asked for, when the page can draw it;
- * when the one it asked for names no read the page can draw, the last read that can be drawn; and
- * when it asked for none, the turn's Inbox read, if the words only lead into it, listing and
- * citing nothing. So a lead-in that promises groups never stands alone. Null when the turn is its
- * words.
+ * The overview a turn ends with (FR-720): the one the model asked for, when the page can draw it.
+ * Otherwise, only when the words are a lead-in that lists and cites nothing: the last read that
+ * can be drawn when the overview it asked for names none the page can draw, or the turn's Inbox
+ * read when it asked for none. So a lead-in that promises groups never stands alone; words with
+ * their own list or citations stay as the answer. Null when the turn is its words.
  */
 function overviewFor(
   question: string,
