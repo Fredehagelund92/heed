@@ -704,8 +704,10 @@ export function createMockApi() {
       }),
     saveTerm: ({ previous, term }) =>
       scenario.send('saveTerm', () => definitions.saveTerm(previous, term)),
-    addSynonym: ({ target, word }) => now(() => definitions.addSynonym(target, word, me())),
-    removeTerm: ({ name }) => now(() => remember(definitions.removeTerm(name))),
+    addSynonym: ({ target, word }) =>
+      scenario.send('addSynonym', () => definitions.addSynonym(target, word, me())),
+    removeTerm: ({ name }) =>
+      scenario.send('removeTerm', () => remember(definitions.removeTerm(name))),
     deleteTerms: ({ names, entry }) =>
       now(() => {
         const restore = definitions.deleteTerms(names)
