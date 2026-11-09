@@ -844,7 +844,11 @@ function placed(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): Loo
   })
   return out.flatMap((x): LoopRun[] => {
     if (x.t !== 'text') return [x]
-    const text = x.text.replace(/[ \t]+([.,;:!?)])/g, '$1').replace(/[ \t]{2,}/g, ' ')
+    // A mention drawn on its name elsewhere leaves the commas it sat between: one is kept.
+    const text = x.text
+      .replace(/[,;](?=[ \t]*[,;.!?])/g, '')
+      .replace(/[ \t]+([.,;:!?)])/g, '$1')
+      .replace(/[ \t]{2,}/g, ' ')
     return text ? [{ ...x, text }] : []
   })
 }

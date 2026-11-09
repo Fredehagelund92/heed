@@ -336,6 +336,10 @@ describe("the model's words, checked against the reads", () => {
     )
     expect(owners.text).toBe('Its owners are Ada Okafor and the Support team.')
     expect(owners.said).toBe('Its owners are [@person:p_ada] and the [@domain:area_support] team.')
+    // One between commas leaves one of them behind.
+    expect(
+      said('Billing is a value of the Team dimension, [@dimension:team], and counts once.').text,
+    ).toBe('Billing is a value of the Team dimension, and counts once.')
     expect(
       runs(owners)
         .filter((r) => r.t === 'noun')
