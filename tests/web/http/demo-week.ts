@@ -1011,26 +1011,31 @@ async function seedAgentConnections(client: pg.Client) {
 }
 
 /**
- * The pairs an owner marked as disagreeing, as the mock marks them (a fact's `disagreesWith`),
- * each once, in the order the mock lists them: Norway's payment scope, Spain's VAT and France's
- * switch date.
+ * The pairs an owner marked as disagreeing: Norway's payment scope, as the journeys and the
+ * harness have it; with `all`, every pair the mock marks (a fact's `disagreesWith`), each once,
+ * Spain's VAT across two domains and France's switch date among them.
  */
-const disagreeing = () => {
+const disagreeing = (all: boolean) => {
+  if (!all)
+    return [[serverItemId('itm_gift_store_credit'), serverItemId('itm_gift_card_only')]] as const
   const pairs: [string, string][] = []
   for (const f of facts)
     if (f.disagreesWith && !pairs.some((p) => p.includes(f.id) && p.includes(f.disagreesWith!)))
       pairs.push([f.id, f.disagreesWith])
-  return pairs.map(([a, b]) => [serverItemId(a), serverItemId(b)] as [string, string])
+  return pairs.map(([a, b]) => [serverItemId(a), serverItemId(b)] as const)
 }
 
-export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
+export async function seedDemoWeek(
+  superuserUrl: string,
+  options: { allConflicts?: boolean } = {},
+): Promise<DemoWeekIds> {
   let flag: string | undefined
   let topics: Map<string, string> | undefined
   const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
   await client.connect()
   try {
     await bulkSeed(client, demoLibrary(), {
-      conflicts: disagreeing(),
+      conflicts: disagreeing(options.allConflicts ?? false),
       replaces: facts.flatMap((f) =>
         f.replaces ? [[serverItemId(f.id), serverItemId(f.replaces)] as const] : [],
       ),

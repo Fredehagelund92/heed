@@ -221,20 +221,31 @@ describe('no dead ends (FR-719.3)', () => {
     await world.withTools('Maria Lindqvist', async (tools) => {
       const poland = await ok(tools, 'get_context', {
         about: 'orders in Poland',
-        widen: { without: 'market' },
+        widen: { without: 'values' },
       })
       expect(poland.state).toBe('missing')
       expect(poland.items).toEqual([])
-      expect(poland.read).toMatchObject({ names: ['Orders', 'Poland'] })
+      expect(poland.read).toMatchObject({
+        names: ['Orders', 'Poland'],
+        about: ['metric:orders', 'value:market/poland'],
+      })
       expect(poland.searched.map((s) => [s.names, s.without])).toEqual([
         [['Orders', 'Poland'], null],
-        [['Orders'], 'market'],
+        [['Orders'], 'values'],
       ])
       expect(poland.widened).toBe('searched wider')
       // The wider read is nearby: it never stands in for Poland, and its state is not the answer's.
       expect(poland.wider?.items.length).toBeGreaterThan(0)
       expect(poland.nearby.length).toBeGreaterThan(0)
-      expect(poland.owners).toEqual([{ domain: 'Sales', owners: ['Jon Abara', 'Sofia Brandt'] }])
+      expect(poland.owners).toEqual([
+        expect.objectContaining({
+          domain: 'Sales',
+          owners: ['Jon Abara', 'Sofia Brandt'],
+          id: 'domain:area_sales',
+        }),
+      ])
+      // Each nearby item says why as data, with what it applies to, by id.
+      for (const n of poland.nearby) expect(n.about).toContain('metric:orders')
       expect(poland.nothing).toContain('"orders in Poland" read as Orders and Poland')
       expect(poland.nothing).toContain('every kind')
       expect(poland.nothing).toContain(
@@ -282,6 +293,7 @@ describe('no dead ends (FR-719.3)', () => {
         found: false,
         item: null,
         nothing: 'No context item you may read has the id itm_nosuchitem1.',
+        names: [],
         ids: [],
       })
     })
