@@ -77,7 +77,12 @@ function render(turn: LoopTurn, question = 'A question?') {
   return host
 }
 const example = (id: keyof typeof examples) => examples[id].turn as unknown as LoopTurn
-const text = (el: Element) => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+/** The words on screen: what a screen reader alone hears (`sr-only`) left out. */
+const text = (el: Element) => {
+  const shown = el.cloneNode(true) as Element
+  for (const hidden of shown.querySelectorAll('.sr-only')) hidden.remove()
+  return shown.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+}
 const buttons = (el: Element, name: RegExp) =>
   [...el.querySelectorAll('[role="button"], button')].filter((b) =>
     name.test(b.getAttribute('aria-label') ?? b.textContent ?? ''),

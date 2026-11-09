@@ -281,26 +281,34 @@ const BlockLabel = ({ icon: Icon, children }: { icon?: LucideIcon; children: Rea
  * A subject as a sentence says it, with its chips: its metrics, then the values it narrowed,
  * "Orders in Poland"; the connecting word is the kind's, never a dimension's name.
  */
-function Subject({ ids, nouns }: { ids: readonly string[]; nouns: Nouns }) {
+function Subject({
+  ids,
+  nouns,
+  still,
+}: {
+  ids: readonly string[]
+  nouns: Nouns
+  still?: boolean
+}) {
   const metrics = ids.filter((id) => !id.startsWith('value:'))
   const values = ids.filter((id) => id.startsWith('value:'))
   return (
     <>
-      <Joined ids={metrics} nouns={nouns} />
+      <Joined ids={metrics} nouns={nouns} still={still} />
       {metrics.length > 0 && values.length > 0 && ' in '}
-      <Joined ids={values} nouns={nouns} />
+      <Joined ids={values} nouns={nouns} still={still} />
     </>
   )
 }
 
 /** Names joined as a sentence says them: "A, B and C". */
-function Joined({ ids, nouns }: { ids: readonly string[]; nouns: Nouns }) {
+function Joined({ ids, nouns, still }: { ids: readonly string[]; nouns: Nouns; still?: boolean }) {
   return (
     <>
       {ids.map((id, i) => (
         <React.Fragment key={id}>
           {i > 0 && (i === ids.length - 1 ? ' and ' : ', ')}
-          <NounChip id={id} nouns={nouns} />
+          <NounChip id={id} nouns={nouns} still={still} />
         </React.Fragment>
       ))}
     </>
@@ -332,7 +340,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
             >
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-foreground tabular-nums">{item.n}</span>
-                {item.domain && <NounChip id={item.domain} nouns={maps.nouns} />}
+                {item.domain && <NounChip id={item.domain} nouns={maps.nouns} still />}
               </span>
               <span className="font-medium">{item.title}</span>
               <span className="text-xs text-muted-foreground">
@@ -516,7 +524,7 @@ function Next({
         render={<a href={P.href('/context/new', { about: names.join('|') })} />}
       >
         <P.PencilIcon data-icon="inline-start" />
-        Write context for <Subject ids={about} nouns={nouns} />
+        Write context for <Subject ids={about} nouns={nouns} still />
       </P.Button>
     )
   }

@@ -79,8 +79,9 @@ export function dayText(day: string, short = false) {
   return `${d} ${short ? month.slice(0, 3) : month} ${y}`
 }
 
+// 24px tall at the least, so each is a target a pointer can hit (WCAG 2.5.8).
 const chip =
-  'inline-flex max-w-full items-baseline gap-1 rounded-sm px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>svg]:self-center'
+  'inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /**
  * A trigger with its card: hover opens it after a moment, keyboard focus opens it at once, a press
@@ -91,16 +92,20 @@ function HoverCard({
   label,
   children,
   onOpen,
+  still,
 }: {
   trigger: React.ReactElement<Record<string, unknown>>
   label: string
   children: React.ReactNode
   onOpen?: () => void
+  /** Inside another control: the chip alone, with no card of its own. */
+  still?: boolean
 }) {
   const P = useParts()
   const [open, setOpen] = React.useState(false)
   const returning = React.useRef(false)
   const card = React.useRef<HTMLDivElement>(null)
+  if (still) return trigger
   return (
     <P.Popover
       open={open}
@@ -145,22 +150,32 @@ const kindWords: Record<string, string> = {
 }
 
 /** One noun as its chip, with its card. */
-export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
+export function NounChip({
+  id,
+  nouns,
+  still,
+}: {
+  id: string
+  nouns: Nouns
+  /** Inside another control, such as a button: drawn, with no card and no press of its own. */
+  still?: boolean
+}) {
   const P = useParts()
   const noun = nouns.get(id)
   const kind = nounKindOf(id)
   const domain = useDomainOf(kind === 'domain' ? id : null)
   const name = noun?.name ?? (kind === 'domain' ? domain?.name : undefined) ?? key(id)
-  const label = `${name}, ${kind ? kindWords[kind] : 'name'}`
+  // Its name as shown, then what it is, said to a screen reader: "Orders, metric".
+  const said = <span className="sr-only">, {kind ? kindWords[kind] : 'name'}</span>
   const button = (className: string, style?: React.CSSProperties, body?: React.ReactNode) => (
     <span
-      role="button"
-      tabIndex={0}
-      aria-label={label}
+      role={still ? undefined : 'button'}
+      tabIndex={still ? undefined : 0}
       style={style}
       className={P.cn(chip, className)}
     >
       {body}
+      {said}
     </span>
   )
   switch (kind) {
@@ -169,6 +184,7 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
       return (
         <HoverCard
           label={name}
+          still={still}
           trigger={button(
             P.cn(tone.className, 'cursor-pointer'),
             tone.style,
@@ -194,6 +210,7 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
       return (
         <HoverCard
           label={name}
+          still={still}
           trigger={button(
             P.cn(
               'border bg-transparent text-chip-foreground',
@@ -223,6 +240,7 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
       return (
         <HoverCard
           label={name}
+          still={still}
           trigger={button(
             'bg-muted text-foreground',
             undefined,
@@ -246,27 +264,30 @@ export function NounChip({ id, nouns }: { id: string; nouns: Nouns }) {
       )
     }
     case 'person':
-      return <PersonChip name={name} label={label} />
+      return <PersonChip name={name} still={still} />
     default:
       return <>{name}</>
   }
 }
 
-function PersonChip({ name, label }: { name: string; label: string }) {
+function PersonChip({ name, still }: { name: string; still?: boolean }) {
   const P = useParts()
   const person = P.usePeople().find((p) => p.name === name)
   return (
     <HoverCard
       label={name}
+      still={still}
       trigger={
         <span
-          role="button"
-          tabIndex={0}
-          aria-label={label}
-          className={P.cn(chip, 'items-center px-0.5 font-normal')}
+          role={still ? undefined : 'button'}
+          tabIndex={still ? undefined : 0}
+          className={P.cn(chip, 'px-0.5 font-normal')}
         >
-          <P.PersonAvatar name={name} size={16} />
+          <span aria-hidden className="inline-flex">
+            <P.PersonAvatar name={name} size={16} />
+          </span>
           <span className="min-w-0 truncate">{name}</span>
+          <span className="sr-only">, person</span>
         </span>
       }
     >
