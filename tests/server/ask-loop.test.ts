@@ -465,3 +465,139 @@ describe("Ask's loop on a scripted model", () => {
     expect(seenChat).not.toContain('itm_hidden0001')
   })
 })
+
+describe('an overview, whatever the model sends of it', () => {
+  // The person's Inbox as the inbox tool returns it: two groups, one card about a context item.
+  const inbox = {
+    count: 3,
+    groupsAdd: 3,
+    differs: null,
+    order: "the Inbox's own order: what needs you first",
+    groups: [
+      {
+        group: 'mention',
+        name: 'Mentioned you',
+        count: 1,
+        cards: [
+          {
+            id: 'c1',
+            group: 'mention',
+            title: 'A mention',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: null,
+            about: [],
+            status: 'from Ada',
+            date: '2026-10-20',
+          },
+        ],
+        more: 0,
+      },
+      {
+        group: 'check',
+        name: 'Due for a check',
+        count: 2,
+        cards: [
+          {
+            id: 'c2',
+            group: 'check',
+            title: 'Germany lags',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: 'itm_germany01',
+            about: [],
+            status: 'its check date passed',
+            date: '2026-10-02',
+          },
+          {
+            id: 'c3',
+            group: 'check',
+            title: 'Another',
+            domain: 'Sales',
+            domainId: 'domain:area_sales',
+            item: null,
+            about: [],
+            status: 'its check date passed',
+            date: '2026-10-01',
+          },
+        ],
+        more: 0,
+      },
+    ],
+    note: '',
+    names: [],
+    ids: ['c1', 'c2', 'itm_germany01', 'c3'],
+  }
+  /** Tools whose Inbox read takes `delay` milliseconds, as a first read on a cold service may. */
+  const slowInbox = (delay: number): AskTools =>
+    ({
+      run: (name: string) =>
+        name === 'inbox'
+          ? new Promise((done) => setTimeout(() => done(inbox), delay))
+          : Promise.resolve({ ids: [] }),
+      ai: () => ({}),
+    }) as unknown as AskTools
+  const groupsOf = (turn: LoopTurn) => turn.overview?.groups.map((g) => [g.key, g.rows.length])
+
+  it('waits for a read asked for in the same step before it draws the overview of it', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? {
+              calls: [
+                { toolName: 'inbox', input: {} },
+                { toolName: 'show_overview', input: { from: 'r1' } },
+              ],
+            }
+          : { text: 'Here is the overview by group.' },
+      { toolsIn: () => slowInbox(40) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+    expect(turn.text.split('\n')[0]).toBe('3 cards wait on you in your Inbox, in 2 groups.')
+  })
+
+  it('draws the Inbox read as an overview when the words only lead into one', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : { text: 'Your Inbox holds [#r1.count] cards in total. Here is the overview by group.' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+  })
+
+  it('draws the read itself when the overview the model asked for names no read the page can draw', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : step === 1
+            ? { calls: [{ toolName: 'show_overview', input: { from: 'r9', groups: ['nope'] } }] }
+            : { text: 'Here it is.' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+  })
+
+  it('keeps words that answer from the Inbox when they list what they answer', async () => {
+    const { turn } = await turnWith(
+      ({ step }) =>
+        step === 0
+          ? { calls: [{ toolName: 'inbox', input: {} }] }
+          : { text: 'Two cards are due:\n- Germany lags [itm_germany01]\n- Another' },
+      { toolsIn: () => slowInbox(0) },
+    )
+    expect(turn.overview).toBeNull()
+    expect(turn.body.map((b) => b.t)).toEqual(['p', 'ul'])
+  })
+})

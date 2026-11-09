@@ -717,10 +717,9 @@ function Overview({
                 const values = row.about.filter((id) => id.startsWith('value:'))
                 return (
                   <li key={j} className="flex flex-col gap-1 text-sm">
-                    <span className="flex items-start gap-2">
-                      {item ? (
-                        <Runs runs={[{ t: 'cite', n }]} nouns={maps.nouns} items={maps.numbered} />
-                      ) : null}
+                    {/* The row's citation follows its title, as a citation follows what it supports:
+                        one numbering across the answer, so a number here is no place in a list. */}
+                    <span>
                       {row.card ? (
                         <a
                           href={P.href('/inbox', { card: row.card })}
@@ -729,16 +728,27 @@ function Overview({
                           {row.title}
                         </a>
                       ) : item ? (
+                        // The title opens the item, so its number is words in it, after the last word.
                         <button
                           type="button"
                           onClick={() => P.openDock('context', item.id)}
                           className="rounded-sm text-left font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
                           {row.title}
+                          <span
+                            aria-hidden
+                            className="ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-xs font-medium text-foreground tabular-nums"
+                          >
+                            {n}
+                          </span>
+                          <span className="sr-only">, source {n}</span>
                         </button>
                       ) : (
                         <span className="font-medium">{row.title}</span>
                       )}
+                      {item && row.card ? (
+                        <Runs runs={[{ t: 'cite', n }]} nouns={maps.nouns} items={maps.numbered} />
+                      ) : null}
                     </span>
                     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
                       {values.map((id) => (

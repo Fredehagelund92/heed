@@ -131,7 +131,11 @@ describe("the model's words, checked against the reads", () => {
       ]),
     ]
     const cited: string[] = []
-    wordsOf('Tickets closed [itm_bbbb2222] and [#r9.outOf] more. Billing is fine [itm_aaaa1111].', ctxOf(two), cited)
+    wordsOf(
+      'Tickets closed [itm_bbbb2222] and [#r9.outOf] more. Billing is fine [itm_aaaa1111].',
+      ctxOf(two),
+      cited,
+    )
     expect(cited).toEqual(['itm_aaaa1111'])
   })
 
@@ -389,9 +393,7 @@ describe('the evidence, by code from the reads', () => {
       items: ['itm_pppp1111', 'itm_pppp2222', 'itm_qqqq1111'],
     })
     expect(t.owners).toEqual([{ domain: 'domain:area_support', people: ['person:p_ada'] }])
-    expect(t.footer.denominator).toBe(
-      '0 of 12 published context items you may read apply.',
-    )
+    expect(t.footer.denominator).toBe('0 of 12 published context items you may read apply.')
     expect(JSON.stringify(t)).not.toMatch(/market/i)
   })
 
@@ -536,5 +538,56 @@ describe('an overview, by code from the read the model named', () => {
     expect(filler.checks).toContainEqual({ kind: 'note', words: 'That is all for now.' })
     // A read with no groups has no overview.
     expect(overviewTurn('x', { from: 'r2' }, [inbox], [])).toBeNull()
+  })
+
+  it('numbers the rows that cite an item once across the answer, in reading order, one number an item', () => {
+    // The same item behind a card due for a check and a suggestion, and a card about no item.
+    const twice: MadeRead = {
+      ...inbox,
+      result: {
+        ...(inbox.result as object),
+        ids: ['c1', 'c2', 'itm_bbbb2222', 'c3', 'itm_aaaa1111', 'c4', 'c5', 'itm_cccc3333'],
+        groups: [
+          {
+            group: 'mention',
+            name: 'Mentioned you',
+            count: 1,
+            cards: [card('c1', 'mention')],
+            more: 0,
+          },
+          {
+            group: 'check',
+            name: 'Due for a check',
+            count: 2,
+            cards: [card('c2', 'check', 'itm_bbbb2222'), card('c3', 'check', 'itm_aaaa1111')],
+            more: 0,
+          },
+          {
+            group: 'suggestion',
+            name: 'Suggestions',
+            count: 2,
+            cards: [
+              card('c4', 'suggestion', 'itm_aaaa1111'),
+              card('c5', 'suggestion', 'itm_cccc3333'),
+            ],
+            more: 0,
+          },
+        ],
+      },
+    }
+    const t = overviewTurn('what do I need to handle?', { from: 'r1' }, [twice], [])!
+    const numberOf = (id: string | null) => (id ? t.sources.indexOf(id) + 1 : null)
+    expect(t.overview!.groups.map((g) => g.rows.map((r) => numberOf(r.item)))).toEqual([
+      [null],
+      [1, 2],
+      [2, 3],
+    ])
+    // Each number is one item, and every item a row cites is one of the answer's sources.
+    expect(t.sources).toEqual(['itm_bbbb2222', 'itm_aaaa1111', 'itm_cccc3333'])
+    expect(t.items.filter((i) => i.n).map((i) => [i.n, i.id])).toEqual([
+      [1, 'itm_bbbb2222'],
+      [2, 'itm_aaaa1111'],
+      [3, 'itm_cccc3333'],
+    ])
   })
 })

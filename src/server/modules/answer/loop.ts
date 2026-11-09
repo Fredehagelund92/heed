@@ -401,6 +401,8 @@ export async function* askLoop(
   const limits = { steps: deps.steps, seconds: Math.round(deps.timeoutMs / 1000) }
   const reads = serialReads(deps)
   const made: MadeRead[] = []
+  // The reads still coming back: an overview asked for beside them waits for them.
+  const reading = new Set<Promise<unknown>>()
   let earlier: (ReturnType<typeof earlierReadsOf>[number] & { result: unknown; ref: string })[] = []
   // Each read as it runs and once done: the progress steps, by code (FR-720.9).
   const steps: { call: string; runs: LoopRun[]; done: boolean }[] = []
@@ -438,12 +440,16 @@ export async function* askLoop(
       tool({
         description: askToolDefinitions[name].description,
         inputSchema: askToolDefinitions[name].input as z.ZodType<Record<string, unknown>>,
-        execute: async (given: Record<string, unknown>, { toolCallId }: { toolCallId: string }) => {
-          const result = await reads.one(name, given)
-          // Numbered as it comes back, after the chat's earlier reads: what the words cite it by.
-          const ref = `r${earlier.length + made.length + 1}`
-          made.push({ tool: name, input: given, result, ref, call: toolCallId })
-          return withRef(ref, result)
+        execute: (given: Record<string, unknown>, { toolCallId }: { toolCallId: string }) => {
+          const read = (async () => {
+            const result = await reads.one(name, given)
+            // Numbered as it comes back, after the chat's earlier reads: what the words cite it by.
+            const ref = `r${earlier.length + made.length + 1}`
+            made.push({ tool: name, input: given, result, ref, call: toolCallId })
+            return withRef(ref, result)
+          })()
+          reading.add(read)
+          return read.finally(() => reading.delete(read))
         },
       }),
     ]),
@@ -459,9 +465,12 @@ export async function* askLoop(
     description:
       "Answer with an overview of a set the person asked for as a whole: the groups of one read (an inbox read, or a records read with group_by), each with its count and rows, drawn by the page in the read's own order. This ends your turn.",
     inputSchema: overviewInput,
-    execute: (input: z.infer<typeof overviewInput>) => {
+    execute: async (input: z.infer<typeof overviewInput>) => {
+      // A read asked for in the same step may still be coming back (a first read on a cold
+      // service is slow): the overview of it waits for it.
+      await Promise.allSettled([...reading])
       const problem = overviewProblem(input, numbered())
-      return Promise.resolve(problem ? { error: problem } : { shown: true })
+      return problem ? { error: problem } : { shown: true }
     },
   })
   /** The turn ends once an overview was shown, as it ends with a question back. */
@@ -558,18 +567,22 @@ export async function* askLoop(
       yield { type: 'turn', turn: questionTurn(parsed.data, made, again) }
       return
     }
-    const shown = overviewShown({ steps: modelSteps })
-      ? last?.toolCalls.find((c) => c.toolName === 'show_overview')
-      : undefined
-    const overview = shown ? overviewInput.safeParse(shown.input) : null
-    if (overview?.success) {
-      const turn = overviewTurn(input.question, overview.data, made, again)
-      if (turn) {
-        yield { type: 'turn', turn }
-        return
-      }
-    }
+    // The overview the model asked for last, whether the page could draw it or not.
+    const asked = modelSteps
+      .flatMap((s) => s.toolCalls)
+      .findLast((c) => c.toolName === 'show_overview')
     const text = (last?.text ?? '').trim()
+    const drawn = overviewFor(
+      input.question,
+      asked ? { ask: overviewInput.safeParse(asked.input).data ?? null } : null,
+      made,
+      again,
+      text,
+    )
+    if (drawn) {
+      yield { type: 'turn', turn: drawn }
+      return
+    }
     if (!text) {
       yield stopped(modelSteps.length >= deps.steps ? 'steps' : 'model')
       return
@@ -954,9 +967,7 @@ export function footerOf(
         : null
   const more = ok.reduce((n, r) => n + num(r.more), 0)
   const notSeen = [
-    more
-      ? `${counted(more, 'more item was', 'more items were')} found and not listed.`
-      : null,
+    more ? `${counted(more, 'more item was', 'more items were')} found and not listed.` : null,
     made.some((m) => m.tool === 'agent_questions')
       ? 'A topic agents asked about fewer times than the minimum is not listed.'
       : null,
@@ -1223,6 +1234,36 @@ export function turnOf(
     overview: null,
     checks: words.checks,
   }
+}
+
+/**
+ * The overview a turn ends with (FR-720): the one the model asked for, when the page can draw it;
+ * when the one it asked for names no read the page can draw, the last read that can be drawn; and
+ * when it asked for none, the turn's Inbox read, if the words only lead into it, listing and
+ * citing nothing. So a lead-in that promises groups never stands alone. Null when the turn is its
+ * words.
+ */
+function overviewFor(
+  question: string,
+  asked: { ask: z.infer<typeof overviewInput> | null } | null,
+  made: readonly MadeRead[],
+  earlier: readonly MadeRead[],
+  text: string,
+): LoopTurn | null {
+  const reads = numberedOf(made, earlier)
+  if (asked?.ask && !overviewProblem(asked.ask, reads)) {
+    const turn = overviewTurn(question, asked.ask, made, earlier)
+    if (turn) return turn
+  }
+  const read = [...made].reverse().find((m) => m.ref && !overviewProblem({ from: m.ref }, reads))
+  if (!read?.ref) return null
+  if (!asked) {
+    if (read.tool !== 'inbox') return null
+    const words = wordsOf(text, wordsContext(question, made, earlier))
+    if (words.cited.length || words.body.some((b) => b.t !== 'p')) return null
+  }
+  const note = asked?.ask?.note
+  return overviewTurn(question, { from: read.ref, ...(note ? { note } : {}) }, made, earlier)
 }
 
 /**

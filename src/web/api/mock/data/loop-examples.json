@@ -1464,7 +1464,7 @@
                 "domain": "domain:area_sales",
                 "status": "asked 9 times",
                 "date": "2026-11-09",
-                "card": "01a1c015-11cc-7886-9771-b2524af5e7aa"
+                "card": "01a1c09a-480a-7c43-ba82-28aea1f66f40"
               }
             ],
             "more": 0
@@ -1481,7 +1481,7 @@
                 "domain": "domain:area_sales",
                 "status": "reported wrong",
                 "date": "2026-11-09",
-                "card": "report:01a1c015-14b8-79c5-8b68-3ea89ba8471b"
+                "card": "report:01a1c09a-4b86-71d0-a577-eec84c597ac0"
               }
             ],
             "more": 0
@@ -1515,7 +1515,7 @@
                 "domain": "domain:area_customer_value",
                 "status": "an alert",
                 "date": "2026-11-09",
-                "card": "alert:01a1c015-19de-790d-a90c-f756343e252e"
+                "card": "alert:01a1c09a-5241-75d0-a22d-37a78ee2e588"
               },
               {
                 "title": "Google Drive did not sync",
@@ -1524,7 +1524,7 @@
                 "domain": null,
                 "status": "an alert",
                 "date": "2026-11-09",
-                "card": "alert:01a1c015-19df-742d-a733-f76ec3c9359d"
+                "card": "alert:01a1c09a-5242-784b-8d18-9155ad3169d2"
               }
             ],
             "more": 0
@@ -1593,7 +1593,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-0c68-78a3-bf4b-8eef1ea60ca4"
+                "card": "01a1c09a-40a3-7146-8b0b-114192b2b309"
               },
               {
                 "title": "Online sales to Norway stopped on 4 August 2026",
@@ -1602,7 +1602,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-0d6b-73ce-809d-df649534626b"
+                "card": "01a1c09a-4207-738a-9b95-a9a71c0e642c"
               },
               {
                 "title": "Returns changed definition on 28 April 2026",
@@ -1611,7 +1611,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-0e31-744e-9189-4b706809008f"
+                "card": "01a1c09a-42ff-725e-b9ab-cc56cef8ae29"
               },
               {
                 "title": "What to rule out before explaining a jump in Gross margin",
@@ -1620,7 +1620,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-0ee5-743d-8791-6c248a863678"
+                "card": "01a1c09a-442a-7fbc-afed-d187dc36d485"
               },
               {
                 "title": "What to rule out before explaining a jump in Orders",
@@ -1629,7 +1629,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-0fad-7e6d-89e1-9598f338e074"
+                "card": "01a1c09a-45b2-7cf7-9e43-5fc3236e58cc"
               },
               {
                 "title": "Payment provider switched in France on 12 May 2026",
@@ -1638,7 +1638,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a change",
                 "date": "2026-10-23",
-                "card": "01a1c015-1075-7856-81e4-87c78ceb786a"
+                "card": "01a1c09a-46ac-72a2-b625-a9689fda4b32"
               },
               {
                 "title": "Payment provider delays order data in Poland",
@@ -1647,7 +1647,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1c015-1121-7666-b257-b4939b4b58bf"
+                "card": "01a1c09a-476b-715d-b663-19aff20a958f"
               },
               {
                 "title": "Norway orders leave out store credit from 1 November 2026",
@@ -1656,7 +1656,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1c015-126a-7d83-95bb-372532d917eb"
+                "card": "01a1c09a-48bf-76e7-a807-0b24dc929fab"
               },
               {
                 "title": "Data for Orders before 19 January 2026 is not reliable",
@@ -1665,7 +1665,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests to archive",
                 "date": "2026-10-23",
-                "card": "01a1c015-12ee-7d1b-87fa-5c0e406cdcad"
+                "card": "01a1c09a-496a-7019-ad1e-1bf9206dd65c"
               },
               {
                 "title": "Orders in Germany include marketplace orders from 15 October 2026",
@@ -1674,7 +1674,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1c015-18e6-7c45-b11b-49a9c02b9bd0"
+                "card": "01a1c09a-508a-727e-befa-f8e3ea2c9a91"
               },
               {
                 "title": "Units sold counts a bundle as one unit",
@@ -1683,7 +1683,7 @@
                 "domain": "domain:area_sales",
                 "status": "suggests a new item",
                 "date": "2026-10-23",
-                "card": "01a1c015-192b-79cd-a2d5-7d539e486e92"
+                "card": "01a1c09a-5134-7e4b-823d-bdcfaaff9945"
               }
             ],
             "more": 0

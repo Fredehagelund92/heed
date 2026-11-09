@@ -213,6 +213,37 @@ describe("Ask's loop answer, state by state", () => {
     ).toBe(true)
   })
 
+  it("An overview: each row's citation after its title, one numbering in reading order", () => {
+    const turn = example('loop-overview')
+    const el = render(turn, 'what do i need to handle?')
+    for (const b of buttons(el, /^Show all /)) act(() => (b as HTMLElement).click())
+    const cited = [...el.querySelectorAll('section li')].flatMap((li) => {
+      const row = li.querySelector('a, button, span.font-medium')!
+      // A card's row cites its item after the link; an item's own title carries its number.
+      const mark = buttons(li, /^Source \d+: /)[0]
+      const own = /, source (\d+)$/.exec(row.textContent ?? '')
+      if (!mark && !own) return []
+      const title = own ? text(row).slice(0, -own[1]!.length).trim() : text(row)
+      if (mark) {
+        const [, n, named] = /^Source (\d+): (.*)$/.exec(mark.getAttribute('aria-label')!)!
+        expect(row.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        expect(named).toBe(title)
+        return [{ n: Number(n), title }]
+      }
+      // The number is the title's last words.
+      expect(row.textContent).toMatch(
+        new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+      )
+      return [{ n: Number(own![1]), title }]
+    })
+    expect(cited.length).toBeGreaterThan(3)
+    // Numbers first come in reading order, 1, 2, 3 …; an item met again keeps its number.
+    const first = [...new Set(cited.map((c) => c.n))]
+    expect(first).toEqual(first.map((_, i) => i + 1))
+    for (const c of cited) expect(cited.find((x) => x.n === c.n)!.title).toBe(c.title)
+    expect(cited.length).toBeGreaterThan(first.length)
+  })
+
   it('An overview of the records: by status, what needs a check first', () => {
     const el = render(example('loop-overview-domain'))
     expect(el.querySelector('h3')?.textContent).toMatch(/^due for a check/)
