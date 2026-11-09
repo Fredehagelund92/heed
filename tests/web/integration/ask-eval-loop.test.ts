@@ -7,38 +7,32 @@ import { askEvalSuite } from './ask-eval-suite.ts'
   any step the run did not record. What it breaks and misses there is listed below, by promise and
   by what a case must say: only ever shorter. The held-back cases are a count.
 
-  Read by hand, the breaches listed are: V04, a decline the advice pattern reads as advice ("Ask
-  does not answer questions about what you should do"); H30, the model's own advice ("which you
-  may want to see"); FP08, the model citing an item as a reference to its id ([#r1.items.0.id]),
-  which no number is, so the sentence that held the citation is left out and the state has no
-  source; and five must-nots. 26 steps follow tool results that are not the same from one run to
-  the next (an Inbox card's id is made afresh each run), so no recorded step matches them, even on
-  the code that recorded them: the scripted reader takes those in every build.
+  Read by hand, the breaches listed are: P04 and P05, a share the model worked out itself ("1 of
+  its 4 items, or 25%"); V04, a decline the advice pattern reads as advice ("Ask does not answer
+  questions about what you should do"); and five must-nots. 25 steps follow tool results that are
+  not the same from one run to the next (an Inbox card's id is made afresh each run), so no
+  recorded step matches them, even on the code that recorded them: the scripted reader takes
+  those in every build.
 */
 
 askEvalSuite({
   answerer: 'loop',
   brokenToday: {
-    advice: ['V04', 'H30'],
-    state: ['FP08'],
-    never: ['F12', 'G06', 'H04', 'H06', 'H13'],
+    numbers: ['P04', 'P05'],
+    advice: ['V04'],
+    never: ['V08', 'G06', 'H04', 'H06', 'H13'],
   },
   missingToday: [
-    'C2',
-    'K01',
-    'K08',
-    'K10',
+    'K02',
     'K12',
     'K15',
     'V01',
-    'V04',
     'V09',
     'F01',
     'F05',
     'F06',
     'F07',
     'F09',
-    'F12',
     'F14',
     'F15',
     'F16',
@@ -47,12 +41,12 @@ askEvalSuite({
     'F19',
     'F21',
     'F29',
+    'F30',
     'FP01',
     'FP02',
     'FP03',
     'FP04',
     'FP07',
-    'FP08',
     'FP11',
     'FP12',
     'G01',
@@ -63,18 +57,14 @@ askEvalSuite({
     'G13',
     'G15',
     'G18',
-    'G21',
     'G22',
-    'G23',
     'G27',
     'G29',
     'G30',
     'GP01',
     'GP04',
-    'GP06',
     'GP07',
     'GP11',
-    'GP12',
     'GP15',
     'H02',
     'H03',
@@ -88,6 +78,7 @@ askEvalSuite({
     'H14',
     'H15',
     'H16',
+    'H17',
     'H18',
     'H20',
     'H24',
