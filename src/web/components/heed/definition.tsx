@@ -237,6 +237,7 @@ export function SynonymTags({
   // The saves run one at a time, in the order they were made: a tag removed while it is still being
   // added goes once it is in.
   const saves = React.useRef<Promise<void>>(Promise.resolve())
+  const unsaved = React.useRef<string[]>([])
   const inTurn = (run: () => Promise<void>) => {
     saves.current = saves.current.then(run, run)
   }
@@ -251,6 +252,7 @@ export function SynonymTags({
       if (words.length) setSaid('Already there.')
       return
     }
+    unsaved.current = without(unsaved.current, fresh)
     setAdding((list) => [...list, ...fresh])
     setRemoving((list) => without(list, fresh))
     setRefused((prev) => prev.filter((p) => !fresh.some((w) => same(w, p.word))))
@@ -268,6 +270,7 @@ export function SynonymTags({
           failed.push(w)
         }
       }
+      unsaved.current = [...unsaved.current, ...failed, ...out.map((o) => o.word)]
       setAdding((list) => without(list, fresh))
       setRefused((prev) => [
         ...prev.filter(
@@ -296,6 +299,10 @@ export function SynonymTags({
     setRemoving((list) => [...list, name])
     input.current?.focus()
     inTurn(async () => {
+      if (unsaved.current.some((w) => same(w, name))) {
+        setRemoving((list) => without(list, [name]))
+        return
+      }
       try {
         const { undo } = await write('removeTerm', { name })
         setSaid(`Removed synonym ${name}.`)
