@@ -487,9 +487,13 @@ const outside = (words: string, pattern: RegExp) => {
   return [...words.matchAll(new RegExp(pattern.source, 'g'))].filter((m) => depth[m.index] === 0)
 }
 
-/** Words that make a part of a sentence a clause, not the name of a thing. */
+/**
+ * Words that make a part of a sentence a clause, or a part of the thing named before it, not the
+ * name of a thing: a verb ("18 are live", "it is owned by …"), "whose" or "which", or a
+ * preposition it starts with ("France, in May 2026, and Spain, in October 2025").
+ */
 const CLAUSE =
-  /\b(?:it|this|that|they|there)(?:'s|\s+is|\s+are|\s+was|\s+were)\b|\b(?:whose|which|who)\b/i
+  /\b(?:is|are|was|were|has|have|had|it's|whose|which|who)\b|^(?:in|on|at|for|from|with|by|of|to|since|until|after|before|during|as|into|about|over|under|across|between|than)\b/i
 
 /**
  * A sentence that names four or more things after a colon ("They cover: a, b, c and d."), as its

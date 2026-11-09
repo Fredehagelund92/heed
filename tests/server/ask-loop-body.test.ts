@@ -269,6 +269,17 @@ describe("the model's words, checked against the reads", () => {
     expect(
       enumeration('It covers: reopened tickets, which count once, merged ones and spam.'),
     ).toBeNull()
+    // Parts of one statement, not things named: a part that starts with a preposition, or a verb.
+    expect(
+      enumeration(
+        'Written items cover payment provider switches in two markets: France, in May 2026, and Spain, in October 2025.',
+      ),
+    ).toBeNull()
+    expect(
+      enumeration(
+        'The check status is mixed: of 23 items, 18 are live, 3 are due and 2 are archived.',
+      ),
+    ).toBeNull()
     // Things named after a colon outside brackets are still a list, a bracket's comma kept in its item.
     expect(
       enumeration('They cover: reopened tickets (once, by id), merged tickets, spam and bots.'),
