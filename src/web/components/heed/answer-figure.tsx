@@ -6,6 +6,7 @@ import { FoldTrigger } from '@/components/heed/fold'
 import type { Figure, FigureView } from '@/model/figures'
 import { useDomains, useFacts } from '@/lib/workspace'
 import { openDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { plainText } from '@/lib/mentions'
 import { useWrite } from '@/api/queries'
 import type { Answer } from '@/model/ask'
@@ -91,6 +92,7 @@ export function FigureAgainst({
   answer: Pick<Answer, 'question' | 'metric' | 'markets' | 'dates'>
   contact: string
 }) {
+  const ahead = useReadAhead()
   const f = view.figure
   const metric = answer.metric
   const facts = useFacts()
@@ -133,6 +135,7 @@ export function FigureAgainst({
             <p className="text-xs text-muted-foreground">Context</p>
             <button
               type="button"
+              {...ahead(item.id)}
               onClick={() => openDock('context', item.id)}
               className="text-left text-sm leading-snug font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >

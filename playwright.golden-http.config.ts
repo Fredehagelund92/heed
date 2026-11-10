@@ -46,6 +46,8 @@ export default defineConfig({
     /\/j29-motion\.spec\.ts$/,
     // J46 reads the names the mock makes; the service's are the own-data journey (tests/e2e-own).
     /\/j46-names\.spec\.ts$/,
+    // J47 holds and fails the item's read by the mock's ?state=, which the service has not.
+    /\/j47-peek-check\.spec\.ts$/,
     // J3 states asks the mock for each of the six answer states by its example question; the
     // service's demo week has no check that fails to run.
     /\/j3-ask-states\.spec\.ts$/,

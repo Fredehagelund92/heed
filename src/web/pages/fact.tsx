@@ -168,7 +168,7 @@ export function FactPage({ id }: { id: string }) {
           )}
         </SideSection>
       )}
-      {other && <DisagreesSection self={fact} other={other} />}
+      {other && <DisagreesSection self={fact} other={other} pair={page.data?.conflict} />}
     </>
   )
   const side = (

@@ -42,6 +42,7 @@ const row = (patch: Partial<LibraryItem> = {}): LibraryItem => ({
   chips: ['Orders', 'Norway'],
   owners: [],
   opened: false,
+  conflicts: [],
   ...patch,
 })
 
@@ -51,6 +52,13 @@ const names: Names = {
 }
 
 describe('reading the library index', () => {
+  it('names the item it is in a conflict with, so a quick view says so before its page is read', () => {
+    expect(factsOf([row({ conflicts: ['itm_giftcardonly'] })], names)[0]!.disagreesWith).toBe(
+      'itm_giftcardonly',
+    )
+    expect(factsOf([row()], names)[0]!).not.toHaveProperty('disagreesWith')
+  })
+
   it('says the status in the app’s words, from the status and the trust', () => {
     expect(statusOf(row())).toBe('Live')
     expect(statusOf(row({ trust: 'needs_check' }))).toBe('Needs checking')

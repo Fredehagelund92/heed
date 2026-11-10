@@ -82,6 +82,7 @@ import {
 import { homeDomain, ownersOf, type Domain, type Domains } from '@/model/people'
 import { toApiError, type Clash } from '@/api/errors'
 import { closeDock, openDock, useDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { HeaderMore, SaveStatus } from '@/components/heed/editor-header'
 import { Panel, PanelGroup } from '@/components/heed/panel'
 import { ChoiceGroup, ViewToggle } from '@/components/heed/switches'
@@ -317,6 +318,7 @@ function Editor({
   original?: Fact
   fromText?: Fact
 }) {
+  const ahead = useReadAhead()
   const facts = useFacts()
   const me = useMe()
   const domains = useDomains()
@@ -672,6 +674,7 @@ function Editor({
                 <button
                   type="button"
                   className="text-left text-sm font-medium underline-offset-4 hover:underline"
+                  {...ahead(f.id)}
                   onClick={() => openDock('context', f.id)}
                 >
                   {f.title}
@@ -948,6 +951,7 @@ function Editor({
                 <button
                   type="button"
                   className="text-left font-medium underline-offset-4 hover:underline"
+                  {...ahead(c.itemId)}
                   onClick={() => openDock('context', c.itemId)}
                 >
                   {c.title}

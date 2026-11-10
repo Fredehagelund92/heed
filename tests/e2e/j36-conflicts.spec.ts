@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { card, expect, go, onMockOnly, signInAs, test } from './go.ts'
+import { card, expect, go, onMockOnly, onServiceOnly, signInAs, test } from './go.ts'
 
 // J36, the conflict view (FR-220): two items an owner said disagree, side by side with where each
 // comes from and what agents would say with only that one, and ways to settle it. Every choice asks
@@ -232,6 +232,36 @@ test('the item page and its peek say what it disagrees with, and lead to the com
   await expect(page).toHaveURL(/dock=conflict\./)
   await go(page, `/context?dock=context.${holder}`)
   await expect(page.getByText(/^Disagrees with “/)).toBeVisible()
+})
+
+test('the quick view says the pair at once, and its button needs no second read', async ({
+  page,
+}) => {
+  // The mock answers in memory; its held read is J47's (?state=loading).
+  await onServiceOnly('item read held back', async () => {
+    await go(page, '/context?show=conflicts')
+    const chip = chipWith(page, 'Norway orders count store credit')
+    const holder = (await chip.getAttribute('href'))!.split('/').pop()!.split('.')[0]!
+    const pairReads: string[] = []
+    page.on('request', (r) => {
+      if (/\/api\/v1\/conflicts\/[^/?]+\/[^/?]+$/.test(new URL(r.url()).pathname))
+        pairReads.push(r.url())
+    })
+    let release = () => {}
+    const held = new Promise<void>((resolve) => (release = resolve))
+    await page.route('**/api/v1/items/*/page', async (route) => {
+      await held
+      await route.continue()
+    })
+    await go(page, `/context?dock=context.${holder}`)
+    const peek = page.getByRole('region', { name: 'Context' })
+    // The list's row knows the pair: the warning is there while the item's read is held back.
+    await expect(peek.getByText(/^Disagrees with “/)).toBeVisible()
+    await expect(peek.getByRole('button', { name: /^Compare/ })).toBeDisabled()
+    release()
+    await expect(peek.getByRole('button', { name: 'Compare and decide' })).toBeEnabled()
+    expect(pairReads).toEqual([])
+  })
 })
 
 test('Ask groups the two that disagree and leads to the comparison', async ({ page }) => {

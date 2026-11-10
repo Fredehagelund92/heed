@@ -137,6 +137,20 @@ export const itemPageSchema = z.object({
    * Conflict state. Only items the person may read.
    */
   conflicts: z.array(z.string()),
+  /**
+   * The same conflicts as the item's warning says them, in the same order: the pair's address
+   * (holder first, as the conflict view reads it), whether the person may settle it one way or
+   * another, and how many agent questions got both as a Conflict in the last 7 days. With these
+   * the warning needs no read of the pair.
+   */
+  pairs: z.array(
+    z.object({
+      key: z.string(),
+      otherId: z.string(),
+      canSettle: z.boolean(),
+      asked: z.number().check(z.int(), z.minimum(0)),
+    }),
+  ),
 })
 
 export const restoreAsDraftInputSchema = z.strictObject({

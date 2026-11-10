@@ -310,6 +310,7 @@ function Joined({ ids, nouns, still }: { ids: readonly string[]; nouns: Nouns; s
 /** The two that disagree, side by side, and who decides which holds. */
 function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useMaps> }) {
   const P = useParts()
+  const ahead = P.useReadAhead()
   const pair = loop.conflict.flatMap((id) => {
     const n = loop.sources.indexOf(id) + 1
     const item = maps.numbered.get(n)
@@ -327,6 +328,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
             <button
               key={item.id}
               type="button"
+              {...ahead(item.id)}
               onClick={() => P.openDock('context', item.id)}
               className="flex flex-col gap-1.5 rounded-lg border bg-background px-3 py-2.5 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
@@ -652,6 +654,7 @@ function Overview({
   maps: ReturnType<typeof useMaps>
 }) {
   const P = useParts()
+  const ahead = P.useReadAhead()
   const [open, setOpen] = React.useState<Record<number, boolean>>({})
   // Which nouns the words have named so far, afresh each render: a chip the first time only.
   const seen = new Set<string>()
@@ -739,6 +742,7 @@ function Overview({
                         // The title opens the item, so its number is words in it, after the last word.
                         <button
                           type="button"
+                          {...ahead(item.id)}
                           onClick={() => P.openDock('context', item.id)}
                           className="rounded-sm text-left font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
@@ -891,6 +895,8 @@ function AnswerOfLoop({ turn, docked, onRetry, onAsk, latest }: Props) {
     () => (loop ? loop.sources.flatMap((id) => facts.find((f) => f.id === id) ?? []) : []),
     [loop, facts],
   )
+  // The items it cites are read ahead once it is written, so their quick views open whole.
+  P.useReadCitedAhead(loop?.sources ?? [], done && !!latest)
   const { keepShown } = P
   React.useEffect(() => {
     if (done) keepShown(key, { answer, facts: cited })

@@ -400,6 +400,8 @@ export function CiteMark({ n, item }: { n: number; item?: LoopItem }) {
 /** An item's card: its kind and domain, its status, who checked it and when, what it says. */
 function ItemCard({ item }: { item: LoopItem }) {
   const P = useParts()
+  // Its card is showing: the quick view it opens is read ahead.
+  P.useReadCitedAhead([item.id], true)
   const fact = P.useFacts().find((f) => f.id === item.id)
   const domain = useDomainOf(item.domain)
   const Icon = P.kindIcons[kindOf(item.kind)]
@@ -501,6 +503,7 @@ export function ItemRow({
   twin?: boolean
 }) {
   const P = useParts()
+  const ahead = P.useReadAhead()
   const Icon = P.kindIcons[kindOf(item.kind)]
   const status = statusWords(item)
   const values = item.about.filter((id) => id.startsWith('value:'))
@@ -514,6 +517,7 @@ export function ItemRow({
         )}
         <button
           type="button"
+          {...ahead(item.id)}
           onClick={() => P.openDock('context', item.id)}
           className="rounded-sm text-left font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >

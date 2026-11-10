@@ -26,6 +26,7 @@ import type { ResolvedScope } from '../../../domain/scope.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { liveServingBundle, type BundleCache } from '../answer/index.ts'
+import { areaOwners, askedOf, itemOwners } from './live.ts'
 import type { ServingBundle, ServingItem } from '../editions/index.ts'
 import type { LibraryService } from '../library/index.ts'
 import { rejectMentions, rejectSensitive, type ProposalsService } from '../proposals/index.ts'
@@ -115,30 +116,6 @@ export function createConflictsService(
     return new Set(rows.map((r) => r.id))
   }
 
-  /** Each item's own owners, by id; an item with none is answered for by its domain's owners. */
-  async function ownersOf(ids: readonly string[]): Promise<Map<string, string[]>> {
-    const rows = await tx.query<{ item: string; owners: string[] }>(
-      `select o.item_id as item, array_agg(o.person_id::text order by o.person_id) as owners
-         from item_owners o join people p on p.id = o.person_id
-        where o.item_id = any($1::text[]) and p.deactivated_at is null and p.erased_at is null
-        group by o.item_id`,
-      [ids],
-    )
-    return new Map(rows.map((r) => [r.item, r.owners]))
-  }
-
-  async function domainOwners(areaIds: readonly string[]): Promise<Map<string, string[]>> {
-    const rows = await tx.query<{ area: string; owners: string[] }>(
-      `select a.area_id as area, array_agg(a.person_id::text order by a.person_id) as owners
-         from area_assignments a join people p on p.id = a.person_id
-        where a.area_id = any($1::text[]) and a.role = 'owner' and a.valid_at @> now()
-          and p.deactivated_at is null and p.erased_at is null
-        group by a.area_id`,
-      [areaIds],
-    )
-    return new Map(rows.map((r) => [r.area, r.owners]))
-  }
-
   async function names(ids: readonly string[]): Promise<Map<string, string>> {
     const rows = await tx.query<{ id: string; name: string }>(
       'select id::text, display_name as name from people where id = any($1::uuid[])',
@@ -149,8 +126,11 @@ export function createConflictsService(
 
   /** Who answers for each item: its own owners, or else its domain's. */
   async function answering(items: readonly ServingItem[]) {
-    const own = await ownersOf(items.map((i) => i.id))
-    const domains = await domainOwners([...new Set(items.map((i) => i.areaId))])
+    const own = await itemOwners(
+      tx,
+      items.map((i) => i.id),
+    )
+    const domains = await areaOwners(tx, [...new Set(items.map((i) => i.areaId))])
     return (item: ServingItem): SettledItem => ({
       id: item.id,
       areaId: item.areaId,
@@ -205,22 +185,6 @@ export function createConflictsService(
     return (scope && topicWords(bundle, scope)) || holder.title
   }
 
-  /** Agent questions that got both items as a Conflict in the last 7 days. */
-  async function askedOf(pairs: readonly ConflictPair[]): Promise<Map<string, number>> {
-    if (!pairs.length) return new Map()
-    const rows = await tx.query<{ holder: string; other: string; n: number }>(
-      `select p.holder, p.other,
-              (select count(*)::int from deliveries d
-                where d.caller = 'agent' and d.answer_state = 'conflict'
-                  and d.delivered_hour >= $2::date - 6 and d.delivered_hour < $2::date + 1
-                  and d.delivered @> jsonb_build_array(jsonb_build_object('id', p.holder))
-                  and d.delivered @> jsonb_build_array(jsonb_build_object('id', p.other))) as n
-         from jsonb_to_recordset($1) as p(holder text, other text)`,
-      [JSON.stringify(pairs.map((p) => ({ holder: p.holderId, other: p.otherId }))), clock.today()],
-    )
-    return new Map(rows.map((r) => [`${r.holder}.${r.other}`, r.n]))
-  }
-
   /** The day the later of the two first went live: since when agents get both. */
   async function sinceOf(pair: ConflictPair): Promise<string | null> {
     const [row] = await tx.query<{ since: string | null }>(
@@ -246,7 +210,7 @@ export function createConflictsService(
     const shown = pairs.filter((p) => open.has(p.holderId) && open.has(p.otherId))
     const kept = await keptBoth(shown, bundle)
     const onList = shown.filter((p) => !kept.has(`${p.holderId}.${p.otherId}`))
-    const asked = await askedOf(onList)
+    const asked = await askedOf(tx, clock.today(), onList)
     const byId = new Map(served.map((i) => [i.id, i]))
     const settled = await answering(
       onList.flatMap((p) => [byId.get(p.holderId)!, byId.get(p.otherId)!]),
@@ -347,7 +311,7 @@ export function createConflictsService(
       ),
     }
     const kept = await keptBoth([pair], bundle)
-    const asked = await askedOf([pair])
+    const asked = await askedOf(tx, clock.today(), [pair])
     return {
       key: `${holder.id}.${other.id}`,
       holder: await sideOf(holder, settled(holder)),

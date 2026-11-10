@@ -470,7 +470,24 @@ export function createMockApi() {
     itemPage: ({ id }) =>
       read('itemPage', id, () => {
         const item = factsOf(state).find((f) => f.id === id)
-        return item ? { item: withScope(item), history: historyOf(item, state.log) } : null
+        if (!item) return null
+        // The pair its warning names, as the service's page carries it: no read of the pair.
+        const pair = item.disagreesWith ? pairAt(item.id, item.disagreesWith) : undefined
+        const conflict =
+          pair && conflictOf(pair[0], pair[1], meAsPerson(), workspace.domainMap(), undefined)
+        return {
+          item: withScope(item),
+          history: historyOf(item, state.log),
+          ...(conflict
+            ? {
+                conflict: {
+                  key: conflict.key,
+                  canSettle: Object.values(conflict.rights).some(Boolean),
+                  asked: conflict.asked,
+                },
+              }
+            : {}),
+        }
       }),
     conflicts: ({ whose }) => read('conflicts', whose, () => conflictRows(whose)),
     conflict: ({ holderId, otherId }) =>
