@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { CalendarIcon, MapPinIcon, ShieldAlertIcon, type LucideIcon } from '@/components/icons'
 import { kindIcons } from '@/components/heed/kind-icons'
+import { PeekPending } from '@/components/heed/peek'
 import { Related } from '@/components/heed/related'
 import { ScopeChips } from '@/components/heed/scope-chips'
 import { hostOf } from '@/lib/host'
@@ -60,6 +61,7 @@ function SourceQuote({ quote, source }: { quote: string; source?: string }) {
 export function DetailsBody({
   fact,
   leaveOut = [],
+  pending = false,
 }: {
   fact: Fact
   /**
@@ -67,6 +69,11 @@ export function DetailsBody({
    * or Related.
    */
   leaveOut?: readonly ('kind' | 'source' | 'related')[]
+  /**
+   * The item's own read is still coming (the quick view draws from the list row first): the
+   * don't-conclude line and the quote hold their places until it answers.
+   */
+  pending?: boolean
 }) {
   const Kind = kindIcons[fact.kind]
   return (
@@ -81,10 +88,17 @@ export function DetailsBody({
         <Line icon={CalendarIcon}>
           <b>{fact.when}</b>
         </Line>
-        {fact.dontConclude && (
+        {pending ? (
           <Line icon={ShieldAlertIcon}>
-            <b>Don&apos;t conclude:</b> {fact.dontConclude}
+            <PeekPending className="mt-1.5 h-3 w-11/12" />
+            <PeekPending className="mt-2.5 mb-1.5 h-3 w-1/2" />
           </Line>
+        ) : (
+          fact.dontConclude && (
+            <Line icon={ShieldAlertIcon}>
+              <b>Don&apos;t conclude:</b> {fact.dontConclude}
+            </Line>
+          )
         )}
         {!leaveOut.includes('kind') && (
           <Line icon={Kind}>
@@ -94,7 +108,14 @@ export function DetailsBody({
       </ul>
       {!leaveOut.includes('source') && (
         <>
-          {fact.quote && <SourceQuote quote={fact.quote} source={fact.source} />}
+          {pending ? (
+            <div className="flex flex-col gap-2.5 border-l-2 py-1.5 pl-3">
+              <PeekPending className="h-3 w-full" />
+              <PeekPending className="h-3 w-2/3" />
+            </div>
+          ) : (
+            fact.quote && <SourceQuote quote={fact.quote} source={fact.source} />
+          )}
           {fact.origin && (
             <p className="text-xs leading-5 text-muted-foreground">
               From {fact.origin.tool}: {fact.origin.folder} / {fact.origin.doc}, read{' '}

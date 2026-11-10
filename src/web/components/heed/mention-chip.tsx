@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useDomains, usePeople } from '@/lib/workspace'
 import { CircleSlashIcon, FolderIcon, GlobeIcon, TagIcon, UserRoundIcon } from '@/components/icons'
+import { useReadAhead } from '@/lib/read-ahead'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { TypeGlyph } from '@/components/heed/definition'
@@ -142,6 +143,7 @@ export function MentionChip({
   className?: string
 }) {
   const target = useMentionTarget(mention.id)
+  const ahead = useReadAhead()
   const label = mention.label || target?.label || ''
 
   if (!target)
@@ -199,6 +201,7 @@ export function MentionChip({
         'cursor-pointer transition-[filter] outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50 dark:hover:brightness-125',
         className,
       )}
+      {...(kind === 'context' ? ahead(key) : {})}
       onClick={(e) => {
         e.stopPropagation()
         open()

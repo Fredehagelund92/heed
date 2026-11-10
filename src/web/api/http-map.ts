@@ -94,6 +94,8 @@ export function factsOf(rows: readonly LibraryItem[], names: Names): Fact[] {
       quote: '',
       dontConclude: '',
       ...(owners ? { owners } : {}),
+      // The item it is in a conflict with, either way round (FR-220): a quick view says so at once.
+      ...(row.conflicts[0] ? { disagreesWith: row.conflicts[0] } : {}),
     }
   })
 }

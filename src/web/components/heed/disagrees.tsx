@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
 import { ArrowLeftRightIcon } from '@/components/icons'
 import { Statement } from '@/components/heed/conflict-pair'
 import { SideSection } from '@/components/heed/doc'
 import { Button } from '@/components/ui/button'
-import { conflictQuery } from '@/api/queries'
+import type { ItemPage } from '@/api/client'
 import { comparePair } from '@/lib/differing-words'
 import { openDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { useDomains } from '@/lib/workspace'
 import type { Fact } from '@/model/items'
 
@@ -31,10 +31,19 @@ export function CompareButton({
   )
 }
 
-export function DisagreesSection({ self, other }: { self: Fact; other: Fact }) {
+/** `pair` is what the item's own read says of the conflict: the page draws this side once it has it. */
+export function DisagreesSection({
+  self,
+  other,
+  pair,
+}: {
+  self: Fact
+  other: Fact
+  pair: ItemPage['conflict']
+}) {
   const domains = useDomains()
+  const ahead = useReadAhead()
   const pairKey = `${self.id}.${other.id}`
-  const pair = useQuery(conflictQuery(pairKey)).data
   const theirs = comparePair(self.summary, other.summary)[1]
   return (
     <SideSection title="Disagrees with">
@@ -42,6 +51,7 @@ export function DisagreesSection({ self, other }: { self: Fact; other: Fact }) {
         <button
           type="button"
           className="text-left text-sm font-medium text-primary underline-offset-4 hover:underline"
+          {...ahead(other.id)}
           onClick={() => openDock('context', other.id)}
         >
           {other.title}
@@ -55,10 +65,7 @@ export function DisagreesSection({ self, other }: { self: Fact; other: Fact }) {
             ` Agents say Conflict for ${pair.asked} ${pair.asked === 1 ? 'question' : 'questions'} this week.`}
         </p>
         <div>
-          <CompareButton
-            pairKey={pair?.key ?? pairKey}
-            canSettle={!!pair && Object.values(pair.rights).some(Boolean)}
-          />
+          <CompareButton pairKey={pair?.key ?? pairKey} canSettle={!!pair?.canSettle} />
         </div>
       </div>
     </SideSection>

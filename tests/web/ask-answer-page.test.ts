@@ -26,6 +26,8 @@ vi.mock('@/lib/workspace', () => ({
   usePeople: () => [],
 }))
 vi.mock('@/api/queries', () => ({ useWrite: () => vi.fn() }))
+// Reading items ahead needs the app's query cache, which a static drawing has not.
+vi.mock('@/lib/read-ahead', () => ({ useReadAhead: () => () => ({}), useReadCitedAhead: () => {} }))
 
 const { NextStep, Related } = await import('@/components/heed/answer')
 const { useStillLooking } = await import('@/lib/ask-motion')

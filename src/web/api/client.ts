@@ -248,7 +248,16 @@ export type Advanced = {
 export type Exported = { name: string; type: string; content: string }
 
 /** A context item's page: the item and its versions, newest first. */
-export type ItemPage = { item: Fact; history: Version[] }
+/**
+ * A context item's own read: the item, its history, and the conflict its warning names (the item
+ * in `item.disagreesWith`): the pair's address, whether the person may settle it, and how many
+ * agent questions got both as a Conflict this week.
+ */
+export type ItemPage = {
+  item: Fact
+  history: Version[]
+  conflict?: { key: string; canSettle: boolean; asked: number }
+}
 
 /**
  * Related: what an agent can follow from a context item or a definition with get_related, one

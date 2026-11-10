@@ -40,6 +40,7 @@ import { answerKey, keepShown } from '@/lib/shown-answers'
 import { chipTone, domainHue } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { useDomains, useFacts, useMe, usePeople } from '@/lib/workspace'
+import { useReadAhead, useReadCitedAhead } from '@/lib/read-ahead'
 import { askedOf } from '@/model/ask'
 import { isLive } from '@/model/ask-turn'
 
@@ -87,6 +88,8 @@ export const loopParts = {
   PRODUCT,
   useDefinitions,
   openDock,
+  useReadAhead,
+  useReadCitedAhead,
   ANSWER_LINES,
   href,
   answerKey,

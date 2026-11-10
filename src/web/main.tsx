@@ -60,5 +60,7 @@ const ready = router.subscribe('onResolved', () => {
   idle(() => {
     for (const route of Object.values(router.routesById) as AnyRoute[])
       if (route.lazyFn) void router.loadRouteChunk(route)
+    // The context item's quick view, so a click on one never waits for its code.
+    void import('@/components/heed/fact-peek')
   })
 })

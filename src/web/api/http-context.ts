@@ -532,5 +532,11 @@ export function itemPageOf(
   shift: number,
 ): ItemPage | null {
   const item = factOfPage(page, names, words)
-  return item ? { item, history: historyOf(page.history, names, shift) } : null
+  if (!item) return null
+  const pair = page.pairs.find((p) => p.otherId === item.disagreesWith)
+  return {
+    item,
+    history: historyOf(page.history, names, shift),
+    ...(pair ? { conflict: { key: pair.key, canSettle: pair.canSettle, asked: pair.asked } } : {}),
+  }
 }
