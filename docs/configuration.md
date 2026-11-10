@@ -49,8 +49,11 @@ The login server's own settings are on [Sign in your own agent](ai-sign-in.md#th
 | `MODELS`                    | `mock`  | `mock` is scripted and sends nothing. `live` uses real models |
 | `ANTHROPIC_API_KEY`         | None    | The key for the `anthropic` provider                          |
 | `VERCEL_AI_GATEWAY_API_KEY` | None    | The key for the `vercel-gateway` provider                     |
+| `HEED_ASK_LOOP`             | `off`   | `on` answers Ask with one model on its read tools             |
 
 With `live`, each role's provider and model come from the `models.*` settings, and the service refuses to start when a provider, a model or a key is missing, or the provider does not list the model.
+
+`HEED_ASK_LOOP=on` answers Ask with one model that reads with Heed's own read tools, as the person asking, in place of its fixed rules and planner ([Ask's loop](evaluations.md#asks-loop)). It is for trying it out: what it shows is not checked yet beyond its citations. With `MODELS=mock` it runs a scripted reader.
 
 > **Before you go live.** Questions and answers then leave your company to the named provider and the model's vendor. Real company data needs company approval of them first.
 
@@ -79,11 +82,11 @@ A connector that cannot read a folder stops the service at start. A folder that 
 
 ## The product
 
-| Setting              | Default | What it does                                                                                                                                |
-| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                     |
-| `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built |
-| `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                        |
-| `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. Refused in production                                                                           |
+| Setting              | Default | What it does                                                                                                                                               |
+| -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                                    |
+| `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built                |
+| `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                                       |
+| `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. A day in the past is kept whole: Ask's records read it as ending at the end of that day. Refused in production |
 
 Report a problem opens a mail in the person's own mail app, or an issue on GitHub when `HEED_SUPPORT_EMAIL` is unset, and sends nothing through the service. An issue leaves out the install's address.

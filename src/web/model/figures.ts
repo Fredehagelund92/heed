@@ -1,4 +1,5 @@
 import type { FigureTryFailure } from '@contract/figures'
+import type { Answer } from './ask'
 
 // A figure in Ask as the app reads it (src/web/api): read from an integration at a time,
 // unchanged, and never context: nobody here checked it.
@@ -31,11 +32,35 @@ export type FigureView =
 export type FigureAsk = {
   metric: string
   markets: string[]
+  /**
+   * Every value the question was read for, of any dimension, by key (`val:product/footwear`). When
+   * given, the figure is read for exactly these: a figure for fewer would be another figure, all
+   * the orders for footwear orders.
+   */
+  values?: string[]
   dates?: string
   /** The answer's state; null when nothing was looked up. */
   state: string | null
   /** The answer's context items: a figure someone said doesn't fit one shows beside it. */
   sources?: string[]
+}
+
+/**
+ * What an answer asks of the data. An answer read as keys asks for every value it was read for, of
+ * any dimension: "footwear orders in August" is read for Footwear, so its figure is never the orders
+ * of every product. An answer with no keys asks for its markets by name.
+ */
+export function figureAskOf(
+  answer: Pick<Answer, 'metric' | 'markets' | 'dates' | 'state' | 'sources' | 'keys'>,
+): FigureAsk {
+  return {
+    metric: answer.metric,
+    markets: answer.markets,
+    ...(answer.keys ? { values: Object.values(answer.keys.filters).flat() } : {}),
+    dates: answer.dates,
+    state: answer.state,
+    sources: answer.sources,
+  }
 }
 
 /** A figure that doesn't fit a context item, as a report names it, and who hears about it. */

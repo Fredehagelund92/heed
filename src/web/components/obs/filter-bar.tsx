@@ -8,10 +8,10 @@ import {
   InboxIcon,
   LayersIcon,
   ListFilterIcon,
-  MapPinIcon,
   PanelLeftIcon,
   SearchIcon,
   SigmaIcon,
+  TagIcon,
   XIcon,
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
@@ -82,7 +82,7 @@ const ICONS: Record<FilterKey, React.ReactNode> = {
   answer: <Swatch state="missing" className="mx-0.5" />,
   domain: <LayersIcon />,
   agent: <BotIcon />,
-  market: <MapPinIcon />,
+  market: <TagIcon />,
   metric: <SigmaIcon />,
   month: <CalendarIcon />,
   gap: <InboxIcon />,
@@ -500,7 +500,7 @@ export function FilterBar({
                 ? `${FILTER_WORDS[pending]} is…`
                 : chips.length || time
                   ? 'Add a filter'
-                  : 'Filter by answer, domain, market, metric or a topic'
+                  : 'Filter by answer, domain, value, metric or a topic'
             }
             onChange={(e) => {
               setText(e.target.value)
@@ -1057,7 +1057,7 @@ function ChipEditor({
       </div>
       <OptionList
         box={search}
-        label={`${label} values`}
+        label="Values to choose from"
         items={items}
         active={active.id}
         onPick={(i) => toggle(i.id)}

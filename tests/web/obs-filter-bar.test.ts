@@ -106,7 +106,7 @@ describe('the filter bar', () => {
     await key(document.body, 'f')
     expect(document.activeElement).toBe(box)
     expect(box.getAttribute('aria-expanded')).toBe('true')
-    expect(options()).toEqual(['Answer', 'Market', 'Month asked about'])
+    expect(options()).toEqual(['Answer', 'Value', 'Month asked about'])
     // The box names the list and its active row.
     const list = document.getElementById(box.getAttribute('aria-controls')!)
     expect(list?.getAttribute('role')).toBe('listbox')
@@ -115,13 +115,13 @@ describe('the filter bar', () => {
     )
     await key(box, 'ArrowDown')
     await key(box, 'Enter')
-    // Market's values, with what they count, hidden ones in the disclosure rules' words.
+    // Value's values, with what they count, hidden ones in the disclosure rules' words.
     expect(options()[0]).toMatch(/^Norway88\+/)
     expect(options()[1]).toMatch(/^SpainFewer than 5/)
     await key(box, 'Enter')
     expect(onChange).toHaveBeenLastCalledWith(
       [{ key: 'market', values: ['Norway'] }],
-      'Added Norway: Market is Norway',
+      'Added Norway: Value is Norway',
       undefined,
     )
   })
@@ -135,7 +135,7 @@ describe('the filter bar', () => {
       value.set!.call(box, 'nor')
       box.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(options()).toEqual([expect.stringMatching(/^Market is Norway/), 'Topic has “nor”'])
+    expect(options()).toEqual([expect.stringMatching(/^Value is Norway/), 'Topic has “nor”'])
     await key(box, 'ArrowUp')
     await key(box, 'Enter')
     expect(onChange).toHaveBeenLastCalledWith(
@@ -155,7 +155,7 @@ describe('the filter bar', () => {
     await key(box, 'Backspace')
     expect(onChange).toHaveBeenLastCalledWith(
       [chips[0]],
-      'Removed the filter Market is not Norway',
+      'Removed the filter Value is not Norway',
       undefined,
     )
     await key(box, 'Escape')

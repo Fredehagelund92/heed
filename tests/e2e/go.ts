@@ -198,9 +198,9 @@ export const test = base.extend<{ demoWeek: void }>({
   far. go does the same. In http mode a mock card's id becomes the service's,
   and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags
   become what they stand for: `?state=offline` takes the browser offline, `?state=failed` makes
-  the first try of a decision fail, `?bulk=fail` makes the last row of the first change to many
-  rows fail, `?quality=failed` makes the last check of the saved questions one that stopped
-  after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
+  the first try of a decision, and of adding or removing a synonym, fail, `?bulk=fail` makes the
+  last row of the first change to many rows fail, `?quality=failed` makes the last check of the
+  saved questions one that stopped after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
   `?demo=setup` starts on an empty workspace, `?links=off` (or `on`) switches following links
   for agents in Agents and access, on the service, before the page loads, `?figures=on|off` switches
   Cube's figures, and Ask's `?example=` asks the example's question in the composer (`figconflict`
@@ -528,19 +528,25 @@ async function failedCheck(checked: number) {
   await fail(checked)
 }
 
-/** The first try of each decision fails with the service's own failure; the next goes through. */
+/**
+ * The first try of each decision, and of adding or removing a synonym, fails with the service's own
+ * failure; the next goes through.
+ */
 async function failFirstTry(page: Page) {
   const tried = new Set<string>()
-  await page.route(/\/api\/v1\/review\/[^/]+\/(publish|return)$/, async (route) => {
-    const path = new URL(route.request().url()).pathname
-    if (route.request().method() !== 'POST' || tried.has(path)) return route.fallback()
-    tried.add(path)
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      json: { code: 'SERVICE_UNAVAILABLE', status: 503, message: 'The service is busy.' },
-    })
-  })
+  await page.route(
+    /\/api\/v1\/(review\/[^/]+\/(publish|return)|terms(\/delete)?)$/,
+    async (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (route.request().method() !== 'POST' || tried.has(path)) return route.fallback()
+      tried.add(path)
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        json: { code: 'SERVICE_UNAVAILABLE', status: 503, message: 'The service is busy.' },
+      })
+    },
+  )
 }
 
 /**

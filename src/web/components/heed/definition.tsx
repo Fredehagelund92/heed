@@ -22,6 +22,7 @@ import {
   kindName,
   sourceUrl,
   SYNCED_AT,
+  type Conflict,
   type Definition,
   type DefinitionType,
   useGlossary,
@@ -214,60 +215,122 @@ export function SynonymTags({
   const [flash, setFlash] = React.useState<string | null>(null)
   const input = React.useRef<HTMLInputElement>(null)
   const id = React.useId()
+  const me = useMe()
   const same = (a: string, b: string) => termWord(a) === termWord(b)
+  const without = (list: string[], words: string[]) =>
+    list.filter((n) => !words.some((w) => same(n, w)))
 
-  const commit = async (words: string[]) => {
-    const added: string[] = []
-    const out: Refused[] = []
-    for (const w of words) {
-      const r = await write('addSynonym', { target: point.name, word: w })
-      if (r.ok) added.push(w)
-      else if (r.why === 'here')
-        setFlash(
-          synonyms.find((s) => same(s.name, w))?.name ??
-            point.sourceNames.find((n) => same(n, w)) ??
-            null,
-        )
-      else if (r.why !== 'empty') out.push({ word: w, reason: r.reason })
-    }
-    setRefused((prev) => [
-      ...prev.filter(
-        (p) => !out.some((o) => same(o.word, p.word)) && !added.some((a) => same(a, p.word)),
-      ),
-      ...out,
-    ])
-    setSaid(
-      [
-        added.length && `Added synonym ${added.join(', ')}.`,
-        out.map((o) => o.reason).join(' '),
-        words.length && !added.length && !out.length && 'Already there.',
-      ]
-        .filter(Boolean)
-        .join(' '),
-    )
+  // A word is a tag the moment it is typed, and a removed one goes at once, while the save runs
+  // behind it (the service reads the glossary, writes, then every definition is read again: seconds
+  // on a slow line). A failed save takes its change back and says so. Plain state rather than
+  // useOptimistic: an open transition that long would hold every other transition in the app.
+  const [adding, setAdding] = React.useState<string[]>([])
+  const [removing, setRemoving] = React.useState<string[]>([])
+  const kept = synonyms.filter((s) => !removing.some((n) => same(n, s.name)))
+  const tags: { name: string; by?: string; conflict?: Conflict }[] = [
+    ...kept.map((s) => ({ name: s.name, by: s.by, conflict: glossary.conflictOf(s) })),
+    ...without(adding, [...kept.map((s) => s.name), ...removing]).map((w) => ({
+      name: w,
+      by: me.name,
+    })),
+  ]
+  // The saves run one at a time, in the order they were made: a tag removed while it is still being
+  // added goes once it is in.
+  const saves = React.useRef<Promise<void>>(Promise.resolve())
+  const unsaved = React.useRef<string[]>([])
+  const inTurn = (run: () => Promise<void>) => {
+    saves.current = saves.current.then(run, run)
   }
-  const remove = async (name: string) => {
-    const { undo } = await write('removeTerm', { name })
-    setSelected(null)
-    setSaid(`Removed synonym ${name}.`)
-    toast(`Removed “${name}”`, {
-      description: `${point.name} itself is unchanged.`,
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+
+  const commit = (words: string[]) => {
+    const known = [...point.sourceNames, ...tags.map((t) => t.name)]
+    // A word already here, or typed twice before its save is in, is never sent again.
+    const fresh = words.filter((w) => !known.some((n) => same(n, w)))
+    const here = words.find((w) => !fresh.includes(w))
+    if (here) setFlash(known.find((n) => same(n, here)) ?? null)
+    if (!fresh.length) {
+      if (words.length) setSaid('Already there.')
+      return
+    }
+    unsaved.current = without(unsaved.current, fresh)
+    setAdding((list) => [...list, ...fresh])
+    setRemoving((list) => without(list, fresh))
+    setRefused((prev) => prev.filter((p) => !fresh.some((w) => same(w, p.word))))
+    inTurn(async () => {
+      const added: string[] = []
+      const out: Refused[] = []
+      const failed: string[] = []
+      for (const w of fresh) {
+        try {
+          const r = await write('addSynonym', { target: point.name, word: w })
+          if (r.ok) added.push(w)
+          else if (r.why === 'here') setFlash(w)
+          else if (r.why !== 'empty') out.push({ word: w, reason: r.reason })
+        } catch {
+          failed.push(w)
+        }
+      }
+      unsaved.current = [...unsaved.current, ...failed, ...out.map((o) => o.word)]
+      setAdding((list) => without(list, fresh))
+      setRefused((prev) => [
+        ...prev.filter(
+          (p) => !out.some((o) => same(o.word, p.word)) && !added.some((a) => same(a, p.word)),
+        ),
+        ...out,
+      ])
+      setSaid(
+        [
+          added.length && `Added synonym ${added.join(', ')}.`,
+          out.map((o) => o.reason).join(' '),
+          !added.length && !out.length && !failed.length && 'Already there.',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      )
+      if (failed.length)
+        toast.error(`Couldn't add ${failed.map((w) => `“${w}”`).join(', ')}`, {
+          description: 'Nothing was saved.',
+          action: { label: 'Try again', onClick: () => commit(failed) },
+        })
     })
+  }
+  const remove = (name: string) => {
+    setSelected(null)
+    setRemoving((list) => [...list, name])
     input.current?.focus()
+    inTurn(async () => {
+      if (unsaved.current.some((w) => same(w, name))) {
+        setRemoving((list) => without(list, [name]))
+        return
+      }
+      try {
+        const { undo } = await write('removeTerm', { name })
+        setSaid(`Removed synonym ${name}.`)
+        toast(`Removed “${name}”`, {
+          description: `${point.name} itself is unchanged.`,
+          action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+        })
+      } catch {
+        toast.error(`Couldn't remove “${name}”`, {
+          description: `It is still another name for ${point.name}.`,
+          action: { label: 'Try again', onClick: () => remove(name) },
+        })
+      }
+      setRemoving((list) => without(list, [name]))
+    })
   }
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === ',' || (e.key === 'Enter' && text.trim())) {
       e.preventDefault()
-      void commit(parseTags(text))
+      commit(parseTags(text))
       setText('')
       return
     }
     if (e.key === 'Backspace' && !text) {
-      const last = synonyms[synonyms.length - 1]
+      const last = tags[tags.length - 1]
       if (!last) return
       e.preventDefault()
-      if (selected === last.name) void remove(last.name)
+      if (selected === last.name) remove(last.name)
       else {
         setSelected(last.name)
         setSaid(`${last.name} selected. Backspace again removes it.`)
@@ -297,26 +360,23 @@ export function SynonymTags({
           <span className="sr-only"> (from {point.tool ?? 'its tool'}, read-only)</span>
         </TagChip>
       ))}
-      {synonyms.map((s) => {
-        const conflict = glossary.conflictOf(s)
-        return (
-          <TagChip
-            key={s.name}
-            tone={conflict ? 'warn' : 'term'}
-            icon={conflict ? <TriangleAlertIcon aria-hidden /> : <EqualIcon aria-hidden />}
-            title={conflict ? conflict.message : `${s.name}, added by ${s.by}`}
-            onRemove={canEdit ? () => void remove(s.name) : undefined}
-            removeLabel={`Remove the synonym ${s.name}`}
-            className={cn(
-              'max-w-48',
-              (selected === s.name || (flash && same(flash, s.name))) && 'ring-2 ring-ring',
-            )}
-          >
-            {s.name}
-            {conflict && <span className="sr-only"> (conflict: {conflict.short})</span>}
-          </TagChip>
-        )
-      })}
+      {tags.map(({ name, by, conflict }) => (
+        <TagChip
+          key={name}
+          tone={conflict ? 'warn' : 'term'}
+          icon={conflict ? <TriangleAlertIcon aria-hidden /> : <EqualIcon aria-hidden />}
+          title={conflict ? conflict.message : `${name}, added by ${by}`}
+          onRemove={canEdit ? () => remove(name) : undefined}
+          removeLabel={`Remove the synonym ${name}`}
+          className={cn(
+            'max-w-48',
+            (selected === name || (flash && same(flash, name))) && 'ring-2 ring-ring',
+          )}
+        >
+          {name}
+          {conflict && <span className="sr-only"> (conflict: {conflict.short})</span>}
+        </TagChip>
+      ))}
       {refused.map((r) => (
         <TagChip
           key={r.word}
@@ -355,16 +415,14 @@ export function SynonymTags({
             aria-label={`Add another name for ${point.name}`}
             aria-describedby={`${id}-help`}
             placeholder={
-              synonyms.length || point.sourceNames.length
-                ? 'Add a word'
-                : 'Type a word, then a comma'
+              tags.length || point.sourceNames.length ? 'Add a word' : 'Type a word, then a comma'
             }
             onChange={(e) => {
               const v = e.target.value
               // A comma typed or pasted mid-word: every finished word becomes a tag, the rest stays.
               if (v.includes(',')) {
                 const parts = v.split(',')
-                void commit(parseTags(parts.slice(0, -1).join(',')))
+                commit(parseTags(parts.slice(0, -1).join(',')))
                 setText(parts[parts.length - 1]!.trimStart())
               } else setText(v)
             }}
@@ -372,14 +430,14 @@ export function SynonymTags({
               const pasted = e.clipboardData.getData('text')
               if (!/[,\n]/.test(pasted)) return
               e.preventDefault()
-              void commit(parseTags(`${text}${pasted}`))
+              commit(parseTags(`${text}${pasted}`))
               setText('')
             }}
             onKeyDown={onKeyDown}
             className="h-6 min-w-28 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground pointer-coarse:h-8"
           />
         </div>
-      ) : synonyms.length || point.sourceNames.length ? (
+      ) : tags.length || point.sourceNames.length ? (
         <div className="flex flex-wrap items-center gap-1.5">{chips}</div>
       ) : (
         <p className="text-sm text-muted-foreground">No other names yet.</p>

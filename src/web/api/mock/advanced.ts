@@ -54,6 +54,8 @@ function settingsOf(name: string, about: string, autoPublish: boolean) {
     ['limits.llm_feature_monthly_micros', { eval: 20_000_000, assistant: 250_000_000 }, capped],
     ['evals.run_budget_micros', 2_000_000],
     ['models.assistant', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],
+    ['ask.max_steps', 6],
+    ['ask.time_limit_seconds', 30],
     ['models.eval_answer', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],
     ['models.judge', 'different_family'],
     ['models.test_authoring', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],

@@ -45,6 +45,7 @@ import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { FigureReport } from '@/model/figures'
 import type { Fact, Sent } from '@/model/items'
+import { ALL_VALUES } from '@/model/observability'
 import { excerptOf, type Domains } from '@/model/people'
 import { dateLabel } from '@/model/validity'
 import routes from './contract.json' with { type: 'json' }
@@ -64,6 +65,7 @@ import {
   examplesOf,
   failedAnswer,
   lookupFields,
+  loopAnswerOf,
   namesOf,
   nothingLiveAnswer,
   type ReadScope,
@@ -326,7 +328,9 @@ const topicNameOf = (
     ? `${t.where}, no metric named`
     : markets.includes(t.where)
       ? `${t.metric} in ${t.where}`
-      : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
+      : t.where === ALL_VALUES
+        ? t.metric
+        : `${t.metric}, ${t.where}`
 
 /** Two names for the same word: case, spaces and accents aside, as the service compares them. */
 const same = (a: string, b: string) => termWord(a) === termWord(b)
@@ -853,18 +857,22 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // A short question back, or a question off topic: its one event, and nothing looked up.
     let reply: Extract<LookupEvent, { type: 'reply' }>['reply'] | undefined
     let reading: Extract<LookupEvent, { type: 'records' }>['reading']
+    // Ask's loop, where the service runs it: its one finished turn.
+    let turn: Extract<LookupEvent, { type: 'turn' }>['turn'] | undefined
     try {
       for await (const event of events) {
         if (event.type === 'answer') answer = event.answer
         else if (event.type === 'sentence') written.push(event.text)
         else if (event.type === 'records') ({ records, reading } = event)
         else if (event.type === 'reply') reply = event.reply
+        else if (event.type === 'turn') turn = event.turn
         seen(event)
       }
     } catch (error) {
       // Once the engine's answer is in, a stream that breaks ends the words there; the answer stays.
       if (!answer || signal?.aborted) throw error
     }
+    if (turn) return { turn }
     if (records) return { records, reading }
     if (reply) return { reply }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
@@ -912,7 +920,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const tell = live?.onEvent
       if (!tell) return
       if (event.type === 'plan') tell({ type: 'plan', working: event.plan.working })
-      else if (event.type === 'step' && event.step.step === 'looked_up')
+      // Ask's loop says what each read is doing as it starts, and once done what it found.
+      else if (event.type === 'progress') {
+        tell({ type: 'plan', working: event.working })
+        if (event.steps)
+          tell({ type: 'reads', reads: { steps: event.steps, nouns: event.nouns ?? [] } })
+      } else if (event.type === 'step' && event.step.step === 'looked_up')
         tell({ type: 'found', items: event.step.items.length })
       else if (event.type === 'answer')
         tell({ type: 'answer', answer: answerOf(event.answer, words, names, extra) })
@@ -922,6 +935,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       // A follow-up carries the chat's last turns; a question scoped with @ is read as scoped.
       const carry = turns?.length && !example && !scope?.length ? { turns } : {}
       const looked = await lookUp({ question: words, ...fields, ...carry }, seen, live?.signal)
+      if (looked.turn) {
+        said.set(words.toLowerCase(), looked.turn.text.replace(/\[\d+\]/g, ''))
+        return { ...loopAnswerOf(looked.turn, words, names), ...extra }
+      }
       if (looked.records)
         return { ...recordsAnswer(words, looked.records, looked.reading), ...extra }
       if (looked.reply) return { ...replyAnswer(words, looked.reply), ...extra }
@@ -1750,21 +1767,22 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         token,
         reason: 'Where figures are read, set on the integration.',
       })),
-    readFigure: async ({ metric, markets, dates, state, sources }) => {
+    readFigure: async ({ metric, markets, values: read, dates, state, sources }) => {
       if (!metric || state === 'failed') return null
       const days = daysOfDates(dates, localDay(new Date()))
       if (!days) return null
       const names = namesOf(await readVocabulary())
       const key = names.metricKey(metric)
-      const values = markets.flatMap((m) => names.marketKey(m) ?? [])
+      // The values the answer was read for, of any dimension; an answer without them, its markets.
+      const values = read ?? markets.flatMap((m) => names.marketKey(m) ?? [])
       // A metric or a market Definitions doesn't name has no figure the service could read.
-      if (!key || values.length !== markets.length) return null
+      if (!key || (!read && values.length !== markets.length)) return null
       const items = (sources ?? []).filter(isItemId)
       const input = { metric: key, values, ...days, ...(items.length ? { items } : {}) }
       const figure = await readPosted((o) => client.figures.read(input, o))
       return figureViewOf(
         figure,
-        { metric, markets, ...(dates ? { dates } : {}) },
+        { metric, markets: read ? read.map(names.value) : markets, ...(dates ? { dates } : {}) },
         connectorOf,
         new Date(),
       )
@@ -2070,8 +2088,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     getAskExamples: async () =>
       examplesOf(await readAsked()).map(({ scope: _scope, ...example }) => example),
     listChats: async () => chats.list((await signedIn()).id),
-    saveChat: async ({ id, question }) =>
-      chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
+    saveChat: async ({ id, question, answers }) =>
+      answers
+        ? chats.keep((await signedIn()).id, id, question, answers)
+        : chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
     renameChat: async ({ id, title }) => chats.rename((await signedIn()).id, id, title),
     deleteChat: async ({ id }) => chats.remove((await signedIn()).id, id),
     // A named report: the question, the part and the words the person sent, with their name.

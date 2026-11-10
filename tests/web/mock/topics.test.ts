@@ -44,7 +44,7 @@ describe('the topic key', () => {
 
 describe('roll-ups', () => {
   const groups = rollUp(topicsOf({ range: 7 }))
-  it('joins the months of a metric and market into one row, the months kept inside', () => {
+  it('joins the months of a metric and its values into one row, the months kept inside', () => {
     const orders = groups.find((g) => g.name === 'Orders in Norway')!
     expect(orders.total).toBe(31)
     expect(orders.months).toEqual(['2026-10', '2026-09'])

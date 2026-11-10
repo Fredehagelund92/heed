@@ -137,6 +137,10 @@ const envSchema = z
     // `mock` scripts every role; `live` uses each role's provider and model from the settings
     // (`models.<role>`), with the provider's key from this environment.
     MODELS: z.enum(['mock', 'live']).default('mock'),
+    // Ask answers with one model that reads with Heed's own read tools, as the person asking
+    // (FR-718 to FR-720), in place of its fixed rules and planner. Off until its answer check is
+    // built: what it shows is not yet checked.
+    HEED_ASK_LOOP: z.enum(['on', 'off']).default('off'),
     MODEL_PROVIDER: z.string().optional(),
     // A folder of Cube model files, read offline. Unset selects the demo connector.
     CUBE_MODEL_DIR: z.string().optional(),
@@ -322,6 +326,8 @@ export interface Config {
   trustedProxies: string[]
   fixedToday: string | undefined
   models: 'mock' | 'live'
+  /** HEED_ASK_LOOP: Ask reads with one model and its read tools (FR-718 to FR-720). */
+  askLoop: boolean
   /** The registry's key and base URL variables that are set, by name. Never logged. */
   modelEnv: Record<string, string>
   cubeModelDir: string | undefined
@@ -403,6 +409,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     trustedProxies: env.HEED_TRUSTED_PROXIES ?? [],
     fixedToday: env.HEED_FIXED_TODAY,
     models: env.MODELS,
+    askLoop: env.HEED_ASK_LOOP === 'on',
     modelEnv: Object.fromEntries(
       modelProviders
         .flatMap((provider) => [provider.apiKeyEnv, provider.baseUrlEnv])

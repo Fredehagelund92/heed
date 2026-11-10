@@ -238,11 +238,12 @@ function initialForm(
     }
   const metric = query.get('metric')
   const market = query.get('market')
-  if (metric || market)
+  const about = query.get('about')?.split('|') ?? []
+  if (metric || market || about.length)
     return {
       ...blank,
       where: termsOfNames(
-        [metric, market].filter((w): w is string => !!w),
+        [metric, market, ...about].filter((w): w is string => !!w),
         vocabulary,
       ),
     }
