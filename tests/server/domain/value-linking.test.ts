@@ -284,9 +284,24 @@ describe('golden questions: lowercase names that end like everyday words', () =>
     })
   })
 
-  it('still reads "doing" after a dimension word as how', () => {
-    for (const question of ['how is the mobile team doing', 'how is the mobile team doing this week'])
-      expect(read(question)).toMatchObject({ reads: { 'dim:team': ['val:team/mobile'] } })
+  it.each(['orders for market beijing', 'orders in country ealing'])(
+    'still asks about an unknown -ing name after a dimension word, "%s"',
+    (question) => {
+      expect(ask(question)).toMatchObject({
+        status: 'need_more_detail',
+        issues: [{ field: 'dim:country' }],
+      })
+    },
+  )
+
+  it.each([
+    'how is the mobile team doing',
+    'how is the mobile team doing this week',
+    'how is the mobile team performing',
+    'how is the mobile team trending',
+    'how is the mobile team faring',
+  ])('reads "%s" as Team: Mobile', (question) => {
+    expect(read(question)).toMatchObject({ reads: { 'dim:team': ['val:team/mobile'] } })
   })
 })
 

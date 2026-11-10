@@ -596,14 +596,7 @@ export function extractScope(
         )) {
           const value = match[1]!
           const valueStart = match.index + match[0].lastIndexOf(value)
-          const at = found.written({ start: valueStart, end: valueStart + value.length })
-          const titleCase = /^\p{Lu}\p{Ll}+$/u.test(question.slice(at.start, at.end))
-          if (
-            !occupied.has(valueStart) &&
-            !dated.has(valueStart) &&
-            !isEverydayWord(value) &&
-            !saysHow(value, titleCase, /ing$/)
-          )
+          if (!occupied.has(valueStart) && !dated.has(valueStart) && !isEverydayWord(value))
             resolve(value, ['dimension_value'], dimension.key, dimension.key)
         }
       }

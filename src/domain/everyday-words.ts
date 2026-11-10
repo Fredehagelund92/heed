@@ -37,7 +37,7 @@ shows split start started starts stay stayed stop stopped stops take taken takes
 thought try tried turn turned use used want wanted went work worked write written wrote jump
 jumped spike spiked change changed changes trend trending trends land landed sit sat perform
 performed performing doing did fare fared track tracked tracking hit dip dipped climb climbed
-slip slipped slow slowed pick picked report reported
+slip slipped slow slowed faring holding behaving lagging slipping shaping selling ticking settling moving pick picked report reported
 
 able actual actually additional all-time average bad best better big bigger biggest brief broad
 certain clear close common complete current daily different early earlier easy entire exact
