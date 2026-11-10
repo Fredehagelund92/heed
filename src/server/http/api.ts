@@ -1337,6 +1337,12 @@ export function createRouter({
       agents: authorized.obs.agents.handler(({ context, input }) =>
         context.observability.agents(input),
       ),
+      dimensions: authorized.obs.dimensions.handler(({ context, input }) =>
+        context.observability.dimensions(input),
+      ),
+      values: authorized.obs.values.handler(({ context, input }) =>
+        context.observability.values(input),
+      ),
       feedback: authorized.obs.feedback.handler(({ context, input }) =>
         context.observability.feedback(input),
       ),

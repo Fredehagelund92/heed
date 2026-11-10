@@ -66,7 +66,7 @@ export function topicOf(t: ObsTopic): Topic {
   return {
     id: t.id,
     metric: t.metric,
-    where: t.values.length ? t.values.join(', ') : ALL_VALUES,
+    where: t.values.length ? t.values.map((v) => v.name).join(', ') : ALL_VALUES,
     ...(t.areaId ? { domain: t.areaId } : {}),
     month: t.month,
     subject: t.subject,
@@ -93,9 +93,9 @@ export function obsAgentsOf(view: ObsAgents, range: Range): ObsData {
   const base = emptyObs(range, view.state)
   const markets = [
     ...new Set(
-      [...view.topics, ...view.notFoundTopics]
-        .filter((t) => t.dimension === 'market')
-        .flatMap((t) => t.values),
+      [...view.topics, ...view.notFoundTopics].flatMap((t) =>
+        t.values.filter((v) => v.dimension === 'dim:market').map((v) => v.name),
+      ),
     ),
   ]
   return {
