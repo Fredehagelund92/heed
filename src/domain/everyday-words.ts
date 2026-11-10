@@ -77,7 +77,11 @@ releases promo promos promotion promotions offer offers event events incident in
 outages week's month's year's day's quarter's comparison comparisons benchmark benchmarks
 baseline average averages median medians mean peak peaks low lows high highs record records
 subscription subscriptions gift gifts card cards credit debit invoice invoices refund refunds
-voucher vouchers coupon coupons
+voucher vouchers coupon coupons pending duplicate duplicates guest guests recurring missing fake
+test tests trial trials draft drafts
+moment moments checkout review reviews pickup pick-up abroad finance owns own owned owner owners
+drive drives driving drove read reads reading recover recovering bounce bouncing clear clearing
+ship ships shipped stand standing hold
 thanks thank please ok okay hi hello hey sorry yes yeah yep nope
 
 second seconds minute minutes hour hours day days week weeks weekend weekends month months

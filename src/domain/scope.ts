@@ -137,7 +137,15 @@ type UnknownValue = DateSpan & {
  * ("orders in total", "revenue in gbp"), a number, a word in capitals ("GBP", "YTD"), a plural
  * right after the place word ("orders in stores"), another form of a name Heed knows ("markets"),
  * nor the name of the product or of a tool a definition comes from ("cube"). A short code written
- * in lowercase ("orders in uk") is said with the value it would be. Places in the normalised text.
+ * in lowercase ("orders in uk") is said with the value it would be. Before a metric, only a word
+ * that starts what is asked counts ("jordan orders", not "who owns orders"); after "to" that
+ * follows an everyday word, a lowercase word is a verb ("going to recover"); and a lowercase word
+ * ending in -ed is a participle ("cancelled orders"). Places in the normalised text.
+ *
+ * These rules by place are kept deliberately small: this is their fourth narrowing, and each one
+ * trades a missed unknown word for fewer false alarms. The principled fix is value linking V2:
+ * one index of every value name, with near-miss asking, so that a value word is known by the
+ * list, not guessed from where it sits.
  */
 function unknownValuesByPlace(
   found: Pick<
@@ -187,13 +195,20 @@ function unknownValuesByPlace(
       run.every((w) => /^\p{L}[\p{L}'-]*$/u.test(w.word) && !/^\p{Lu}{2,}$/u.test(w.as)) &&
       (code
         ? !everydayWords.has(word)
-        : run.some((w) => !isEverydayWord(w.word)) &&
+        : run.some((w, k) => !isEverydayWord(w.word) && !(/ed$/.test(w.word) && !titled(i + k))) &&
           (run.length > 1 || word.length >= 3) &&
           !tools.has(word) &&
           !known.has(word.replace(/'s$/, '')) &&
           !known.has(word.replace(/e?s$/, '')))
     const p = words[i - 1]?.word === 'the' ? i - 2 : i - 1
-    const after = p >= 0 && words[p]!.free && valuePlaces.has(words[p]!.word)
+    // After "to" that follows an everyday word, a lowercase word is a verb: "going to recover".
+    const infinitive =
+      words[p]?.word === 'to' &&
+      !titled(i) &&
+      p > 0 &&
+      words[p - 1]!.free &&
+      isEverydayWord(words[p - 1]!.word)
+    const after = p >= 0 && words[p]!.free && valuePlaces.has(words[p]!.word) && !infinitive
     // Before a name, a word after another word that is no everyday word, no place word and no
     // value's name is part of what it names, not a value: "store credit orders", "gift card orders".
     const before = words[i - 1]
@@ -204,7 +219,12 @@ function unknownValuesByPlace(
       !saysHow(before.word, titled(i - 1)) &&
       !named.find((n) => n.end === before.end)?.keys.every((k) => k.startsWith('val:'))
     const next = compound ? undefined : nameAt(j + 1)
-    const beforeMetric = !!next?.keys.some((k) => k.startsWith('metric:') || k.startsWith('group:'))
+    // Before a metric, only a word that starts what is asked counts: "jordan orders", "the jordan
+    // orders", never one after a question word or a verb ("who owns orders", "how do i read sales").
+    const opens =
+      i === 0 || ['the', 'and', 'or'].includes(before!.word) || valuePlaces.has(before!.word)
+    const beforeMetric =
+      opens && !!next?.keys.some((k) => k.startsWith('metric:') || k.startsWith('group:'))
     const dimension =
       next?.keys.length === 1 && next.keys[0]!.startsWith('dim:') ? next.keys[0]! : null
     // A word before a day's name is part of that day's name: "black friday week", "boxing day".
@@ -282,14 +302,16 @@ function splitsOf(terms: readonly Term[], metrics: readonly string[]) {
  * A value word with several meanings is first narrowed, never guessed: a dimension's name beside
  * it keeps that dimension's value ("the Alder brand", "brand Alder"), and is then no split by that
  * dimension; else the metrics the question names, and those the caller `given`, keep the values of
- * dimensions they can be split by. A short code ("NO", "UK") is read only when written in capitals
- * or beside its dimension's name, so "no" and "it" stay everyday words.
+ * dimensions they can be split by. In Ask (`loose`), a short code ("NO", "UK") is read only when
+ * written in capitals or beside its dimension's name, so "no" and "it" stay everyday words; agents
+ * read it in any case, as before.
  */
 export function termsInText(
   question: string,
   terms: readonly Term[],
   use: { metrics: boolean; dimensions: boolean } = { metrics: true, dimensions: true },
   given: readonly string[] = [],
+  loose = false,
 ) {
   const metrics: string[] = []
   const filters: Record<string, string[]> = Object.create(null) as Record<string, string[]>
@@ -340,7 +362,8 @@ export function termsInText(
     const asWritten = question.slice(written(phrase).start, written(phrase).end)
     const all = phrase.relevant
     phrase.relevant = phrase.relevant.filter((term) => {
-      if (term.kind !== 'dimension_value') return true
+      // Agents read a short code in any case, as before; Ask reads it only in capitals.
+      if (term.kind !== 'dimension_value' || !loose) return true
       const as = [term.name, ...term.aliases].filter((n) => normalizeName(n) === phrase.name)
       return (
         !as.length ||
@@ -435,7 +458,7 @@ function readWords(
   loose = false,
   given: readonly string[] = [],
 ) {
-  const found = termsInText(question, terms, use, given)
+  const found = termsInText(question, terms, use, given, loose)
   let dates: ReturnType<typeof readDates>
   try {
     dates = readDates(found.text, today, { taken: found.occupied, loose })

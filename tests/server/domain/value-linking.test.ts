@@ -416,12 +416,25 @@ describe('golden questions: as an agent asks', () => {
     ['orders at the alder brand', { reads: { 'dim:brand': ['val:brand/alder'] } }],
     ['ad spend for alder', { reads: { 'dim:audience': ['val:audience/alder'] } }],
     ['how is the mobile team doing', { reads: { 'dim:team': ['val:team/mobile'] } }],
-    ['orders with no discount', { reads: {} }],
     ['orders in NO', { reads: { 'dim:country': ['val:country/norway'] } }],
     ['orders in alder', { asks: ['val:aisle/alder', 'val:brand/alder'] }],
+    // A short code reads in any case for agents, exactly as on main; only Ask needs capitals.
+    ['orders with no discount', { reads: { 'dim:country': ['val:country/norway'] } }],
+    ['orders in bf', { reads: { 'dim:campaign': ['val:campaign/black_friday'] } }],
   ])('reads "%s"', (question, reading) => {
     const read = agent(question)
     expect(as(read, reading)).toEqual(reading)
+  })
+
+  it.each([
+    ['orders in uk', 'val:market/united_kingdom'],
+    ['orders in UK', 'val:market/united_kingdom'],
+    ['gmv for the uk in september', 'val:market/united_kingdom'],
+    ['orders from usa', 'val:market/united_states'],
+  ])('reads the lowercase short code in "%s" as main does', (question, value) => {
+    // Larchwood's names: United Kingdom has the other name UK, United States USA.
+    const r = scopeOf({ question }, planBundle as unknown as ServingBundle, PLAN_TODAY)
+    expect(r).toMatchObject({ status: 'resolved', scope: { filters: { 'dim:market': [value] } } })
   })
 
   it('says no such value after a dimension name, as before', () => {
@@ -446,6 +459,59 @@ describe('golden questions: Larchwood, PR 180 checks', () => {
     const r = read(question)
     return r.status === 'need_more_detail' ? r.issues.map((i) => i.message ?? i.input) : []
   }
+
+  it.each([
+    // An independent check of PR 185 (2026-11-10) found these read as a value Heed does not have.
+    // Before a metric: an order's state, or a verb after a question word.
+    'cancelled orders',
+    'pending orders',
+    'refunded orders',
+    'returned orders',
+    'failed orders',
+    'completed orders',
+    'shipped orders',
+    'delivered orders',
+    'abandoned orders',
+    'duplicate orders',
+    'guest orders',
+    'recurring orders',
+    'missing orders',
+    'fake orders',
+    'test orders',
+    'who owns orders in Norway?',
+    'what is driving orders in Germany?',
+    'how do i read net revenue for a campaign?',
+    'how do i read roas for a single campaign?',
+    // After a place word: a fixed phrase, or a verb after "to".
+    'orders at the moment',
+    'orders at checkout',
+    'orders for review',
+    'orders to ship',
+    'orders from abroad',
+    'orders for pickup',
+    'net revenue for finance',
+    'are orders going to recover in Spain?',
+    'are orders going to bounce back in Spain?',
+    'is support quicker at clearing the sales inbox?',
+  ])('reads "%s" with no value Heed does not have', (question) => {
+    expect(asked(question).filter((said) => /no value/.test(said))).toEqual([])
+  })
+
+  it.each([
+    'orders from jordan',
+    'orders for jordan',
+    'orders to jordan',
+    'jordan orders',
+    'the jordan orders',
+    'orders in beijing',
+    'orders to ealing',
+    'orders from sicily',
+    'beijing orders',
+    'ealing orders',
+    'sicily orders',
+  ])('still says "%s" names a value Heed does not have', (question) => {
+    expect(asked(question).filter((said) => /no value/.test(said))).toHaveLength(1)
+  })
 
   it.each([
     'net revenue in local currency',

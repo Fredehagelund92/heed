@@ -44,19 +44,25 @@ project: `npx vitest run --project server tests/server/domain`.
   every one kept (Ask's question names eight and counts the rest: "Alder is a value of Aisle and
   Brand. Which do you mean?"), and a person may answer with the dimension ("the brand one"). A
   short code, a value's name of three letters or fewer its owner wrote in capitals ("NO", "UK"),
-  is read only when written in capitals or beside its dimension's name, so "no" and "it" stay
-  everyday words. In Ask only (`loose`), a word that names nothing Heed knows and sits where a
-  value goes is a value Heed does not have, said and never dropped, so the answer is Not found:
-  after in, for, from, to, at or across, with or without "the" ("orders from jordan", "orders in
-  the Nordics"), right before a metric ("jordan orders") or right before a dimension's name ("the
-  jordan market", which then says the dimension). It is one word, or a run of Title-case words
-  ("New York"), and never an everyday word ("in total", "in gbp"), a number, a word in capitals
+  is read in Ask only when written in capitals or beside its dimension's name, so "no" and "it"
+  stay everyday words; agents read it in any case, as before. In Ask only (`loose`), a word that
+  names nothing Heed knows and sits where a value goes is a value Heed does not have, said and
+  never dropped, so the answer is Not found: after in, for, from, to, at or across, with or
+  without "the" ("orders from jordan", "orders in the Nordics"), right before a metric when it
+  starts what is asked ("jordan orders", "the jordan orders", never "who owns orders") or right
+  before a dimension's name ("the jordan market", which then says the dimension). It is one word,
+  or a run of Title-case words ("New York"), and never an everyday word ("in total", "in gbp",
+  "at the moment", "pending orders"), a lowercase word ending in -ed ("cancelled orders"), a verb
+  after "to" that follows an everyday word ("going to recover"), a number, a word in capitals
   ("YTD"), a plural right after the place word ("in stores"), another form of a known name, a word
   before a day's name ("black friday week") nor a tool's or the product's name; a question that
   names nothing to look up leaves its words to the word search. The issue names the dimensions it
   could be a value of and, for a typo or a lowercase short code, the value it is close to. Agents
-  read such a word as before (dropped); the narrowing, short codes and everyday words read alike
-  for every caller. The golden questions are `tests/server/domain/value-linking.test.ts`.
+  read such a word as before (dropped); the narrowing and everyday words read alike for every
+  caller. These rules by place are deliberately small: this is their fourth narrowing, and each
+  trades a missed word for fewer false alarms. The principled fix is value linking V2, one index
+  of every value name with near-miss asking, so a value word is known by the list rather than
+  guessed from where it sits. The golden questions are `tests/server/domain/value-linking.test.ts`.
 
 - `dates.ts`: `readDates`, the period the words of a question name, counted from `today` in one
   time zone (UTC: Heed has no company time zone, NFR-048), with a reads-as phrase such as "1 Jan to
