@@ -2,6 +2,8 @@ import * as React from 'react'
 import type { LucideIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAfter } from '@/lib/loading'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { FoldTrigger } from '@/components/heed/fold'
 
@@ -63,26 +65,52 @@ export function PeekMeaning({ children }: { children: React.ReactNode }) {
   return <div className="mt-3 text-reading leading-6">{children}</div>
 }
 
-/** The one thing that needs a decision, with one button. The choice itself is made on the page. */
+/**
+ * The one thing that needs a decision, with one button. The choice itself is made on the page.
+ * `checking` is its place while the item's own read has not said yet whether one is needed.
+ */
 export function PeekAttention({
   icon: Icon,
   children,
   action,
+  checking,
 }: {
   icon: LucideIcon
   children: React.ReactNode
   action?: React.ReactNode
+  checking?: boolean
 }) {
   return (
     <div
-      role="note"
-      className="mt-4 flex items-center gap-2.5 rounded-frame border border-caution/45 bg-caution/8 py-2 pr-2 pl-3 text-sm dark:border-warn/45 dark:bg-caution/12"
+      role={checking ? 'status' : 'note'}
+      className={cn(
+        'mt-4 flex items-center gap-2.5 rounded-frame border py-2 pr-2 pl-3 text-sm',
+        // As tall as the line with its button that usually takes the place.
+        checking
+          ? 'min-h-11.5 border-border bg-muted/60 text-muted-foreground'
+          : 'border-caution/45 bg-caution/8 dark:border-warn/45 dark:bg-caution/12',
+      )}
     >
-      <Icon aria-hidden className="size-4 shrink-0 text-caution-text dark:text-warn" />
+      <Icon
+        aria-hidden
+        className={cn(
+          'size-4 shrink-0',
+          checking ? 'animate-spin text-muted-foreground' : 'text-caution-text dark:text-warn',
+        )}
+      />
       <span className="min-w-0 flex-1 text-pretty break-words">{children}</span>
       {action && <span className="shrink-0">{action}</span>}
     </div>
   )
+}
+
+/**
+ * A line still coming: it holds its place at once, and shows as a skeleton only once the wait has
+ * lasted 150ms (src/web/lib/loading.ts), so a fast read never flashes one.
+ */
+export function PeekPending({ className }: { className?: string }) {
+  const shown = useAfter(true)
+  return <Skeleton aria-hidden className={cn(className, !shown && 'invisible')} />
 }
 
 /** A quiet fact line: an icon and a sentence, names in the ink colour. */
