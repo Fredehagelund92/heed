@@ -103855,6 +103855,14 @@
                                     "minLength": 1,
                                     "maxLength": 200
                                   }
+                                },
+                                "flag": {
+                                  "enum": [
+                                    "shared",
+                                    "unknown",
+                                    "taken"
+                                  ],
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -104222,6 +104230,14 @@
                                 "minLength": 1,
                                 "maxLength": 200
                               }
+                            },
+                            "flag": {
+                              "enum": [
+                                "shared",
+                                "unknown",
+                                "taken"
+                              ],
+                              "type": "string"
                             }
                           },
                           "required": [
@@ -104334,6 +104350,14 @@
                                   "minLength": 1,
                                   "maxLength": 200
                                 }
+                              },
+                              "flag": {
+                                "enum": [
+                                  "shared",
+                                  "unknown",
+                                  "taken"
+                                ],
+                                "type": "string"
                               }
                             },
                             "required": [

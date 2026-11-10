@@ -551,6 +551,12 @@ const viewChip = z
     ]),
     not: z.optional(z.boolean()),
     values: z.array(z.string().check(z.minLength(1), z.maxLength(200))).check(z.maxLength(50)),
+    /**
+     * Why an old Value chip was not moved to its dimension's (migration 0046): a name of two
+     * values or of two dimensions (`shared`), of none (`unknown`), or a dimension the view filters
+     * already (`taken`).
+     */
+    flag: z.optional(z.enum(['shared', 'unknown', 'taken'])),
   })
   .check(
     z.refine(

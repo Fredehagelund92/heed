@@ -1001,9 +1001,14 @@ over its months) found nothing at least the minimum times.
   `cl_obs_changes`, which runs as the owner, so they are the same whoever reads.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
-  workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,
-  a domain, a kind of agent, what waits in the Inbox, a month), never a question. Only whoever saved
-  a view, or an administrator, removes it.
+  workspace (`observability_views`): a name, unique whatever its case, and filters, never a
+  question: `chips`, up to 20 in order, each a field or a dimension once (`dim:store` with its
+  values' keys, `val:store/alder_row`, or `*` for any value; `not` leaves them out), or from before
+  chips the fields answer states, a domain, a kind of agent, what waits in the Inbox and a month.
+  An old `market` chip keeps values by name; migration 0046 moved each to its dimension's chip
+  where every name is one value of one dimension, and flagged any other (`flag`: `shared`,
+  `unknown` or `taken`). `select observability_views_from_keys()` undoes the move. Only whoever
+  saved a view, or an administrator, removes it.
 
 ## Settings, domains and agents
 

@@ -44,6 +44,7 @@ import {
   FILTER_WORDS,
   isDim,
   keyWords,
+  MAX_CHIPS,
   toggled,
   withValues,
   type DimKey,
@@ -472,6 +473,12 @@ function PickerBody({
 
   function firstStep(): Section[] {
     const out: Section[] = []
+    if (chips.length >= MAX_CHIPS)
+      out.push({
+        id: 'full',
+        rows: [],
+        note: `${MAX_CHIPS} filters is the most a view keeps: take one off to add another.`,
+      })
     const offered = fields.filter((f) => f.key !== 'topic' && f.key !== 'market')
     if (!typed) {
       out.push({
