@@ -6,7 +6,7 @@
  * and how fresh.
  */
 import type { FigureRead, FigureTry as FigureTried } from '@contract/figures'
-import { comparisonWords, daysWords, type Days } from '@domain/figures'
+import { comparisonWords, daysWords, listed, type Days } from '@domain/figures'
 import type { Figure, FigureTry, FigureView } from '@/model/figures'
 
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
@@ -103,7 +103,9 @@ function whyNot(read: Extract<FigureRead, { state: 'none' }>, metric: string, sc
     case 'ambiguous':
       return `More than one integration defines ${what}, so none is picked to read it.`
     case 'no_date':
-      return `${tool} has no single date for ${what}, so no figure is read for these days.`
+      return read.dates && read.dates.length > 1
+        ? `${tool} has ${read.dates.length} dates for ${what}: ${listed(read.dates)}. Which one should figures use? The data team names it in the model.`
+        : `${tool} has no date for ${what}, so no figure is read for these days.`
     case 'no_split':
       return `${tool} can't split ${what} the way the question does, so no figure is read for it.`
     case 'no_value':

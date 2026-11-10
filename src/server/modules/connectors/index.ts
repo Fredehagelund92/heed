@@ -34,6 +34,8 @@ export {
   createFigureSources,
   FIGURE_CACHE_MS,
   FIGURE_TIMEOUT_MS,
+  readFigureOverrides,
+  type FigureOverrides,
   type FigureService,
 } from './figures.ts'
 export {

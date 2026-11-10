@@ -163,6 +163,8 @@ export const figureFailureCodes = [
   'timed_out',
   'private_address',
   'invalid_output',
+  /** The view has several dates and neither the model nor the settings name one. */
+  'several_dates',
 ] as const
 export type FigureFailureCode = (typeof figureFailureCodes)[number]
 

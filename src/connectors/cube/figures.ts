@@ -10,12 +10,12 @@ import {
 /*
   Figures from Cube (CON-612, FR-716): one GET of Cube's REST API, `/v1/load`, at the data
   endpoint an administrator set, with the service token from the secret store, and, once in ten
-  minutes, `/v1/meta` beside it for how each measure is worked out (its `aggType`), so the query
-  in words can say "added up". The query is the
-  core's fixed template (one measure, one date range, `equals` filters), so nothing a person or a
-  model wrote reaches Cube. Cube answers from its cache or the warehouse; while a query is still
-  running it says "Continue wait", and the read asks again until the figure's time limit. Nothing
-  it returns is kept.
+  minutes, `/v1/meta` before it for what the model says of each measure: how it is worked out (its
+  `aggType`), so the query in words can say "added up", and which of its view's dates the days
+  apply to (`meta.default_time_dimension`). The query is the core's fixed template (one measure,
+  one date range, `equals` filters), so nothing a person or a model wrote reaches Cube. Cube
+  answers from its cache or the warehouse; while a query is still running it says "Continue wait",
+  and the read asks again until the figure's time limit. Nothing it returns is kept.
 */
 
 /** The most of an answer read: one row is a few hundred bytes. */
@@ -48,11 +48,11 @@ const answerSchema = z.object({
   ),
 })
 
-/** Cube's REST query for one figure: the measure, its days and its values. */
-export function cubeQuery(query: FigureQuery) {
+/** Cube's REST query for one figure: the measure, its days on the date given, and its values. */
+export function cubeQuery(query: FigureQuery, date: string) {
   return {
     measures: [query.metric],
-    timeDimensions: [{ dimension: query.date, dateRange: [query.from, query.to] }],
+    timeDimensions: [{ dimension: date, dateRange: [query.from, query.to] }],
     filters: query.filters.map((filter) => ({
       member: filter.dimension,
       operator: 'equals',
@@ -121,46 +121,54 @@ const pause = (ms: number, signal: AbortSignal) =>
     )
   })
 
+const memberMeta = z.optional(z.nullable(z.record(z.string(), z.unknown())))
 const metaSchema = z.object({
   cubes: z.array(
     z.object({
+      meta: memberMeta,
       measures: z.optional(
-        z.array(z.object({ name: z.string(), aggType: z.optional(z.string()) })),
+        z.array(z.object({ name: z.string(), aggType: z.optional(z.string()), meta: memberMeta })),
       ),
     }),
   ),
 })
 
+/** What `/v1/meta` says of one measure: how it is worked out, and its own and its view's `meta`. */
+interface Measure {
+  aggType: string | null
+  meta: Record<string, unknown>
+  viewMeta: Record<string, unknown>
+}
+
 /**
  * What `/v1/meta` said of each measure, by endpoint and token (as a digest), for a while: the
  * answer, or the request still on its way, so two reads at once ask once.
  */
-const aggregations = new Map<string, { until: number; byMeasure: Promise<Map<string, string>> }>()
+const described = new Map<string, { until: number; byMeasure: Promise<Map<string, Measure>> }>()
 
-/** Each measure's `aggType` from `/v1/meta` beside the endpoint's `/v1/load`; empty when it can't say. */
-async function measuresOf(context: FigureContext): Promise<Map<string, string>> {
+/**
+ * Each measure as `/v1/meta` beside the endpoint's `/v1/load` describes it; empty when the
+ * endpoint is not one, or the answer is not Cube's. A refusal or a failure throws, as a load's.
+ */
+async function measuresOf(context: FigureContext): Promise<Map<string, Measure>> {
   const address = new URL(context.endpoint)
   if (!/\/load$/.test(address.pathname)) return new Map()
   address.pathname = address.pathname.replace(/\/load$/, '/meta')
   address.search = ''
-  try {
-    const response = await context.fetch(address.href, {
-      headers: { authorization: context.token, accept: 'application/json' },
-    })
-    if (!response.ok) {
-      await response.body?.cancel()
-      return new Map()
-    }
-    const meta = metaSchema.safeParse(await bodyOf(response, META_ANSWER_BYTES_MAX))
-    if (!meta.success) return new Map()
-    return new Map(
-      meta.data.cubes.flatMap((cube) =>
-        (cube.measures ?? []).flatMap((m) => (m.aggType ? [[m.name, m.aggType] as const] : [])),
+  const response = await answerOf(context, address.href)
+  const meta = metaSchema.safeParse(await bodyOf(response, META_ANSWER_BYTES_MAX).catch(() => null))
+  if (!response.ok || !meta.success) return new Map()
+  return new Map(
+    meta.data.cubes.flatMap((cube) =>
+      (cube.measures ?? []).map(
+        (m) =>
+          [
+            m.name,
+            { aggType: m.aggType ?? null, meta: m.meta ?? {}, viewMeta: cube.meta ?? {} },
+          ] as const,
       ),
-    )
-  } catch {
-    return new Map()
-  }
+    ),
+  )
 }
 
 /** A token's SHA-256 in hex: what keeps a token's answers apart, never the token itself. */
@@ -170,25 +178,58 @@ async function digestOf(token: string) {
 }
 
 /**
- * How Cube works a measure out (`aggType`: sum, count, avg, number...), kept ten minutes. Null
- * when Cube doesn't say, so the words claim nothing; a failure here never fails the figure.
+ * What Cube's model says of a measure, kept ten minutes; null when Cube doesn't say, so nothing
+ * is claimed. A refusal or a failure is what `/v1/meta` threw, for a read that needs it to throw.
  */
-async function aggregationOf(context: FigureContext, metric: string): Promise<string | null> {
+async function measureOf(context: FigureContext, metric: string): Promise<Measure | SourceError> {
   const key = `${context.endpoint} ${await digestOf(context.token)}`
   const at = context.now().getTime()
-  let kept = aggregations.get(key)
+  let kept = described.get(key)
   if (!kept || kept.until <= at) {
     kept = { until: at + META_KEPT_MS, byMeasure: measuresOf(context) }
-    aggregations.set(key, kept)
-    if (aggregations.size > 50) aggregations.delete(aggregations.keys().next().value!)
-    // An empty answer is asked again next time, rather than kept for ten minutes.
+    described.set(key, kept)
+    if (described.size > 50) described.delete(described.keys().next().value!)
+    // An empty or a failed answer is asked again next time, rather than kept for ten minutes.
     const asked = kept
-    void asked.byMeasure.then((found) => {
-      if (!found.size && aggregations.get(key) === asked) aggregations.delete(key)
-    })
+    const forget = () => {
+      if (described.get(key) === asked) described.delete(key)
+    }
+    asked.byMeasure.then((found) => {
+      if (!found.size) forget()
+    }, forget)
   }
-  const type = (await kept.byMeasure).get(metric)
-  return type && /^[A-Za-z]{1,40}$/.test(type) ? type : null
+  try {
+    return (await kept.byMeasure).get(metric) ?? { aggType: null, meta: {}, viewMeta: {} }
+  } catch (error) {
+    return error instanceof SourceError ? error : failed('invalid_output', 'source')
+  }
+}
+
+/** A name the model or the settings give a date by: the view's own (`order_day`) or in full. */
+const dateNamed = (query: FigureQuery, name: unknown) => {
+  if (typeof name !== 'string' || !name) return null
+  const view = query.metric.slice(0, query.metric.lastIndexOf('.'))
+  const full = name.includes('.') ? name : `${view}.${name}`
+  return query.dates.includes(full) ? full : null
+}
+
+/**
+ * The date the days apply to: the view's only one; else the one the model names, the measure's
+ * own `meta.default_time_dimension` before its view's; else the one the server's figure settings
+ * name. With several and none named, the read says so (`several_dates`) rather than pick one.
+ */
+function dateOf(query: FigureQuery, measure: Measure | SourceError): string {
+  if (query.dates.length === 1) return query.dates[0]!
+  const named =
+    (measure instanceof SourceError
+      ? null
+      : (dateNamed(query, measure.meta.default_time_dimension) ??
+        dateNamed(query, measure.viewMeta.default_time_dimension))) ??
+    dateNamed(query, query.settings?.date)
+  if (named) return named
+  // Cube couldn't be asked what the model names: that says why, not that there are several.
+  if (measure instanceof SourceError) throw measure
+  throw failed('several_dates', 'config')
 }
 
 /** One figure from Cube's `/v1/load`, or a `SourceError` that says why not. */
@@ -196,52 +237,66 @@ export async function readCubeFigure(
   context: FigureContext,
   query: FigureQuery,
 ): Promise<FigureResult> {
-  const [result, aggregation] = await Promise.all([
-    loadFigure(context, query),
-    aggregationOf(context, query.metric),
-  ])
-  return { ...result, aggregation }
+  const measure = await measureOf(context, query.metric)
+  const date = dateOf(query, measure)
+  const result = await loadFigure(context, query, date)
+  const type = measure instanceof SourceError ? null : measure.aggType
+  return {
+    ...result,
+    aggregation: type && /^[A-Za-z]{1,40}$/.test(type) ? type : null,
+    date,
+  }
+}
+
+/**
+ * Cube's answer at an address with the service token, or a `SourceError` that says why there is
+ * none: a refused token, an address with nothing there, a request to slow down, or no answer.
+ */
+async function answerOf(context: FigureContext, address: string): Promise<Response> {
+  let response: Response
+  try {
+    // Cube takes the token as it is, or after "Bearer"; its own examples send it as it is.
+    response = await context.fetch(address, {
+      headers: { authorization: context.token, accept: 'application/json' },
+    })
+  } catch (error) {
+    if (error instanceof SourceError) throw error
+    throw failed(context.signal.aborted ? 'timed_out' : 'unreachable', 'transient')
+  }
+  if (response.status === 401 || response.status === 403) {
+    await response.body?.cancel()
+    throw failed('unauthorized', 'config')
+  }
+  if (response.status === 404) {
+    await response.body?.cancel()
+    throw failed('not_found', 'config')
+  }
+  if (response.status === 429) {
+    await response.body?.cancel()
+    const after = Number(response.headers.get('retry-after'))
+    throw failed(
+      'rate_limited',
+      'transient',
+      Number.isFinite(after) && after > 0 ? after : undefined,
+    )
+  }
+  if (response.status >= 500) {
+    await response.body?.cancel()
+    throw failed('unreachable', 'transient')
+  }
+  return response
 }
 
 /** The figure itself, from `/v1/load`. */
 async function loadFigure(
   context: FigureContext,
   query: FigureQuery,
-): Promise<Omit<FigureResult, 'aggregation'>> {
+  date: string,
+): Promise<Omit<FigureResult, 'aggregation' | 'date'>> {
   const address = new URL(context.endpoint)
-  address.searchParams.set('query', JSON.stringify(cubeQuery(query)))
+  address.searchParams.set('query', JSON.stringify(cubeQuery(query, date)))
   for (;;) {
-    let response: Response
-    try {
-      // Cube takes the token as it is, or after "Bearer"; its own examples send it as it is.
-      response = await context.fetch(address.href, {
-        headers: { authorization: context.token, accept: 'application/json' },
-      })
-    } catch (error) {
-      if (error instanceof SourceError) throw error
-      throw failed(context.signal.aborted ? 'timed_out' : 'unreachable', 'transient')
-    }
-    if (response.status === 401 || response.status === 403) {
-      await response.body?.cancel()
-      throw failed('unauthorized', 'config')
-    }
-    if (response.status === 404) {
-      await response.body?.cancel()
-      throw failed('not_found', 'config')
-    }
-    if (response.status === 429) {
-      await response.body?.cancel()
-      const after = Number(response.headers.get('retry-after'))
-      throw failed(
-        'rate_limited',
-        'transient',
-        Number.isFinite(after) && after > 0 ? after : undefined,
-      )
-    }
-    if (response.status >= 500) {
-      await response.body?.cancel()
-      throw failed('unreachable', 'transient')
-    }
+    const response = await answerOf(context, address.href)
     const parsed = answerSchema.safeParse(await bodyOf(response))
     if (!parsed.success) throw failed('invalid_output', 'source')
     const answer = parsed.data

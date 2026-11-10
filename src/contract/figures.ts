@@ -94,7 +94,7 @@ export const noFigureReasons = [
   'undefined',
   /** More than one integration defines it, so none is picked. */
   'ambiguous',
-  /** The integration has no single date for it. */
+  /** The integration has no date for it, or several and none named. */
   'no_date',
   /** The integration can't split it by a value the question names. */
   'no_split',
@@ -147,6 +147,11 @@ export const figureReadSchema = z.discriminatedUnion('state', [
     reason: z.enum(noFigureReasons),
     source: z.nullable(figureSourceRefSchema),
     failure: z.optional(z.enum(figureFailures)),
+    /**
+     * For `no_date` when the view has several dates and neither the model nor the server's
+     * settings name one: the dates as people read them, so someone can say which it is.
+     */
+    dates: z.optional(z.array(z.string())),
   }),
   z.object({
     state: z.literal('figure'),

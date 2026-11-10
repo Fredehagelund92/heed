@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FigureTry } from '@contract/figures'
-import { figureTryOf } from '@/api/http-figures'
+import type { FigureRead, FigureTry } from '@contract/figures'
+import { figureTryOf, figureViewOf } from '@/api/http-figures'
 
 // Try a figure on the service, as Cube's page says it: what was read and for which days, the value
 // as the tool writes it, and how fresh the data is; or the failure's code, never the tool's words.
@@ -49,5 +49,31 @@ describe('a figure tried on the service', () => {
 
   it('is nothing for a tool the app does not know', () => {
     expect(figureTryOf({ ...figure, source: { ...source, type: 'other' } }, known, now)).toBeNull()
+  })
+})
+
+describe('no figure read on the service', () => {
+  const asked = { metric: 'Revenue', markets: ['Norway'], dates: 'August 2026' }
+  const none = (more: Partial<Extract<FigureRead, { state: 'none' }>>): FigureRead => ({
+    state: 'none',
+    reason: 'no_date',
+    source,
+    ...more,
+  })
+
+  it('names the dates of a view that has several, and asks which one figures use', () => {
+    expect(
+      figureViewOf(none({ dates: ['Invoice day', 'Order day', 'Ship day'] }), asked, known, now),
+    ).toEqual({
+      kind: 'none',
+      why: 'Cube has 3 dates for revenue: Invoice day, Order day and Ship day. Which one should figures use? The data team names it in the model.',
+      closest: [],
+    })
+  })
+
+  it('says there is no date when the view has none', () => {
+    expect(figureViewOf(none({}), asked, known, now)).toMatchObject({
+      why: 'Cube has no date for revenue, so no figure is read for these days.',
+    })
   })
 })

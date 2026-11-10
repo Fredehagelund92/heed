@@ -58,7 +58,12 @@ const app = buildApp({
   database,
   jobs: idleJobs(),
   sources: registry,
-  workspaceSources: createWorkspaceSources({ secrets: store, registry }),
+  workspaceSources: createWorkspaceSources({
+    secrets: store,
+    registry,
+    // Whoever runs the service names the date Orders is read by, for when its view has several.
+    figureOverrides: { cube: { orders: { date: 'order_day' } } },
+  }),
   logger,
   clock: systemClock('2026-10-23'),
   devPeople: Object.keys(people).map((name) => ({
@@ -381,6 +386,45 @@ describe('reading a figure (FR-716)', () => {
       to: '2026-08-01',
     })
     expect(days.statusCode).toBe(422)
+  })
+
+  it("reads a view of several dates by the one the server's settings name, and lists them when none is named", async () => {
+    // A second date for Orders and for Marketing, that the demo model does not name a default for.
+    await client.query(`insert into definitions (ref, connector_id, kind, name, value_type, change_mark) values
+      ('cube:orders.ship_day', 'cube', 'dimension', 'orders.ship_day', 'time', 'a'),
+      ('cube:marketing.campaign_day', 'cube', 'dimension', 'marketing.campaign_day', 'time', 'a')`)
+    try {
+      const asked = cube.requests.length
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-01', to: '2026-08-30' }),
+      ).toMatchObject({
+        state: 'figure',
+        queryInWords:
+          'Orders, added up for Norway from 1 to 30 Aug 2026 by order day, and the same for 1 to 30 Jul 2026 to compare.',
+      })
+      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
+      expect(loads.map((r) => (r.query as { timeDimensions: unknown[] }).timeDimensions)).toEqual([
+        [{ dimension: 'orders.order_day', dateRange: ['2026-08-01', '2026-08-30'] }],
+        [{ dimension: 'orders.order_day', dateRange: ['2026-07-01', '2026-07-30'] }],
+      ])
+      // Nothing names Marketing's: no figure, and no date picked for it.
+      const before = cube.requests.length
+      expect(
+        await readFigure('author', { metric: 'metric:discount_cost', values: [], ...august }),
+      ).toEqual({
+        state: 'none',
+        reason: 'no_date',
+        source: { id: 'cube', type: 'cube', tool: 'Cube', name: 'Cube' },
+        dates: ['Campaign day', 'Marketing day'],
+      })
+      expect(cube.requests.slice(before).filter((r) => r.path === '/cubejs-api/v1/load')).toEqual(
+        [],
+      )
+    } finally {
+      await client.query(
+        "delete from definitions where ref in ('cube:orders.ship_day', 'cube:marketing.campaign_day')",
+      )
+    }
   })
 
   it('waits while Cube says Continue wait, and fails within 4 seconds, saying why', async () => {

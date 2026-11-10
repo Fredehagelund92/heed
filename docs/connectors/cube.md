@@ -120,7 +120,38 @@ Off by default. With it on, Ask shows one figure read from Cube, and keeps it no
 3. Name a **Data contact**.
 4. Switch on **Show figures in Ask**.
 
-The figure comes from the integration that defines the metric, and the query is a fixed template, never words a person or a model wrote. There is no figure when more than one integration defines the metric, or when its view does not have exactly one time dimension.
+The figure comes from the integration that defines the metric, and the query is a fixed template, never words a person or a model wrote. There is no figure when more than one integration defines the metric, or when its view has no time dimension.
+
+### Which date
+
+A view with one time dimension reads its figures by it. A view with several reads them by the one the model names, in this order:
+
+1. `meta.default_time_dimension` on the measure.
+2. `meta.default_time_dimension` on its view.
+3. The server's figure settings, below.
+
+The name is the view's own (`invoice_day`) or in full (`sales.invoice_day`). A name the view does not have is skipped. When nothing names one, Ask shows no figure, lists the view's dates and asks which one figures use: the date is never guessed. The query in words says the date used, such as "by invoice day".
+
+```yaml
+views:
+  - name: sales
+    meta:
+      default_time_dimension: invoice_day
+```
+
+### Figure settings on the server
+
+For a model you cannot change, whoever runs the service sets `HEED_FIGURE_OVERRIDES` to a JSON file. It is by integration id, then by view or measure. A measure's own setting wins over its view's, and the model wins over both:
+
+```json
+{ "cube": { "sales": { "date": "invoice_day" } } }
+```
+
+| Setting | What it does                            |
+| ------- | --------------------------------------- |
+| `date`  | The date the days apply to, by its name |
+
+The file is read when the service starts. A file that is not JSON, or holds a setting not in this table, stops the start.
 
 The value is written as the model says: `format: currency` with `meta.currency` for money, and `format: percent` for a share. "Data as of" is Cube's `lastRefreshTime`.
 

@@ -74,7 +74,7 @@ export function comparisonWords(days: Days): string {
 }
 
 /** "Norway", "Norway and Spain", "Norway, Spain and Sweden". */
-const listed = (names: readonly string[]) =>
+export const listed = (names: readonly string[]) =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 
 /** How a measure of a type is worked out, in words. */
@@ -88,9 +88,14 @@ function worked(type: string | null, tool: string) {
   return `as ${tool} works it out`
 }
 
+/** A name inside a sentence: "Invoice day" as "invoice day", "ID" as it is. */
+const inSentence = (name: string) =>
+  /^[A-Z][a-z]/.test(name) ? name[0]!.toLowerCase() + name.slice(1) : name
+
 /**
  * The query in words, first: "Orders, added up for Norway from 1 to 31 Aug 2026, and the same for
- * 1 to 31 Jul 2026 to compare."
+ * 1 to 31 Jul 2026 to compare." With the date it was read by when the view has several: "... from
+ * 1 to 31 Aug 2026 by invoice day, ...".
  */
 export function queryWords(query: {
   metric: string
@@ -99,10 +104,13 @@ export function queryWords(query: {
   tool: string
   values: readonly string[]
   days: Days
+  /** The date the days applied to, as people read it, when the view has several. */
+  date?: string
 }): string {
   const span = (days: Days) =>
     days.from === days.to ? `on ${daysWords(days)}` : `from ${daysWords(days)}`
   const where = query.values.length ? ` for ${listed(query.values)}` : ''
+  const by = query.date ? ` by ${inSentence(query.date)}` : ''
   const before = comparisonDays(query.days)
-  return `${query.metric}, ${worked(query.type, query.tool)}${where} ${span(query.days)}, and the same for ${daysWords(before)} to compare.`
+  return `${query.metric}, ${worked(query.type, query.tool)}${where} ${span(query.days)}${by}, and the same for ${daysWords(before)} to compare.`
 }

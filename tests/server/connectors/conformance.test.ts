@@ -335,7 +335,7 @@ describeConnector(module('cube'), {
     refusedToken: 'not-the-cube-token',
     query: {
       metric: 'orders.orders',
-      date: 'orders.order_day',
+      dates: ['orders.order_day'],
       from: '2026-08-01',
       to: '2026-08-31',
       filters: [{ dimension: 'orders.market', values: ['Norway'] }],

@@ -20,7 +20,7 @@ import { plainReason, recordAudit } from '../admin/index.ts'
 import { createSourceOverview } from './overview.ts'
 import { groupOf, type RegisteredConnector, type StoredScope } from './platform.ts'
 import type { ConnectorRegistry } from './registry.ts'
-import { createFigureSources } from './figures.ts'
+import { createFigureSources, type FigureOverrides } from './figures.ts'
 import { SecretStoreError, type SecretStore } from './secrets.ts'
 import {
   snapshotSchema,
@@ -153,13 +153,20 @@ const failed = (warnings: SourceWarning[], steps: SourceCheck['steps'] = []): So
 export function createWorkspaceSources({
   secrets,
   registry,
+  figureOverrides,
 }: {
   secrets: SecretStore
   /** The connectors, and the sources the server's own configuration selects (their ids). */
   registry: Pick<ConnectorRegistry, 'connectors' | 'list'>
+  /** The server's figure settings (`HEED_FIGURE_OVERRIDES`), by source. */
+  figureOverrides?: FigureOverrides
 }) {
   /** Figures in Ask, on the sources whose connector reads them (figures.ts). */
-  const figures = createFigureSources({ secrets, connectors: () => registry.connectors() })
+  const figures = createFigureSources({
+    secrets,
+    connectors: () => registry.connectors(),
+    ...(figureOverrides ? { overrides: figureOverrides } : {}),
+  })
   // An admin adds a source of any connector: definitions, or content with its pipeline.
   const addable = () => registry.connectors()
   const typeOf = (type: string) => addable().find((candidate) => candidate.manifest.id === type)

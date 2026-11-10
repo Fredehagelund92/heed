@@ -89990,6 +89990,12 @@
                             "not_set_up"
                           ],
                           "type": "string"
+                        },
+                        "dates": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
