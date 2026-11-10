@@ -889,10 +889,9 @@ over its months) found nothing at least the minimum times.
   `state` (`empty` when no agent asked anything in the domains read, `quiet`, or `normal`), the
   numbers (`asked`, by answer state, and the range before), the bars (a day each for 7 and 30
   days, a week each for 90, counted back from the last day), every topic of the range in the
-  domains the reader sees (its metric and month as the definitions name them, its `values`, each
-  `{ dimension, value, name }` such as `{ dimension: "dim:market", value: "val:market/norway",
-  name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, name }` for
-  "Orders by channel", its counts, which views it is in, and what waits for its gap in the Inbox:
+  domains the reader sees (its metric and month as the definitions name them, its `values`, each a
+  `{ dimension, value, name }` (for Norway in the market dimension, its two ids and "Norway"), the
+  `dimensions` it names with no value, as `{ dimension, name }` for "Orders by channel", its counts, which views it is in, and what waits for its gap in the Inbox:
   the draft written from it, a suggestion, or nothing yet), the subjects (a topic over its months)
   and the domains, `notFound` (what found nothing at least the minimum times in the last 7 days,
   its months counted together, FR-606 case 1), the calls that could not be read (no topic, so no
