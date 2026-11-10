@@ -509,6 +509,10 @@ describe('golden questions: Larchwood, PR 180 checks', () => {
     'beijing orders',
     'ealing orders',
     'sicily orders',
+    // A lowercase name ending in -ed is a participle only right before a metric.
+    'orders to ahmed',
+    'orders from fred',
+    'orders in alfred',
   ])('still says "%s" names a value Heed does not have', (question) => {
     expect(asked(question).filter((said) => /no value/.test(said))).toHaveLength(1)
   })

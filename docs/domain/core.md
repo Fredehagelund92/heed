@@ -52,7 +52,7 @@ project: `npx vitest run --project server tests/server/domain`.
   starts what is asked ("jordan orders", "the jordan orders", never "who owns orders") or right
   before a dimension's name ("the jordan market", which then says the dimension). It is one word,
   or a run of Title-case words ("New York"), and never an everyday word ("in total", "in gbp",
-  "at the moment", "pending orders"), a lowercase word ending in -ed ("cancelled orders"), a verb
+  "at the moment", "pending orders"), a lowercase word ending in -ed right before a metric ("cancelled orders"), a verb
   after "to" that follows an everyday word ("going to recover"), a number, a word in capitals
   ("YTD"), a plural right after the place word ("in stores"), another form of a known name, a word
   before a day's name ("black friday week") nor a tool's or the product's name; a question that

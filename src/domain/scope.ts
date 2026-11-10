@@ -139,8 +139,9 @@ type UnknownValue = DateSpan & {
  * nor the name of the product or of a tool a definition comes from ("cube"). A short code written
  * in lowercase ("orders in uk") is said with the value it would be. Before a metric, only a word
  * that starts what is asked counts ("jordan orders", not "who owns orders"); after "to" that
- * follows an everyday word, a lowercase word is a verb ("going to recover"); and a lowercase word
- * ending in -ed is a participle ("cancelled orders"). Places in the normalised text.
+ * follows an everyday word, a lowercase word is a verb ("going to recover"); and right before a
+ * metric, a lowercase word ending in -ed is a participle ("cancelled orders"). Places in the
+ * normalised text.
  *
  * These rules by place are kept deliberately small: this is their fourth narrowing, and each one
  * trades a missed unknown word for fewer false alarms. The principled fix is value linking V2:
@@ -195,7 +196,7 @@ function unknownValuesByPlace(
       run.every((w) => /^\p{L}[\p{L}'-]*$/u.test(w.word) && !/^\p{Lu}{2,}$/u.test(w.as)) &&
       (code
         ? !everydayWords.has(word)
-        : run.some((w, k) => !isEverydayWord(w.word) && !(/ed$/.test(w.word) && !titled(i + k))) &&
+        : run.some((w) => !isEverydayWord(w.word)) &&
           (run.length > 1 || word.length >= 3) &&
           !tools.has(word) &&
           !known.has(word.replace(/'s$/, '')) &&
@@ -223,8 +224,12 @@ function unknownValuesByPlace(
     // orders", never one after a question word or a verb ("who owns orders", "how do i read sales").
     const opens =
       i === 0 || ['the', 'and', 'or'].includes(before!.word) || valuePlaces.has(before!.word)
+    // Right before a metric, a lowercase word ending in -ed is a participle: "cancelled orders".
+    const participle = run.length === 1 && /ed$/.test(word) && !titled(i)
     const beforeMetric =
-      opens && !!next?.keys.some((k) => k.startsWith('metric:') || k.startsWith('group:'))
+      opens &&
+      !participle &&
+      !!next?.keys.some((k) => k.startsWith('metric:') || k.startsWith('group:'))
     const dimension =
       next?.keys.length === 1 && next.keys[0]!.startsWith('dim:') ? next.keys[0]! : null
     // A word before a day's name is part of that day's name: "black friday week", "boxing day".
