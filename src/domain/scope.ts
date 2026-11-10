@@ -134,12 +134,13 @@ function oneTypoApart(a: string, b: string): boolean {
 /**
  * A word after "in" that follows a name the question names, names nothing Heed knows, and looks
  * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word the
- * person wrote in Title case ("Jordan", never "GBP" or "jordan") that ends what the question says ("orders in Jordan?", "orders in Oslo
- * last month") and is no plural
- * ("stores"), nor the name of the product or of a tool a definition comes from ("cube"). An ordinary
- * word ("in local currency", "in relative terms", "in gbp") is no value, and the question reads as before.
- * A lowercase "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before. A stop-gap the value-linking V1 slice replaces with rules by place, so it is kept small on purpose.
- * Each is where it is in the normalised text, with the values it is a typo of.
+ * person wrote in Title case ("Jordan", never "GBP" or "jordan") that ends what the question says
+ * ("orders in Jordan?", "orders in Oslo last month") and is no plural ("stores"), nor the name of
+ * the product or of a tool a definition comes from ("cube"). An ordinary word ("in local currency",
+ * "in relative terms", "in gbp") is no value, and the question reads as before. A lowercase
+ * "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before.
+ * A stop-gap the value-linking V1 slice replaces with rules by place, so it is kept small on
+ * purpose. Each is where it is in the normalised text, with the values it is a typo of.
  */
 function unknownValuesAfterIn(
   text: string,
