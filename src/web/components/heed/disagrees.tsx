@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { ItemPage } from '@/api/client'
 import { comparePair } from '@/lib/differing-words'
 import { openDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { useDomains } from '@/lib/workspace'
 import type { Fact } from '@/model/items'
 
@@ -41,6 +42,7 @@ export function DisagreesSection({
   pair: ItemPage['conflict']
 }) {
   const domains = useDomains()
+  const ahead = useReadAhead()
   const pairKey = `${self.id}.${other.id}`
   const theirs = comparePair(self.summary, other.summary)[1]
   return (
@@ -49,6 +51,7 @@ export function DisagreesSection({
         <button
           type="button"
           className="text-left text-sm font-medium text-primary underline-offset-4 hover:underline"
+          {...ahead(other.id)}
           onClick={() => openDock('context', other.id)}
         >
           {other.title}

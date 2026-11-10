@@ -28,6 +28,7 @@ import {
   useGlossary,
 } from '@/lib/definitions'
 import { openDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { mentionId, plainText } from '@/lib/mentions'
 import { MentionText } from '@/components/heed/mention-chip'
@@ -469,6 +470,7 @@ export function SynonymTags({
  */
 /** The context about a definition: the first five, then more on request, so the page grows instead of a box scrolling. */
 function ContextAbout({ subject, about }: { subject: Definition; about: Fact[] }) {
+  const ahead = useReadAhead()
   const { shown, more, next, showMore } = useShowMore(about, 5, 10)
   const domains = useDomains()
   return (
@@ -482,6 +484,7 @@ function ContextAbout({ subject, about }: { subject: Definition; about: Fact[] }
           <button
             key={f.id}
             type="button"
+            {...ahead(f.id)}
             onClick={() => openDock('context', f.id)}
             className="rounded-md border px-3 py-2 text-left text-sm outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
           >

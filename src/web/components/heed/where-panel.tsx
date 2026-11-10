@@ -9,6 +9,7 @@ import { kindIcons } from '@/components/heed/kind-icons'
 import { TagChip } from '@/components/heed/tag-chip'
 import { kindLabel, type Fact } from '@/model/items'
 import { closeDock, openDock } from '@/lib/dock'
+import { useReadAhead } from '@/lib/read-ahead'
 import { plainText } from '@/lib/mentions'
 import { setQuery, useRoute } from '@/lib/router'
 import { useShownAnswer } from '@/lib/shown-answers'
@@ -139,6 +140,7 @@ function Chain({
   fact: Fact
   many: boolean
 }) {
+  const ahead = useReadAhead()
   const domains = useDomains()
   const summary = plainText(fact.summary)
   const where = fact.source.replace(/^https?:\/\//, '')
@@ -202,6 +204,7 @@ function Chain({
           variant="outline"
           size="sm"
           className="w-fit"
+          {...ahead(fact.id)}
           onClick={() => openDock('context', fact.id)}
         >
           Open the item

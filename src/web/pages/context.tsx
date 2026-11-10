@@ -1,3 +1,4 @@
+import { useReadAhead } from '@/lib/read-ahead'
 import * as React from 'react'
 import { ConflictBadge } from '@/components/heed/conflict-badge'
 import { TextSwitch } from '@/components/heed/switches'
@@ -203,6 +204,7 @@ export function ContextPage() {
   const table = React.useRef<HTMLTableElement>(null)
   const [deleting, setDeleting] = React.useState(false)
   const sel = useSelection(order, { scope: table, onDeleteKey: () => setDeleting(true) })
+  const ahead = useReadAhead()
   // On a phone the checkboxes come with Select, or once a row is ticked.
   const boxes = sel.picking || sel.count > 0
 
@@ -259,6 +261,7 @@ export function ContextPage() {
         data-leaving={leaving.has(f.id) || undefined}
         className="group/row h-9 cursor-pointer border-b text-sm row-fade hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
+        {...ahead(f.id)}
         onClick={(e) => sel.rowClick(f.id, e) || openDock('context', f.id)}
       >
         <td

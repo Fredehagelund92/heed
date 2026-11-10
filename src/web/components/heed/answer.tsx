@@ -66,6 +66,7 @@ import { isLive, type Turn } from '@/model/ask-turn'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { closeDock, openDock, useDock } from '@/lib/dock'
+import { useReadAhead, useReadCitedAhead } from '@/lib/read-ahead'
 import { href, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
@@ -575,6 +576,7 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
 /** A source's card, from its marker or its chip: the item, who checked it and when, and a way to open it. */
 function SourceCard({ fact }: { fact: Fact }) {
   const domains = useDomains()
+  const ahead = useReadAhead()
   return (
     <>
       <p className="text-sm leading-snug font-medium">{fact.title}</p>
@@ -587,6 +589,7 @@ function SourceCard({ fact }: { fact: Fact }) {
         variant="ghost"
         size="sm"
         className="-ml-2 w-fit text-primary"
+        {...ahead(fact.id)}
         onClick={() => openDock('context', fact.id)}
       >
         Open it
@@ -847,6 +850,7 @@ function SourceChip({
   card?: boolean
 }) {
   const [card, setCard] = React.useState(false)
+  const ahead = useReadAhead()
   const Icon = kindIcons[fact.kind]
   const chip =
     'inline-flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded-sm bg-muted pr-2 pl-1.5 text-xs font-medium @lg:max-w-70'
@@ -867,6 +871,7 @@ function SourceChip({
       <button
         type="button"
         aria-label={`Source ${n}: ${fact.title}`}
+        {...ahead(fact.id)}
         onClick={() => openDock('context', fact.id)}
         className={press}
       >
@@ -887,6 +892,7 @@ function SourceChip({
           <button
             type="button"
             aria-label={`Source ${n}: ${fact.title}`}
+            {...ahead(fact.id)}
             onClick={() => openDock('context', fact.id)}
             className={press}
           />
@@ -1230,6 +1236,7 @@ const RELATED_SHOWN = 4
 export function Related({ ids }: { ids: string[] }) {
   const all = useFacts()
   const domains = useDomains()
+  const ahead = useReadAhead()
   const [everything, setAll] = React.useState(false)
   const items = [...new Set(ids)]
     .map((id) => all.find((f) => f.id === id))
@@ -1246,6 +1253,7 @@ export function Related({ ids }: { ids: string[] }) {
             <button
               type="button"
               className="flex min-h-7 items-center rounded-sm text-left text-foreground underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11"
+              {...ahead(f.id)}
               onClick={() => openDock('context', f.id)}
             >
               {f.title}
@@ -1407,6 +1415,8 @@ function ContextAnswerBody({
   React.useEffect(() => {
     if (pairKey) void queryClient.prefetchQuery(conflictQuery(pairKey))
   }, [pairKey, queryClient])
+  // The items it cites are read ahead once it is written, so their quick views open whole.
+  useReadCitedAhead(answer.sources, !!latest && turn.stage === 'done')
   const all = useFacts()
   const facts = React.useMemo(
     () =>
