@@ -224,4 +224,17 @@ describe("the old Value chips' move to keys (observability_views_to_keys)", () =
     const again = await client.query<{ n: number }>('select observability_views_to_keys() as n')
     expect(again.rows[0]!.n).toBe(0)
   })
+
+  it('is undone only for views unchanged since, and keeps the edit of one changed', async () => {
+    const edited = { chips: [{ key: 'dim:market', values: ['val:market/spain'] }] }
+    await client.query(`update observability_views set filters = $1 where name = 'Two markets'`, [
+      JSON.stringify(edited),
+    ])
+    const back = await client.query<{ n: number }>('select observability_views_from_keys() as n')
+    expect(back.rows[0]!.n).toBe(5)
+    const now = await read()
+    expect(now['Two markets']).toEqual({ filters: edited, before: null })
+    for (const [name, filters] of Object.entries(old))
+      if (name !== 'Two markets') expect(now[name]).toEqual({ filters, before: null })
+  })
 })

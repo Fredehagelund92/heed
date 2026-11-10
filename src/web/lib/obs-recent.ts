@@ -36,11 +36,13 @@ export const recentAfter = (was: readonly DimKey[], added: readonly DimKey[]) =>
 export function useRecentDimensions(chips: Filters): DimKey[] {
   const [recent, setRecent] = React.useState(read)
   const on = chips.flatMap((c) => (isDim(c.key) ? [c.key] : [])).join()
-  const last = React.useRef<string[]>([])
+  const last = React.useRef<string[] | null>(null)
   React.useEffect(() => {
     const now = on ? on.split(',') : []
-    const added = now.filter((k) => !last.current.includes(k)) as DimKey[]
+    const seen = last.current
     last.current = now
+    if (seen === null) return
+    const added = now.filter((k) => !seen.includes(k)) as DimKey[]
     if (!added.length) return
     setRecent((was) => {
       const next = recentAfter(was, added)
