@@ -273,7 +273,10 @@ function fakeTools(results: (name: string, input: unknown) => unknown = () => ({
 
 async function turnWith(
   decide: (prompt: ScriptedPrompt) => ScriptedStep,
-  options: Partial<LoopDeps> & { turns?: Parameters<typeof askLoop>[1]['turns'] } = {},
+  options: Partial<LoopDeps> & {
+    turns?: Parameters<typeof askLoop>[1]['turns']
+    question?: string
+  } = {},
 ) {
   const { database, seen } = countingDatabase()
   const { tools, asked } = fakeTools(
@@ -286,7 +289,7 @@ async function turnWith(
   )
   const errors: unknown[] = []
   const events: LookupEvent[] = []
-  const { turns, ...rest } = options
+  const { turns, question = 'what is written?', ...rest } = options
   for await (const event of askLoop(
     {
       database,
@@ -301,7 +304,7 @@ async function turnWith(
       onError: (e) => errors.push(e),
       ...rest,
     },
-    { question: 'what is written?', ...(turns ? { turns } : {}) },
+    { question, ...(turns ? { turns } : {}) },
   ))
     events.push(event)
   const turn = events.findLast((e) => e.type === 'turn')?.turn as LoopTurn
@@ -529,11 +532,11 @@ describe('an overview, whatever the model sends of it', () => {
     ids: ['c1', 'c2', 'itm_germany01', 'c3'],
   }
   /** Tools whose Inbox read takes `delay` milliseconds, as a first read on a cold service may. */
-  const slowInbox = (delay: number): AskTools =>
+  const slowInbox = (delay: number, read: object = inbox): AskTools =>
     ({
       run: (name: string) =>
         name === 'inbox'
-          ? new Promise((done) => setTimeout(() => done(inbox), delay))
+          ? new Promise((done) => setTimeout(() => done(read), delay))
           : Promise.resolve({ ids: [] }),
       ai: () => ({}),
     }) as unknown as AskTools
@@ -601,6 +604,71 @@ describe('an overview, whatever the model sends of it', () => {
     )
     expect(turn.overview).toBeNull()
     expect(turn.body.map((b) => b.t)).toEqual(['p', 'ul'])
+  })
+
+  // The words of a real try of "what do i need to handle?" that showed no groups: a lead, then a
+  // list of its own with citations, and no overview asked for.
+  const handleWords =
+    'Your Inbox holds 20 cards, and the largest group is 11 suggestions. The Inbox is shown below in its own order, with what needs you first.\n\nSeveral cards need attention beyond suggestions: three context items are due for a check, including [itm_germany01] (Returns changed definition on 28 April 2026, for [@value:market/norway]) and [itm_another01] (a Marketing item on price promotions in [@value:market/italy]). The Orders in Spain question has been asked 9 times and nothing written covers it. Two alerts report syncs that did not complete, and one reported wrong answer is waiting.'
+  const handled = (question: string, read: object = inbox) =>
+    turnWith(
+      ({ step }) =>
+        step === 0 ? { calls: [{ toolName: 'inbox', input: {} }] } : { text: handleWords },
+      { toolsIn: () => slowInbox(0, read), question },
+    )
+
+  it('draws the Inbox when the question asks for what waits, the words kept only as its lead line', async () => {
+    const { turn } = await handled('what do i need to handle?')
+    expect(groupsOf(turn)).toEqual([
+      ['mention', 1],
+      ['check', 2],
+    ])
+    // The words' first paragraph leads; their own list and the rest are what the groups show.
+    expect(turn.body).toEqual([
+      {
+        t: 'p',
+        runs: [
+          {
+            t: 'text',
+            text: 'Your Inbox holds 20 cards, and the largest group is 11 suggestions. The Inbox is shown below in its own order, with what needs you first.',
+          },
+        ],
+      },
+    ])
+    expect(turn.text.split('\n\n')[1]?.split('\n')[0]).toBe(
+      '3 cards wait on you in your Inbox, in 2 groups.',
+    )
+    expect(turn.text).not.toContain('Several cards')
+    // One numbering: the rows', in reading order.
+    expect(turn.sources).toEqual(['itm_germany01'])
+  })
+
+  it('draws it for every question that asks for the whole of what waits, and no narrower one', async () => {
+    const drawn = async (question: string) => (await handled(question)).turn.overview !== null
+    for (const question of [
+      'what have I got on today?',
+      'give me a Monday morning summary of what needs doing',
+      "what's waiting for me?",
+      'what should I do first?',
+    ])
+      expect(await drawn(question), question).toBe(true)
+    for (const question of [
+      'is anything about Germany waiting?',
+      'what have we got on the italy regulator?',
+      'give me a summary of the Spain card outage',
+      'what needs attention in Spain?',
+    ])
+      expect(await drawn(question), question).toBe(false)
+  })
+
+  it('keeps those words as the answer when the question asks for no set, or the Inbox holds none', async () => {
+    for (const { turn } of [
+      await handled('is anything about Germany waiting?'),
+      await handled('what do i need to handle?', { ...inbox, count: 0, groupsAdd: 0, groups: [] }),
+    ]) {
+      expect(turn.overview).toBeNull()
+      expect(turn.text).toContain('Several cards need attention beyond suggestions')
+    }
   })
 
   it('keeps words that answer from the Inbox when they list what they answer', async () => {
