@@ -658,6 +658,14 @@ function Overview({
   return (
     <div data-answer-words className="flex max-w-reading flex-col gap-5">
       <div className="flex flex-col gap-1">
+        {/* The model's lead line, when code drew the overview in its place. */}
+        {loop.body.map((b, i) =>
+          b.t === 'p' ? (
+            <p key={i} className="mb-2 text-base leading-chat">
+              <Runs runs={b.runs} nouns={maps.nouns} items={maps.numbered} seen={seen} />
+            </p>
+          ) : null,
+        )}
         <p className="text-base leading-chat">
           <Runs runs={o.headline} nouns={maps.nouns} items={maps.numbered} />
           {o.from === 'inbox' && (

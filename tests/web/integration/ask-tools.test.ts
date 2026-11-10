@@ -104,6 +104,11 @@ describe.each(persons)('as %s', (name) => {
       expect(all.count).toBe(listed.length)
       expect(new Set(all.items.map((i) => i.id))).toEqual(new Set(listed.map((f) => f.id)))
       expect(all.outOf.count).toBe(listed.length)
+      // Each item listed says why it is due, as its row in a group does, and nothing when it is not.
+      const grouped = await ok(tools, 'records', { show: 'count', group_by: 'status' })
+      const why = new Map(grouped.groups!.rows.flatMap((g) => g.items.map((i) => [i.id, i.why])))
+      expect(all.items.filter((i) => i.why).length).toBe(status('Needs checking').length)
+      for (const i of all.items) expect(i.why).toBe(why.get(i.id) ?? null)
       expect(await count({ status: ['due'] })).toBe(status('Needs checking').length)
       expect(await count({ status: ['archived'] })).toBe(status('Archived').length)
       expect(await count({ kinds: ['event'] })).toBe(

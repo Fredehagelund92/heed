@@ -207,6 +207,7 @@ export function queryRecords(input: RecordsInput, table: RecordsTable) {
       domainId: `domain:${i.areaId}`,
       about: aboutOf(i, table),
       status: statusWords[i.status],
+      why: i.status === 'due' ? dueWhy(i) : null,
       published: isoDay(i.publishedAt),
       changed: isoDay(i.changedAt),
       lastChecked: isoDay(i.checkedAt),
