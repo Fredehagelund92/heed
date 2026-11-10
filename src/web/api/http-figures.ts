@@ -111,9 +111,11 @@ function whyNot(read: Extract<FigureRead, { state: 'none' }>, metric: string, sc
     case 'no_value':
       return `${tool} returned no figure for ${scope}.`
     case 'failed':
-      return read.failure === 'not_set_up'
-        ? `Figures from ${tool} aren't set up yet: an admin sets the data endpoint and its token.`
-        : `Couldn't read the figure from ${tool} just now. Ask again in a minute.`
+      if (read.failure === 'not_set_up')
+        return `Figures from ${tool} aren't set up yet: an admin sets the data endpoint and its token.`
+      if (read.failure === 'not_allowed')
+        return `${tool} doesn't let the integration's token read ${what}, so no figure is read for it.`
+      return `Couldn't read the figure from ${tool} just now. Ask again in a minute.`
   }
 }
 

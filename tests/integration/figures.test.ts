@@ -441,6 +441,15 @@ describe('reading a figure (FR-716)', () => {
         failure: 'unauthorized',
       },
     )
+    // A measure the model's access policy hides from the token is not allowed, not unreachable.
+    cube.hide('orders.orders')
+    try {
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-05', to: '2026-08-31' }),
+      ).toMatchObject({ state: 'none', reason: 'failed', failure: 'not_allowed' })
+    } finally {
+      cube.hide()
+    }
     cube.slow(FIGURE_TIMEOUT_MS + 1_000)
     const started = Date.now()
     expect(
@@ -602,6 +611,12 @@ describe('trying a figure', () => {
     })
     cube.fail(404)
     expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ failure: 'not_found' })
+    cube.hide('marketing.discount_cost')
+    try {
+      expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ failure: 'not_allowed' })
+    } finally {
+      cube.hide()
+    }
     // No view keeps exactly one date someone may read: there is no measure to try.
     await client.query(
       "update definitions set visible_groups = '{data_team}' where kind = 'dimension' and value_type = 'time'",

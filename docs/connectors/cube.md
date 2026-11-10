@@ -156,3 +156,5 @@ The file is read when the service starts. A file that is not JSON, or holds a se
 The value is written as the model says: `format: currency` with `meta.currency` for money, and `format: percent` for a share. "Data as of" is Cube's `lastRefreshTime`.
 
 No person's identity is passed to Cube. A refused token, a host that cannot be reached and a slow query each say so in Ask, within 4 seconds.
+
+The token reads what Cube's access policies let it read. A measure an `access_policy` hides from the token's groups says so in Ask and in **Try a figure**: Cube answers it with an error, which reads as "not allowed", not "unreachable". Rows are filtered by Cube itself, as its row-level rules say.

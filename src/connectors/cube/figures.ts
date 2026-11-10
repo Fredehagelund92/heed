@@ -250,7 +250,8 @@ export async function readCubeFigure(
 
 /**
  * Cube's answer at an address with the service token, or a `SourceError` that says why there is
- * none: a refused token, an address with nothing there, a request to slow down, or no answer.
+ * none: a refused token, a member it may not read, an address with nothing there, a request to
+ * slow down, or no answer.
  */
 async function answerOf(context: FigureContext, address: string): Promise<Response> {
   let response: Response
@@ -281,7 +282,13 @@ async function answerOf(context: FigureContext, address: string): Promise<Respon
     )
   }
   if (response.status >= 500) {
-    await response.body?.cancel()
+    // Cube answers a member the token may not read, hidden by the model's access policy, with
+    // 500 and "You requested hidden member": it is not down. Only the code is kept of its words.
+    const answer = response.status === 500 ? await bodyOf(response).catch(() => null) : null
+    if (response.status !== 500) await response.body?.cancel()
+    const error = (answer as { error?: unknown } | null)?.error
+    if (typeof error === 'string' && /\bhidden member\b/i.test(error))
+      throw failed('not_allowed', 'config')
     throw failed('unreachable', 'transient')
   }
   return response

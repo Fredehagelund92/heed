@@ -27,10 +27,13 @@ function cube({
   meta,
   metaStatus = 200,
   value = '1200',
+  loadAnswer,
 }: {
   meta?: Meta
   metaStatus?: number
   value?: string
+  /** What every load answers instead of the row. */
+  loadAnswer?: { status: number; body: unknown }
 }) {
   tests += 1
   const endpoint = `https://cube-${tests}.example.test/cubejs-api/v1/load`
@@ -51,6 +54,7 @@ function cube({
         return Promise.resolve(json(metaStatus, meta ?? { cubes: [] }))
       const query = JSON.parse(address.searchParams.get('query')!) as { measures: string[] }
       loads.push(query)
+      if (loadAnswer) return Promise.resolve(json(loadAnswer.status, loadAnswer.body))
       return Promise.resolve(json(200, { data: [{ [query.measures[0]!]: value }] }))
     },
   }
@@ -145,5 +149,35 @@ describe('the date a figure is read by', () => {
     expect(
       await readCubeFigure(named.context, query({ settings: { date: 'order_day' } })),
     ).toMatchObject({ value: 1200, aggregation: null, date: 'sales.order_day' })
+  })
+})
+
+describe('a measure the token may not read', () => {
+  // Cube's own words for a member its access policy hides from the token, as 1.7.39 answers.
+  const hidden = {
+    error:
+      "Error: You requested hidden member: 'sales.revenue'. Please make it visible using `public: true`.",
+  }
+  const one = { dates: ['sales.order_day'] }
+
+  it('is not allowed, not unreachable, when Cube answers 500 with its hidden member error', async () => {
+    const tool = cube({ loadAnswer: { status: 500, body: hidden } })
+    const error = await readCubeFigure(tool.context, query(one)).catch((e: unknown) => e)
+    expect(error).toMatchObject({ code: 'not_allowed', errorClass: 'config' })
+    // Only the code is kept: nothing of Cube's words.
+    expect(JSON.stringify({ ...(error as object), message: (error as Error).message })).not.toMatch(
+      /hidden|sales\.revenue/,
+    )
+  })
+
+  it('is still unreachable for any other server error', async () => {
+    for (const loadAnswer of [
+      { status: 500, body: { error: 'Error: connection to the warehouse was lost' } },
+      { status: 500, body: 'Internal error' },
+      { status: 503, body: hidden },
+    ]) {
+      const tool = cube({ loadAnswer })
+      expect(await failure(readCubeFigure(tool.context, query(one)))).toBe('unreachable')
+    }
   })
 })

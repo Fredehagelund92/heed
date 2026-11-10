@@ -71,6 +71,14 @@ describe('no figure read on the service', () => {
     })
   })
 
+  it("says the tool doesn't let the token read a measure, rather than that it is down", () => {
+    expect(
+      figureViewOf(none({ reason: 'failed', failure: 'not_allowed' }), asked, known, now),
+    ).toMatchObject({
+      why: "Cube doesn't let the integration's token read revenue, so no figure is read for it.",
+    })
+  })
+
   it('says there is no date when the view has none', () => {
     expect(figureViewOf(none({}), asked, known, now)).toMatchObject({
       why: 'Cube has no date for revenue, so no figure is read for these days.',

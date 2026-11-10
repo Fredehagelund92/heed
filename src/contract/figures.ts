@@ -114,6 +114,8 @@ export const figureFailures = [
   'timed_out',
   'private_address',
   'invalid_output',
+  /** The tool does not let the token read the measure. */
+  'not_allowed',
   'not_set_up',
 ] as const
 

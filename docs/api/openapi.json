@@ -89987,6 +89987,7 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up"
                           ],
                           "type": "string"
@@ -90711,6 +90712,7 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up",
                             "no_measure"
                           ],
