@@ -11,7 +11,6 @@ import { ReportDialog } from '@/components/report-dialog'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useDock } from '@/lib/dock'
 import { useAfter } from '@/lib/loading'
-import { FactPeek } from '@/components/heed/fact-peek'
 import { DefinitionPeek } from '@/components/heed/definition-peek'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -209,6 +208,12 @@ const ConflictDock = React.lazy(() =>
   import('@/pages/conflicts').then((m) => ({ default: m.ConflictDock })),
 )
 
+// A context item's quick view opens from a click, so its code is not on the first load: it is
+// fetched once the browser is idle after the first page (main.tsx), before anything is clicked.
+const FactPeek = React.lazy(() =>
+  import('@/components/heed/fact-peek').then((m) => ({ default: m.FactPeek })),
+)
+
 // Connect an agent is asked for now and then, so its dialog is not on the first load: its code is
 // fetched with Settings, which shows the same body, once the browser is idle (main.tsx), and the
 // dialog mounts the first time it is asked for.
@@ -256,7 +261,11 @@ function DockContent() {
     case 'review':
       return <ReviewSheet cardId={dock.id!} />
     case 'context':
-      return <FactPeek id={dock.id!} />
+      return (
+        <React.Suspense fallback={null}>
+          <FactPeek id={dock.id!} />
+        </React.Suspense>
+      )
     case 'def':
       return <DefinitionPeek name={dock.id!} />
     case 'ask':
