@@ -429,7 +429,7 @@ describe('scope extraction', () => {
           },
         ],
       })
-      // A typo is suggested, never chosen; several words are one value, up to the dates.
+      // A typo is suggested, never chosen.
       expect(extractScope('tickets closed in Billng last week', desk, today)).toMatchObject({
         issues: [
           {
@@ -438,9 +438,10 @@ describe('scope extraction', () => {
           },
         ],
       })
-      expect(extractScope('tickets closed in customer care last week', desk, today)).toMatchObject({
-        issues: [{ input: 'customer care' }],
-      })
+      // Several words, an ordinary phrase ("in customer care"), read as before.
+      expect(extractScope('tickets closed in customer care last week', desk, today).status).toBe(
+        'resolved',
+      )
       // With no metric to say which view, every dimension with values.
       expect(extractScope('Billing in payroll', desk, today)).toMatchObject({
         issues: [

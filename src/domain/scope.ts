@@ -14,6 +14,7 @@ import {
   type Term,
   type WordMeaning,
 } from './vocabulary.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 
 /**
  * `filters` maps each dimension the question names to the values it chose. An empty list names
@@ -117,31 +118,61 @@ function valueDimensions(terms: readonly Term[], metrics: readonly string[]): Te
   return sliced.length ? sliced : valued
 }
 
+/** Whether two words are one typo apart: a letter added, left out, changed or swapped. */
+function oneTypoApart(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  while (i < a.length && a[i] === b[i]) i++
+  if (a.length === b.length)
+    return (
+      a.slice(i + 1) === b.slice(i + 1) ||
+      (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2))
+    )
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1)
+}
+
 /**
- * The words after "in" that follow a name the question names and name nothing Heed knows: a value
- * it does not know ("orders in jordan"), read as one, never dropped, so the read is not every
- * value. Up to three words, until a word that names something, dates, or says how or when; each
- * where it is in the normalised text.
+ * A word after "in" that follows a name the question names, names nothing Heed knows, and looks
+ * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word that
+ * ends what the question says ("orders in jordan?", "orders in oslo last month") and is no plural
+ * ("stores"), nor the name of the product or of a tool a definition comes from ("cube"). An ordinary
+ * word ("in local currency", "in relative terms") is no value, and the question reads as before.
+ * Each is where it is in the normalised text, with the values it is a typo of.
  */
 function unknownValuesAfterIn(
   text: string,
   occupied: ReadonlySet<number>,
   dated: ReadonlySet<number>,
-): DateSpan[] {
-  const found: DateSpan[] = []
-  for (const match of text.matchAll(
-    / in ((?:[\p{L}][\p{L}\p{N}_'-]*)(?: [\p{L}][\p{L}\p{N}_'-]*){0,2})/gu,
-  )) {
-    if (!occupied.has(match.index - 1)) continue
-    let at = match.index + 4
-    const words: string[] = []
-    for (const word of match[1]!.split(' ')) {
-      if (occupied.has(at) || dated.has(at) || nonValueWords.has(word)) break
-      if (notValuesAfterIn.has(word.replace(/'s$/, ''))) break
-      words.push(word)
-      at += word.length + 1
-    }
-    if (words.length) found.push({ start: match.index + 4, end: at - 1 })
+  terms: readonly Term[],
+  values: readonly Term[],
+): (DateSpan & { typoOf: string[] })[] {
+  const found: (DateSpan & { typoOf: string[] })[] = []
+  const tools = new Set(
+    terms.flatMap((t) => t.definitionRefs.map((ref) => normalizeName(ref.split(':')[0]!))),
+  )
+  for (const match of text.matchAll(/ in ([\p{L}][\p{L}\p{N}_'-]*)/gu)) {
+    const start = match.index + 4
+    const word = match[1]!
+    const end = start + word.length
+    if (!occupied.has(match.index - 1) || occupied.has(start) || dated.has(start)) continue
+    if (nonValueWords.has(word) || notValuesAfterIn.has(word.replace(/'s$/, ''))) continue
+    const typoOf = values.flatMap((v) =>
+      word.length >= 4 && namesOf(v).some((n) => oneTypoApart(word, n)) ? [v.key] : [],
+    )
+    // What follows it ends what the question says: nothing, a stop, a date or a little word.
+    const next = text.slice(end).match(/^ ?([\p{L}\p{N}_'-]+)/u)?.[1]
+    const ends =
+      !/^ ?[\p{L}\p{N}_'-]/u.test(text.slice(end)) ||
+      dated.has(end + 1) ||
+      (next !== undefined && nonValueWords.has(next))
+    const nameLike =
+      ends &&
+      word.length >= 3 &&
+      /^\p{L}+$/u.test(word) &&
+      !word.endsWith('s') &&
+      !tools.has(word) &&
+      word !== normalizeName(DEFAULT_PRODUCT_NAME)
+    if (typoOf.length || nameLike) found.push({ start, end, typoOf })
   }
   return found
 }
@@ -419,28 +450,25 @@ export function extractScope(
         }
       }
     }
-  if (structured.filters === undefined)
-    for (const span of unknownValuesAfterIn(text, occupied, dated)) {
+  const dimensions = valueDimensions(terms, metrics)
+  const values = terms.filter(
+    (term) => term.kind === 'dimension_value' && dimensions.some((d) => d.key === term.parentKey),
+  )
+  if (structured.filters === undefined && dimensions.length)
+    for (const span of unknownValuesAfterIn(text, occupied, dated, terms, values)) {
       // The words as the person wrote them: "Jordan", not "jordan".
       const written = found.written(span)
       const value = question.slice(written.start, written.end)
-      const dimensions = valueDimensions(terms, metrics)
-      if (!dimensions.length) continue
-      const values = terms.filter(
-        (term) =>
-          term.kind === 'dimension_value' && dimensions.some((d) => d.key === term.parentKey),
-      )
-      const suggestions = suggestTerms(value, values)
       issues.push({
         field: dimensions.length === 1 ? dimensions[0]!.key : 'values',
         input: value,
-        options: suggestions.length
-          ? suggestions
+        options: span.typoOf.length
+          ? span.typoOf
           : values
               .map((term) => term.key)
               .sort()
               .slice(0, 25),
-        message: unknownValue(value, dimensions, suggestions, terms),
+        message: unknownValue(value, dimensions, span.typoOf, terms),
       })
     }
   let window: DateWindow | null = structured.window ?? null
