@@ -839,10 +839,14 @@ function unreadOf(
     const c = closest(w, shownTerms, (t) => [t.name, ...t.aliases])
     return c ? [c.name] : []
   })
-  // A value word Heed does not know, in words that name a metric: what it is not, said plainly.
-  const why = issues.flatMap((i) =>
-    i.message && (i.field.startsWith('dim:') || i.field === 'values') ? [i.message] : [],
-  )
+  // A value word Heed does not know, in words that name a metric: what it is not, said plainly,
+  // only when the person may see every dimension and value the words name.
+  const shownIssue = (i: Answer['issues'][number]) =>
+    (i.field === 'values'
+      ? view.bundle.terms.every((t) => t.kind !== 'dimension' || isShown(view, t.key))
+      : i.field.startsWith('dim:') && isShown(view, i.field)) &&
+    i.options.every((k) => isShown(view, k))
+  const why = issues.flatMap((i) => (i.message && shownIssue(i) ? [i.message] : []))
   const searched: Searched = {
     words: about,
     names: [],

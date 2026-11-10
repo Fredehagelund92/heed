@@ -895,9 +895,33 @@ export function withoutLastSentence(runs: readonly LoopRun[]): LoopRun[] | null 
   return null
 }
 
-/** What only leads into a list of citations: "such as", "including", "for example", "see". */
-const LEADS_INTO =
-  /[,;]?\s*\(?\s*(?:\b(?:such as|including|for example|for instance|namely|like|see(?: also)?|as in)\b|\be\.g\.)?\s*:?\s*$/i
+/** The words that only lead into a list of citations, at the end of some words. */
+const LEAD_WORDS =
+  /(?:such as|including|for example|for instance|namely|like|see(?: also)?|as in|e\.g\.)$/i
+
+/**
+ * Where the words that lead into a list at the end of `text` start, read from its end one part
+ * at a time (so no pattern backtracks): ", such as ", " (see ", ": "; and whether they open a
+ * bracket. `at` is the end of `text` when nothing leads into it.
+ */
+function leadInto(text: string): { at: number; paren: boolean } {
+  let at = text.length
+  const space = () => {
+    while (at > 0 && /\s/.test(text[at - 1]!)) at--
+  }
+  const take = (c: string) => text[at - 1] === c && at-- > 0
+  space()
+  take(':')
+  space()
+  const word = LEAD_WORDS.exec(text.slice(Math.max(0, at - 16), at))
+  if (word && !/[\p{L}\p{N}]/u.test(text[at - word[0].length - 1] ?? '')) at -= word[0].length
+  space()
+  const paren = take('(')
+  space()
+  if (!take(',')) take(';')
+  return text.slice(at).trim() ? { at, paren } : { at: text.length, paren: false }
+}
+
 /** Between two citations of one list: commas, "and" or "or". */
 const BETWEEN = /^[\s,;]*(?:(?:and|or|&)[\s,;]*)?$/i
 
@@ -922,12 +946,12 @@ export function withoutCites(runs: readonly LoopRun[]): LoopRun[] {
     }
     i = end
     const before = out.at(-1)
-    const lead = before?.t === 'text' ? LEADS_INTO.exec(before.text) : null
     // Only a list the words led into goes with them; one that sits after its claim leaves it be.
-    if (before?.t === 'text' && lead && lead[0].trim()) {
-      before.text = before.text.slice(0, lead.index)
+    const lead = before?.t === 'text' ? leadInto(before.text) : null
+    if (before?.t === 'text' && lead && lead.at < before.text.length) {
+      before.text = before.text.slice(0, lead.at)
       const next = runs[i + 1]
-      if (lead[0].includes('(') && next?.t === 'text') {
+      if (lead.paren && next?.t === 'text') {
         out.push({ ...next, text: next.text.replace(/^\s*\)/, '') })
         i++
       }
