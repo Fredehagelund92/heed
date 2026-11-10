@@ -4,5 +4,5 @@ import { contextSearch } from '@/lib/search'
 
 export const Route = createFileRoute('/_app/context/')({
   validateSearch: contextSearch,
-  pendingComponent: () => <Loading shape="page" />,
+  pendingComponent: () => <Loading shape="context" />,
 })

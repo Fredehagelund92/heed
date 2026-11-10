@@ -1,6 +1,12 @@
 import * as React from 'react'
 import { Outlet } from '@tanstack/react-router'
-import { QueryClientProvider, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  QueryClientProvider,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  useQueryErrorResetBoundary,
+} from '@tanstack/react-query'
 import { mockControls } from '@/api'
 import { createQueryClient } from '@/api/query-client'
 import { InDock, isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
@@ -26,174 +32,52 @@ import { ThemeProvider } from '@/lib/theme'
 import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
 import { SignInPage } from '@/pages/signin'
-import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
-import { Frame, FramePage } from '@/components/heed/frame'
-import { RowsSkeleton } from '@/components/heed/load-state'
+import { PRODUCT } from '@/lib/brand'
+import { LoadError } from '@/components/heed/load-state'
+import type { Shape } from '@/components/heed/app-skeleton'
+
+// The skeletons' shapes come with their own code (components/heed/app-skeleton.tsx), fetched as
+// the app starts: they show only after 150ms, by which time it is in.
+const skeletons = import('@/components/heed/app-skeleton')
+const PageShape = React.lazy(() => skeletons.then((m) => ({ default: m.PageShape })))
+const ShellShape = React.lazy(() => skeletons.then((m) => ({ default: m.ShellShape })))
 
 /**
  * A lazy page's fallback, in the page's own shape: nothing for 150ms, so a chunk already fetched never
  * flashes a skeleton. The review: its list, the document and the side panel. An editor: the
- * toolbar row and the sheet on its canvas. Any other page (Context, Definitions, Observability,
- * Settings, Help): its header and a frame of rows. The documentation, outside the app's shell: its header, then its home or a page.
+ * toolbar row and the sheet on its canvas. Definitions and Context: the header, the list's bars at
+ * their own heights and its rows. Any other page (Observability, Settings, Help): its header and a
+ * frame of rows. The documentation, outside the app's shell: its header, then its home or a page.
  */
-export function Loading({
-  shape,
-}: {
-  shape: 'review' | 'editor' | 'page' | 'docs-home' | 'docs-page'
-}) {
+export function Loading({ shape }: { shape: Shape }) {
   const shown = useAfter(true)
   if (!shown) return null
-  if (shape === 'page')
-    return (
-      <div
-        role="status"
-        aria-busy="true"
-        aria-label="Loading"
-        className="flex h-full min-h-0 flex-col"
-      >
-        {/* The header's own places: the sidebar's toggle, its rule, the title, on a phone search,
-            and the theme. */}
-        <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4 md:px-6">
-          <Skeleton className="size-7" />
-          <div className="mr-2 h-4 w-px bg-border" />
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="ml-auto size-7 md:hidden" />
-          <Skeleton className="size-7 md:ml-auto" />
-        </div>
-        <FramePage>
-          <Frame>
-            <div className="flex flex-col gap-2 px-4 py-4 md:px-5">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-64 max-w-full" />
-            </div>
-            <RowsSkeleton rows={8} />
-          </Frame>
-        </FramePage>
-      </div>
-    )
-  if (shape === 'docs-home' || shape === 'docs-page')
-    return (
-      <div role="status" aria-busy="true" aria-label="Loading" className="min-h-svh bg-background">
-        <div className="border-b">
-          <div className="mx-auto flex h-12 max-w-352 items-center gap-4 px-4 md:px-6">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="ml-auto h-7 w-40" />
-          </div>
-        </div>
-        {/* The site's column. A page: the pages on the left from lg, the article in its reading
-            width and the column for its headings. The home: its title, line and search. */}
-        <div
-          className={cn(
-            'mx-auto grid max-w-352 border-x',
-            shape === 'docs-page' && 'lg:grid-cols-(--cols-lead-62)',
-          )}
-          style={{ minHeight: 'calc(100svh - 3rem)' }}
-        >
-          {shape === 'docs-home' ? (
-            <div className="flex max-w-2xl flex-col gap-4 px-4 py-10 md:px-10 md:py-14 lg:px-14">
-              <Skeleton className="h-11 w-2/3" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-1/2" />
-              <Skeleton className="mt-4 h-11 w-md max-w-full" />
-            </div>
-          ) : (
-            <>
-              <div className="hidden flex-col gap-3 border-r px-6 py-8 lg:flex">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <Skeleton
-                    key={i}
-                    className="h-3.5"
-                    style={{ width: `${45 + ((i * 17) % 40)}%` }}
-                  />
-                ))}
-              </div>
-              <div className="grid min-w-0 lg:grid-cols-(--cols-docs-page)">
-                <div className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
-                  <div className="mx-auto flex max-w-176 flex-col gap-4">
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-8 w-1/2" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <Skeleton className="mt-4 h-4 w-full" />
-                    <Skeleton className="h-4 w-11/12" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
-                </div>
-                <div className="hidden border-l lg:block" />
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    )
-  if (shape === 'review')
-    return (
-      <div
-        role="status"
-        aria-busy="true"
-        aria-label="Loading"
-        className="flex h-full min-h-0 flex-col"
-      >
-        <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="ml-auto h-7 w-24" />
-        </div>
-        <div className="flex min-h-0 flex-1">
-          <div className="hidden w-72 shrink-0 flex-col border-r lg:flex">
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="flex h-14 flex-col justify-center gap-1.5 border-b px-4">
-                <Skeleton className="h-3.5" style={{ width: `${50 + ((i * 13) % 35)}%` }} />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            ))}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-4 px-6 py-8 sm:px-10">
-            <Skeleton className="h-7 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="mt-4 h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-          <div className="hidden w-80 shrink-0 flex-col gap-3 border-l p-4 xl:flex">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        </div>
-      </div>
-    )
   return (
     <div
       role="status"
       aria-busy="true"
       aria-label="Loading"
-      className="flex h-full min-h-0 flex-col"
+      className={
+        shape === 'docs-home' || shape === 'docs-page'
+          ? 'min-h-svh bg-background'
+          : 'flex h-full min-h-0 flex-col'
+      }
     >
-      <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="ml-auto h-7 w-20" />
-      </div>
-      <div className="flex h-tool shrink-0 items-center gap-2 border-b px-4">
-        {Array.from({ length: 7 }, (_, i) => (
-          <Skeleton key={i} className="size-6" />
-        ))}
-      </div>
-      <div className="min-h-0 flex-1 bg-muted/40 px-4 py-6">
-        <div className="mx-auto flex max-w-sheet flex-col gap-4 border bg-background p-8">
-          <Skeleton className="h-8 w-2/3" />
-          {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="size-4" />
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-6 w-40" />
-            </div>
-          ))}
-          <Skeleton className="mt-2 h-4 w-full" />
-          <Skeleton className="h-4 w-11/12" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
+      <React.Suspense fallback={null}>
+        <PageShape shape={shape} />
+      </React.Suspense>
     </div>
+  )
+}
+
+/** The whole app while its shared reads load, in its shape (ShellShape); nothing for 150ms. */
+function ShellSkeleton() {
+  const shown = useAfter(true)
+  if (!shown) return null
+  return (
+    <React.Suspense fallback={null}>
+      <ShellShape />
+    </React.Suspense>
   )
 }
 
@@ -231,11 +115,15 @@ function ConnectAgentOnOpen() {
   ) : null
 }
 
-/** A screen behind its own error boundary, reset on every navigation, so one failure never blanks the app. */
+/**
+ * A screen behind its own error boundary, reset on every navigation, so one failure never blanks the
+ * app. A shared read that failed says so there, and Retry reads it again.
+ */
 function SafeScreen() {
   const { path } = useRoute()
+  const { reset } = useQueryErrorResetBoundary()
   return (
-    <ErrorBoundary key={path}>
+    <ErrorBoundary key={path} onRetry={reset}>
       <Outlet />
     </ErrorBoundary>
   )
@@ -243,8 +131,9 @@ function SafeScreen() {
 
 function SafeDock() {
   const dock = useDock()
+  const { reset } = useQueryErrorResetBoundary()
   return (
-    <ErrorBoundary key={`${dock?.kind}.${dock?.id}`}>
+    <ErrorBoundary key={`${dock?.kind}.${dock?.id}`} onRetry={reset}>
       <InDock.Provider value>
         <div className="h-full dock-swap">
           <DockContent />
@@ -452,9 +341,10 @@ function Gate() {
 
 /**
  * The shared reads every screen uses (the session, the workspace, the library), loaded once before
- * anything is drawn, so a screen reads them from the cache and never waits. Signed out, only the
- * session: the sign-in page and the documentation need nothing else. A read that failed does not
- * hold the app back: a screen that needs it shows the failure in its own frame.
+ * the app is drawn, so a screen reads them from the cache and never waits. Until then the app shows
+ * its own skeleton (ShellSkeleton), never a blank window. Signed out, only the session: the sign-in
+ * page and the documentation need nothing else. A read that failed does not hold the app back: a
+ * screen that needs it says it couldn't load, with Retry (SafeScreen).
  */
 function Loaded({ children }: { children: React.ReactNode }) {
   const session = useQuery(sessionQuery())
@@ -462,8 +352,20 @@ function Loaded({ children }: { children: React.ReactNode }) {
   const rest = useQueries({
     queries: sharedQueries().map((q) => ({ ...q, enabled: signedIn })),
   })
-  if (!session.data) return null
-  if (signedIn && rest.some((q) => q.data === undefined && !q.isError)) return null
+  const { parts } = useRoute()
+  // The sign-in page and an agent's consent page wait for the session alone; anything else waits
+  // in the shape it will have.
+  const waiting = ['signin', 'connect'].includes(parts[0] ?? '') ? null : <ShellSkeleton />
+  if (!session.data) {
+    if (session.isError && !session.isFetching)
+      return (
+        <div className="flex h-svh items-center justify-center p-4">
+          <LoadError what={PRODUCT} className="max-w-lg" onRetry={() => void session.refetch()} />
+        </div>
+      )
+    return waiting
+  }
+  if (signedIn && rest.some((q) => q.data === undefined && !q.isError)) return waiting
   return children
 }
 
