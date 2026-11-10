@@ -11,7 +11,7 @@
 import * as z from 'zod/mini'
 import { appFamilies } from '../domain/app-family.ts'
 import { shownStates } from '../domain/observability.ts'
-import { filterFits, isDimensionKey, obsFilterFields } from '../domain/obs-filters.ts'
+import { filterFits, isDimensionKey, obsFilterFields, searchable } from '../domain/obs-filters.ts'
 import { summaryPeriods } from '../domain/obs-summary.ts'
 
 const areaId = z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))
@@ -250,7 +250,7 @@ export const obsValuesInputSchema = z
   })
   .check(
     z.refine(
-      (input) => input.dimension !== undefined || input.q.trim().length >= 2,
+      (input) => input.dimension !== undefined || searchable(input.q),
       'Choose a dimension, or type at least 2 letters to search every dimension.',
     ),
   )

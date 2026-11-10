@@ -6,7 +6,9 @@ import {
   dimensionOf,
   dimensionRows,
   filterFits,
+  meets,
   passes,
+  searchable,
   valuePage,
   valueSearch,
   VALUE_PAGE,
@@ -369,6 +371,48 @@ describe('the dimensions and their values', () => {
       sort: 'asked',
     })
     expect(stored).toMatchObject({ values: [], matched: 0, notAsked: 1 })
+  })
+
+  it('does not count a value another filter left out as not asked', () => {
+    const wsView = viewOf([
+      {
+        id: 'no-web',
+        domain: 'sales',
+        values: ['val:market/norway', 'val:channel/webshop'],
+        counts: counts(20),
+      },
+      {
+        id: 'se-stores',
+        domain: 'sales',
+        values: ['val:market/sweden', 'val:channel/stores'],
+        counts: counts(12),
+      },
+    ])
+    const market = term('dim:market', 'Market')
+    const markets = [
+      term('val:market/norway', 'Norway'),
+      term('val:market/sweden', 'Sweden'),
+      term('val:market/denmark', 'Denmark'),
+    ]
+    const filters: ObsFilter[] = [{ key: 'dim:channel', values: ['val:channel/webshop'] }]
+    const page = valuePage(wsView, filters, market, markets, { q: '', sort: 'asked' })
+    expect(page.values.map((v) => v.key)).toEqual(['val:market/norway'])
+    expect(page.notAsked).toBe(1)
+    const found = valueSearch(wsView, filters, [market], new Map([[market.key, markets]]), {
+      q: 'm',
+      sort: 'asked',
+    })
+    expect(found.notAsked).toBe(1)
+  })
+
+  it('matches nothing for a search of punctuation alone, and everything for an empty one', () => {
+    const terms = [term('val:channel/webshop', 'Webshop'), term('val:channel/stores', 'Stores')]
+    expect(terms.filter(meets('--'))).toEqual([])
+    expect(terms.filter(meets(''))).toEqual(terms)
+    expect(searchable('--')).toBe(false)
+    expect(searchable('a-')).toBe(false)
+    expect(searchable('ab')).toBe(true)
+    expect(searchable('7 -')).toBe(false)
   })
 
   it('searches every dimension, grouped by dimension, the first few values of each', () => {

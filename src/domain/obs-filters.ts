@@ -288,12 +288,16 @@ const words = (text: string) =>
   normalizeName(text)
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
+
+/** Whether a search has at least two letters or digits to look for. */
+export const searchable = (text: string) => words(text).join('').length >= 2
+
 const idWords = (key: string) => (key.split('/').pop() ?? key).replace(/_/g, ' ')
 
 /** Whether the words meet a term: its name, its key's own words or another name starts with them. */
 export function meets(query: string): (term: ObsTerm) => boolean {
   const tokens = words(query)
-  if (!tokens.length) return () => true
+  if (!tokens.length) return query.trim() ? () => false : () => true
   const phrase = normalizeName(query.trim())
   return (term) =>
     [term.name, idWords(term.key), ...term.aliases].some((name) => {
@@ -315,7 +319,9 @@ function groupOf(
   values: readonly ObsTerm[],
   input: { q: string; sort: ValueSort },
 ) {
-  const mine = (naming.get(dimension.key) ?? []).filter((t) => passes(t, filters, dimension.key))
+  const named = naming.get(dimension.key) ?? []
+  const mine = named.filter((t) => passes(t, filters, dimension.key))
+  const askedKeys = new Set(named.flatMap((t) => t.values))
   const byValue = new Map<string, FilterTopic[]>()
   for (const t of mine)
     for (const v of t.values) if (dimensionOf(v) === dimension.key) file(byValue, v, t)
@@ -328,7 +334,7 @@ function groupOf(
     dimension: { key: dimension.key, name: dimension.name },
     asked: count.asked(mine),
     rows,
-    notAsked: matching.length - rows.length,
+    notAsked: matching.filter((v) => !askedKeys.has(v.key)).length,
   }
 }
 
