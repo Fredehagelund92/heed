@@ -301,8 +301,8 @@ for (const { name, width, height } of widths) {
         const typeahead = `serious: scrollable-region-focusable (#${await fields.getAttribute('id')})`
         expect((await violations(page)).filter((v) => v !== typeahead)).toEqual([])
         await page.keyboard.press('Escape')
-        await page.getByRole('button', { name: /^Market is Norway\./ }).click()
-        const values = page.getByRole('listbox', { name: 'Market values' })
+        await page.getByRole('button', { name: /^Value is Norway\./ }).click()
+        const values = page.getByRole('listbox', { name: 'Values to choose from' })
         await expect(values).toBeVisible()
         const editor = `serious: scrollable-region-focusable (#${await values.getAttribute('id')})`
         expect((await violations(page)).filter((v) => v !== editor)).toEqual([])

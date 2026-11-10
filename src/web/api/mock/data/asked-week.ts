@@ -5,6 +5,7 @@ import { obsData } from '@/api/mock/data/observability'
 import { groupCount, HIDE_UNDER, observability, type Topic } from '@/api/mock/obs-engine'
 import { markets } from '@/api/mock/data/world'
 import type { Fact } from '@/model/items'
+import { ALL_VALUES } from '@/model/observability'
 
 // Asked this week: in place of fixed starters, what agents asked about most in the last 7 days, as
 // topics and counts. The words of a question and who asked are never kept, so a row is a topic
@@ -17,7 +18,9 @@ export const questionAbout = (
 ) =>
   t.named === 'none' || !t.metric
     ? `What should I know about ${t.where}?`
-    : `What should I know about ${t.metric} ${markets.includes(t.where) ? 'in' : t.where === 'All markets' ? 'in' : 'for'} ${t.where === 'All markets' ? 'all markets' : t.where}?`
+    : t.where === ALL_VALUES
+      ? `What should I know about ${t.metric}?`
+      : `What should I know about ${t.metric} ${markets.includes(t.where) ? 'in' : 'for'} ${t.where}?`
 
 function nextOf(t: Topic, state: AnswerState): AskedRow['next'] {
   if (state !== 'missing' || !t.gap) return undefined

@@ -440,7 +440,7 @@ export function AskChat({
   const width = compact ? 'max-w-none px-4' : 'max-w-176 px-4'
   const placeholder = draft
     ? 'Ask another question against the draft'
-    : 'Ask about a metric, a market or the records'
+    : 'Ask about a metric, a value or the records'
 
   return (
     <Answering value={answering}>

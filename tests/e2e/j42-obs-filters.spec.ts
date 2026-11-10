@@ -22,12 +22,12 @@ test('add chips from the keys, change one, move them, and take them off', async 
   // F opens the fields; typing finds a value in any of them, with what it counts.
   await page.keyboard.press('f')
   await expect(box(page)).toBeFocused()
-  await expect(page.getByRole('option', { name: /^Market/ })).toBeVisible()
+  await expect(page.getByRole('option', { name: /^Value/ })).toBeVisible()
   await page.keyboard.type('nor')
-  await expect(page.getByRole('option', { name: /^Market is Norway/ })).toContainText(/\d/)
+  await expect(page.getByRole('option', { name: /^Value is Norway/ })).toContainText(/\d/)
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/[?&]market=Norway(&|$)/)
-  await expect(page.getByRole('button', { name: /^Market is Norway\./ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Value is Norway\./ })).toBeVisible()
   await expect(cell(page, 'Asked')).toContainText(/in \d+ topics/)
   expect(await cell(page, 'Asked').innerText()).not.toBe(asked)
 
@@ -45,20 +45,20 @@ test('add chips from the keys, change one, move them, and take them off', async 
   await expect(box(page)).not.toBeFocused()
 
   // A chip opens its editor: is not, and another value ticked, each with its count.
-  await page.getByRole('button', { name: /^Market is Norway\./ }).click()
-  const editor = page.getByRole('dialog', { name: 'Market filter' })
+  await page.getByRole('button', { name: /^Value is Norway\./ }).click()
+  const editor = page.getByRole('dialog', { name: 'Value filter' })
   await expect(editor.getByRole('option', { name: /^Norway/ })).toHaveAttribute(
     'aria-checked',
     'true',
   )
   await editor.getByRole('radio', { name: 'is not' }).click()
   await expect(page).toHaveURL(/market=%21Norway/)
-  await editor.getByRole('combobox', { name: 'Find a market' }).fill('spa')
+  await editor.getByRole('combobox', { name: 'Find a value' }).fill('spa')
   await editor.getByRole('option', { name: /^Spain/ }).click()
   await expect(page).toHaveURL(/market=%21Norway%2CSpain/)
   await page.keyboard.press('Escape')
   await expect(
-    page.getByRole('button', { name: /^Market is none of Norway, Spain\./ }),
+    page.getByRole('button', { name: /^Value is none of Norway, Spain\./ }),
   ).toBeVisible()
 
   // Alt and the arrows move a chip at once; the address keeps the order.
@@ -81,7 +81,7 @@ test('add chips from the keys, change one, move them, and take them off', async 
   await expect(page).toHaveURL(/chips=market%2Canswer/)
   expect(await chipOrder(page)).toEqual(['market', 'answer'])
   // A drag only moves it; the editor stays shut.
-  await expect(page.getByRole('dialog', { name: 'Market filter' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Value filter' })).toHaveCount(0)
 
   // Backspace in the empty box takes the last chip off; Back puts it on again.
   await box(page).click()
@@ -124,12 +124,12 @@ test('the facets count each value without its own chip, and a count looks at onl
   await expect(agents.getByRole('button', { name: /^Claude Code: / })).toBeVisible()
 
   // Ticks in quick succession, while the rows still move, are each kept.
-  const markets = facets.getByRole('region', { name: 'Market' })
+  const markets = facets.getByRole('region', { name: 'Value' })
   const ticks = markets.getByRole('checkbox')
   await ticks.nth(0).click()
   await ticks.nth(1).click()
-  await expect(page.getByRole('button', { name: /^Market is any of / })).toBeVisible()
-  await markets.getByRole('button', { name: 'Clear Market' }).click()
+  await expect(page.getByRole('button', { name: /^Value is any of / })).toBeVisible()
+  await markets.getByRole('button', { name: 'Clear Value' }).click()
 
   // Hidden counts say so in the disclosure rules' words, never a number worked out from others.
   const answers = await facets.getByRole('region', { name: 'Answer' }).innerText()

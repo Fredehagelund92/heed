@@ -45,6 +45,7 @@ import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { FigureReport } from '@/model/figures'
 import type { Fact, Sent } from '@/model/items'
+import { ALL_VALUES } from '@/model/observability'
 import { excerptOf, type Domains } from '@/model/people'
 import { dateLabel } from '@/model/validity'
 import routes from './contract.json' with { type: 'json' }
@@ -327,7 +328,9 @@ const topicNameOf = (
     ? `${t.where}, no metric named`
     : markets.includes(t.where)
       ? `${t.metric} in ${t.where}`
-      : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
+      : t.where === ALL_VALUES
+        ? t.metric
+        : `${t.metric}, ${t.where}`
 
 /** Two names for the same word: case, spaces and accents aside, as the service compares them. */
 const same = (a: string, b: string) => termWord(a) === termWord(b)
@@ -1764,21 +1767,22 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         token,
         reason: 'Where figures are read, set on the integration.',
       })),
-    readFigure: async ({ metric, markets, dates, state, sources }) => {
+    readFigure: async ({ metric, markets, values: read, dates, state, sources }) => {
       if (!metric || state === 'failed') return null
       const days = daysOfDates(dates, localDay(new Date()))
       if (!days) return null
       const names = namesOf(await readVocabulary())
       const key = names.metricKey(metric)
-      const values = markets.flatMap((m) => names.marketKey(m) ?? [])
+      // The values the answer was read for, of any dimension; an answer without them, its markets.
+      const values = read ?? markets.flatMap((m) => names.marketKey(m) ?? [])
       // A metric or a market Definitions doesn't name has no figure the service could read.
-      if (!key || values.length !== markets.length) return null
+      if (!key || (!read && values.length !== markets.length)) return null
       const items = (sources ?? []).filter(isItemId)
       const input = { metric: key, values, ...days, ...(items.length ? { items } : {}) }
       const figure = await readPosted((o) => client.figures.read(input, o))
       return figureViewOf(
         figure,
-        { metric, markets, ...(dates ? { dates } : {}) },
+        { metric, markets: read ? read.map(names.value) : markets, ...(dates ? { dates } : {}) },
         connectorOf,
         new Date(),
       )

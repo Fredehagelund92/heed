@@ -1,5 +1,6 @@
 import { stateLabel, type AnswerState } from '@/model/ask'
 import type { DomainId } from '@/model/items'
+import { ALL_VALUES } from '@/model/observability'
 
 // The mock binding's Observability engine: the demo world's fixtures (data/observability.ts) counted
 // for a view, every range, domain and kind of agent scaled from the one week the board draws. It
@@ -104,7 +105,7 @@ export function monthsLabel(months: string[]) {
   return asc.map(monthShort).join(', ')
 }
 
-/** "Orders in Norway"; across markets "Units sold, all markets"; about an event "Discount cost, Black Friday"; with no metric "Norway, no metric named". */
+/** "Orders in Norway"; over every value "Units sold"; about an event "Discount cost, Black Friday"; with no metric "Norway, no metric named". */
 /** The agents of a week: kinds of agent, never a person. */
 export type AgentWeek = { name: string; week: number }
 
@@ -261,7 +262,9 @@ export function observability(data: ObsData) {
       ? `${t.where}, no metric named`
       : markets.includes(t.where)
         ? `${t.metric} in ${t.where}`
-        : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
+        : t.where === ALL_VALUES
+          ? t.metric
+          : `${t.metric}, ${t.where}`
 
   /** The exact scope, as a person reads it: "Orders in Norway, October 2026". */
   const topicTitle = (t: Topic) => `${topicName(t)}, ${monthName(t.month)}`
@@ -273,7 +276,7 @@ export function observability(data: ObsData) {
       t.named === 'none' ? '' : `${t.named === 'group' ? 'group' : 'metric'}:${slug(t.metric)}`
     const value = markets.includes(t.where)
       ? `val:market/${slug(t.where)}`
-      : t.where === 'All markets'
+      : t.where === ALL_VALUES
         ? ''
         : `val:event/${slug(t.where)}`
     return [t.domain ? `area_${t.domain}` : '', metric, value, t.month].join('|')
