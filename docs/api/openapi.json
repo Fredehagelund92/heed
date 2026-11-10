@@ -91863,7 +91863,7 @@
                             "meanings": {
                               "type": "array",
                               "minItems": 2,
-                              "maxItems": 8,
+                              "maxItems": 100,
                               "items": {
                                 "type": "object",
                                 "properties": {
@@ -91949,7 +91949,7 @@
                                   "meanings": {
                                     "type": "array",
                                     "minItems": 2,
-                                    "maxItems": 8,
+                                    "maxItems": 100,
                                     "items": {
                                       "type": "object",
                                       "properties": {
@@ -93650,7 +93650,7 @@
                                         "meanings": {
                                           "type": "array",
                                           "minItems": 2,
-                                          "maxItems": 8,
+                                          "maxItems": 100,
                                           "items": {
                                             "type": "object",
                                             "properties": {
@@ -93736,7 +93736,7 @@
                                               "meanings": {
                                                 "type": "array",
                                                 "minItems": 2,
-                                                "maxItems": 8,
+                                                "maxItems": 100,
                                                 "items": {
                                                   "type": "object",
                                                   "properties": {

@@ -464,10 +464,19 @@ describe('scope extraction', () => {
       )
     })
 
-    it('leaves a lowercase word that is no typo alone, even in Ask', () => {
+    it('asks about a lowercase word too, where a value goes', () => {
       expect(
         extractScope('anything on tickets closed in payroll?', desk, today, { loose: true }),
-      ).toMatchObject({ status: 'resolved', scope: { metrics: ['metric:tickets_closed'] } })
+      ).toMatchObject({
+        status: 'need_more_detail',
+        issues: [
+          {
+            field: 'dim:team',
+            input: 'payroll',
+            message: "There is no value of Team named 'payroll'.",
+          },
+        ],
+      })
     })
 
     it('reads known values, dates and words that say how or when as before', () => {
