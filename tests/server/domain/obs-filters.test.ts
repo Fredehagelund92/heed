@@ -330,6 +330,29 @@ describe('the dimensions and their values', () => {
     expect(dimensionRows(view, [], [campaign, channel, store], valuesOf)[0]!.name).toBe('Store')
   })
 
+  it('says how many values of each dimension were asked about, as many as its values step finds', () => {
+    // So the filter keeps a row for each before they are read, and no row moves when they come.
+    for (const filters of [[], [{ key: 'dim:channel', values: ['val:channel/stores'] }]])
+      for (const row of dimensionRows(view, filters, [campaign, channel, store], valuesOf)) {
+        const d = [campaign, channel, store].find((x) => x.key === row.key)!
+        const page = valuePage(view, filters, d, valuesOf.get(d.key) ?? [], {
+          q: '',
+          sort: 'asked',
+        })
+        expect(row.valuesAsked).toBe(page.matched)
+      }
+    expect(
+      dimensionRows(view, [], [campaign, channel, store], valuesOf).map((d) => [
+        d.name,
+        d.valuesAsked,
+      ]),
+    ).toEqual([
+      ['Store', 55],
+      ['Channel', 1],
+      ['Campaign', 0],
+    ])
+  })
+
   it('answers "any value" alone for a dimension the definitions give no values', () => {
     const page = valuePage(view, [], campaign, [], { q: '', sort: 'asked' })
     expect(page).toEqual({

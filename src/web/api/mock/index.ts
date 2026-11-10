@@ -900,7 +900,10 @@ export function createMockApi() {
           throw new ApiError('forbidden', 'Only an admin pins dimensions for the workspace.')
         pins = { keys: [...pinned], changed: { who: me(), when: 'Today', why: reason } }
       }),
-    obsValues: (input) => now(() => valuesOf(definitions.list(), obsPageFor(input), input)),
+    obsValues: (input) =>
+      read('obsValues', JSON.stringify(input), () =>
+        valuesOf(definitions.list(), obsPageFor(input), input),
+      ),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {

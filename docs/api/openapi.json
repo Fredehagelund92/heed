@@ -99789,6 +99789,9 @@
                           "values": {
                             "type": "number"
                           },
+                          "valuesAsked": {
+                            "type": "number"
+                          },
                           "asked": {
                             "anyOf": [
                               {
@@ -99827,6 +99830,7 @@
                           "key",
                           "name",
                           "values",
+                          "valuesAsked",
                           "asked"
                         ]
                       }

@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { bindApi, type HeedApi, type ObsValuesInput } from '@/api'
+import { dimensionValuesQuery } from '@/api/queries'
 import { FilterBar, type Field } from '@/components/obs/filter-bar'
 import { FacetRail } from '@/components/obs/facet-rail'
 import { nameOf } from '@/lib/obs-names'
@@ -62,29 +63,30 @@ const service = {
     Promise.resolve({
       state: 'normal' as const,
       dimensions: [
-        { ...market, values: 12, asked: sum(120, 120, 4) },
-        { key: 'dim:store', name: 'Store', values: 300, asked: sum(null, 0, 0) },
+        { ...market, values: 12, valuesAsked: 2, asked: sum(120, 120, 4) },
+        { key: 'dim:store', name: 'Store', values: 300, valuesAsked: 0, asked: sum(null, 0, 0) },
       ],
     }),
   ),
-  obsValues: vi.fn((input: ObsValuesInput) => {
-    const found = values.filter((v) => v.name.toLowerCase().startsWith(input.q.toLowerCase()))
-    return Promise.resolve({
-      state: 'normal' as const,
-      groups: [
-        {
-          dimension: market,
-          asked: sum(120, 120, 4),
-          values: found,
-          matched: found.length,
-          notAsked: 0,
-          nextCursor: null,
-        },
-      ],
-      notAsked: input.dimension ? 0 : 2,
-      nextCursor: null,
-    })
-  }),
+  obsValues: vi.fn((input: ObsValuesInput) => Promise.resolve(valuesFor(input))),
+}
+function valuesFor(input: ObsValuesInput) {
+  const found = values.filter((v) => v.name.toLowerCase().startsWith(input.q.toLowerCase()))
+  return {
+    state: 'normal' as const,
+    groups: [
+      {
+        dimension: market,
+        asked: sum(120, 120, 4),
+        values: found,
+        matched: found.length,
+        notAsked: 0,
+        nextCursor: null,
+      },
+    ],
+    notAsked: input.dimension ? 0 : 2,
+    nextCursor: null,
+  }
 }
 
 const fields: Field[] = [
@@ -108,12 +110,13 @@ const words = (key: FilterKey, v: string) =>
       ? ({ grounded: 'Checked', missing: 'Not found' } as Record<string, string>)[v]!
       : v
 
-function mount(chips: Filters) {
+function mount(chips: Filters, seed?: (client: QueryClient) => void) {
   bindApi(service as unknown as HeedApi)
   const onChange = vi.fn<(chips: Filters, said: string, instant?: boolean) => void>()
   host = document.body.appendChild(document.createElement('div'))
   root = createRoot(host)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  seed?.(client)
   act(() =>
     root!.render(
       React.createElement(
@@ -158,6 +161,17 @@ const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
     await Promise.resolve()
   })
 const options = () => [...document.querySelectorAll('[role=option]')].map((o) => o.textContent)
+/** The rows of places the list keeps for values on their way (two skeletons a row). */
+const places = () => document.querySelectorAll('[role=listbox] [data-slot=skeleton]').length / 2
+/** The bar over a step's values: how many, and their order. */
+const orderBar = () => document.querySelector('[aria-label="Order the values of Market"]')
+const openMarket = async () => {
+  await key(document.body, 'f')
+  await settle()
+  await key(box(), 'ArrowDown')
+  await key(box(), 'ArrowDown')
+  await key(box(), 'Enter')
+}
 
 describe('the filter bar', () => {
   it('F opens the picker; a dimension, then a value ticked, which becomes its chip', async () => {
@@ -200,6 +214,55 @@ describe('the filter bar', () => {
     expect(options()[0]).toBe('Answer')
     await key(box(), 'Escape')
     expect(document.querySelector('[role=combobox]')).toBeNull()
+  })
+
+  it('opens a dimension its facet already read with its values, in the same frame', async () => {
+    // Its facet's read: the picker's first page is the same read, so the step never draws empty.
+    mount([], (client) =>
+      client.setQueryData(
+        dimensionValuesQuery({ range: 30, filters: [] }, 'dim:market').queryKey,
+        valuesFor({ range: 30, filters: [], dimension: 'dim:market', q: '', sort: 'asked' }),
+      ),
+    )
+    service.obsValues.mockImplementation(() => new Promise(() => {}))
+    try {
+      await openMarket()
+      expect(options()).toEqual([
+        expect.stringMatching(/^Any value · asked about market at all120/),
+        expect.stringMatching(/^Norway88\+/),
+        expect.stringMatching(/^SpainFewer than 5/),
+      ])
+      expect(places()).toBe(0)
+    } finally {
+      service.obsValues.mockImplementation((input) => Promise.resolve(valuesFor(input)))
+    }
+  })
+
+  it('keeps the count bar and a place for each value asked about while they load', async () => {
+    let answer: (() => void) | undefined
+    service.obsValues.mockImplementation(
+      (input) => new Promise((done) => (answer = () => done(valuesFor(input)))),
+    )
+    try {
+      mount([])
+      await openMarket()
+      // Before the read: the bar is there, and a row of places for each of the 2 values asked
+      // about, so the values take those places and nothing under them moves.
+      expect(orderBar()).not.toBeNull()
+      expect(options()).toEqual(['Any value · asked about market at all'])
+      expect(places()).toBe(2)
+      act(() => answer?.())
+      await settle()
+      expect(orderBar()).not.toBeNull()
+      expect(options()).toEqual([
+        expect.stringMatching(/^Any value · asked about market at all120/),
+        expect.stringMatching(/^Norway/),
+        expect.stringMatching(/^Spain/),
+      ])
+      expect(places()).toBe(0)
+    } finally {
+      service.obsValues.mockImplementation((input) => Promise.resolve(valuesFor(input)))
+    }
   })
 
   it('/ starts typing: a value in any dimension, by group, and the words as a topic', async () => {
