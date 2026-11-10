@@ -157,6 +157,8 @@ export const policies = {
   'ask.lookup': 'read',
   'ask.asked': 'read',
   'obs.agents': 'maintain',
+  'obs.dimensions': 'maintain',
+  'obs.values': 'maintain',
   'obs.feedback': 'maintain',
   'obs.summary': 'maintain',
   'obs.snapshots.list': 'maintain',

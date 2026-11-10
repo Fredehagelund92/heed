@@ -25,6 +25,8 @@ const maintainOperations = [
   'obs.replay',
   // Observability's reads and saved views: the service narrows them to the owner's domains.
   'obs.agents',
+  'obs.dimensions',
+  'obs.values',
   'obs.feedback',
   'obs.summary',
   'obs.snapshots.list',

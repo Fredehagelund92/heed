@@ -11,6 +11,7 @@
 import * as z from 'zod/mini'
 import { appFamilies } from '../domain/app-family.ts'
 import { shownStates } from '../domain/observability.ts'
+import { filterFits, isDimensionKey, obsFilterFields, searchable } from '../domain/obs-filters.ts'
 import { summaryPeriods } from '../domain/obs-summary.ts'
 
 const areaId = z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))
@@ -34,12 +35,60 @@ const shownCounts = z.object({
   missing: shown,
 })
 
-export const obsAgentsInputSchema = z.strictObject({
+const dimensionKey = z.string().check(z.regex(/^dim:[a-z0-9_]+$/))
+
+/**
+ * One filter, as a chip says it: a dimension (`dim:channel`) with the keys of its own values
+ * (`val:channel/webshop`) or `*` for any value, or a fixed field with values of its own: `metric`
+ * (`metric:orders`, `group:payments`), `domain`, `month` (`2026-10`), `answer` (an answer state),
+ * `gap` (`draft`, `suggestion`, `none`) or `reported` (`yes`, `no`). `not` leaves the values out.
+ */
+export const obsFilterSchema = z
+  .strictObject({
+    key: z
+      .string()
+      .check(
+        z.refine(
+          (key) => isDimensionKey(key) || (obsFilterFields as readonly string[]).includes(key),
+          'A filter is on a dimension (dim:channel) or on metric, domain, month, answer, gap or reported.',
+        ),
+      ),
+    not: z.optional(z.boolean()),
+    values: z
+      .array(z.string().check(z.minLength(1), z.maxLength(200)))
+      .check(z.minLength(1), z.maxLength(50)),
+  })
+  .check(
+    z.refine(
+      filterFits,
+      "A filter's values are the keys of its dimension's own values or *, or what its field takes.",
+    ),
+  )
+
+/** The filters a view is narrowed by, each field or dimension once. */
+const filters = z.optional(
+  z.array(obsFilterSchema).check(
+    z.maxLength(20),
+    z.refine(
+      (list) => new Set(list.map((f) => f.key)).size === list.length,
+      'Each field or dimension is filtered once.',
+    ),
+  ),
+)
+
+/** A view of what agents asked: its days, and the domain and kind of agent it counts. */
+const viewInput = {
   range,
   /** One domain: the numbers and the chart count only its topics. */
   areaId: z.optional(areaId),
   /** One kind of agent (FR-410), for administrators. */
   agent: z.optional(z.enum(appFamilies)),
+}
+
+export const obsAgentsInputSchema = z.strictObject({
+  ...viewInput,
+  /** Only the topics that pass every filter, and what they add up to (`narrowed`). */
+  filters,
 })
 
 /** Whether a topic's questions found nothing written down, and what waits for it in the Inbox. */
@@ -60,10 +109,10 @@ export const obsTopicSchema = z.object({
   metric: z.string(),
   /** How the metric was named: one metric, a metric group, or none. */
   named: z.enum(['metric', 'group', 'none']),
-  /** The markets, events or other values asked about, as named; empty for every market. */
-  values: z.array(z.string()),
-  /** The dimension the values belong to, when there is one: `market` for a market. */
-  dimension: z.nullable(z.string()),
+  /** The values asked about, each with its dimension, as the definitions name them; empty for none. */
+  values: z.array(z.object({ dimension: z.string(), value: z.string(), name: z.string() })),
+  /** The dimensions named with no value, as the definitions name them: "Orders by channel". */
+  dimensions: z.array(z.object({ dimension: z.string(), name: z.string() })),
   /** The calendar month the question's dates start in: `2026-10`. */
   month: z.string(),
   total: shown,
@@ -95,6 +144,11 @@ export const obsSubjectSchema = z.object({
   counts: shownCounts,
 })
 
+/** A count as a reader may have it: null when hidden, and what its shown parts add up to ("13+"). */
+const shownSum = z.object({ total: shown, atLeast: z.number() })
+/** How many topics, and what was asked about them, from the topics' shown counts alone (FR-614). */
+const topicSum = z.extend(shownSum, { topics: z.number() })
+
 export const obsAgentsSchema = z.object({
   /** Nothing asked yet; fewer than the minimum in the range (no counts at all); or counted. */
   state: z.enum(['empty', 'quiet', 'normal']),
@@ -111,9 +165,32 @@ export const obsAgentsSchema = z.object({
   }),
   /** The chart: a bar a day for 7 and 30 days, a week a bar for 90, oldest first. */
   bars: z.array(z.object({ start: day, days: z.number(), counts: shownCounts })),
+  /** The topics of the range in the domains the reader sees, those that pass the filters. */
   topics: z.array(obsTopicSchema),
+  /**
+   * The subjects of those topics, each counted over all its months. With filters a kept subject
+   * still names the topics of all its months, some of which are not in `topics`: read a filtered
+   * view's sums from `narrowed`, never add them up from `topics`.
+   */
   subjects: z.array(obsSubjectSchema),
   domains: z.array(z.object({ areaId: z.nullable(areaId), total: shown, atLeast: z.number() })),
+  /**
+   * With filters: what the topics that pass them add up to, from shown counts alone (a whole
+   * domain's total, a whole subject's, else each topic's), never a count of its own. It is where a
+   * filtered view's sums are read; adding up `topics` with whole totals would count too much.
+   */
+  narrowed: z.nullable(
+    z.object({
+      asked: topicSum,
+      counts: z.object({
+        grounded: shownSum,
+        partial: shownSum,
+        conflict: shownSum,
+        stale: shownSum,
+        missing: shownSum,
+      }),
+    }),
+  ),
   /**
    * What found nothing at least the minimum times in the last 7 days, whatever the range, its
    * months counted together (FR-606 case 1): subjects, with their counts over those 7 days.
@@ -134,6 +211,83 @@ export const obsAgentsSchema = z.object({
   ),
   /** The kinds of agent that asked in the range, by FR-410's fixed list. */
   agents: z.array(z.object({ family: z.enum(appFamilies), count: shown })),
+})
+
+export const obsDimensionsInputSchema = z.strictObject({ ...viewInput, filters })
+
+const viewHead = {
+  /** Nothing asked yet; fewer than the minimum in the range (no counts at all); or counted. */
+  state: z.enum(['empty', 'quiet', 'normal']),
+  range: z.number(),
+  last: day,
+  minimumCount: z.number(),
+}
+
+export const obsDimensionsSchema = z.object({
+  ...viewHead,
+  /**
+   * Every dimension of the definitions and any other a topic of the range names, the most asked
+   * about in the range first, then A to Z: how many values it has, the definitions' and any other
+   * a topic names (none: "any value" alone), and the topics that name it and pass every
+   * filter but its own, with what was asked about them; null unless the range is counted.
+   */
+  dimensions: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      values: z.number(),
+      asked: z.nullable(topicSum),
+    }),
+  ),
+})
+
+export const obsValuesInputSchema = z
+  .strictObject({
+    ...viewInput,
+    filters,
+    /** One dimension's values, a page at a time; without it, `q` searches every dimension. */
+    dimension: z.optional(dimensionKey),
+    /** The words a value's name, or another name of it, starts with. */
+    q: z._default(z.string().check(z.maxLength(200)), ''),
+    /** Where the page starts, from the last page's `nextCursor`. */
+    cursor: z.optional(z.string().check(z.regex(/^\d{1,6}$/))),
+    /** The most asked about in the range first, or A to Z. */
+    sort: z._default(z.enum(['asked', 'name']), 'asked'),
+  })
+  .check(
+    z.refine(
+      (input) => input.dimension !== undefined || searchable(input.q),
+      'Choose a dimension, or type at least 2 letters to search every dimension.',
+    ),
+  )
+
+const valueGroup = z.object({
+  dimension: z.object({ key: z.string(), name: z.string() }),
+  /** Any value: the topics that name the dimension and pass every filter but its own. */
+  asked: topicSum,
+  /** The values asked about in the range that match the words, each counted so. */
+  values: z.array(z.object({ key: z.string(), name: z.string(), asked: topicSum })),
+  /** How many values asked about in the range match, on every page. */
+  matched: z.number(),
+  /** How many values of the definitions match but were not asked about in the range. */
+  notAsked: z.number(),
+  /** Where its next page of values starts (`dimension` and `cursor`). */
+  nextCursor: z.nullable(z.string()),
+})
+
+export const obsValuesSchema = z.object({
+  ...viewHead,
+  sort: z.enum(['asked', 'name']),
+  /**
+   * With `dimension`: that dimension, a page of 50 values. Without: each dimension with a value
+   * asked about that matches the words, with its first 3, a page of 50 dimensions. Empty unless
+   * the range is counted.
+   */
+  groups: z.array(valueGroup),
+  /** Matching values not asked about in the range, in every dimension searched. */
+  notAsked: z.number(),
+  /** Where the next page of dimensions starts, without `dimension`. */
+  nextCursor: z.nullable(z.string()),
 })
 
 export const obsFeedbackInputSchema = z.strictObject({ range, areaId: z.optional(areaId) })
@@ -411,6 +565,11 @@ export const obsViewSaveInputSchema = z.strictObject({
 export const obsViewRemoveInputSchema = z.strictObject({ id: z.string().check(z.uuid()) })
 
 export type ObsAgentsInput = z.infer<typeof obsAgentsInputSchema>
+export type ObsFilterInput = z.infer<typeof obsFilterSchema>
+export type ObsDimensionsInput = z.infer<typeof obsDimensionsInputSchema>
+export type ObsDimensions = z.infer<typeof obsDimensionsSchema>
+export type ObsValuesInput = z.infer<typeof obsValuesInputSchema>
+export type ObsValues = z.infer<typeof obsValuesSchema>
 export type ObsAgents = z.infer<typeof obsAgentsSchema>
 export type ObsTopic = z.infer<typeof obsTopicSchema>
 export type ObsSubject = z.infer<typeof obsSubjectSchema>

@@ -2,6 +2,8 @@ import { ORPCError } from '@orpc/client'
 import type {
   ObsAgents,
   ObsAgentsInput,
+  ObsDimensions,
+  ObsDimensionsInput,
   ObsFeedback,
   ObsSnapshot,
   ObsSnapshotItem,
@@ -12,11 +14,25 @@ import type {
   ObsSummaryInput,
   ObsTopic,
   ObsUsage,
+  ObsValues,
+  ObsValuesInput,
   ObsView,
   ObsViewFilters,
 } from '../../../contract/observability.ts'
 import { appFamilyOf, type AppFamily } from '../../../domain/app-family.ts'
 import { visibleCount } from '../../../domain/gaps.ts'
+import {
+  byName,
+  counter,
+  dimensionOf,
+  dimensionRows,
+  passes,
+  valuePage,
+  valueSearch,
+  type Disclosed,
+  type FilterTopic,
+  type ObsTerm,
+} from '../../../domain/obs-filters.ts'
 import {
   addCounts,
   barsOf,
@@ -172,6 +188,9 @@ const topicName = (
 /** A topic's scope without its month: the months of one subject read as one row (FR-606). */
 const subjectOf = (t: Pick<TopicRow, 'area' | 'metrics' | 'values' | 'dimensions'>) =>
   [t.area ?? '', t.metrics.join(','), t.values.join(','), t.dimensions.join(',')].join('|')
+
+/** What a view counts: its days, one domain or every one the reader sees, one kind of agent or all. */
+type ViewInput = { range: number; areaId?: string; agent?: AppFamily }
 
 /** What a snapshot keeps (`obs_snapshots.summary`): the Summary's counts, and its words. */
 type StoredSnapshot = { summary: ObsSnapshotSummary; words: ObsSnapshotWords }
@@ -576,6 +595,219 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
     }
   }
 
+  /** Calls per day and answer state in [from, to), in the domains read, for one kind of agent or all. */
+  async function daysBetween(
+    areas: string[] | null,
+    admin: boolean,
+    from: string,
+    to: string,
+    kind?: AppFamily,
+  ) {
+    const rows = await tx.query<{ day: string; state: string; calls: number }>(
+      `select (d.delivered_hour at time zone 'UTC')::date::text as day, d.answer_state as state,
+              count(*)::int as calls
+         from deliveries d join topics t on t.id = d.topic_id
+        where d.caller = 'agent' and d.answer_state in ('grounded','partial','conflict','stale','missing')
+          and d.delivered_hour >= $1::date and d.delivered_hour < $2::date
+          and ($3::text is null or d.app_family = $3)
+          and (case when $4::text[] is null then $5 else t.area_id = any($4) end)
+        group by 1, 2`,
+      [from, to, kind ?? null, areas, admin],
+    )
+    const days = []
+    for (let day = from; day < to; day = shiftDate(day, 1))
+      days.push({ day, counts: countsOf(rows.filter((r) => r.day === day)) })
+    return days
+  }
+
+  /**
+   * A view as Overview and Questions count it (FR-620): its range's days for the domain read and
+   * the kind of agent, and every topic of the range in the domains the reader sees, through one
+   * disclosure pass with the chart (topicView). Every read built on a view's topics starts here,
+   * so a count it adds up is made of the counts Overview shows.
+   */
+  async function rangeView(input: ViewInput) {
+    const { admin, areas } = await reader(tx, input.areaId)
+    const agent = admin ? input.agent : undefined
+    const least = await minimum(tx)
+    const days = daysOf(clock.today(), input.range)
+    const head = { admin, areas, agent, least, ...days }
+    const [asked] = await tx.query<{ ever: boolean }>(
+      `select exists (
+         select 1 from deliveries d left join topics t on t.id = d.topic_id
+          where d.caller = 'agent'
+            and (case when $1::text[] is null then $2 else t.area_id = any($1) end)) as ever`,
+      [areas, admin],
+    )
+    if (!asked?.ever) return { ...head, state: 'empty' as const }
+
+    const inRange = await daysBetween(areas, admin, days.start, days.end, agent)
+    const askedNow = inRange.reduce((n, d) => n + sumCounts(d.counts), 0)
+    // Fewer than the minimum in the range: no count at all, not even per day (FR-614).
+    if (askedNow < least) return { ...head, state: 'quiet' as const }
+    const wholeDays = agent ? await daysBetween(areas, admin, days.start, days.end) : null
+    const wholeBars = wholeDays ? barsOf(wholeDays, input.range) : null
+    const bars = barsOf(inRange, input.range).map((b, i) => ({
+      ...b,
+      ...(wholeBars ? { whole: wholeBars[i]!.counts } : {}),
+    }))
+
+    // Topics: every domain the reader may see, whatever domain the numbers are narrowed to, so
+    // Questions can filter them; for a view of one agent, beside the same topics over all.
+    const all = await reader(tx, undefined)
+    const now = byTopic(await topicCounts(all.areas, admin, days.start, days.end, agent))
+    const whole = agent ? byTopic(await topicCounts(all.areas, admin, days.start, days.end)) : null
+    const names = await vocabularyNames(tx)
+    const counted: TopicCounts[] = [...now.values()].map((t) => ({
+      id: t.id,
+      domain: t.area,
+      subject: subjectOf(t),
+      counts: t.counts,
+      ...(whole ? { whole: whole.get(t.id)?.counts ?? t.counts } : {}),
+    }))
+    // The topics, the chart and its numbers in one pass, so none gives a hidden one away.
+    const view = topicView(counted, least, {
+      bars,
+      ...(input.areaId ? { domain: input.areaId } : {}),
+    })
+    return { ...head, state: 'normal' as const, all, now, names, counted, view }
+  }
+  type CountedView = Extract<Awaited<ReturnType<typeof rangeView>>, { state: 'normal' }>
+  type ByTopic = ReturnType<typeof byTopic> extends Map<string, infer T> ? T : never
+
+  /**
+   * How a view's topics read on the API: named by the definitions, with which of Questions' views
+   * each is in and what waits for its gap in the Inbox. `extra` are more topics to look up, as the
+   * last 7 days' for what found nothing.
+   */
+  async function describer(r: CountedView, extra: readonly string[] = []) {
+    const subjectMissing = new Map<string, number>()
+    for (const t of r.counted)
+      subjectMissing.set(t.subject, (subjectMissing.get(t.subject) ?? 0) + t.counts.missing)
+    const ids = [...new Set([...r.now.keys(), ...extra])]
+    const [gaps, reported] = await Promise.all([gapsOf(ids), reportedTopics(ids, r.start, r.end)])
+    const nameOf = (key: string) =>
+      r.names.get(key) ?? fallbackName(key.slice(key.indexOf(':') + 1))
+    return (
+      t: ByTopic,
+      shown: { total: number | null; atLeast: number; counts: ObsTopic['counts'] },
+      subjects: ReadonlyMap<string, Parameters<typeof answersOf>[0]>,
+    ): ObsTopic => {
+      const group = t.metrics.some((m) => m.startsWith('group:'))
+      const gap = gaps.get(t.id)
+      return {
+        id: t.id,
+        areaId: t.area,
+        subject: subjectOf(t),
+        metric: t.metrics.map((m) => r.names.get(m) ?? fallbackName(m)).join(', '),
+        named: !t.metrics.length ? 'none' : group ? 'group' : 'metric',
+        values: t.values.map((v) => ({
+          dimension: dimensionOf(v) ?? '',
+          value: v,
+          name: nameOf(v),
+        })),
+        dimensions: t.dimensions.map((d) => ({ dimension: d, name: nameOf(d) })),
+        month: t.month,
+        total: shown.total,
+        atLeast: shown.atLeast,
+        counts: shown.counts,
+        in: {
+          notFound: (subjectMissing.get(subjectOf(t)) ?? 0) >= r.least,
+          reported: reported.has(t.id),
+          answers: answersOf(subjects.get(subjectOf(t))!),
+        },
+        gap: gap ? { id: gap.id, state: gap.state, proposalId: gap.proposal } : null,
+      }
+    }
+  }
+
+  /** Each topic of the range as the API says it, beside what the filters read of it. */
+  function listedOf(r: CountedView, topicOf: Awaited<ReturnType<typeof describer>>) {
+    const shownOf = new Map(r.view.topics.map((t) => [t.id, t]))
+    const subjects = new Map(r.view.subjects.map((g) => [g.key, g] as const))
+    return [...r.now.values()].map((t) => {
+      const topic = topicOf(t, shownOf.get(t.id)!, subjects)
+      const filter: FilterTopic = {
+        id: t.id,
+        domain: t.area,
+        subject: topic.subject,
+        month: t.month,
+        metrics: t.metrics,
+        values: t.values,
+        dimensions: t.dimensions,
+        answers: topic.in.answers,
+        notFound: topic.in.notFound,
+        reported: topic.in.reported,
+        // As In the Inbox reads it: a draft or a suggestion that waits, else nothing yet for a
+        // gap or for what found nothing.
+        gap:
+          topic.gap?.proposalId && topic.gap.state !== 'none'
+            ? topic.gap.state
+            : topic.gap || topic.in.notFound
+              ? 'none'
+              : null,
+        total: topic.total,
+        atLeast: topic.atLeast,
+        counts: topic.counts,
+      }
+      return { topic, filter }
+    })
+  }
+
+  /** What a view disclosed, for counting a set of its topics from shown counts alone. */
+  const disclosedOf = (r: CountedView, listed: ReturnType<typeof listedOf>): Disclosed => ({
+    topics: listed.map((t) => t.filter),
+    subjects: r.view.subjects,
+    domains: r.view.domains,
+  })
+
+  /**
+   * The dimensions and values a filter offers: the live definitions', and any other a topic of
+   * the range names (a value since taken out of the definitions is still asked about), by name.
+   */
+  async function filterTerms(r: CountedView | null) {
+    const rows = await tx.query<{
+      key: string
+      kind: 'dimension' | 'dimension_value'
+      parent: string | null
+      name: string
+      aliases: string[]
+    }>(
+      `select key, kind::text as kind, parent_key as parent, name, aliases
+         from serving_vocabulary((select seq from live_edition))
+        where kind in ('dimension', 'dimension_value')`,
+    )
+    const terms = new Map(rows.map((t) => [t.key, t]))
+    if (r) {
+      const nameOf = (key: string) =>
+        r.names.get(key) ?? fallbackName(key.slice(key.indexOf(':') + 1))
+      for (const t of r.now.values()) {
+        for (const d of [...t.dimensions, ...t.values.map((v) => dimensionOf(v) ?? '')])
+          if (d && !terms.has(d))
+            terms.set(d, { key: d, kind: 'dimension', parent: null, name: nameOf(d), aliases: [] })
+        for (const v of t.values)
+          if (!terms.has(v))
+            terms.set(v, {
+              key: v,
+              kind: 'dimension_value',
+              parent: dimensionOf(v),
+              name: nameOf(v),
+              aliases: [],
+            })
+      }
+    }
+    const list = [...terms.values()]
+    const dimensions = list.filter((t) => t.kind === 'dimension').sort(byName)
+    const valuesOf = new Map<string, ObsTerm[]>()
+    for (const v of list.filter((t) => t.kind === 'dimension_value').sort(byName))
+      if (v.parent) {
+        const mine = valuesOf.get(v.parent)
+        if (mine) mine.push(v)
+        else valuesOf.set(v.parent, [v])
+      }
+    return { dimensions, valuesOf }
+  }
+
   return {
     /**
      * Overview and Questions (FR-620): a range's days by answer state, its topics and subjects,
@@ -584,14 +816,11 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
      * whole by a hidden one.
      */
     async agents(input: ObsAgentsInput): Promise<ObsAgents> {
-      const { admin, areas } = await reader(tx, input.areaId)
-      const agent = admin ? input.agent : undefined
-      const least = await minimum(tx)
-      const { last, start, before, end } = daysOf(clock.today(), input.range)
+      const r = await rangeView(input)
       const base = {
         range: input.range,
-        last,
-        minimumCount: least,
+        last: r.last,
+        minimumCount: r.least,
         numbers: {
           asked: null,
           counts: { grounded: null, partial: null, conflict: null, stale: null, missing: null },
@@ -601,78 +830,26 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         topics: [],
         subjects: [],
         domains: [],
+        narrowed: null,
         notFound: [],
         notFoundTopics: [],
         couldNotRead: null,
         publishes: [],
         agents: [],
       }
-      const [asked] = await tx.query<{ ever: boolean }>(
-        `select exists (
-           select 1 from deliveries d left join topics t on t.id = d.topic_id
-            where d.caller = 'agent'
-              and (case when $1::text[] is null then $2 else t.area_id = any($1) end)) as ever`,
-        [areas, admin],
-      )
-      if (!asked?.ever) return { ...base, state: 'empty' }
+      if (r.state !== 'normal') return { ...base, state: r.state }
+      const { admin, areas, agent, least, start, before, end, all, now, view } = r
 
-      /** Calls per day and answer state in [from, to), for the view or over every agent. */
-      const daysBetween = async (from: string, to: string, kind?: AppFamily) => {
-        const rows = await tx.query<{ day: string; state: string; calls: number }>(
-          `select (d.delivered_hour at time zone 'UTC')::date::text as day, d.answer_state as state,
-                  count(*)::int as calls
-             from deliveries d join topics t on t.id = d.topic_id
-            where d.caller = 'agent' and d.answer_state in ('grounded','partial','conflict','stale','missing')
-              and d.delivered_hour >= $1::date and d.delivered_hour < $2::date
-              and ($3::text is null or d.app_family = $3)
-              and (case when $4::text[] is null then $5 else t.area_id = any($4) end)
-            group by 1, 2`,
-          [from, to, kind ?? null, areas, admin],
-        )
-        const days = []
-        for (let day = from; day < to; day = shiftDate(day, 1))
-          days.push({ day, counts: countsOf(rows.filter((r) => r.day === day)) })
-        return days
-      }
-      const inRange = await daysBetween(start, end, agent)
-      const askedNow = inRange.reduce((n, d) => n + sumCounts(d.counts), 0)
-      // Fewer than the minimum in the range: no count at all, not even per day (FR-614).
-      if (askedNow < least) return { ...base, state: 'quiet' }
-      const wholeDays = agent ? await daysBetween(start, end) : null
-      const wholeBars = wholeDays ? barsOf(wholeDays, input.range) : null
-      const bars = barsOf(inRange, input.range).map((b, i) => ({
-        ...b,
-        ...(wholeBars ? { whole: wholeBars[i]!.counts } : {}),
-      }))
       const total = (days: { counts: StateCounts }[]) =>
         days.reduce((c, d) => addCounts(c, d.counts), zeroCounts())
       const earlier = beforeView(
-        total(await daysBetween(before, start, agent)),
+        total(await daysBetween(areas, admin, before, start, agent)),
         least,
-        agent ? total(await daysBetween(before, start)) : undefined,
+        agent ? total(await daysBetween(areas, admin, before, start)) : undefined,
       )
 
-      // Topics: every domain the reader may see, whatever domain the numbers are narrowed to, so
-      // Questions can filter them; for a view of one agent, beside the same topics over all.
-      const all = await reader(tx, undefined)
-      const now = byTopic(await topicCounts(all.areas, admin, start, end, agent))
-      const whole = agent ? byTopic(await topicCounts(all.areas, admin, start, end)) : null
-      const names = await vocabularyNames(tx)
-      const counted: TopicCounts[] = [...now.values()].map((t) => ({
-        id: t.id,
-        domain: t.area,
-        subject: subjectOf(t),
-        counts: t.counts,
-        ...(whole ? { whole: whole.get(t.id)?.counts ?? t.counts } : {}),
-      }))
-      // The topics, the chart and its numbers in one pass, so none gives a hidden one away.
-      const view = topicView(counted, least, {
-        bars,
-        ...(input.areaId ? { domain: input.areaId } : {}),
-      })
-
       // What found nothing in the last 7 days, counted over its months (FR-606 case 1).
-      const weekStart = shiftDate(last, -6)
+      const weekStart = shiftDate(r.last, -6)
       const week =
         input.range === 7
           ? now
@@ -694,44 +871,15 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         missingOf.set(t.subject, (missingOf.get(t.subject) ?? 0) + t.counts.missing)
       const notFound = weekView.subjects.filter((s) => (missingOf.get(s.key) ?? 0) >= least)
 
-      const subjectMissing = new Map<string, number>()
-      for (const t of counted)
-        subjectMissing.set(t.subject, (subjectMissing.get(t.subject) ?? 0) + t.counts.missing)
-      const ids = [...new Set([...now.keys(), ...week.keys()])]
-      const [gaps, reported] = await Promise.all([gapsOf(ids), reportedTopics(ids, start, end)])
-      const shownOf = new Map(view.topics.map((t) => [t.id, t]))
+      const topicOf = await describer(r, [...week.keys()])
       const weekShownOf = new Map(weekView.topics.map((t) => [t.id, t]))
-      const subjectsOf = (v: typeof view) => new Map(v.subjects.map((g) => [g.key, g] as const))
-      const rangeSubjects = subjectsOf(view)
-      const weekSubjects = subjectsOf(weekView)
-      const topicOf = (
-        t: Omit<TopicRow, 'state' | 'calls'> & { counts: StateCounts },
-        shown: { total: number | null; atLeast: number; counts: ObsTopic['counts'] },
-        subjects: ReturnType<typeof subjectsOf>,
-      ): ObsTopic => {
-        const group = t.metrics.some((m) => m.startsWith('group:'))
-        const dimension = t.values[0]?.slice(4).split('/')[0] ?? null
-        const gap = gaps.get(t.id)
-        return {
-          id: t.id,
-          areaId: t.area,
-          subject: subjectOf(t),
-          metric: t.metrics.map((m) => names.get(m) ?? fallbackName(m)).join(', '),
-          named: !t.metrics.length ? 'none' : group ? 'group' : 'metric',
-          values: t.values.map((v) => names.get(v) ?? fallbackName(v)),
-          dimension,
-          month: t.month,
-          total: shown.total,
-          atLeast: shown.atLeast,
-          counts: shown.counts,
-          in: {
-            notFound: (subjectMissing.get(subjectOf(t)) ?? 0) >= least,
-            reported: reported.has(t.id),
-            answers: answersOf(subjects.get(subjectOf(t))!),
-          },
-          gap: gap ? { id: gap.id, state: gap.state, proposalId: gap.proposal } : null,
-        }
-      }
+      const weekSubjects = new Map(weekView.subjects.map((g) => [g.key, g] as const))
+      const listed = listedOf(r, topicOf)
+      const kept = input.filters?.length
+        ? listed.filter((t) => passes(t.filter, input.filters!))
+        : listed
+      const keptSubjects = new Set(kept.map((t) => t.filter.subject))
+      const count = counter(disclosedOf(r, listed))
 
       // Calls that could not be read have no topic, so no domain: an administrator's whole view only.
       let couldNotRead: number | null = null
@@ -789,9 +937,17 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
           before: earlier,
         },
         bars: view.bars,
-        topics: [...now.values()].map((t) => topicOf(t, shownOf.get(t.id)!, rangeSubjects)),
-        subjects: view.subjects.map(({ domain, ...s }) => ({ ...s, areaId: domain })),
+        topics: kept.map((t) => t.topic),
+        subjects: view.subjects
+          .filter((s) => keptSubjects.has(s.key))
+          .map(({ domain, ...s }) => ({ ...s, areaId: domain })),
         domains: view.domains.map(({ domain, ...d }) => ({ ...d, areaId: domain })),
+        narrowed: input.filters?.length
+          ? {
+              asked: count.asked(kept.map((t) => t.filter)),
+              counts: count.states(kept.map((t) => t.filter)),
+            }
+          : null,
         notFound: notFound.map(({ domain, ...s }) => ({ ...s, areaId: domain })),
         notFoundTopics: notFound.flatMap((s) =>
           s.topics.map((id) => topicOf(week.get(id)!, weekShownOf.get(id)!, weekSubjects)),
@@ -799,6 +955,77 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         couldNotRead,
         publishes,
         agents,
+      }
+    },
+
+    /**
+     * The filter's first step (FR-620): every dimension of the definitions, each counted over the
+     * view's topics that name it and pass every filter but its own, the most asked first. The
+     * counts are the topics' shown counts added up (src/domain/obs-filters.ts), so with a filter
+     * on and off they differ by shown counts only (FR-614).
+     */
+    async dimensions(input: ObsDimensionsInput): Promise<ObsDimensions> {
+      const r = await rangeView(input)
+      const head = { state: r.state, range: input.range, last: r.last, minimumCount: r.least }
+      const terms = await filterTerms(r.state === 'normal' ? r : null)
+      if (r.state !== 'normal')
+        return {
+          ...head,
+          dimensions: terms.dimensions.map((d) => ({
+            key: d.key,
+            name: d.name,
+            values: terms.valuesOf.get(d.key)?.length ?? 0,
+            asked: null,
+          })),
+        }
+      const disclosed = disclosedOf(r, listedOf(r, await describer(r)))
+      return {
+        ...head,
+        dimensions: dimensionRows(disclosed, input.filters ?? [], terms.dimensions, terms.valuesOf),
+      }
+    },
+
+    /**
+     * The filter's second step (FR-620): one dimension's values asked about in the view's range, a
+     * page of 50, the most asked first or A to Z, each counted over the topics that pass every
+     * filter but the dimension's own; or, without a dimension, the words searched in every one.
+     * The values of the definitions and any other a topic of the range names are listed, so a
+     * dimension with none has "any value" alone. In a quiet or empty range only the definitions'
+     * dimensions are known: a dimension only a topic names is 404 there.
+     */
+    async values(input: ObsValuesInput): Promise<ObsValues> {
+      const r = await rangeView(input)
+      const terms = await filterTerms(r.state === 'normal' ? r : null)
+      const dimension = input.dimension
+        ? terms.dimensions.find((d) => d.key === input.dimension)
+        : undefined
+      if (input.dimension && !dimension)
+        throw new ORPCError('NOT_FOUND', {
+          message: 'Nothing in the definitions has this key.',
+        })
+      const head = {
+        state: r.state,
+        range: input.range,
+        last: r.last,
+        minimumCount: r.least,
+        sort: input.sort,
+      }
+      if (r.state !== 'normal') return { ...head, groups: [], notAsked: 0, nextCursor: null }
+      const disclosed = disclosedOf(r, listedOf(r, await describer(r)))
+      const filters = input.filters ?? []
+      if (dimension) {
+        const group = valuePage(
+          disclosed,
+          filters,
+          dimension,
+          terms.valuesOf.get(dimension.key) ?? [],
+          input,
+        )
+        return { ...head, groups: [group], notAsked: group.notAsked, nextCursor: null }
+      }
+      return {
+        ...head,
+        ...valueSearch(disclosed, filters, terms.dimensions, terms.valuesOf, input),
       }
     },
 
