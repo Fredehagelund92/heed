@@ -224,6 +224,9 @@ const DAY = new RegExp(
 /** A number in words, not a part of a word or of another number: "4", "1,240", "13+". */
 const NUMBER = /(?<![\p{L}\p{N}_.,])\d(?:[\d,]*\d)?(?:\.\d+)?\+?/gu
 const valueOf = (number: string) => Number(number.replace(/[,+]/g, ''))
+/** The counts people write in words, one to twelve, by value. */
+const NUMBER_WORDS = 'one two three four five six seven eight nine ten eleven twelve'.split(' ')
+const NUMBER_WORD = new RegExp(`\\b(?:${NUMBER_WORDS.join('|')})\\b`, 'gi')
 
 /** The words of the clause so far, as the model wrote them: since the sentence's last , ; or : */
 function clauseSoFar(runs: readonly LoopRun[]): string {
@@ -266,6 +269,11 @@ function saidAlready(runs: LoopRun[], run: LoopRun): boolean {
       if (run.value.endsWith('+') && !stated[0].endsWith('+')) floorIn(runs, stated[0])
       return true
     }
+    // A count the words give in words ("Nine of the 23 … 9"); a floor's number stays a floor.
+    const spelled = [...clause.matchAll(NUMBER_WORD)].some(
+      (x) => NUMBER_WORDS.indexOf(x[0].toLowerCase()) + 1 === value,
+    )
+    if (spelled && !run.value.endsWith('+')) return true
   } else return false
   const last = runs.at(-1)
   const before = last?.t === 'text' ? last.text.trimEnd() : ''
@@ -789,11 +797,16 @@ function trailingRuns(runs: readonly LoopRun[]): boolean[] {
   return trailing
 }
 
+/** Words that need what comes after them: a preposition, an article or "and" at their end. */
+const LEADS_ON =
+  /\b(?:in|on|at|for|from|to|of|by|with|about|across|than|between|into|within|per|via|the|a|an|and|or)\s*$/i
+
 /**
  * A sentence's runs with each noun's chip where the sentence names it: a mention that follows its
  * own name, or that only trails its clause after words that give its name, is drawn on those words
  * instead ("the [Poland] market", not "the Poland market [Poland]"), and a trailing mention of a
- * noun the sentence has drawn already is left out. A mention anywhere else stays where it is.
+ * noun the sentence has drawn already is left out. A mention the words lead into ("spend in
+ * [Norway]") and a mention anywhere else stay where they are.
  */
 function placed(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): LoopRun[] {
   const out: LoopRun[] = []
@@ -820,10 +833,14 @@ function placed(runs: readonly LoopRun[], nouns: ReadonlyMap<string, Noun>): Loo
   }
   runs.forEach((r, n) => {
     if (r.t === 'noun') {
-      if (trailing[n] && out.slice(from.run).some((x) => x.t === 'noun' && x.id === r.id)) return
+      // A mark the words lead into ("… ad spend in [Norway].") is what they say there: it stays.
+      const last = out.at(-1)
+      const led = last?.t === 'text' && LEADS_ON.test(last.text)
+      const trails = trailing[n] && !led
+      if (trails && out.slice(from.run).some((x) => x.t === 'noun' && x.id === r.id)) return
       const name = nouns.get(r.id)?.name
       const found = name
-        ? (find(nameIn(name), true) ?? (trailing[n] ? find(nameIn(name), false) : null))
+        ? (find(nameIn(name), true) ?? (trails ? find(nameIn(name), false) : null))
         : null
       if (!found) {
         out.push(r)
@@ -878,6 +895,47 @@ export function withoutLastSentence(runs: readonly LoopRun[]): LoopRun[] | null 
   return null
 }
 
+/** What only leads into a list of citations: "such as", "including", "for example", "see". */
+const LEADS_INTO =
+  /[,;]?\s*\(?\s*(?:\b(?:such as|including|for example|for instance|namely|like|see(?: also)?|as in)\b|\be\.g\.)?\s*:?\s*$/i
+/** Between two citations of one list: commas, "and" or "or". */
+const BETWEEN = /^[\s,;]*(?:(?:and|or|&)[\s,;]*)?$/i
+
+/**
+ * A sentence's runs without its citations, as under Not found, with the words that only listed
+ * them: "own items, such as [1], [2] and [3]." reads "own items.", not "own items, such as, and.".
+ */
+export function withoutCites(runs: readonly LoopRun[]): LoopRun[] {
+  const out: LoopRun[] = []
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i]!
+    if (r.t !== 'cite') {
+      out.push({ ...r })
+      continue
+    }
+    // The whole list of citations: those after it with only commas, "and" or "or" between.
+    let end = i
+    for (let j = i + 1; j < runs.length; j++) {
+      const x = runs[j]!
+      if (x.t === 'cite') end = j
+      else if (x.t !== 'text' || !BETWEEN.test(x.text)) break
+    }
+    i = end
+    const before = out.at(-1)
+    const lead = before?.t === 'text' ? LEADS_INTO.exec(before.text) : null
+    // Only a list the words led into goes with them; one that sits after its claim leaves it be.
+    if (before?.t === 'text' && lead && lead[0].trim()) {
+      before.text = before.text.slice(0, lead.index)
+      const next = runs[i + 1]
+      if (lead[0].includes('(') && next?.t === 'text') {
+        out.push({ ...next, text: next.text.replace(/^\s*\)/, '') })
+        i++
+      }
+    }
+  }
+  return out.filter((r) => r.t !== 'text' || r.text)
+}
+
 /**
  * The words as the page shows them beside code's evidence (FR-720), from the blocks as written:
  * each noun's chip where its sentence names it first; under Not found, no citation, since nothing
@@ -906,8 +964,7 @@ export function shownBody(
       }
       continue
     }
-    const shown = (runs: readonly LoopRun[]) =>
-      placed(notFound ? runs.filter((r) => r.t !== 'cite') : runs, nouns)
+    const shown = (runs: readonly LoopRun[]) => placed(notFound ? withoutCites(runs) : runs, nouns)
     if (b.t === 'p') out.push({ ...b, runs: shown(b.runs) })
     else if (b.t === 'ul') out.push({ ...b, items: b.items.map(shown) })
     else out.push(b)

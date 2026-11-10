@@ -519,6 +519,51 @@ describe('the words as the page shows them, beside the evidence', () => {
     expect(t.text).toContain('- Platform closes merged tickets once')
     expect(t.said).toContain('- Platform closes merged tickets once [itm_pppp1111]')
   })
+
+  it('leaves out, under Not found, the words that only listed what it cited', () => {
+    const nearby = [
+      { id: 'itm_pppp1111', about: ['metric:tickets_closed', 'value:team/platform'] },
+      { id: 'itm_qqqq1111', about: ['metric:tickets_closed', 'value:sprint/s41'] },
+    ]
+    const t = turnOf(
+      'Nothing written covers tickets closed for Billing. Other teams each have their own items, such as [itm_pppp1111], [itm_qqqq1111] and [itm_pppp1111]. Sprints are counted apart (see [itm_qqqq1111]). Platform closes merged tickets once [itm_pppp1111], so it counts them once.',
+      [lookup('missing', [], nearby)],
+      [],
+    )
+    expect(t.state).toBe('missing')
+    const words =
+      'Nothing written covers tickets closed for Billing. Other teams each have their own items. Sprints are counted apart. Platform closes merged tickets once, so it counts them once.'
+    expect(t.body).toEqual([{ t: 'p', runs: [{ t: 'text', text: words }] }])
+    expect(t.text).toBe(words)
+  })
+
+  it('keeps a mention the words lead into where it is, not on the same name earlier', () => {
+    const t = turnOf(
+      'Platform paused the merge, so both items are about Tickets closed in [@value:team/platform].',
+      made,
+      [],
+    )
+    expect(runs(t)).toEqual([
+      { t: 'text', text: 'Platform paused the merge, so both items are about Tickets closed in ' },
+      { t: 'noun', id: 'value:team/platform' },
+      { t: 'text', text: '.' },
+    ])
+    // Drawn already, a trailing mention after its name is left out, as before.
+    expect(runs(turnOf('The Platform team paused it [@value:team/platform].', made, []))).toEqual([
+      { t: 'text', text: 'The ' },
+      { t: 'noun', id: 'value:team/platform' },
+      { t: 'text', text: ' team paused it.' },
+    ])
+  })
+
+  it('says a count once when the words give it in words and its reference too', () => {
+    expect(turnOf('Twelve items are published [#r1.outOf.count].', made, []).text).toBe(
+      'Twelve items are published.',
+    )
+    expect(turnOf('One of them applies [#r1.outOf.count].', made, []).text).toBe(
+      'One of them applies 12.',
+    )
+  })
 })
 
 describe('the evidence, by code from the reads', () => {

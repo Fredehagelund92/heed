@@ -7,7 +7,12 @@ import {
   extractScope,
   readQuestion,
 } from '../../../src/domain/scope.ts'
-import { normalizeName, normalizeWithMap, resolveTerm } from '../../../src/domain/vocabulary.ts'
+import {
+  normalizeName,
+  normalizeWithMap,
+  resolveTerm,
+  type Term,
+} from '../../../src/domain/vocabulary.ts'
 import { terms } from './fixtures.ts'
 
 describe('scope extraction', () => {
@@ -387,6 +392,75 @@ describe('scope extraction', () => {
           { field: 'scope' },
         ],
       })
+    })
+  })
+
+  describe('a value word after "in" that names nothing (orders in jordan)', () => {
+    // A workspace with no market: Tickets closed is in the help desk's view, beside Team; Region
+    // is a dimension of another view.
+    const term = (key: string, kind: Term['kind'], name: string, refs: string[] = []): Term => ({
+      key,
+      kind,
+      name,
+      aliases: [],
+      parentKey: kind === 'dimension_value' ? `dim:${key.slice(4).split('/')[0]}` : null,
+      areaId: null,
+      definitionRefs: refs,
+    })
+    const desk = [
+      term('metric:tickets_closed', 'metric', 'Tickets closed', ['cube:desk.tickets_closed']),
+      term('dim:team', 'dimension', 'Team', ['cube:desk.team']),
+      term('val:team/billing', 'dimension_value', 'Billing'),
+      term('val:team/platform', 'dimension_value', 'Platform'),
+      term('dim:region', 'dimension', 'Region', ['cube:sales.region']),
+      term('val:region/north', 'dimension_value', 'North'),
+    ]
+    const today = '2026-10-23'
+
+    it('asks about it, by the dimensions of the view the metric is in, never reading every value', () => {
+      expect(extractScope('anything on tickets closed in payroll?', desk, today)).toEqual({
+        status: 'need_more_detail',
+        issues: [
+          {
+            field: 'dim:team',
+            input: 'payroll',
+            options: ['val:team/billing', 'val:team/platform'],
+            message: "There is no value of Team named 'payroll'.",
+          },
+        ],
+      })
+      // A typo is suggested, never chosen; several words are one value, up to the dates.
+      expect(extractScope('tickets closed in Billng last week', desk, today)).toMatchObject({
+        issues: [
+          {
+            input: 'Billng',
+            message: "There is no value of Team named 'Billng'. Did you mean Billing?",
+          },
+        ],
+      })
+      expect(extractScope('tickets closed in customer care last week', desk, today)).toMatchObject({
+        issues: [{ input: 'customer care' }],
+      })
+      // With no metric to say which view, every dimension with values.
+      expect(extractScope('Billing in payroll', desk, today)).toMatchObject({
+        issues: [
+          { field: 'values', message: "There is no value of Team or Region named 'payroll'." },
+        ],
+      })
+    })
+
+    it('reads known values, dates and words that say how or when as before', () => {
+      for (const [question, filters] of [
+        ['tickets closed in Billing', { 'dim:team': ['val:team/billing'] }],
+        ['tickets closed in total', {}],
+        ['tickets closed in mid October 2026', {}],
+        ['tickets closed in the last week', {}],
+        ['tickets closed in Platform in October 2026', { 'dim:team': ['val:team/platform'] }],
+      ] as const)
+        expect(extractScope(question, desk, today, { loose: true })).toMatchObject({
+          status: 'resolved',
+          scope: { metrics: ['metric:tickets_closed'], filters },
+        })
     })
   })
 

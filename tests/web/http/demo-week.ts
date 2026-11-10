@@ -1040,6 +1040,8 @@ export async function seedDemoWeek(
         f.replaces ? [[serverItemId(f.id), serverItemId(f.replaces)] as const] : [],
       ),
       terms: ownTerms(),
+      // The word people use for it, as the mock's Cube names it too.
+      aliases: { 'metric:discount_cost': ['Discounts'] },
     })
     const admins = worldPeople.filter((p) => p.admin).map((p) => seedPersonId(personId(p.name)))
     await client.query(

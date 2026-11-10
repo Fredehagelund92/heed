@@ -7,6 +7,7 @@ import {
   normalizeName,
   normalizeWithMap,
   phrasesIn,
+  refView,
   resolveTerm,
   suggestTerms,
   type ContestedWord,
@@ -89,6 +90,61 @@ const nonValueWords = new Set(
     ' ',
   ),
 )
+/** Words after "in" that say how or when, not which value: "in total", "in mid October". */
+const notValuesAfterIn = new Set(
+  'all any both each every either neither it its itself me my our ours some that their them these they those us what which you your general particular total detail details short brief full practice fact theory principle summary sum stock person public private context terms view mind case turn part kind order line place time future past advance progress addition contrast common question words numbers number figures data euros euro eur usd dollars percent mid early late end start beginning middle week weeks month months year years day days spring summer autumn fall winter'.split(
+    ' ',
+  ),
+)
+
+/**
+ * The dimensions a value word after "in" could be a value of: those of the views the metrics are
+ * in that have values, or every dimension with values when no metric says.
+ */
+function valueDimensions(terms: readonly Term[], metrics: readonly string[]): Term[] {
+  const valued = terms.filter(
+    (term) => term.kind === 'dimension' && terms.some((value) => value.parentKey === term.key),
+  )
+  const views = new Set(
+    terms
+      .filter((term) => metrics.includes(term.key))
+      .flatMap((term) => term.definitionRefs.map(refView))
+      .filter((view) => view !== null),
+  )
+  const sliced = valued.filter((dimension) =>
+    dimension.definitionRefs.some((ref) => views.has(refView(ref) ?? '')),
+  )
+  return sliced.length ? sliced : valued
+}
+
+/**
+ * The words after "in" that follow a name the question names and name nothing Heed knows: a value
+ * it does not know ("orders in jordan"), read as one, never dropped, so the read is not every
+ * value. Up to three words, until a word that names something, dates, or says how or when; each
+ * where it is in the normalised text.
+ */
+function unknownValuesAfterIn(
+  text: string,
+  occupied: ReadonlySet<number>,
+  dated: ReadonlySet<number>,
+): DateSpan[] {
+  const found: DateSpan[] = []
+  for (const match of text.matchAll(
+    / in ((?:[\p{L}][\p{L}\p{N}_'-]*)(?: [\p{L}][\p{L}\p{N}_'-]*){0,2})/gu,
+  )) {
+    if (!occupied.has(match.index - 1)) continue
+    let at = match.index + 4
+    const words: string[] = []
+    for (const word of match[1]!.split(' ')) {
+      if (occupied.has(at) || dated.has(at) || nonValueWords.has(word)) break
+      if (notValuesAfterIn.has(word.replace(/'s$/, ''))) break
+      words.push(word)
+      at += word.length + 1
+    }
+    if (words.length) found.push({ start: match.index + 4, end: at - 1 })
+  }
+  return found
+}
 
 /**
  * What a reply says when Heed read a question at today because it gave no dates: the day, its
@@ -251,6 +307,25 @@ export function unknownName(
 }
 
 /**
+ * A value word Heed does not know, in words, with the dimensions it could be a value of and the
+ * closest values: "There is no value of Market named 'Jordan'."
+ */
+export function unknownValue(
+  input: string,
+  dimensions: readonly Term[],
+  suggestions: readonly string[],
+  terms: readonly Term[],
+): string {
+  const names = dimensions.map((d) => d.name)
+  const of =
+    names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`
+  const near = suggestions.slice(0, 3).map((key) => terms.find((t) => t.key === key)?.name ?? key)
+  const words =
+    near.length < 2 ? near.join('') : `${near.slice(0, -1).join(', ')} or ${near.at(-1)}`
+  return `There is no value of ${of} named '${input}'.${near.length ? ` Did you mean ${words}?` : ''}`
+}
+
+/**
  * Structured fields take precedence. Text extraction uses whole, longest vocabulary phrases, and
  * the dates in the words are read by `readDates`, which says how it read them (`dates`). Dates the
  * words give are never replaced: words Heed cannot read as dates ask for them, and say what Heed
@@ -343,6 +418,30 @@ export function extractScope(
             resolve(value, ['dimension_value'], dimension.key, dimension.key)
         }
       }
+    }
+  if (structured.filters === undefined)
+    for (const span of unknownValuesAfterIn(text, occupied, dated)) {
+      // The words as the person wrote them: "Jordan", not "jordan".
+      const written = found.written(span)
+      const value = question.slice(written.start, written.end)
+      const dimensions = valueDimensions(terms, metrics)
+      if (!dimensions.length) continue
+      const values = terms.filter(
+        (term) =>
+          term.kind === 'dimension_value' && dimensions.some((d) => d.key === term.parentKey),
+      )
+      const suggestions = suggestTerms(value, values)
+      issues.push({
+        field: dimensions.length === 1 ? dimensions[0]!.key : 'values',
+        input: value,
+        options: suggestions.length
+          ? suggestions
+          : values
+              .map((term) => term.key)
+              .sort()
+              .slice(0, 25),
+        message: unknownValue(value, dimensions, suggestions, terms),
+      })
     }
   let window: DateWindow | null = structured.window ?? null
   let assumed: AssumedDate | undefined
