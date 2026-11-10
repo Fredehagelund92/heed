@@ -69,6 +69,8 @@ export const queryKeys = {
   integrationPage: (id: string) => ['integrationPage', id] as const,
   integrationPages: ['integrationPage'] as const,
   connectForm: (id: string) => ['connectForm', id] as const,
+  integrationLeftOut: (id: string, readsAll: boolean, views: readonly string[]) =>
+    ['integrationLeftOut', id, readsAll, [...views].sort()] as const,
   connectForms: ['connectForm'] as const,
   figure: (asked: FigureAsk) => ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
@@ -257,6 +259,13 @@ export const integrationPageQuery = (id: string) =>
 /** The connect flow's form: a tool to connect, or one connected whose settings change. */
 export const connectFormQuery = (id: string) =>
   queryOptions({ queryKey: queryKeys.connectForm(id), queryFn: () => api.connectForm({ id }) })
+
+/** What a change of the views a definitions tool reads would stop reading; it changes nothing. */
+export const integrationLeftOutQuery = (id: string, readsAll: boolean, views: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.integrationLeftOut(id, readsAll, views),
+    queryFn: () => api.integrationLeftOut({ id, readsAll, views: [...views] }),
+  })
 
 export const figureQuery = (asked: FigureAsk) =>
   queryOptions({ queryKey: queryKeys.figure(asked), queryFn: () => api.readFigure(asked) })
@@ -496,6 +505,7 @@ type Read =
   | 'integrationPage'
   | 'connectForm'
   | 'testIntegration'
+  | 'integrationLeftOut'
   | 'readFigure'
   | 'tryFigure'
   | 'listAgentConnections'

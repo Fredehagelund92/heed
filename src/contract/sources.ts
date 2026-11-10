@@ -63,8 +63,18 @@ export const chosenScopeSchema = z.strictObject({
   title: z.string().check(z.minLength(1), z.maxLength(300)),
   domain: z.nullable(z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))),
 })
-const chosenScopesSchema = z.array(chosenScopeSchema).check(z.maxLength(200))
+/** The most scopes a source may choose: a model of hundreds of views lists each one. */
+export const CHOSEN_SCOPES_MAX = 2_000
+const chosenScopesSchema = z.array(chosenScopeSchema).check(z.maxLength(CHOSEN_SCOPES_MAX))
 export type ChosenScopeInput = z.infer<typeof chosenScopeSchema>
+
+/**
+ * Whether a definitions source reads every group (a Cube view), its chosen scopes then only
+ * mapping domains, or only the groups chosen, an allow list: none at all when none is chosen. Left
+ * out of a change, it stays as it is; left out when a source is added, a source with groups chosen
+ * reads only those. A content source always reads only its chosen scopes.
+ */
+const allGroupsSchema = z.boolean()
 
 /**
  * How often a source is read (CON-115), as an ISO 8601 duration of days, hours and minutes
@@ -90,9 +100,11 @@ export const sourceSettingsSchema = z.object({
   secrets: z.array(z.object({ key: z.string(), set: z.boolean() })),
   /**
    * The scopes chosen: a content source's, each with its domain; a definitions source's groups,
-   * each with its domain or none. A definitions source with none chosen reads every group.
+   * each with its domain or none.
    */
   scopes: chosenScopesSchema,
+  /** A definitions source reads every group; false, only the groups chosen (none when none is). */
+  allGroups: allGroupsSchema,
   /** How often it is read; null for its connector's default. */
   schedule: z.nullable(scheduleSchema),
   /** When it is read next, ISO 8601 in UTC; null until its first read. */
@@ -118,6 +130,8 @@ export const addSourceSchema = z.strictObject({
   config: sourceConfigSchema,
   secrets: secretsSchema,
   scopes: z.optional(chosenScopesSchema),
+  /** Left out, it reads every group when no group is chosen, and only those chosen otherwise. */
+  allGroups: z.optional(allGroupsSchema),
   schedule: z.optional(z.nullable(scheduleSchema)),
   reason,
 })
@@ -134,8 +148,16 @@ export const updateSourceSchema = z.strictObject({
   secrets: secretsSchema,
   /** Left out, the chosen scopes stay as they are. */
   scopes: z.optional(chosenScopesSchema),
+  /** Left out, it stays as it is; with scopes given, every group when none is chosen. */
+  allGroups: z.optional(allGroupsSchema),
   /** Left out, the schedule stays; null goes back to the connector's default. */
   schedule: z.optional(z.nullable(scheduleSchema)),
+  /**
+   * True when whoever changes it has seen what the groups it stops reading leave behind
+   * (`sources.leftOut`): a change that stops reading a definition a live item relies on is refused
+   * without it, since the next read marks that item Definition missing for its owners to check.
+   */
+  acceptLeftOut: z.optional(z.boolean()),
   reason,
 })
 
@@ -201,6 +223,29 @@ export const sourceReadSchema = z.object({
   status: z.literal('queued'),
 })
 
+/**
+ * What a definitions source would stop reading with these groups: the groups it reads now that
+ * the change leaves out, each with what it holds, and the live context items that rely on one of
+ * their definitions (at most 50 named, all counted). Nothing is changed by asking.
+ */
+export const leftOutInputSchema = z.strictObject({
+  id: sourceId,
+  allGroups: allGroupsSchema,
+  groups: z
+    .array(z.string().check(z.minLength(1), z.maxLength(500)))
+    .check(z.maxLength(CHOSEN_SCOPES_MAX)),
+})
+
+export const leftOutSchema = z.object({
+  /** Each group left out; null for the definitions in no group, which a list never reads. */
+  groups: z.array(z.object({ name: z.nullable(z.string()), metrics: count, dimensions: count })),
+  /** The live context items that reference a definition of a group left out. */
+  items: z.object({
+    count,
+    named: z.array(z.object({ id: z.string(), title: z.string(), domain: z.string() })),
+  }),
+})
+
 export type ConnectorListing = z.infer<typeof connectorListingSchema>
 export type SourceConfig = z.infer<typeof sourceConfigSchema>
 export type SourceSettings = z.infer<typeof sourceSettingsSchema>
@@ -209,6 +254,8 @@ export type UpdateSourceInput = z.infer<typeof updateSourceSchema>
 export type TestSourceInput = z.infer<typeof testSourceSchema>
 export type SourceCheck = z.infer<typeof sourceCheckSchema>
 export type RemoveSourceInput = z.infer<typeof removeSourceSchema>
+export type LeftOutInput = z.infer<typeof leftOutInputSchema>
+export type LeftOut = z.infer<typeof leftOutSchema>
 
 // ---- the sources as Settings › Integrations shows them (CON-104, CON-115) ----
 

@@ -37,7 +37,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useSelection } from '@/hooks/use-selection'
+import { useSelection, type RowSelection } from '@/hooks/use-selection'
+import { useShowMore } from '@/hooks/use-show-more'
+import { ShowMoreButton } from '@/components/heed/show-more'
 import {
   Dialog,
   DialogContent,
@@ -84,6 +86,7 @@ import {
   type DocState,
   type Health,
   type IntegrationsView,
+  type LeftOutView,
   type Source,
   type SourcePage,
   type When,
@@ -97,6 +100,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, toApiError } from '@/api'
 import {
   connectFormQuery,
+  integrationLeftOutQuery,
   integrationPageQuery,
   integrationsPageQuery,
   useIntegrations,
@@ -113,7 +117,8 @@ import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/com
 // Definitions and Context, and a link to request a connector. Each connected tool has one page with sections
 // and no tabs; connecting is five steps on a full page. A sync never publishes.
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+// Numbers in the browser's own way of writing them (docs/design/copy.md): 1,136 in English.
+const plural = (n: number, one: string) => `${n.toLocaleString()} ${one}${n === 1 ? '' : 's'}`
 
 const crumbs = (...rest: { label: string; href?: string }[]) => (
   <SettingsCrumbs
@@ -2531,6 +2536,216 @@ function PickStep({ c }: { c: Connector }) {
   )
 }
 
+/** How many rows of a long list of views or folders show before Show more. */
+const CHOOSER_FIRST = 50
+
+/**
+ * The views or folders to read, as a list to tick: a search over them, the count chosen, each
+ * row with what it holds, and Choose all or Leave out for the rows the search shows. A model of
+ * hundreds of views shows its first 50 and grows with Show more, so the page scrolls, not a box.
+ */
+function ScopeChooser({
+  rows,
+  matching,
+  find,
+  setFind,
+  pick,
+  noun,
+  mono,
+  onLeaveOut,
+}: {
+  rows: ConnectScope[]
+  matching: ConnectScope[]
+  find: string
+  setFind: (text: string) => void
+  pick: RowSelection
+  noun: 'view' | 'folder'
+  mono: boolean
+  /** A row unticked, or the rows shown left out. */
+  onLeaveOut: () => void
+}) {
+  const { shown, more, next, showMore } = useShowMore(matching, CHOOSER_FIRST, 100)
+  const all = matching.length === rows.length
+  const shownIds = matching.map((s) => s.id)
+  const ticked = shownIds.filter((id) => pick.isSelected(id)).length
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {rows.length > 8 && (
+          <div className="relative min-w-0 flex-1 basis-56">
+            <SearchIcon
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+              placeholder={`Search ${plural(rows.length, noun)}`}
+              aria-label={`Search ${noun}s`}
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+        )}
+        {/* Alone, or under the search on a phone, the buttons' words line up with the list's edge. */}
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-1',
+            rows.length > 8 ? 'max-sm:-ml-2.5' : '-ml-2.5',
+          )}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!matching.length || ticked === matching.length}
+            onClick={() => pick.select([...new Set([...pick.ids, ...shownIds])])}
+          >
+            {all ? 'Choose all' : `Choose ${matching.length.toLocaleString()} shown`}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!ticked}
+            onClick={() => {
+              onLeaveOut()
+              pick.select(pick.ids.filter((id) => !shownIds.includes(id)))
+            }}
+          >
+            {all ? 'Clear' : `Leave out ${matching.length.toLocaleString()} shown`}
+          </Button>
+        </div>
+      </div>
+      <p aria-live="polite" className="text-sm text-muted-foreground tabular-nums">
+        {`${pick.count.toLocaleString()} of ${plural(rows.length, noun)} chosen`}
+        {!all && `, ${matching.length.toLocaleString()} shown`}
+      </p>
+      {matching.length ? (
+        <ul
+          aria-label={`${noun[0]!.toUpperCase()}${noun.slice(1)}s to read`}
+          className="overflow-hidden rounded-frame border"
+        >
+          {shown.map((s) => (
+            <li key={s.id} className="border-t first:border-t-0">
+              <label
+                className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/40"
+                onMouseDown={pick.onMouseDown}
+              >
+                <Checkbox
+                  {...pick.checkbox(s.id)}
+                  onCheckedChange={(on, details) => {
+                    if (!on) onLeaveOut()
+                    pick.checkbox(s.id).onCheckedChange(on, details)
+                  }}
+                />
+                <span className="flex min-w-0 flex-1 flex-col gap-x-3 sm:flex-row sm:items-baseline">
+                  <span className={cn('min-w-0 flex-1 truncate', mono && 'font-mono text-dense')}>
+                    {s.title}
+                  </span>
+                  {s.detail && (
+                    <span
+                      className={cn(
+                        'shrink-0 text-muted-foreground tabular-nums',
+                        s.detail === 'Not in the model' && 'text-caution-ink',
+                      )}
+                    >
+                      {s.detail}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-frame border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+          {`No ${noun} matches “${find.trim()}”.`}
+        </p>
+      )}
+      <ShowMoreButton more={more} next={next} onClick={showMore} />
+    </div>
+  )
+}
+
+/**
+ * What a change stops reading of a definitions tool connected: the views left out, what they hold,
+ * and the live items that rely on them, which its next read marks Needs checking for their owners.
+ * Saving waits until whoever changes it says they have seen those items.
+ */
+function LeftOutNotice({
+  left,
+  tool,
+  seen,
+  setSeen,
+}: {
+  left: LeftOutView
+  tool: string
+  seen: boolean
+  setSeen: (seen: boolean) => void
+}) {
+  const domains = useDomains()
+  const metrics = left.views.reduce((n, v) => n + v.metrics, 0)
+  const dimensions = left.views.reduce((n, v) => n + v.dimensions, 0)
+  const names = left.views.map((v) => v.view ?? 'members in no view')
+  const holds = [
+    metrics && plural(metrics, 'metric'),
+    dimensions && plural(dimensions, 'dimension'),
+  ]
+    .filter(Boolean)
+    .join(' and ')
+  const items = left.items
+  return (
+    <section
+      aria-labelledby="left-out"
+      className="flex flex-col gap-3 rounded-frame border border-caution/45 bg-caution/8 p-4 text-sm"
+    >
+      <h3 id="left-out" className="flex items-start gap-2 font-medium">
+        <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
+        {`It stops reading ${plural(left.views.length, 'view')} of ${tool}`}
+      </h3>
+      <p>
+        <span className="font-mono text-dense">{names.slice(0, 5).join(', ')}</span>
+        {names.length > 5 && ` and ${names.length - 5} more`}
+        {`. ${holds ? `Their ${holds} leave` : 'They leave'} Definitions from its next read. Nothing is unpublished or deleted.`}
+      </p>
+      {items.count > 0 && (
+        <>
+          <p>
+            {items.count === 1 ? '1 live item relies' : `${items.count} live items rely`} on them.
+            Its next read marks {items.count === 1 ? 'it' : 'each'}{' '}
+            <span className="font-medium">Needs checking</span> and tells its owners.
+          </p>
+          <ul aria-label="Live items that rely on them" className="flex flex-col gap-1">
+            {items.named.slice(0, 5).map((item) => (
+              <li key={item.id} className="flex min-w-0 items-baseline gap-2">
+                <a
+                  href={`/context/${item.id}`}
+                  className="min-w-0 truncate underline-offset-2 hover:underline"
+                >
+                  {item.title}
+                </a>
+                <span className="shrink-0 text-muted-foreground">
+                  {domains[item.domain]?.name ?? item.domain}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {items.count > 5 && (
+            <p className="text-muted-foreground">{`and ${items.count - 5} more`}</p>
+          )}
+          <label className="flex cursor-pointer items-start gap-2">
+            <Checkbox checked={seen} onCheckedChange={(on) => setSeen(on)} className="mt-0.5" />
+            <span>
+              {items.count === 1
+                ? 'I have seen the item, mark it for its owners to check'
+                : `I have seen the ${items.count} items, mark them for their owners to check`}
+            </span>
+          </label>
+        </>
+      )}
+    </section>
+  )
+}
+
 /**
  * Choose, Map and Schedule, over what the test found: the views or folders ticked, the domain
  * each maps to, and why it is added. A new test starts them again.
@@ -2557,18 +2772,47 @@ function ChoiceSteps({
   const { connect, change } = useConnectActions()
   const isDefinitions = c.kind === 'definitions'
   const keyed = c.keyFile !== undefined
-  const ids = scopes.map((s) => s.id)
-  // A tool connected starts from what it reads (a definitions tool with nothing chosen reads all);
-  // a new one from everything found, but what is left out at first.
   const before = new Map(form.chosen.map((choice) => [choice.id, choice.domain]))
+  // A definitions tool reads every view, or only those chosen: an allow list.
+  const [readsAll, setReadsAll] = React.useState(isDefinitions && form.readsAll)
+  // A view it reads that the model no longer has stays in the list, ticked, so it is seen.
+  const rows = React.useMemo(() => {
+    const found = new Set(scopes.map((s) => s.id))
+    const gone = form.readsAll
+      ? []
+      : form.chosen
+          .filter((choice) => !found.has(choice.id))
+          .map((choice): ConnectScope => ({
+            id: choice.id,
+            title: choice.title,
+            detail: 'Not in the model',
+          }))
+    return [...gone, ...scopes]
+  }, [scopes, form])
+  const ids = rows.map((s) => s.id)
+  // A tool connected starts from what it reads; a new one from everything found, but what is left
+  // out at first.
   const initial = form.source
-    ? before.size
+    ? !form.readsAll || (!isDefinitions && before.size)
       ? ids.filter((i) => before.has(i))
       : ids
     : scopes.filter((s) => !s.leftOut).map((s) => s.id)
+  // What the search shows, in the list's order: a range is drawn over these rows only.
+  const [find, setFind] = React.useState('')
+  const words = find.trim().toLowerCase()
+  const matching = words
+    ? rows.filter(
+        (s) => s.title.toLowerCase().includes(words) || s.id.toLowerCase().includes(words),
+      )
+    : rows
   // The rows to read: Shift and a click ticks a run of them, as in every list.
-  const pickScopes = useSelection(ids, { keys: false, initial })
-  const chosen = scopes.filter((s) => pickScopes.ids.includes(s.id))
+  const pickScopes = useSelection(
+    matching.map((s) => s.id),
+    { keys: false, initial },
+  )
+  // Every view while each one the model has is ticked; a view left out makes it a list.
+  const every = readsAll && scopes.every((s) => pickScopes.isSelected(s.id))
+  const chosen = every ? scopes : rows.filter((s) => pickScopes.ids.includes(s.id))
   // A domain the tool suggests goes in only when it is one of the workspace's.
   const domainIds = new Set(useDomainList().map((d) => d.id))
   const [map, setMap] = React.useState<Record<string, DomainId | null>>(() =>
@@ -2597,19 +2841,44 @@ function ChoiceSteps({
       ? `It would look at ${plural(sum('documents'), keyed ? 'document' : 'file')} in ${plural(chosen.length, 'folder')}.`
       : `It would look at ${plural(chosen.length, 'folder')}.`
 
+  // What a change stops reading of a tool connected, before it is saved: the views it reads now
+  // that are left out, and the live items that rely on them.
+  const stops = useQuery({
+    ...integrationLeftOutQuery(
+      form.source?.id ?? '',
+      every,
+      chosen.map((s) => s.id),
+    ),
+    enabled: at === 5 && isDefinitions && !!form.source && !every,
+  })
+  const left = !every && stops.data ? stops.data : null
+  const [seen, setSeen] = React.useState(false)
+  const mustSee = !!left?.items.count
+  const checking = at === 5 && isDefinitions && !!form.source && !every && !stops.data
+
   const finish = async () => {
     const choices = chosen.map((s) => ({ id: s.id, title: s.title, domain: map[s.id] ?? null }))
-    // A definitions tool that reads every view as the tool maps it keeps nothing chosen: a view
-    // added later is read too.
+    // A definitions tool that reads every view as the tool maps it keeps nothing chosen, so a view
+    // added later is read with the domain the tool names.
     const asFound =
+      every &&
       isDefinitions &&
-      chosen.length === scopes.length &&
       choices.every((ch) => ch.domain === (scopes.find((s) => s.id === ch.id)?.domain ?? null))
-    const input = { ...values, chosen: asFound ? [] : choices, reason: why.trim() }
+    const input = {
+      ...values,
+      chosen: asFound ? [] : choices,
+      readsAll: isDefinitions && every,
+      reason: why.trim(),
+    }
     setSaving(true)
     try {
       if (form.source) {
-        await change({ id: form.source.id, revision: form.source.revision, ...input })
+        await change({
+          id: form.source.id,
+          revision: form.source.revision,
+          ...input,
+          ...(mustSee ? { acceptLeftOut: seen } : {}),
+        })
         toast(`${c.name} settings saved`, {
           description: 'They apply from its next read, which starts now. Kept in the history log.',
         })
@@ -2642,27 +2911,58 @@ function ChoiceSteps({
               <h2 className="text-xl font-semibold tracking-tight">Choose what to read</h2>
               <p className="mt-1 text-sm text-muted-foreground">{preview}</p>
             </div>
-            <ul className="overflow-hidden rounded-frame border">
-              {scopes.map((s) => (
-                <li key={s.id} className="border-t first:border-t-0">
+            {isDefinitions && (
+              <RadioGroup
+                aria-label="Views to read"
+                value={every ? 'all' : 'chosen'}
+                onValueChange={(value) => {
+                  setReadsAll(value === 'all')
+                  // Every view reads each one the model has: the list shows them all ticked.
+                  if (value === 'all') pickScopes.select(ids)
+                }}
+                className="sm:grid-cols-2"
+              >
+                {(
+                  [
+                    ['all', 'Every view', 'A view added to the model later is read too.'],
+                    [
+                      'chosen',
+                      'Only the views you choose',
+                      'An allow list: a view added later is read once you choose it.',
+                    ],
+                  ] as const
+                ).map(([value, title, line]) => (
                   <label
-                    className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm hover:bg-muted/40"
-                    onMouseDown={pickScopes.onMouseDown}
+                    key={value}
+                    className="flex cursor-pointer gap-3 rounded-frame border p-3 text-sm has-data-checked:border-primary has-data-checked:bg-primary/5"
                   >
-                    <Checkbox {...pickScopes.checkbox(s.id)} />
-                    <span
-                      className={cn(
-                        'min-w-0 flex-1 truncate',
-                        isDefinitions && 'font-mono text-dense',
-                      )}
-                    >
-                      {s.title}
+                    <RadioGroupItem value={value} className="mt-0.5" />
+                    <span className="min-w-0">
+                      <span className="block font-medium">{title}</span>
+                      <span className="block text-muted-foreground">{line}</span>
                     </span>
-                    <span className="text-muted-foreground">{s.detail}</span>
                   </label>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </RadioGroup>
+            )}
+            <ScopeChooser
+              rows={rows}
+              matching={matching}
+              find={find}
+              setFind={setFind}
+              pick={pickScopes}
+              noun={isDefinitions ? 'view' : 'folder'}
+              mono={isDefinitions}
+              // A view left out of every view makes the list one of the views chosen.
+              onLeaveOut={() => setReadsAll(false)}
+            />
+            {!chosen.length && (
+              <p className="text-sm text-muted-foreground">
+                {isDefinitions
+                  ? 'Choose at least one view. To read nothing for a while, pause it instead.'
+                  : 'Choose at least one folder.'}
+              </p>
+            )}
             {isDefinitions && unmapped > 0 && (
               <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
                 <TriangleAlertIcon
@@ -2787,6 +3087,14 @@ function ChoiceSteps({
                 </li>
               ))}
             </ul>
+            {checking && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Checking what it stops reading…
+              </p>
+            )}
+            {left && left.views.length > 0 && (
+              <LeftOutNotice left={left} tool={c.name} seen={seen} setSeen={setSeen} />
+            )}
             <Field>
               <FieldLabel htmlFor="why">
                 {form.source ? 'Why are you changing it?' : 'Why are you adding this?'}
@@ -2814,7 +3122,10 @@ function ChoiceSteps({
             <ArrowRightIcon data-icon="inline-end" />
           </Button>
         ) : (
-          <Button onClick={() => void finish()} disabled={!why.trim() || saving}>
+          <Button
+            onClick={() => void finish()}
+            disabled={!why.trim() || saving || checking || (mustSee && !seen)}
+          >
             {form.source ? 'Save changes' : isDefinitions ? `Add ${c.name}` : `Connect ${c.name}`}
           </Button>
         )}

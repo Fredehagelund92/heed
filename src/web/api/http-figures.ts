@@ -111,6 +111,8 @@ function whyNot(read: Extract<FigureRead, { state: 'none' }>, metric: string, sc
       return `${tool} can't split ${what} the way the question does, so no figure is read for it.`
     case 'no_value':
       return `${tool} returned no figure for ${scope}.`
+    case 'not_read':
+      return `${tool} defines ${what} in a view that isn't read, so no figure is read for it. An admin chooses the views to read in Integrations.`
     case 'failed':
       if (read.failure === 'not_set_up')
         return `Figures from ${tool} aren't set up yet: an admin sets the data endpoint and its token.`

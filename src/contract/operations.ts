@@ -49,7 +49,9 @@ export const jobOverviewSchema = z.object({
  * read names each document it did not offer and why (it appears to name people, holds a secret,
  * names nothing in the vocabulary, holds no words, or is longer than a read takes), and is in
  * part when it held more text than one read takes, or would have withdrawn more suggestions than
- * a read may at once. A tool that asks to be called less often is `rate_limited`.
+ * a read may at once. A tool that asks to be called less often is `rate_limited`. A source that
+ * reads only the groups listed for it (a Cube view) names each listed group the read did not find,
+ * and says when no group is listed, so it read nothing.
  */
 export const sourceWarningCodes = [
   'unsupported_file',
@@ -84,6 +86,8 @@ export const sourceWarningCodes = [
   'too_much_text',
   'too_many_removals',
   'rate_limited',
+  'group_not_found',
+  'no_groups_chosen',
 ] as const
 export type SourceWarningCode = (typeof sourceWarningCodes)[number]
 
@@ -95,9 +99,15 @@ export const sourceOrigins = ['server', 'workspace'] as const
 
 /**
  * What a source reads from the server's own configuration, which only whoever runs the server
- * sets: the model folder, the file of domain names and the file of renamed members.
+ * sets: the model folder, the file of domain names, the file of renamed members and the file of
+ * the views it reads.
  */
-export const sourceServerSettingKeys = ['model_folder', 'domain_overrides', 'renames'] as const
+export const sourceServerSettingKeys = [
+  'model_folder',
+  'domain_overrides',
+  'renames',
+  'views',
+] as const
 export type SourceServerSettingKey = (typeof sourceServerSettingKeys)[number]
 
 const sourceWarningSchema = z.object({ code: z.string(), target: z.string() })

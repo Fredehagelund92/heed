@@ -51,6 +51,7 @@ interface Row {
   config: SourceConfig
   secret_ref: string | null
   scopes: StoredScope[]
+  all_groups: boolean
 }
 
 /**
@@ -142,7 +143,7 @@ export class ConnectorRegistry {
   /** The definition sources admins added that are switched on, made by their connectors. */
   async added(database: Queryable): Promise<DefinitionSource[]> {
     const rows = await database.query<Row>(
-      `select id, type, name, config, secret_ref, scopes from connectors
+      `select id, type, name, config, secret_ref, scopes, all_groups from connectors
         where origin = 'workspace' and enabled and kind = 'definition_source' order by id`,
     )
     const sources: DefinitionSource[] = []
@@ -150,13 +151,14 @@ export class ConnectorRegistry {
       // A connector this build no longer knows is left out; its page still shows its last reads.
       const connector = this.#connectors.get(row.type)
       if (!connector) continue
-      // The groups an administrator chose, each with its domain: the read keeps only those.
+      // The groups an administrator chose, each with its domain, and whether it reads only those.
       const source = connector.source({
         id: row.id,
         name: row.name,
         config: row.config,
         secrets: await this.secretsOf(row.secret_ref),
         scopes: row.scopes,
+        allGroups: row.all_groups,
       })
       checkSource(source)
       sources.push(source)
@@ -170,7 +172,7 @@ export class ConnectorRegistry {
    */
   async contents(database: Queryable): Promise<ContentSource[]> {
     const rows = await database.query<Row>(
-      `select id, type, name, config, secret_ref, scopes from connectors
+      `select id, type, name, config, secret_ref, scopes, all_groups from connectors
         where origin = 'workspace' and enabled and kind = 'context_source' order by id`,
     )
     const sources: ContentSource[] = []
@@ -212,7 +214,7 @@ export class ConnectorRegistry {
  */
 export function configuredSources(
   config: Pick<Config, 'cubeModelDir' | 'domainOverridesFile' | 'renamesFile'> &
-    Partial<Pick<Config, 'cubeCompile' | 'serverFolders'>>,
+    Partial<Pick<Config, 'cubeCompile' | 'serverFolders' | 'cubeViewsFile'>>,
 ): DefinitionSource[] {
   const folders = Object.entries(config.serverFolders ?? {}).map(([connector, folder]) =>
     createFolderSource({ connector, folder, domainOverridesFile: config.domainOverridesFile }),
@@ -223,13 +225,14 @@ export function configuredSources(
 /** The definition source the configuration selects: the Cube model folder, or the demo. */
 export function configuredSource(
   config: Pick<Config, 'cubeModelDir' | 'domainOverridesFile' | 'renamesFile'> &
-    Partial<Pick<Config, 'cubeCompile'>>,
+    Partial<Pick<Config, 'cubeCompile' | 'cubeViewsFile'>>,
 ): DefinitionSource {
   return config.cubeModelDir
     ? createCubeSource({
         modelDir: config.cubeModelDir,
         domainOverridesFile: config.domainOverridesFile,
         renamesFile: config.renamesFile,
+        viewsFile: config.cubeViewsFile,
         ...config.cubeCompile,
       })
     : createDemoSource()

@@ -47,11 +47,12 @@ A domain name applies before a domain is checked. With the line `paid_media → 
 
 Whoever runs the service sets these, and Integrations shows them read only:
 
-| Setting                 | What it does                                                                                  |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `CUBE_MODEL_DIR`        | The folder to read. Unset, the service reads two invented definitions                         |
-| `HEED_DOMAIN_OVERRIDES` | A JSON file outside the model folder: view to domain, for views the model names no domain for |
-| `CUBE_RENAMES_FILE`     | A JSON file of renamed members, old id to new id                                              |
+| Setting                 | What it does                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `CUBE_MODEL_DIR`        | The folder to read. Unset, the service reads two invented definitions                                             |
+| `HEED_DOMAIN_OVERRIDES` | A JSON file outside the model folder: view to domain, for views the model names no domain for                     |
+| `CUBE_RENAMES_FILE`     | A JSON file of renamed members, old id to new id                                                                  |
+| `CUBE_VIEWS_FILE`       | A JSON file of the views to read. Unset, every view is read. See [the views it reads](#choose-the-views-it-reads) |
 
 To read a folder now, without changing it:
 
@@ -77,6 +78,31 @@ Keys are exact public view or cube names. A valid `meta.domain` in the model win
 
 A rename is used only when the old member is gone and the new one is there. Any other entry is reported. Items that rely on the old member are flagged, with the new id named.
 
+## Choose the views it reads
+
+Every public view and public cube is read until you keep a list of the views to read. A model with many views can be narrowed to the few your team uses.
+
+- **In the app.** On Cube's page in Integrations, press **Change settings**, then at **Choose what to read** pick **Only the views you choose**. Search the views the model has, each with its metrics and dimensions, and tick the ones to read.
+- **On the server.** Set `CUBE_VIEWS_FILE` to a JSON file that lists them:
+
+```json
+["orders", "revenue"]
+```
+
+| The list            | What is read                                                     |
+| ------------------- | ---------------------------------------------------------------- |
+| None, or Every view | Every public view and cube, and a view the model adds later      |
+| Some views          | Those views only. A view the model adds later waits to be listed |
+| Empty, `[]`         | Nothing, and the read says so                                    |
+
+Name a view as the model names it. A public cube is read only when it is listed by its own name. Cube still compiles the whole model, since a view needs the cubes it includes, but only the members of the listed views become definitions: a cube that two listed views include is read through each of them, so taking one of the views out keeps the other's members.
+
+The list applies everywhere the definitions do: the names waiting in the Inbox, Definitions, and figures in Ask, where a metric of a view that is not read gets no figure and says why. A listed view the model does not have is named in the read (`group_not_found`), and the other views are read.
+
+Taking a view out of the list marks its definitions missing at the next read. Each item that relies on one is marked **Needs checking** for its owners, and nothing is unpublished or deleted. Before you save, the app names the views left out and those items, and Save waits until you say you have seen them. Listing the view again clears the marks.
+
+The server's file is read at each read. A file that is not a JSON list of names, each once, fails the read rather than reading every view.
+
 ## Links to model files
 
 Set the model folder's address to link each view to its file. On the Cube source's page, set **Model folder address**, for example:
@@ -101,15 +127,17 @@ A model of 10,000 members takes about 45 seconds. An empty or unreadable model f
 
 ## Warnings
 
-| Code               | What it means                             |
-| ------------------ | ----------------------------------------- |
-| `missing_domain`   | A public view or cube names no domain     |
-| `invalid_domain`   | A domain is not a domain id               |
-| `invalid_rename`   | A rename does not apply                   |
-| `unsupported_file` | A file is not YAML                        |
-| `unreadable_file`  | A link, a file over the limit or not text |
-| `folder_missing`   | The model folder is not there             |
-| `too_many_records` | The folder holds too many files           |
+| Code               | What it means                               |
+| ------------------ | ------------------------------------------- |
+| `missing_domain`   | A public view or cube names no domain       |
+| `invalid_domain`   | A domain is not a domain id                 |
+| `invalid_rename`   | A rename does not apply                     |
+| `unsupported_file` | A file is not YAML                          |
+| `unreadable_file`  | A link, a file over the limit or not text   |
+| `folder_missing`   | The model folder is not there               |
+| `too_many_records` | The folder holds too many files             |
+| `group_not_found`  | A listed view is not in the model           |
+| `no_groups_chosen` | The list of views is empty: nothing is read |
 
 ## Figures in Ask
 
