@@ -52,6 +52,11 @@ export const libraryItemSchema = z.extend(indexedItemSchema, {
   owners: z.array(z.string()),
   /** Whether the person opened it (item_reads): only opened items can be marked as checked together. */
   opened: z.boolean(),
+  /**
+   * The live items it is in a conflict with, either way round (FR-220), that the person may read,
+   * by id: a list or a quick view says so at once, before the item's own page is read.
+   */
+  conflicts: z.array(z.string()),
 })
 
 /** Every item the person may read, as one light index. Clients sort and filter it themselves. */

@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ConflictList, ConflictView, SettledConflict } from '../../src/contract/conflicts.ts'
 import type { ItemPage, PublishItemResult } from '../../src/contract/context.ts'
+import type { LibraryIndex } from '../../src/contract/index.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
+import type { Database, Queryable } from '../../src/server/db/database.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
@@ -20,6 +22,27 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 const { client, url } = testDatabase()
 const database = apiDatabase(url)
+/** Every statement the service sent, so a test can say which reads a request made. */
+const sent: string[] = []
+const watched: Database = {
+  ...database,
+  ping: () => database.ping(),
+  // The pool is the other tests' too: closing a service started on it leaves it open.
+  close: async () => {},
+  query: (text, values) => database.query(text, values),
+  transaction: (person, work, options) =>
+    database.transaction(
+      person,
+      (tx) =>
+        work({
+          query: (text, values) => {
+            sent.push(text)
+            return tx.query(text, values)
+          },
+        } satisfies Queryable),
+      options,
+    ),
+}
 const app = buildApp({
   database,
   logger: createLogger({ level: 'silent' }),
@@ -180,6 +203,38 @@ describe('reading a conflict', () => {
     expect((await ok<ItemPage>(call('GET', `/items/${second}/page`, 'owner'))).conflicts).toEqual([
       first,
     ])
+  })
+
+  it("says the pair on the item's page and the library's rows, without building the serving bundle", async () => {
+    const { first, second } = await pair()
+    const key = `${second}.${first}`
+    // A service just started, its bundle cache empty: a page that needed the bundle would build it.
+    const fresh = buildApp({
+      database: watched,
+      logger: createLogger({ level: 'silent' }),
+      jobs: idleJobs(),
+      clock: systemClock('2026-10-08'),
+    })
+    const read = await fresh.inject({
+      method: 'GET',
+      url: `/api/v1/items/${first}/page`,
+      headers: headers.owner,
+    })
+    await fresh.close()
+    expect(read.statusCode, read.body).toBe(200)
+    expect(read.json<ItemPage>().pairs).toEqual([
+      { key, otherId: second, canSettle: true, asked: 0 },
+    ])
+    expect(sent.length).toBeGreaterThan(0)
+    expect(sent.filter((sql) => /serving_(items|metadata|reviews|links)\(/.test(sql))).toEqual([])
+    // The warning's label is for the person: a member may compare, not decide.
+    const member = await ok<ItemPage>(call('GET', `/items/${second}/page`, 'author'))
+    expect(member.pairs).toEqual([{ key, otherId: first, canSettle: false, asked: 0 }])
+    // The library's rows name the other item both ways round, so a list says so at once.
+    const index = await ok<LibraryIndex>(call('GET', '/library', 'owner'))
+    const row = (id: string) => index.items.find((i) => i.id === id)
+    expect(row(first)?.conflicts).toEqual([second])
+    expect(row(second)?.conflicts).toEqual([first])
   })
 
   it('shows a member the pair, with nothing they may settle', async () => {

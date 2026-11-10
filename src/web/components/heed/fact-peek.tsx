@@ -38,7 +38,7 @@ import { closeDock, openDock } from '@/lib/dock'
 import { useComments } from '@/lib/comments'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { conflictQuery, itemPageQuery, useInbox, useWrite } from '@/api/queries'
+import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { useAfter } from '@/lib/loading'
 import { MentionText } from '@/components/heed/mention-chip'
@@ -92,37 +92,27 @@ export function FactPeek({ id }: { id: string }) {
     // Once per item opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found, id])
-  // The item it is in a conflict with, whichever of the two holds the flag.
+  // The item it is in a conflict with, whichever of the two holds the flag: the list's row says so
+  // at once, and the item's own read, once it answers, has the last word.
   const overlap = fact
     ? facts.find(
         (f) =>
           f.id !== fact.id &&
-          (f.id === fact.disagreesWith || f.disagreesWith === fact.id) &&
+          (checked
+            ? f.id === fact.disagreesWith
+            : f.id === fact.disagreesWith || f.disagreesWith === fact.id) &&
           (f.status === 'Live' || f.status === 'Needs checking'),
       )
     : undefined
-  const pairRead = useQuery({
-    ...conflictQuery(`${id}.${overlap?.id ?? ''}`),
-    enabled: !!overlap && checked,
-  })
-  const pairSlow = useTooLong(
-    !!overlap && checked && pairRead.data === undefined && !pairRead.isError,
-    attempt,
-  )
-  const pair: PairCheck = pairRead.data
-    ? {
-        state: 'known',
-        key: pairRead.data.key,
-        canSettle: Object.values(pairRead.data.rights).some(Boolean),
-        asked: pairRead.data.asked,
-      }
-    : unchecked || failedNow(pairRead) || pairSlow
+  // Who may settle it and how often agents got both come with the item's read: no second read.
+  const pair: PairCheck = read?.conflict
+    ? { state: 'known', ...read.conflict }
+    : unchecked || checked
       ? { state: 'failed' }
       : { state: 'checking' }
   const retry = () => {
     setAttempt((n) => n + 1)
     void itemRead.refetch()
-    if (overlap) void pairRead.refetch()
   }
   if (!fact && !checked && !unchecked) return <PeekLoading />
   if (!fact)
@@ -166,22 +156,18 @@ export function FactPeek({ id }: { id: string }) {
     </PeekAttention>
   ) : overlap ? (
     <Disagreement other={overlap} pair={pair} onRetry={retry} />
-  ) : !checked ? (
-    unchecked ? (
-      <PeekAttention
-        icon={TriangleAlertIcon}
-        action={
-          <Button variant="outline" size="sm" onClick={retry}>
-            Try again
-          </Button>
-        }
-      >
-        Not checked whether another item disagrees: it didn&apos;t load. Don&apos;t settle anything
-        on it yet.
-      </PeekAttention>
-    ) : (
-      <Checking />
-    )
+  ) : unchecked ? (
+    <PeekAttention
+      icon={TriangleAlertIcon}
+      action={
+        <Button variant="outline" size="sm" onClick={retry}>
+          Try again
+        </Button>
+      }
+    >
+      Not checked whether another item disagrees: it didn&apos;t load. Don&apos;t settle anything on
+      it yet.
+    </PeekAttention>
   ) : stale && fact.status !== 'Archived' ? (
     <PeekAttention
       icon={TriangleAlertIcon}
@@ -190,6 +176,7 @@ export function FactPeek({ id }: { id: string }) {
           <Button
             variant="outline"
             size="sm"
+            disabled={!checked}
             onClick={() =>
               void write('editItem', {
                 id: fact.id,
@@ -334,18 +321,6 @@ function useTooLong(waiting: boolean, attempt: number) {
     return () => window.clearTimeout(t)
   }, [waiting, attempt])
   return waiting && late === attempt
-}
-
-/** The attention line's place while the item's own read has not said yet whether it needs one. */
-function Checking() {
-  const shown = useAfter(true)
-  return (
-    <div className={shown ? undefined : 'invisible'}>
-      <PeekAttention icon={LoaderCircleIcon} checking>
-        Checking whether another item disagrees…
-      </PeekAttention>
-    </div>
-  )
 }
 
 /**

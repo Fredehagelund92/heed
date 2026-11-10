@@ -3,6 +3,7 @@ import { SEARCH_GROUP_MAX } from '../../../contract/index.ts'
 import type { ContextItem } from '../../../domain/item.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
+import { livePairs } from '../conflicts/index.ts'
 import { forReader } from './audience.ts'
 
 /**
@@ -74,7 +75,15 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
          select k.version_id,
                 jsonb_agg(coalesce(n.name, k.id) order by k.part, k.key collate "C") as names
            from keys k left join names n on n.key = k.key
-          group by k.version_id)
+          group by k.version_id),
+       pairs as materialized (select p.holder, p.other from ${livePairs} p),
+       partners as (
+         select x.id, jsonb_agg(x.other order by x.other collate "C") as ids
+           from (select holder as id, other from pairs union all select other, holder from pairs) x
+           join listed l on l.id = x.id
+          where exists (select 1 from v_item_list r
+                         where r.id = x.other and cl_audience_allows(r.audience_groups))
+          group by x.id)
        select coalesce(jsonb_agg(l.entry || jsonb_build_object(
                 'lastChecked', case when c.version_id is null then null else jsonb_build_object(
                   'on', to_char(c.day, 'YYYY-MM-DD'), 'personId', c.decided_by::text) end,
@@ -85,12 +94,14 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
                               else 'current' end,
                 'chips', coalesce(ch.names, '[]'),
                 'owners', coalesce(o.ids, '[]'),
+                'conflicts', coalesce(pt.ids, '[]'),
                 'opened', exists (select 1 from item_reads r
                                    where r.person_id = cl_person() and r.item_id = l.id))
                 order by l.id collate "C"), '[]') as items
          from listed l
          left join checked c on c.version_id = l.version_id
          left join chips ch on ch.version_id = l.version_id
+         left join partners pt on pt.id = l.id
          left join (select item_id, jsonb_agg(person_id::text order by person_id) as ids
                       from item_owners group by item_id) o on o.item_id = l.id`,
       [today, id],

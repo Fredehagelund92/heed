@@ -23,13 +23,13 @@ import {
 import type { Draft } from '../../../domain/draft.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
 import { termDomain } from '../../../domain/catalogue.ts'
-import { conflictPairs } from '../../../domain/conflicts.ts'
 import { related } from '../../../domain/links.ts'
 import type { ClashRelation } from '../../../domain/readiness.ts'
 import { kinds, type Kind } from '../../../domain/words.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { liveServingBundle, type BundleCache } from '../answer/index.ts'
+import { conflictsOfItem } from '../conflicts/index.ts'
 import { enabledTools } from '../editions/index.ts'
 import type { LibraryService } from '../library/index.ts'
 import { draftVocabulary } from '../../mcp/draft-tool.ts'
@@ -614,26 +614,14 @@ export function createContextService(
       .map(({ at: _at, ...entry }) => entry)
   }
 
-  /** The live items this one is in a conflict with, either way round, that the person may read. */
-  async function conflictsOf(id: string): Promise<string[]> {
-    const bundle = await liveServingBundle(tx, cache)
-    const served = bundle.items.filter((i) => i.status === 'accepted')
-    const others = conflictPairs(served).flatMap((p) =>
-      p.holderId === id ? [p.otherId] : p.otherId === id ? [p.holderId] : [],
-    )
-    if (!others.length) return []
-    const open = await tx.query<{ id: string }>(
-      'select i.id from v_item_list i where i.id = any($1::text[]) and cl_audience_allows(i.audience_groups) order by i.id',
-      [others],
-    )
-    return open.map((r) => r.id)
-  }
-
   async function page(id: string): Promise<ItemPage | null> {
     const row = await library.getIndexRow(id)
     const item = row ? await library.getItem(id) : null
     if (!row || !item) return null
     const mine = await me()
+    // The live items it is in a conflict with, either way round, from the live edition's own
+    // tables: a page never builds the serving bundle, so it stays quick however many items there are.
+    const pairs = await conflictsOfItem(tx, clock.today(), mine, id)
     return {
       item,
       lastChecked: row.lastChecked,
@@ -642,7 +630,8 @@ export function createContextService(
       owners: row.owners,
       history: await historyOf(id),
       canChange: mine.admin || mine.owns.includes(row.areaId),
-      conflicts: await conflictsOf(id),
+      conflicts: pairs.map((p) => p.otherId),
+      pairs,
     }
   }
 

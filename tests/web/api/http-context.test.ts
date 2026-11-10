@@ -337,6 +337,7 @@ const page = (patch: Partial<ItemPage['item']> = {}, extra: Partial<ItemPage> = 
   chips: ['Orders', 'Norway'],
   owners: [],
   conflicts: [],
+  pairs: [],
   history: [
     entry({ version: 2, kind: 'wording', field: 'Text', before: 'Old.', after: 'New.' }),
     entry({ version: 1 }),
@@ -382,6 +383,22 @@ describe("a context item's page", () => {
   it('leaves out an item of the kind the app does not offer', () => {
     expect(factOfPage(page({ kind: 'example' }), names, words)).toBeNull()
     expect(itemPageOf(page({ kind: 'example' }), names, words, 0)).toBeNull()
+  })
+
+  it('carries what the warning says of its conflict, so the warning needs no read of the pair', () => {
+    const pair = { key: 'itm_giftcardonly.itm_norway_stop', canSettle: true, asked: 31 }
+    const read = itemPageOf(
+      page(
+        {},
+        { conflicts: ['itm_giftcardonly'], pairs: [{ ...pair, otherId: 'itm_giftcardonly' }] },
+      ),
+      names,
+      words,
+      0,
+    )
+    expect(read?.item.disagreesWith).toBe('itm_giftcardonly')
+    expect(read?.conflict).toEqual(pair)
+    expect(itemPageOf(page(), names, words, 0)).not.toHaveProperty('conflict')
   })
 })
 

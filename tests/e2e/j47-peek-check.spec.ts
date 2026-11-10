@@ -20,6 +20,8 @@ test('the warning is there at once, and its button waits for the item read', asy
   await expect(peek(page).getByText('Checking who can decide it.')).toBeAttached()
   // The read answers: the button says what this person can do, and nothing below it moved.
   const details = peek(page).getByRole('button', { name: /^Details/ })
+  // Measured in the app's own font: the fallback's wider words would wrap the line differently.
+  await page.evaluate(() => document.fonts.ready)
   const before = await details.boundingBox()
   await moveTo(page, `/context?dock=context.${holder}`)
   await expect(peek(page).getByRole('button', { name: 'Compare and decide' })).toBeEnabled()
