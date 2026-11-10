@@ -64,6 +64,10 @@ import {
 import {
   obsAgentsInputSchema,
   obsAgentsSchema,
+  obsDimensionsInputSchema,
+  obsDimensionsSchema,
+  obsValuesInputSchema,
+  obsValuesSchema,
   obsFeedbackInputSchema,
   obsFeedbackSchema,
   obsSnapshotInputSchema,
@@ -2021,10 +2025,31 @@ export const contract = {
         path: '/observability/agents',
         tags: ['quality'],
         summary:
-          "Overview's and Questions' read: what agents asked in a range and how it was answered, per day, per topic and per kind of agent; counts and scopes only, small counts hidden (FR-614, FR-620)",
+          "Overview's and Questions' read: what agents asked in a range and how it was answered, per day, per topic and per kind of agent, the topics narrowed by filters; counts and scopes only, small counts hidden (FR-614, FR-620)",
       })
       .input(obsAgentsInputSchema)
       .output(obsAgentsSchema),
+    dimensions: maintainRead
+      .route({
+        method: 'GET',
+        path: '/observability/dimensions',
+        tags: ['quality'],
+        summary:
+          "The filter's first step: every dimension, the most asked about in a range first, each counted over the topics that pass every other filter; from the topics' shown counts alone (FR-614, FR-620)",
+      })
+      .input(obsDimensionsInputSchema)
+      .output(obsDimensionsSchema),
+    values: maintainRead
+      .errors({ NOT_FOUND: { message: 'Nothing in the definitions has this key.' } })
+      .route({
+        method: 'GET',
+        path: '/observability/values',
+        tags: ['quality'],
+        summary:
+          "The filter's second step: a dimension's values asked about in a range, 50 a page, the most asked first or A to Z, or the words searched in every dimension; from the topics' shown counts alone (FR-614, FR-620)",
+      })
+      .input(obsValuesInputSchema)
+      .output(obsValuesSchema),
     feedback: maintainRead
       .route({
         method: 'GET',

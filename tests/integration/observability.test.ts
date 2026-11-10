@@ -306,8 +306,8 @@ describe('Overview and Questions (obs.agents)', () => {
     const subject = (name: string) => view.subjects.find((s) => s.topics.includes(topics[name]!))!
     expect(topic('orders-norway')).toMatchObject({
       metric: 'Orders',
-      values: ['Norway'],
-      dimension: 'market',
+      values: [{ dimension: 'dim:market', value: 'val:market/norway', name: 'Norway' }],
+      dimensions: [],
       named: 'metric',
       month: '2026-10',
       total: 24,
