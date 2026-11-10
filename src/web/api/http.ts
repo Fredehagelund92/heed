@@ -94,6 +94,7 @@ import {
   emptyObs,
   familyOf,
   obsAgentsOf,
+  obsViewInput,
   obsFeedbackOf,
   obsUsageOf,
   replayOf,
@@ -254,6 +255,8 @@ export const wiredMethods = [
   'reportAnswer',
   'getMyReports',
   'observabilityPage',
+  'obsDimensions',
+  'obsValues',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -2161,6 +2164,27 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         return emptyObs(range, raised.length ? 'normal' : 'empty')
       }
       return emptyObs(range)
+    },
+    obsDimensions: async (input) => {
+      const view = await read(() => client.obs.dimensions(obsViewInput(input)))
+      return { state: view.state, dimensions: view.dimensions }
+    },
+    obsValues: async ({ dimension, q, cursor, sort, ...input }) => {
+      const view = await read(() =>
+        client.obs.values({
+          ...obsViewInput(input),
+          q,
+          sort,
+          ...(dimension ? { dimension } : {}),
+          ...(cursor ? { cursor } : {}),
+        }),
+      )
+      return {
+        state: view.state,
+        groups: view.groups,
+        notAsked: view.notAsked,
+        nextCursor: view.nextCursor,
+      }
     },
     replayTopic: async ({ topic, when }) => {
       const named = listedTopics.get(topic)

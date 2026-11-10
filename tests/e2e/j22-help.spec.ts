@@ -162,5 +162,5 @@ test('the documentation searches the words of its pages, and opens the part that
   // What's new, newest first, from the same pages.
   await go(page, '/docs/changelog')
   await expect(page.getByRole('heading', { level: 1, name: "What's new" })).toBeVisible()
-  await expect(page.locator('time').first()).toHaveText('3 Nov')
+  await expect(page.locator('time').first()).toHaveText('10 Nov')
 })

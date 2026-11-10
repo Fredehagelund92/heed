@@ -700,6 +700,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         areaId: t.area,
         subject: subjectOf(t),
         metric: t.metrics.map((m) => r.names.get(m) ?? fallbackName(m)).join(', '),
+        metrics: t.metrics,
         named: !t.metrics.length ? 'none' : group ? 'group' : 'metric',
         values: t.values.map((v) => ({
           dimension: dimensionOf(v) ?? '',

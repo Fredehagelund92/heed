@@ -6,9 +6,10 @@
 import type { Replay as ServiceReplay } from '@contract/answer'
 import type { ObsAgents, ObsFeedback, ObsTopic, ObsUsage, ObsView } from '@contract/observability'
 import { appFamilies, appFamilyNames, type AppFamily } from '@domain/app-family'
+import type { ObsFilterView } from './client'
 import type { Answer } from '@/model/ask'
 import { stateLabel } from '@/model/ask'
-import type { Filters, SavedView } from '@/lib/obs-views'
+import type { FilterKey, Filters, SavedView } from '@/lib/obs-views'
 import {
   ALL_VALUES,
   dateLabel,
@@ -66,6 +67,9 @@ export function topicOf(t: ObsTopic): Topic {
   return {
     id: t.id,
     metric: t.metric,
+    metrics: t.metrics,
+    values: t.values,
+    dimensions: t.dimensions,
     where: t.values.length ? t.values.map((v) => v.name).join(', ') : ALL_VALUES,
     ...(t.areaId ? { domain: t.areaId } : {}),
     month: t.month,
@@ -87,6 +91,17 @@ const subjectOf = (s: ObsAgents['subjects'][number]) => ({
   atLeast: s.atLeast,
   counts: s.counts,
 })
+
+/** A filter's view as the service reads it: the domain by its id, the kind of agent by its family. */
+export function obsViewInput({ range, domain, agent, filters }: ObsFilterView) {
+  const family = agent ? familyOf(agent) : undefined
+  return {
+    range,
+    ...(domain ? { areaId: domain } : {}),
+    ...(family ? { agent: family } : {}),
+    ...(filters.length ? { filters: filters.map((f) => ({ ...f, values: [...f.values] })) } : {}),
+  }
+}
 
 /** Overview's and Questions' page from the service's read. */
 export function obsAgentsOf(view: ObsAgents, range: Range): ObsData {
@@ -265,8 +280,11 @@ export const savedViewOf = (v: ObsView): SavedView => {
     id: v.id,
     name: v.name,
     filters:
-      f.chips?.map((c) => ({ key: c.key, ...(c.not ? { not: true } : {}), values: c.values })) ??
-      legacy,
+      f.chips?.map((c) => ({
+        key: c.key as FilterKey,
+        ...(c.not ? { not: true } : {}),
+        values: c.values,
+      })) ?? legacy,
     by: v.by,
     custom: true,
   }

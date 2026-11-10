@@ -2,15 +2,25 @@
 import * as React from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { bindApi, type HeedApi, type ObsValuesInput } from '@/api'
 import { FilterBar, type Field } from '@/components/obs/filter-bar'
 import { FacetRail } from '@/components/obs/facet-rail'
-import type { FacetValue, FilterKey, Filters } from '@/lib/obs-views'
+import { nameOf } from '@/lib/obs-names'
+import {
+  isDim,
+  type FacetValue,
+  type FieldKey,
+  type FilterKey,
+  type Filters,
+} from '@/lib/obs-views'
 
-// Overview's filter bar as a person uses it from the keyboard: F opens the fields, Enter picks a
-// field and then a value, Backspace in the empty box takes the last chip off, a chip moves with
-// Alt and the arrows, and the box names the list and its active row for screen readers. The
-// facets beside it: a tick adds a value, a count looks at only that value.
+// Overview's filter bar as a person uses it from the keyboard: F opens the picker, the arrows and
+// Enter open a dimension, then tick its values, which the service counts; typing finds a value in
+// any dimension; Backspace in the empty first step takes the last chip off; a chip moves with Alt
+// and the arrows, and the box names the list and its active row for screen readers. The facets
+// beside it: a tick adds a value, a count looks at only that value.
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
@@ -40,9 +50,45 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+const sum = (total: number | null, atLeast = total ?? 0, topics = 1) => ({ total, atLeast, topics })
+const market = { key: 'dim:market', name: 'Market' }
+const values = [
+  { key: 'val:market/norway', name: 'Norway', asked: sum(null, 88, 3) },
+  { key: 'val:market/spain', name: 'Spain', asked: sum(null, 0) },
+]
+/** The service's reads, as a test answers them: two dimensions, Market with two values. */
+const service = {
+  obsDimensions: vi.fn(() =>
+    Promise.resolve({
+      state: 'normal' as const,
+      dimensions: [
+        { ...market, values: 12, asked: sum(120, 120, 4) },
+        { key: 'dim:store', name: 'Store', values: 300, asked: sum(null, 0, 0) },
+      ],
+    }),
+  ),
+  obsValues: vi.fn((input: ObsValuesInput) => {
+    const found = values.filter((v) => v.name.toLowerCase().startsWith(input.q.toLowerCase()))
+    return Promise.resolve({
+      state: 'normal' as const,
+      groups: [
+        {
+          dimension: market,
+          asked: sum(120, 120, 4),
+          values: found,
+          matched: found.length,
+          notAsked: 0,
+          nextCursor: null,
+        },
+      ],
+      notAsked: input.dimension ? 0 : 2,
+      nextCursor: null,
+    })
+  }),
+}
+
 const fields: Field[] = [
   { key: 'answer', values: ['grounded', 'missing'] },
-  { key: 'market', values: ['Norway', 'Spain'] },
   { key: 'month', values: ['2026-10'] },
 ]
 const counts: Record<string, FacetValue[]> = {
@@ -50,49 +96,62 @@ const counts: Record<string, FacetValue[]> = {
     { value: 'grounded', topics: 4, count: { visible: 94, shown: 94 } },
     { value: 'missing', topics: 2, count: { visible: null, shown: 0 } },
   ],
-  market: [
-    { value: 'Norway', topics: 3, count: { visible: null, shown: 88 } },
-    { value: 'Spain', topics: 1, count: { visible: null, shown: 0 } },
+  month: [
+    { value: '2026-10', topics: 3, count: { visible: null, shown: 88 } },
+    { value: '2026-09', topics: 1, count: { visible: null, shown: 0 } },
   ],
-  month: [{ value: '2026-10', topics: 4, count: { visible: 120, shown: 120 } }],
 }
 const words = (key: FilterKey, v: string) =>
-  key === 'answer'
-    ? ({ grounded: 'Checked', missing: 'Not found' } as Record<string, string>)[v]!
-    : v
+  isDim(key)
+    ? nameOf(v)
+    : key === 'answer'
+      ? ({ grounded: 'Checked', missing: 'Not found' } as Record<string, string>)[v]!
+      : v
 
 function mount(chips: Filters) {
+  bindApi(service as unknown as HeedApi)
   const onChange = vi.fn<(chips: Filters, said: string, instant?: boolean) => void>()
   host = document.body.appendChild(document.createElement('div'))
   root = createRoot(host)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   act(() =>
     root!.render(
       React.createElement(
-        React.Fragment,
-        null,
+        QueryClientProvider,
+        { client },
         React.createElement(FilterBar, {
           chips,
           onChange,
           fields,
-          facet: (k: FilterKey) => counts[k] ?? [],
+          facet: (k: FieldKey) => counts[k] ?? [],
           words,
+          view: { range: 30, filters: [] },
+          days: 30,
+          left: [],
+          pinned: [],
+          recent: [],
           facets: { on: true, toggle: () => {}, sheet: false },
         }),
         React.createElement(FacetRail, {
           chips,
           onChange,
           fields,
-          facet: (k: FilterKey) => counts[k] ?? [],
+          facet: (k: FieldKey) => counts[k] ?? [],
           words,
           folded: false,
         }),
       ),
     ),
   )
-  const box = document.querySelector<HTMLInputElement>('[role=combobox]')!
-  return { onChange, box }
+  return { onChange }
 }
 
+/** Lets the reads answer and the list draw them. */
+const settle = () =>
+  act(async () => {
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
+  })
+const box = () => document.querySelector<HTMLInputElement>('[role=combobox]')!
 const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
   act(async () => {
     el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, ...init }))
@@ -101,89 +160,139 @@ const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
 const options = () => [...document.querySelectorAll('[role=option]')].map((o) => o.textContent)
 
 describe('the filter bar', () => {
-  it('F opens the fields; Enter picks one, then a value, which becomes a chip', async () => {
-    const { onChange, box } = mount([])
+  it('F opens the picker; a dimension, then a value ticked, which becomes its chip', async () => {
+    const { onChange } = mount([])
     await key(document.body, 'f')
-    expect(document.activeElement).toBe(box)
-    expect(box.getAttribute('aria-expanded')).toBe('true')
-    expect(options()).toEqual(['Answer', 'Value', 'Month asked about'])
+    await settle()
+    expect(document.activeElement).toBe(box())
+    expect(options()).toEqual([
+      'Answer',
+      'Month asked about',
+      expect.stringMatching(/^Market120 · 12 values/),
+      'All 2 dimensions1 asked about in 30 days',
+    ])
     // The box names the list and its active row.
-    const list = document.getElementById(box.getAttribute('aria-controls')!)
+    const list = document.getElementById(box().getAttribute('aria-controls')!)
     expect(list?.getAttribute('role')).toBe('listbox')
-    expect(document.getElementById(box.getAttribute('aria-activedescendant')!)?.textContent).toBe(
+    expect(document.getElementById(box().getAttribute('aria-activedescendant')!)?.textContent).toBe(
       'Answer',
     )
-    await key(box, 'ArrowDown')
-    await key(box, 'Enter')
-    // Value's values, with what they count, hidden ones in the disclosure rules' words.
-    expect(options()[0]).toMatch(/^Norway88\+/)
-    expect(options()[1]).toMatch(/^SpainFewer than 5/)
-    await key(box, 'Enter')
+    await key(box(), 'ArrowDown')
+    await key(box(), 'ArrowDown')
+    await key(box(), 'Enter')
+    await settle()
+    // Market's values, the most asked first, with what they count in the disclosure rules' words.
+    expect(service.obsValues).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dimension: 'dim:market', q: '', sort: 'asked' }),
+    )
+    expect(options()[0]).toMatch(/^Any value · asked about market at all120/)
+    expect(options()[1]).toMatch(/^Norway88\+/)
+    expect(options()[2]).toMatch(/^SpainFewer than 5/)
+    await key(box(), 'ArrowDown')
+    await key(box(), ' ')
     expect(onChange).toHaveBeenLastCalledWith(
-      [{ key: 'market', values: ['Norway'] }],
-      'Added Norway: Value is Norway',
+      [{ key: 'dim:market', values: ['val:market/norway'] }],
+      'Added Norway, Market',
       undefined,
     )
+    // Escape goes back a step, then closes.
+    await key(box(), 'Escape')
+    expect(options()[0]).toBe('Answer')
+    await key(box(), 'Escape')
+    expect(document.querySelector('[role=combobox]')).toBeNull()
   })
 
-  it('/ starts typing; a value matches across fields, and the words are a topic', async () => {
-    const { onChange, box } = mount([])
+  it('/ starts typing: a value in any dimension, by group, and the words as a topic', async () => {
+    const { onChange } = mount([])
     await key(document.body, '/')
+    await settle()
     // As typing does: the value through the input's own setter, then the input event.
     const value = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!
     act(() => {
-      value.set!.call(box, 'nor')
-      box.dispatchEvent(new Event('input', { bubbles: true }))
+      value.set!.call(box(), 'nor')
+      box().dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(options()).toEqual([expect.stringMatching(/^Value is Norway/), 'Topic has “nor”'])
-    await key(box, 'ArrowUp')
-    await key(box, 'Enter')
+    await act(async () => await new Promise((r) => setTimeout(r, 200)))
+    await settle()
+    expect(service.obsValues).toHaveBeenLastCalledWith(
+      expect.objectContaining({ q: 'nor', sort: 'asked' }),
+    )
+    expect(options()).toEqual([expect.stringMatching(/^Norway88\+/), 'Topic has “nor”'])
+    expect(document.body.textContent).toContain(
+      '2 more values match, but no agent asked about them in 30 days.',
+    )
+    await key(box(), 'Enter')
     expect(onChange).toHaveBeenLastCalledWith(
-      [{ key: 'topic', values: ['nor'] }],
-      'Added the filter Topic has “nor”',
+      [{ key: 'dim:market', values: ['val:market/norway'] }],
+      'Added Norway, Market',
       undefined,
     )
   })
 
-  it('Backspace in the empty box takes the last chip off; Esc closes the list', async () => {
+  it('Backspace in the empty first step takes the last chip off', async () => {
     const chips: Filters = [
       { key: 'answer', values: ['missing'] },
-      { key: 'market', not: true, values: ['Norway'] },
+      { key: 'dim:market', not: true, values: ['val:market/norway'] },
     ]
-    const { onChange, box } = mount(chips)
-    act(() => box.focus())
-    await key(box, 'Backspace')
+    const { onChange } = mount(chips)
+    await key(document.body, 'f')
+    await settle()
+    await key(box(), 'Backspace')
     expect(onChange).toHaveBeenLastCalledWith(
       [chips[0]],
-      'Removed the filter Value is not Norway',
+      'Removed the filter Market is not Norway',
       undefined,
     )
-    await key(box, 'Escape')
-    expect(box.getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('reads each chip as a sentence, and moves it with Alt and the arrows at once', async () => {
+  it('reads each chip as a sentence in parts, and moves it with Alt and the arrows at once', async () => {
     const chips: Filters = [
       { key: 'answer', values: ['missing', 'grounded'] },
       { key: 'month', values: ['2026-10'] },
+      { key: 'dim:store', values: ['*'] },
     ]
     const { onChange } = mount(chips)
     const month = document.querySelector<HTMLElement>('[data-chip=month]')!
     expect(month.getAttribute('aria-label')).toMatch(/^Month asked about is 2026-10\. /)
-    expect(document.querySelector('[data-chip=answer]')!.textContent).toBe(
-      'Answer is any of Not found, Checked',
+    expect(month.closest('li')!.textContent).toBe('Month asked aboutis2026-10')
+    expect(document.querySelector('[data-chip=answer]')!.closest('li')!.textContent).toBe(
+      'Answeris any ofNot found, Checked',
+    )
+    expect(document.querySelector('[data-chip="dim:store"]')!.getAttribute('aria-label')).toMatch(
+      /^Store has any value\. /,
     )
     await key(month, 'ArrowLeft', { altKey: true })
     expect(onChange).toHaveBeenLastCalledWith(
-      [chips[1], chips[0]],
-      'Moved Month asked about is 2026-10 to place 1 of 2',
+      [chips[1], chips[0], chips[2]],
+      'Moved Month asked about is 2026-10 to place 1 of 3',
       true,
     )
     // Delete takes it off, from the chip itself.
     await key(month, 'Delete')
     expect(onChange).toHaveBeenLastCalledWith(
-      [chips[0]],
+      [chips[0], chips[2]],
       'Removed the filter Month asked about is 2026-10',
+      undefined,
+    )
+  })
+
+  it('opens the picker on a chip, at its values, and flips how it matches', async () => {
+    const chips: Filters = [{ key: 'dim:market', values: ['val:market/norway'] }]
+    const { onChange } = mount(chips)
+    act(() => document.querySelector<HTMLElement>('[data-chip="dim:market"]')!.click())
+    await settle()
+    // The value chosen comes first, ticked.
+    expect(options()[1]).toMatch(/^Norway/)
+    expect(document.querySelectorAll('[role=option]')[1]!.getAttribute('aria-selected')).toBe(
+      'true',
+    )
+    const not = [...document.querySelectorAll('[role=radio]')].find(
+      (r) => r.textContent === 'is not',
+    )!
+    act(() => (not as HTMLElement).click())
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ key: 'dim:market', not: true, values: ['val:market/norway'] }],
+      'Market is not',
       undefined,
     )
   })
@@ -191,21 +300,21 @@ describe('the filter bar', () => {
 
 describe('the facets', () => {
   it('tick a value into its chip, and a count looks at only that value', () => {
-    const { onChange } = mount([{ key: 'market', values: ['Spain'] }])
-    const norway = document.querySelector('label[for="facet-market-Norway"]')!
-    const tick = norway.previousElementSibling as HTMLElement
+    const { onChange } = mount([{ key: 'month', values: ['2026-09'] }])
+    const october = document.querySelector('label[for="facet-month-2026-10"]')!
+    const tick = october.previousElementSibling as HTMLElement
     act(() => tick.click())
     expect(onChange).toHaveBeenLastCalledWith(
-      [{ key: 'market', values: ['Spain', 'Norway'] }],
-      'Added Norway',
+      [{ key: 'month', values: ['2026-09', '2026-10'] }],
+      'Added 2026-10',
     )
     const drill = [...document.querySelectorAll('button')].find((b) =>
-      b.getAttribute('aria-label')?.startsWith('Norway: 3 topics, asked at least 88 times'),
+      b.getAttribute('aria-label')?.startsWith('2026-10: 3 topics, asked at least 88 times'),
     )!
     act(() => drill.click())
     expect(onChange).toHaveBeenLastCalledWith(
-      [{ key: 'market', values: ['Norway'] }],
-      'Looking at only Norway',
+      [{ key: 'month', values: ['2026-10'] }],
+      'Looking at only 2026-10',
     )
   })
 })

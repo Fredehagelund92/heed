@@ -70,6 +70,7 @@ import {
   chipsTo,
   facet,
   facetSize,
+  fromLegacy,
   narrowed,
   passes,
   readDomain,
@@ -79,11 +80,15 @@ import {
   spanWords,
   valueOf,
   valueWords,
+  wireFilters,
   withValues,
+  type FieldKey,
   type FilterKey,
   type Filters,
   type Span,
 } from '@/lib/obs-views'
+import { rememberTopics } from '@/lib/obs-names'
+import { useRecentDimensions } from '@/lib/obs-recent'
 import { changeQuery, href, setQuery, useRoute } from '@/lib/router'
 import { clicked, sortingFrom, sortingTo, type Sorting } from '@/lib/sort'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
@@ -173,7 +178,16 @@ function Explorer({
   const dock = useDock()
   const saved = useSavedViews()
   const reduced = useReducedMotion()
-  const chips = chipsFrom(query)
+  // An old link's Value chip ("market=Norway") that names one value of one dimension is read as
+  // that dimension's chip, in place of the old address; one a name could mean two values of stays.
+  const read = chipsFrom(query)
+  const legacy = fromLegacy(read, obs.data.topics)
+  const chips = legacy.chips
+  React.useEffect(() => {
+    if (legacy.chips !== read) void changeQuery(chipsTo(legacy.chips, query), { replace: true })
+    // Once for each address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressOf(query)])
   // An owner reads their own domains, one at a time: their domain is no chip, as they can't take
   // it off. A kind of agent is for admins.
   const own = view.owned && view.domain ? view.domain : undefined
@@ -202,7 +216,7 @@ function Explorer({
       : null
     moveTo(
       {
-        ...chipsTo(domain ? [domain, ...keep] : keep),
+        ...chipsTo(domain ? [domain, ...keep] : keep, query),
         ...(opts?.clearDays ? { days: undefined } : {}),
       },
       reduced || !!opts?.instant,
@@ -286,7 +300,24 @@ function Explorer({
 
   const { fields, facets } = useFacets(obs, domainList, me.admin, on, chosen, view.owned)
   const words = (key: FilterKey, v: string) => valueWords(key, v, domains)
-  const facetOf = (key: FilterKey) => facets.get(key) ?? []
+  const facetOf = (key: FieldKey) => facets.get(key) ?? []
+
+  // The picker's counts follow the same view, from the service: the range, the domain and kind of
+  // agent it reads, and every filter it can take; it says what it cannot.
+  rememberTopics(all)
+  const wire = wireFilters(
+    on,
+    { id: chosen, name: custom?.name ?? builtIn?.name ?? '' },
+    all,
+    domains,
+  )
+  const pickerView = {
+    range: view.range,
+    ...(view.domain ? { domain: view.domain } : {}),
+    ...(view.agent ? { agent: view.agent } : {}),
+    filters: wire.filters,
+  }
+  const recent = useRecentDimensions(on)
 
   // The facets sit beside the topics where there is room for them, and the device remembers
   // whether they are shown; on a narrow page they open in a sheet.
@@ -361,7 +392,10 @@ function Explorer({
           value={chosen}
           onChange={(id) => {
             const v = saved.find((x) => x.id === id)
-            setQuery({ view: id === 'all' ? undefined : id, ...(v ? chipsTo(v.filters) : {}) })
+            setQuery({
+              view: id === 'all' ? undefined : id,
+              ...(v ? chipsTo(v.filters, query) : {}),
+            })
           }}
           onRemove={
             custom
@@ -385,6 +419,12 @@ function Explorer({
         fields={fields}
         facet={facetOf}
         words={words}
+        view={pickerView}
+        days={view.range}
+        left={wire.left}
+        pinned={[]}
+        recent={recent}
+        legacy={legacy.why}
         facets={{ on: rail, toggle: toggleFacets, sheet: !wide }}
       />
       <div
@@ -520,7 +560,7 @@ function fieldsOf(
   owned: DomainId[] | null,
 ): Field[] {
   const topics = obs.data.topics
-  const of = (key: FilterKey) =>
+  const of = (key: FieldKey) =>
     [...new Set(topics.map((t) => valueOf(t, key)).filter((v): v is string => !!v))].sort((a, b) =>
       a.localeCompare(b),
     )
@@ -535,7 +575,6 @@ function fieldsOf(
     ...(admin
       ? [{ key: 'agent' as const, values: obs.data.agents.map((a) => a.name), one: true }]
       : []),
-    { key: 'market', values: of('market') },
     { key: 'metric', values: of('metric') },
     { key: 'month', values: obs.topicMonths() },
     { key: 'gap', values: ['draft', 'suggestion', 'none'] },
@@ -578,7 +617,7 @@ function facetsOf(
     fields.map((f) => {
       const list = facet(f.key, { obs, chips, inView, all: chosen === 'all', values })
       // The busiest first, where the values have no order of their own.
-      if (f.key === 'domain' || f.key === 'market' || f.key === 'metric')
+      if (f.key === 'domain' || f.key === 'metric')
         list.sort((a, b) => facetSize(b.count) - facetSize(a.count) || b.topics - a.topics)
       return [f.key, list] as const
     }),

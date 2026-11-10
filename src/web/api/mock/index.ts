@@ -1,4 +1,4 @@
-import type { HeedApi, HeedApiMethod, Inbox } from '../client'
+import type { HeedApi, HeedApiMethod, Inbox, ObsPageInput } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
 import { asksUndefinedWords, limitOf, readsBeyond } from '@domain/ask-plan'
@@ -59,6 +59,7 @@ import { figureFor, figureTryFor } from './data/figures'
 import { recordsAnswer, replyAnswer, reportedOn, type AskInput } from '@/model/ask'
 import { queueOf, readsPlainlyFor, recognisedFor, recordsFor, recordsOf } from './records'
 import { createDefinitions } from './definitions'
+import { dimensionsOf, valuesOf } from './obs-filters'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
 import { createSaved } from './saved'
@@ -93,6 +94,13 @@ export function createMockApi() {
   const workspace = createWorkspace()
   const comments = createComments()
   const definitions = createDefinitions()
+  /** An Observability page as the person signed in may read it, for a view. */
+  const obsPageFor = ({ range, domain, agent }: Omit<ObsPageInput, 'section'>) => {
+    const person = workspace.people().find((p) => p.name === me())
+    const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
+    const view = { range, ...(domain ? { domain } : {}), ...(agent ? { agent } : {}) }
+    return obsPage(obsData(scenario.obsState()), view, reader)
+  }
   const saved = createSaved()
   const alerts = createAlerts()
   const chats = createChats()
@@ -860,11 +868,9 @@ export function createMockApi() {
 
     // Observability
     observabilityPage: ({ section, ...view }) =>
-      read('observabilityPage', JSON.stringify([section, view]), () => {
-        const person = workspace.people().find((p) => p.name === me())
-        const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
-        return obsPage(obsData(scenario.obsState()), view, reader)
-      }),
+      read('observabilityPage', JSON.stringify([section, view]), () => obsPageFor(view)),
+    obsDimensions: (input) => now(() => dimensionsOf(definitions.list(), obsPageFor(input), input)),
+    obsValues: (input) => now(() => valuesOf(definitions.list(), obsPageFor(input), input)),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {

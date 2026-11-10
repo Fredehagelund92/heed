@@ -15,7 +15,10 @@ const places = [
   { name: 'not-found', address: '/observability?answer=missing' },
   { name: 'topics', address: '/observability/questions' },
   // The filter bar: a chip that leaves a value out, chips in an order of their own, the facets.
-  { name: 'filtered', address: '/observability?market=Norway&answer=!missing&chips=market,answer' },
+  {
+    name: 'filtered',
+    address: '/observability?d.market=norway&answer=!missing&chips=d.market,answer',
+  },
   // Days selected on the chart: the numbers add them up, and the bar reads them as a chip.
   { name: 'days', address: '/observability?range=30&days=2026-10-12..2026-10-18' },
 ]

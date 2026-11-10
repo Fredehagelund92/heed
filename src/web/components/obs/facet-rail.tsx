@@ -25,7 +25,7 @@ import {
   toggled,
   withValues,
   type FacetValue,
-  type FilterKey,
+  type FieldKey,
   type Filters,
 } from '@/lib/obs-views'
 import type { Shown } from '@/model/observability'
@@ -43,8 +43,8 @@ export type FacetsProps = {
   chips: Filters
   onChange: (chips: Filters, said: string) => void
   fields: Field[]
-  facet: (key: FilterKey) => FacetValue[]
-  words: (key: FilterKey, v: string) => string
+  facet: (key: FieldKey) => FacetValue[]
+  words: (key: FieldKey, v: string) => string
 }
 
 /** The facets beside the topics; folded away, they keep their place shut and out of reach. */
@@ -87,7 +87,7 @@ export function FacetSheet({
 
 function Facets({ chips, onChange, fields, facet, words }: FacetsProps) {
   const [q, setQ] = React.useState('')
-  const [more, setMore] = React.useState<FilterKey[]>([])
+  const [more, setMore] = React.useState<FieldKey[]>([])
   const find = q.trim().toLowerCase()
   return (
     <div className="flex flex-col">

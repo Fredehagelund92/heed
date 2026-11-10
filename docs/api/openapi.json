@@ -98372,6 +98372,12 @@
                           "metric": {
                             "type": "string"
                           },
+                          "metrics": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "named": {
                             "enum": [
                               "metric",
@@ -98571,6 +98577,7 @@
                           "areaId",
                           "subject",
                           "metric",
+                          "metrics",
                           "named",
                           "values",
                           "dimensions",
@@ -99031,6 +99038,12 @@
                           "metric": {
                             "type": "string"
                           },
+                          "metrics": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "named": {
                             "enum": [
                               "metric",
@@ -99230,6 +99243,7 @@
                           "areaId",
                           "subject",
                           "metric",
+                          "metrics",
                           "named",
                           "values",
                           "dimensions",
@@ -103797,23 +103811,31 @@
                         "properties": {
                           "chips": {
                             "type": "array",
-                            "maxItems": 9,
+                            "maxItems": 20,
                             "items": {
                               "type": "object",
                               "properties": {
                                 "key": {
-                                  "enum": [
-                                    "answer",
-                                    "domain",
-                                    "agent",
-                                    "market",
-                                    "metric",
-                                    "month",
-                                    "gap",
-                                    "reported",
-                                    "topic"
-                                  ],
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "enum": [
+                                        "answer",
+                                        "domain",
+                                        "agent",
+                                        "market",
+                                        "metric",
+                                        "month",
+                                        "gap",
+                                        "reported",
+                                        "topic"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^dim:[a-z0-9_]+$"
+                                    }
+                                  ]
                                 },
                                 "not": {
                                   "type": "boolean"
@@ -104156,23 +104178,31 @@
                     "properties": {
                       "chips": {
                         "type": "array",
-                        "maxItems": 9,
+                        "maxItems": 20,
                         "items": {
                           "type": "object",
                           "properties": {
                             "key": {
-                              "enum": [
-                                "answer",
-                                "domain",
-                                "agent",
-                                "market",
-                                "metric",
-                                "month",
-                                "gap",
-                                "reported",
-                                "topic"
-                              ],
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "answer",
+                                    "domain",
+                                    "agent",
+                                    "market",
+                                    "metric",
+                                    "month",
+                                    "gap",
+                                    "reported",
+                                    "topic"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "pattern": "^dim:[a-z0-9_]+$"
+                                }
+                              ]
                             },
                             "not": {
                               "type": "boolean"
@@ -104260,23 +104290,31 @@
                       "properties": {
                         "chips": {
                           "type": "array",
-                          "maxItems": 9,
+                          "maxItems": 20,
                           "items": {
                             "type": "object",
                             "properties": {
                               "key": {
-                                "enum": [
-                                  "answer",
-                                  "domain",
-                                  "agent",
-                                  "market",
-                                  "metric",
-                                  "month",
-                                  "gap",
-                                  "reported",
-                                  "topic"
-                                ],
-                                "type": "string"
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "answer",
+                                      "domain",
+                                      "agent",
+                                      "market",
+                                      "metric",
+                                      "month",
+                                      "gap",
+                                      "reported",
+                                      "topic"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^dim:[a-z0-9_]+$"
+                                  }
+                                ]
                               },
                               "not": {
                                 "type": "boolean"

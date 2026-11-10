@@ -7,7 +7,13 @@ import {
   type QueryKey,
 } from '@tanstack/react-query'
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
-import { isPageRead, type ObsPageInput, type ScopeSearchInput } from '@/api/client'
+import {
+  isPageRead,
+  type ObsFilterView,
+  type ObsPageInput,
+  type ObsValuesInput,
+  type ScopeSearchInput,
+} from '@/api/client'
 import type { AskInput } from '@/model/ask'
 import type { FigureAsk } from '@/model/figures'
 
@@ -72,6 +78,10 @@ export const queryKeys = {
   connectRequest: ['getConnectRequest'] as const,
   observabilityPage: (input: ObsPageInput) => ['observabilityPage', input] as const,
   observabilityPages: ['observabilityPage'] as const,
+  obsDimensions: (input: ObsFilterView) => ['obsDimensions', input] as const,
+  obsDimensionLists: ['obsDimensions'] as const,
+  obsValues: (input: ObsValuesInput) => ['obsValues', input] as const,
+  obsValueLists: ['obsValues'] as const,
   replay: (topic: string, when: string) => ['replayTopic', topic, when] as const,
   replays: ['replayTopic'] as const,
   readQuestion: (question: string) => ['readQuestion', question] as const,
@@ -326,6 +336,20 @@ export const observabilityPageQuery = (input: ObsPageInput) =>
     queryFn: () => api.observabilityPage(input),
   })
 
+/** Overview's filter, its first step: the dimensions, for a view and its filters. */
+export const obsDimensionsQuery = (input: ObsFilterView) =>
+  queryOptions({
+    queryKey: queryKeys.obsDimensions(input),
+    queryFn: () => api.obsDimensions(input),
+  })
+
+/** Its second step: a page of a dimension's values, or the words in every dimension. */
+export const obsValuesQuery = (input: ObsValuesInput) =>
+  queryOptions({
+    queryKey: queryKeys.obsValues(input),
+    queryFn: () => api.obsValues(input),
+  })
+
 export const replayQuery = (topic: string, when: 'now' | 'before') =>
   queryOptions({
     queryKey: queryKeys.replay(topic, when),
@@ -445,6 +469,8 @@ type Read =
   | 'getConnectReview'
   | 'getConnectRequest'
   | 'observabilityPage'
+  | 'obsDimensions'
+  | 'obsValues'
   | 'replayTopic'
 export type WriteOperation = Exclude<HeedApiMethod, Read>
 export type WriteInput<K extends WriteOperation> = Parameters<Method<K>>[0]

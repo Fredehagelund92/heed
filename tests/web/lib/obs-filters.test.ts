@@ -2,22 +2,28 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { answersOf, shownStates, topicView, type TopicCounts } from '@domain/observability'
 import {
+  ANY,
   chipsFrom,
   chipsTo,
   chipSentence,
   facet,
-  FILTER_KEYS,
+  FIELD_KEYS,
+  fromLegacy,
+  MAX_CHIPS,
   moved,
   narrowed,
   opWords,
   passes,
   readDomain,
   toggled,
+  wireFilters,
   withValues,
   type Chip,
+  type DimKey,
   type FilterKey,
   type Filters,
 } from '@/lib/obs-views'
+import { rememberNames } from '@/lib/obs-names'
 import {
   ALL_VALUES,
   observability,
@@ -44,22 +50,81 @@ const roundTrip = (chips: Filters) => {
   return chipsFrom(new URLSearchParams(q.toString()))
 }
 
+rememberNames([
+  { key: 'dim:market', name: 'Market' },
+  { key: 'val:market/norway', name: 'Norway' },
+  { key: 'val:market/spain', name: 'Spain' },
+  { key: 'dim:store', name: 'Store' },
+])
+
 describe('the chips in the address', () => {
-  it('keep each field in its own param, "!" for is not, and the order when it is not the fields\'', () => {
+  it('keep each field and each dimension in its own param, "!" for is not, and the order when it is not their own', () => {
     const chips: Filters = [
-      { key: 'market', not: true, values: ['Norway'] },
+      { key: 'dim:market', not: true, values: ['val:market/norway'] },
       { key: 'answer', values: ['missing', 'partial'] },
     ]
     expect(chipsTo(chips)).toMatchObject({
-      market: '!Norway',
+      'd.market': '!norway',
       answer: 'missing,partial',
-      chips: 'market,answer',
+      chips: 'd.market,answer',
       domain: undefined,
       q: undefined,
     })
     expect(roundTrip(chips)).toEqual(chips)
-    // In the fields' own order there is no `chips` param.
+    // In the fields' own order, then the dimensions A to Z, there is no `chips` param.
     expect(chipsTo([...chips].reverse()).chips).toBeUndefined()
+    expect(chipsFrom(new URLSearchParams('d.store=*&d.market=spain,norway'))).toEqual([
+      { key: 'dim:market', values: ['val:market/spain', 'val:market/norway'] },
+      { key: 'dim:store', values: [ANY] },
+    ])
+  })
+
+  it('clear a dimension taken off, and keep any value alone', () => {
+    const now = new URLSearchParams('d.store=alder_row&d.market=norway&range=30')
+    expect(chipsTo([{ key: 'dim:market', values: ['val:market/norway'] }], now)).toMatchObject({
+      'd.store': undefined,
+      'd.market': 'norway',
+    })
+    expect(chipsFrom(new URLSearchParams('d.store=alder_row,*'))).toEqual([
+      { key: 'dim:store', values: [ANY] },
+    ])
+    // Only a dimension's own words: anything else in the param is dropped.
+    expect(chipsFrom(new URLSearchParams('d.store=Alder Row,../x&d.Bad=x'))).toEqual([])
+  })
+
+  it(`keep at most ${MAX_CHIPS} chips`, () => {
+    const q = new URLSearchParams(
+      Array.from({ length: MAX_CHIPS + 5 }, (_, i) => `d.dim_${i}=v`).join('&'),
+    )
+    expect(chipsFrom(q)).toHaveLength(MAX_CHIPS)
+    const full = chipsFrom(q)
+    expect(withValues(full, 'answer', ['missing'])).toBe(full)
+  })
+
+  it("read an old link's market by name, as a dimension's chip when the name is one value", () => {
+    const old = chipsFrom(new URLSearchParams('market=!Norway&answer=missing&chips=market,answer'))
+    expect(old).toEqual([
+      { key: 'market', not: true, values: ['Norway'] },
+      { key: 'answer', values: ['missing'] },
+    ])
+    const topic = (values: Topic['values']) => ({ values }) as Topic
+    const norway = { dimension: 'dim:market', value: 'val:market/norway', name: 'Norway' }
+    expect(fromLegacy(old, [topic([norway])])).toEqual({
+      chips: [
+        { key: 'dim:market', not: true, values: ['val:market/norway'] },
+        { key: 'answer', values: ['missing'] },
+      ],
+    })
+    // A name two values share stays as it was, and says why: never merged into one of them.
+    const shared = fromLegacy(old, [
+      topic([norway]),
+      topic([{ dimension: 'dim:store', value: 'val:store/norway', name: 'Norway' }]),
+    ])
+    expect(shared.chips).toBe(old)
+    expect(shared.why).toBe(
+      'Norway is a value of 2 dimensions: Market, Store. Choose one in the filter.',
+    )
+    expect(fromLegacy(old, []).why).toBe('No topic in this range asked about Norway.')
   })
 
   it('read an old link: one domain, a month and "found" for every answer that found something', () => {
@@ -92,6 +157,35 @@ describe('the chips in the address', () => {
     expect(roundTrip(chips)).toEqual(chips)
   })
 
+  it('take to the service every filter it can, and say the rest', () => {
+    const topics = [{ metric: 'Orders', metrics: ['metric:orders'] }] as Topic[]
+    const view = { id: 'look', name: 'Needs a look' }
+    expect(
+      wireFilters(
+        [
+          { key: 'domain', values: ['sales'] },
+          { key: 'metric', values: ['Orders'] },
+          { key: 'dim:market', not: true, values: [ANY] },
+          { key: 'topic', values: ['nor'] },
+        ],
+        view,
+        topics,
+        domains,
+      ),
+    ).toEqual({
+      filters: [
+        { key: 'metric', values: ['metric:orders'] },
+        { key: 'dim:market', not: true, values: [ANY] },
+      ],
+      left: ['Topic has “nor”', 'the view Needs a look'],
+    })
+    // A view of one field is that field's filter.
+    expect(wireFilters([], { id: 'stale', name: 'Outdated' }, topics, domains)).toEqual({
+      filters: [{ key: 'answer', values: ['stale'] }],
+      left: [],
+    })
+  })
+
   it('round-trip any chips, in any order', () => {
     const value = fc.string({ minLength: 1, maxLength: 12 })
     const chip = (key: FilterKey): fc.Arbitrary<Chip> => {
@@ -114,9 +208,28 @@ describe('the chips in the address', () => {
         .tuple(values, not)
         .map(([vs, n]) => ({ key, ...(n ? { not: true } : {}), values: [...vs] }))
     }
+    const id = fc.stringMatching(/^[a-z0-9_]{1,8}$/)
+    const dimension = (key: DimKey): fc.Arbitrary<Chip> =>
+      fc
+        .tuple(
+          fc.oneof(
+            fc.constant([ANY] as string[]),
+            fc
+              .uniqueArray(id, { minLength: 1, maxLength: 4 })
+              .map((ids) => ids.map((v) => `val:${key.slice(4)}/${v}`)),
+          ),
+          fc.boolean(),
+        )
+        .map(([values, n]) => ({ key, ...(n ? { not: true } : {}), values }))
+    const dims = fc.uniqueArray(id, { maxLength: 4 }).map((ids) => ids.map((i) => `dim:${i}`))
     const chips = fc
-      .shuffledSubarray([...FILTER_KEYS])
-      .chain((keys) => (keys.length ? fc.tuple(...keys.map(chip)) : fc.constant([] as Chip[])))
+      .tuple(fc.shuffledSubarray([...FIELD_KEYS]), dims)
+      .chain(([keys, ds]) =>
+        keys.length + ds.length
+          ? fc.tuple(...keys.map(chip), ...ds.map(dimension))
+          : fc.constant([] as Chip[]),
+      )
+      .chain((list) => fc.shuffledSubarray(list, { minLength: list.length }))
     fc.assert(
       fc.property(chips, (c) => {
         expect(roundTrip(c)).toEqual(c)
@@ -128,16 +241,25 @@ describe('the chips in the address', () => {
 describe('changing the chips', () => {
   const chips: Filters = [
     { key: 'answer', values: ['missing'] },
-    { key: 'market', not: true, values: ['Norway'] },
+    { key: 'dim:market', not: true, values: ['val:market/norway'] },
     { key: 'month', values: ['2026-10'] },
   ]
   it('add a value to a chip, keeping how it matches, and take a chip off with its last value', () => {
-    expect(toggled(chips, 'market', 'Spain')[1]).toEqual({
-      key: 'market',
+    expect(toggled(chips, 'dim:market', 'val:market/spain')[1]).toEqual({
+      key: 'dim:market',
       not: true,
-      values: ['Norway', 'Spain'],
+      values: ['val:market/norway', 'val:market/spain'],
     })
-    expect(toggled(chips, 'answer', 'missing').map((c) => c.key)).toEqual(['market', 'month'])
+    expect(toggled(chips, 'answer', 'missing').map((c) => c.key)).toEqual(['dim:market', 'month'])
+    // Any value takes the place of a dimension's values, and a value the place of any value.
+    expect(toggled(chips, 'dim:market', ANY)[1]).toEqual({
+      key: 'dim:market',
+      not: true,
+      values: [ANY],
+    })
+    expect(
+      toggled([{ key: 'dim:market', values: [ANY] }], 'dim:market', 'val:market/spain'),
+    ).toEqual([{ key: 'dim:market', values: ['val:market/spain'] }])
     // A new field goes last.
     expect(withValues(chips, 'domain', ['sales']).at(-1)).toEqual({
       key: 'domain',
@@ -145,9 +267,9 @@ describe('changing the chips', () => {
     })
   })
   it('move a chip, never past either end', () => {
-    expect(moved(chips, 'month', 0).map((c) => c.key)).toEqual(['month', 'answer', 'market'])
+    expect(moved(chips, 'month', 0).map((c) => c.key)).toEqual(['month', 'answer', 'dim:market'])
     expect(moved(chips, 'answer', -1)).toBe(chips)
-    expect(moved(chips, 'answer', 9).map((c) => c.key)).toEqual(['market', 'month', 'answer'])
+    expect(moved(chips, 'answer', 9).map((c) => c.key)).toEqual(['dim:market', 'month', 'answer'])
   })
   it('read as sentences: is, is any of, is not, is none of, has', () => {
     expect(chipSentence({ key: 'answer', values: ['missing'] }, domains)).toBe(
@@ -162,6 +284,20 @@ describe('changing the chips', () => {
     expect(opWords({ key: 'gap', not: true, values: ['draft', 'none'] })).toBe('is none of')
     expect(chipSentence({ key: 'topic', values: ['nor', 'orders'] }, domains)).toBe(
       'Topic has “nor” and “orders”',
+    )
+    expect(
+      chipSentence(
+        { key: 'dim:market', values: ['val:market/norway', 'val:market/spain'] },
+        domains,
+      ),
+    ).toBe('Market is any of Norway, Spain')
+    expect(chipSentence({ key: 'dim:store', values: [ANY] }, domains)).toBe('Store has any value')
+    expect(chipSentence({ key: 'dim:store', not: true, values: [ANY] }, domains)).toBe(
+      'Store has no value',
+    )
+    // A value nothing has named yet reads from its own words.
+    expect(chipSentence({ key: 'dim:store', values: ['val:store/alder_row'] }, domains)).toBe(
+      'Store is Alder row',
     )
   })
   it('send one domain to the service, and narrow the topics with any other', () => {
@@ -235,6 +371,18 @@ function disclosed(w: World, domain?: string) {
     return {
       id: r.id,
       metric: r.metric,
+      metrics: [`metric:${r.metric.toLowerCase()}`],
+      values:
+        r.market === ALL_VALUES
+          ? []
+          : [
+              {
+                dimension: 'dim:market',
+                value: `val:market/${r.market.toLowerCase()}`,
+                name: r.market,
+              },
+            ],
+      dimensions: [],
       where: r.market,
       ...(r.domain ? { domain: r.domain } : {}),
       month: r.month,
@@ -313,7 +461,7 @@ function inSpan(vectors: number[][], target: number[]) {
 }
 
 describe('the facets', () => {
-  const keys: FilterKey[] = ['answer', 'domain', 'market', 'metric', 'month', 'reported']
+  const keys: FilterKey[] = ['answer', 'domain', 'metric', 'month', 'reported']
   const valuesOf = (topics: Topic[], key: FilterKey) =>
     key === 'answer'
       ? [...SHOWN]
@@ -321,12 +469,10 @@ describe('the facets', () => {
         ? ['sales', 'marketing']
         : key === 'reported'
           ? ['yes', 'no']
-          : key === 'market'
-            ? MARKETS
-            : key === 'metric'
-              ? METRICS
-              : [...new Set(topics.map((t) => t.month))]
-  const chip = (key: FilterKey) =>
+          : key === 'metric'
+            ? METRICS
+            : [...new Set(topics.map((t) => t.month))]
+  const chip = (key: FilterKey): fc.Arbitrary<Chip> =>
     fc.record({
       key: fc.constant(key),
       not: fc.boolean(),
@@ -334,30 +480,54 @@ describe('the facets', () => {
         minLength: 1,
       }),
     })
-  const chips = fc
-    .shuffledSubarray(keys, { maxLength: 3 })
-    .chain((ks) => (ks.length ? fc.tuple(...ks.map(chip)) : fc.constant([] as Chip[])))
+  // A dimension's chip narrows the topics too: Market by its values' keys, or any value of it.
+  const market: fc.Arbitrary<Chip> = fc.record({
+    key: fc.constant('dim:market' as const),
+    not: fc.boolean(),
+    values: fc.oneof(
+      fc.constant([ANY] as string[]),
+      fc.subarray(['val:market/norway', 'val:market/spain'], { minLength: 1 }),
+    ),
+  })
+  const chips: fc.Arbitrary<Chip[]> = fc
+    .tuple(fc.shuffledSubarray(keys, { maxLength: 3 }), fc.boolean())
+    .chain(([ks, dim]) =>
+      ks.length || dim
+        ? fc.tuple(...ks.map(chip), ...(dim ? [market] : []))
+        : fc.constant([] as Chip[]),
+    )
 
   it("count every value without the field's own chip, so the other values stay", () => {
     const { data } = disclosed({
       subjects: [
         { domain: 'sales', metric: 'Orders', market: 'Norway', months: [[9, 0, 0, 0, 6]] },
-        { domain: 'sales', metric: 'Orders', market: 'Spain', months: [[8, 0, 0, 0, 0]] },
+        { domain: 'sales', metric: 'Revenue', market: 'Spain', months: [[8, 0, 0, 0, 0]] },
       ],
       reported: Array.from({ length: 12 }, () => false),
     })
     const obs = observability(data)
-    const market = facet('market', {
+    const metric = facet('metric', {
       obs,
-      chips: [{ key: 'market', values: ['Norway'] }],
+      chips: [{ key: 'metric', values: ['Orders'] }],
       inView: () => true,
       all: true,
-      values: () => MARKETS,
+      values: () => METRICS,
     })
-    expect(market.map((f) => [f.value, f.topics, f.count?.visible])).toEqual([
-      ['Norway', 1, 15],
-      ['Spain', 1, 8],
-      [ALL_VALUES, 0, 0],
+    expect(metric.map((f) => [f.value, f.topics, f.count?.visible])).toEqual([
+      ['Orders', 1, 15],
+      ['Revenue', 1, 8],
+    ])
+    // A dimension's chip narrows the topics the facets count.
+    const narrowedBy = facet('metric', {
+      obs,
+      chips: [{ key: 'dim:market', values: ['val:market/spain'] }],
+      inView: () => true,
+      all: true,
+      values: () => METRICS,
+    })
+    expect(narrowedBy.map((f) => [f.value, f.topics])).toEqual([
+      ['Orders', 0],
+      ['Revenue', 1],
     ])
   })
 
@@ -372,7 +542,10 @@ describe('the facets', () => {
     const input = { obs, inView: () => true, all: true, values: () => ['Cursor'] }
     expect(facet('agent', { ...input, chips: [] })[0]!.count).toEqual({ visible: 15, shown: 15 })
     expect(
-      facet('agent', { ...input, chips: [{ key: 'market', values: ['Norway'] }] })[0]!.count,
+      facet('agent', {
+        ...input,
+        chips: [{ key: 'dim:market', values: ['val:market/norway'] }],
+      })[0]!.count,
     ).toBeNull()
     // The domain the service reads is its own count's domain: those still show.
     expect(

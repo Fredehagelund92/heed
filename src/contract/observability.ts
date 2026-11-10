@@ -107,6 +107,8 @@ export const obsTopicSchema = z.object({
   subject: z.string(),
   /** The metrics, as the definitions name them; empty when no metric was named. */
   metric: z.string(),
+  /** The keys of those metrics or metric groups (`metric:orders`, `group:payments`), as a filter takes them. */
+  metrics: z.array(z.string()),
   /** How the metric was named: one metric, a metric group, or none. */
   named: z.enum(['metric', 'group', 'none']),
   /** The values asked about, each with its dimension, as the definitions name them; empty for none. */
@@ -521,29 +523,48 @@ export const obsSnapshotTakeSchema = z.object({
 })
 
 /**
- * A filter of a saved view, as Overview's filter bar draws it: a field, whether it leaves its
- * values out, and the values, in the order the chips were put in. Never a question's words: a
+ * A filter of a saved view, as Overview's filter bar draws it: a field or a dimension
+ * (`dim:store`, with its values' keys or `*`), whether it leaves its values out, and the values,
+ * in the order the chips were put in. `market` is the old "Value" field, by name. Never a question's words: a
  * topic's are the words a reader searched its name for.
  */
-const viewChip = z.object({
-  key: z.enum([
-    'answer',
-    'domain',
-    'agent',
-    'market',
-    'metric',
-    'month',
-    'gap',
-    'reported',
-    'topic',
-  ]),
-  not: z.optional(z.boolean()),
-  values: z.array(z.string().check(z.minLength(1), z.maxLength(200))).check(z.maxLength(50)),
-})
+const viewChip = z
+  .object({
+    key: z.union([
+      z.enum([
+        'answer',
+        'domain',
+        'agent',
+        'market',
+        'metric',
+        'month',
+        'gap',
+        'reported',
+        'topic',
+      ]),
+      dimensionKey,
+    ]),
+    not: z.optional(z.boolean()),
+    values: z.array(z.string().check(z.minLength(1), z.maxLength(200))).check(z.maxLength(50)),
+  })
+  .check(
+    z.refine(
+      (c) => !isDimensionKey(c.key) || filterFits(c),
+      "A dimension's chip keeps the keys of its own values (val:store/alder_row), or * for any value.",
+    ),
+  )
 
 const viewFilters = z.object({
   /** The chips, in order; a view saved before them keeps the fields below. */
-  chips: z.optional(z.array(viewChip).check(z.maxLength(9))),
+  chips: z.optional(
+    z.array(viewChip).check(
+      z.maxLength(20),
+      z.refine(
+        (list) => new Set(list.map((c) => c.key)).size === list.length,
+        'Each field or dimension is a chip once.',
+      ),
+    ),
+  ),
   answer: z.optional(z.array(z.enum(shownStates))),
   domain: z.optional(areaId),
   agent: z.optional(z.string().check(z.maxLength(40))),

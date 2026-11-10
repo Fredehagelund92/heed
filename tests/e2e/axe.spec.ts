@@ -70,8 +70,9 @@ const places = [
   '/observability/questions?sort=name&dir=desc',
   '/observability/questions?dock=topic.orders-spain',
   // The filter bar: chips that keep and leave out, in an order of their own, and the facets with a
-  // kind of agent not shown.
-  '/observability?market=Norway&answer=!missing&chips=market,answer',
+  // kind of agent not shown; an old link's chip a name could not be read for.
+  '/observability?d.market=norway&answer=!missing&chips=d.market,answer',
+  '/observability?d.campaign=*&market=Narnia',
   // Days selected on the chart, read as a chip, with a part of a bar drilled into.
   '/observability?range=30&days=2026-10-12..2026-10-18&answer=missing',
   '/observability?state=empty',
@@ -304,22 +305,28 @@ for (const { name, width, height } of widths) {
         expect((await violations(page)).filter((v) => v !== reached)).toEqual([])
       })
 
-      test("Overview's filter bar: the type-ahead and a chip's editor, open", async ({ page }) => {
-        await page.goto(withTheme('/observability?market=Norway&range=30', theme))
+      test("Overview's filter picker: its first step, a value search and a chip's values, open", async ({
+        page,
+      }) => {
+        await page.goto(withTheme('/observability?d.market=norway&range=30', theme))
         await expect(page.getByRole('heading', { name: 'Topics' })).toBeVisible()
-        await page.keyboard.press('f')
-        const fields = page.getByRole('listbox', { name: 'Filters' })
-        await expect(fields).toBeVisible()
         // The box keeps the focus and names the active row: the combobox pattern, which axe cannot
         // tell from a scrolling region no key reaches (as the emoji list below).
-        const typeahead = `serious: scrollable-region-focusable (#${await fields.getAttribute('id')})`
-        expect((await violations(page)).filter((v) => v !== typeahead)).toEqual([])
+        const list = async (name: string | RegExp) => {
+          const el = page.getByRole('listbox', { name })
+          await expect(el).toBeVisible()
+          return `serious: scrollable-region-focusable (#${await el.getAttribute('id')})`
+        }
+        await page.keyboard.press('f')
+        const first = await list('Filter by a field, a dimension or a value')
+        expect((await violations(page)).filter((v) => v !== first)).toEqual([])
+        await page.keyboard.type('nor')
+        await expect(page.getByRole('option', { name: /^Norway/ })).toBeVisible()
+        expect((await violations(page)).filter((v) => v !== first)).toEqual([])
         await page.keyboard.press('Escape')
-        await page.getByRole('button', { name: /^Value is Norway\./ }).click()
-        const values = page.getByRole('listbox', { name: 'Values to choose from' })
-        await expect(values).toBeVisible()
-        const editor = `serious: scrollable-region-focusable (#${await values.getAttribute('id')})`
-        expect((await violations(page)).filter((v) => v !== editor)).toEqual([])
+        await page.getByRole('button', { name: /^Market is Norway\./ }).click()
+        const values = await list('Search the values of Market')
+        expect((await violations(page)).filter((v) => v !== values)).toEqual([])
       })
 
       test("Overview's chart: days selected from the keys, on a part of a bar", async ({

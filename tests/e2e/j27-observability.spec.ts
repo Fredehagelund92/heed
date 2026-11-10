@@ -64,13 +64,13 @@ test('it opens on Overview, and old links to Overview, Questions and Summary lan
     new RegExp(`/observability\\?range=30&domain=${domainId('marketing')}$`),
   )
   await expect(page.getByRole('radio', { name: '30 days' })).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByText('Domain is Marketing')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Domain is Marketing\./ })).toBeVisible()
   // Questions' old address opens the same page at its topics, with its filters, and Overview lit.
   await go(page, '/observability/questions?answer=missing&group=none')
   await expect(page).toHaveURL(/\/observability\/questions\?answer=missing&group=none$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
   await expect(sidebar.getByRole('link', { name: /^Overview/ })).toHaveAttribute('data-active')
-  await expect(page.getByText('Answer is Not found')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Answer is Not found\./ })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Topics' })).toBeInViewport()
   // The Summary's own period goes; the domain stays.
   await go(page, `/observability/summary?period=quarter&domain=${domainId('marketing')}`)
@@ -164,7 +164,7 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await page.getByRole('radio', { name: '7 days' }).click()
   await page.getByRole('link', { name: /^Not found/ }).click()
   await expect(page).toHaveURL(/\/observability\?answer=missing$/)
-  await expect(page.getByText('Answer is Not found')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Answer is Not found\./ })).toBeVisible()
   await expect(asked).toContainText(/in \d+ topics/)
   await expect(asked).not.toContainText('About the same')
   const chart = page.locator('table').filter({ hasText: 'Questions per day' })
@@ -188,7 +188,7 @@ test('Overview: one filter moves the numbers, the chart and the topics together'
     .getByRole('checkbox', { name: 'Marketing' })
     .click()
   await expect(page).toHaveURL(new RegExp(`domain=${domainId('marketing')}`))
-  await expect(page.getByText('Domain is Marketing')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Domain is Marketing\./ })).toBeVisible()
   await expect(cell(page, 'Asked')).not.toContainText('142')
   expect(await page.locator('tbody [data-row-open]').count()).toBeLessThan(topics)
   // The kinds of agent, with how often each asked: a kind, never a person.
@@ -225,7 +225,7 @@ test("Overview: nothing connected, too few to show, and an owner's own domain", 
   await expect(page.getByText('You see the domains you own.')).toBeVisible()
   await expect(cell(page, 'Asked')).toContainText('24')
   // An owner's domain is theirs, not a filter to take off; the kinds of agent are for admins.
-  await expect(page.getByText('Domain is Marketing')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Domain is Marketing\./ })).toHaveCount(0)
   const facets = page.getByRole('complementary', { name: 'Facets' })
   await expect(facets.getByRole('region', { name: 'Answer' })).toBeVisible()
   await expect(facets.getByRole('region', { name: 'Domain' })).toHaveCount(0)

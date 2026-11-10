@@ -10,18 +10,25 @@ import {
   type TopicGroup,
 } from '@/model/observability'
 import type { Domains } from '@/model/people'
+import type { ObsFilter } from '@domain/obs-filters'
 import { matches } from '@/lib/list'
 import {
+  ANY,
   chipOf,
   FILTER_WORDS,
   GAP_WORDS,
+  isDim,
+  MAX_CHIPS,
   readDomain,
   REPORTED_WORDS,
   type Chip,
+  type DimKey,
+  type FieldKey,
   type FilterKey,
   type Filters,
   type Gap,
 } from '@/lib/obs-chips'
+import { nameOf } from '@/lib/obs-names'
 
 export * from '@/lib/obs-chips'
 
@@ -72,7 +79,7 @@ const answered = (t: Topic, s: string) =>
   t.in.answers.includes(s as Shown) || (s === 'missing' && t.in.notFound)
 
 /** The one value a topic has for a field, as the address writes it; none for a field it lacks. */
-export function valueOf(t: Topic, key: FilterKey): string | undefined {
+export function valueOf(t: Topic, key: FieldKey): string | undefined {
   switch (key) {
     case 'domain':
       return t.domain
@@ -91,9 +98,22 @@ export function valueOf(t: Topic, key: FilterKey): string | undefined {
   }
 }
 
-/** Whether a topic has one of the values: an answer state as far as it shows, or its own value. */
+/** Whether a topic names a dimension at all: one of its values, or the dimension with none. */
+export const namesDimension = (t: Topic, key: DimKey) =>
+  t.values.some((v) => v.dimension === key) || t.dimensions.some((d) => d.dimension === key)
+
+/**
+ * Whether a topic has one of the values: an answer state as far as it shows, a value of a
+ * dimension by its key or any value of it, or its own value of a field.
+ */
 export const hasValue = (t: Topic, key: FilterKey, v: string) =>
-  key === 'answer' ? answered(t, v) : valueOf(t, key) === v
+  isDim(key)
+    ? v === ANY
+      ? namesDimension(t, key)
+      : t.values.some((x) => x.value === v)
+    : key === 'answer'
+      ? answered(t, v)
+      : valueOf(t, key) === v
 
 /**
  * Whether a topic passes the chips, all but `skip` (a facet counts without its own filter). The
@@ -117,15 +137,30 @@ export const narrowed = (chips: Filters, view: string) =>
   view !== 'all' ||
   chips.some((c) => c.key !== 'agent' && !(c.key === 'domain' && readDomain(chips)))
 
-/** How a chip matches, in words: "is", "is any of", "is not", "is none of", "has". */
+/** A field's name, or a dimension's, as the bar says it. */
+export const keyWords = (key: FilterKey) => (isDim(key) ? nameOf(key) : FILTER_WORDS[key])
+
+/** Whether a chip is a dimension's any value: "Store has any value", "Store has no value". */
+export const anyValue = (c: Chip) => isDim(c.key) && c.values[0] === ANY
+
+/**
+ * How a chip matches, in words: "is", "is any of", "is not", "is none of"; "has" for a topic's
+ * words and a dimension's any value, "has no" for none of it.
+ */
 export function opWords(c: Chip) {
   if (c.key === 'topic') return 'has'
+  if (anyValue(c)) return c.not ? 'has no' : 'has'
   if (c.not) return c.values.length > 1 ? 'is none of' : 'is not'
   return c.values.length > 1 ? 'is any of' : 'is'
 }
 
+/** A chip's values in words: their names, or "any value" and "value" after "has no". */
+export const chipValueWords = (c: Chip, words: (key: FilterKey, v: string) => string) =>
+  anyValue(c) ? (c.not ? 'value' : 'any value') : c.values.map((v) => words(c.key, v))
+
 /** A value as people read it. */
 export function valueWords(key: FilterKey, v: string, domains: Domains) {
+  if (isDim(key)) return v === ANY ? 'Any value' : nameOf(v)
   switch (key) {
     case 'answer':
       return STATE_WORDS[v as Shown] ?? v
@@ -144,10 +179,11 @@ export function valueWords(key: FilterKey, v: string, domains: Domains) {
   }
 }
 
-/** A chip read as a sentence: "Answer is any of Not found, Partial". */
+/** A chip read as a sentence: "Answer is any of Not found, Partial", "Store has any value". */
 export function chipSentence(c: Chip, domains: Domains) {
-  const values = c.values.map((v) => valueWords(c.key, v, domains))
-  return `${FILTER_WORDS[c.key]} ${opWords(c)} ${values.join(c.key === 'topic' ? ' and ' : ', ')}`
+  const values = chipValueWords(c, (k, v) => valueWords(k, v, domains))
+  const said = typeof values === 'string' ? values : values.join(c.key === 'topic' ? ' and ' : ', ')
+  return `${keyWords(c.key)} ${opWords(c)} ${said}`
 }
 
 /** The chips read back as sentences, the way Context and Definitions say theirs. */
@@ -156,20 +192,28 @@ export const sentence = (chips: Filters, domains: Domains) =>
 
 /* ---------- changing the chips ---------- */
 
-/** The chips with one field's values set: none takes the chip off; a new chip goes last. */
+/**
+ * The chips with one field's values set: none takes the chip off; a new chip goes last, unless
+ * the filters hold as many chips as they keep already.
+ */
 export function withValues(chips: Filters, key: FilterKey, values: string[], not?: boolean) {
   const at = chips.findIndex((c) => c.key === key)
   if (!values.length) return chips.filter((c) => c.key !== key)
   const was = chips[at]
   const chip: Chip = { key, values, ...((not ?? was?.not) ? { not: true } : {}) }
-  if (at < 0) return [...chips, chip]
+  if (at < 0) return chips.length < MAX_CHIPS ? [...chips, chip] : chips
   return chips.map((c, i) => (i === at ? chip : c))
 }
 
-/** One value on or off in a field's chip, keeping how it matches. */
+/**
+ * One value on or off in a field's chip, keeping how it matches. A dimension's any value takes
+ * the place of its values, and a value the place of any value.
+ */
 export function toggled(chips: Filters, key: FilterKey, v: string) {
   const c = chipOf(chips, key)
-  const values = c?.values ?? []
+  let values = c?.values ?? []
+  if (isDim(key))
+    values = v === ANY ? values.filter((x) => x === ANY) : values.filter((x) => x !== ANY)
   return withValues(chips, key, values.includes(v) ? values.filter((x) => x !== v) : [...values, v])
 }
 
@@ -182,6 +226,103 @@ export function moved(chips: Filters, key: FilterKey, to: number) {
   const out = chips.filter((c) => c.key !== key)
   out.splice(index, 0, chips[from]!)
   return out
+}
+
+/* ---------- the filters as the service takes them ---------- */
+
+/** The built-in views that are one field's filter, as the service takes them. */
+const VIEW_FILTERS: Record<string, ObsFilter> = {
+  disagree: { key: 'answer', values: ['conflict'] },
+  stale: { key: 'answer', values: ['stale'] },
+  reported: { key: 'reported', values: ['yes'] },
+}
+
+/**
+ * The chips and the view as the service's filters take them, for its counts of dimensions and
+ * values, and in words what it cannot take (`left`): a topic's words, an old Value chip, and a
+ * view that is not one field's filter. A metric's name becomes its keys, from the topics that have
+ * it. The domain the service reads and the kind of agent are its view already.
+ */
+export function wireFilters(
+  chips: Filters,
+  view: { id: string; name: string },
+  topics: readonly Topic[],
+  domains: Domains,
+): { filters: ObsFilter[]; left: string[] } {
+  const filters: ObsFilter[] = []
+  const left: string[] = []
+  const domain = readDomain(chips)
+  for (const c of chips) {
+    if (c.key === 'agent' || (c.key === 'domain' && domain)) continue
+    if (c.key === 'topic' || c.key === 'market') {
+      left.push(chipSentence(c, domains))
+      continue
+    }
+    if (c.key === 'metric') {
+      const keys = [
+        ...new Set(topics.filter((t) => c.values.includes(t.metric)).flatMap((t) => t.metrics)),
+      ]
+      if (keys.length)
+        filters.push({ key: 'metric', ...(c.not ? { not: true } : {}), values: keys })
+      else if (!c.not) left.push(chipSentence(c, domains))
+      continue
+    }
+    filters.push({ key: c.key, ...(c.not ? { not: true } : {}), values: c.values })
+  }
+  const own = VIEW_FILTERS[view.id]
+  if (own && !filters.some((f) => f.key === own.key)) filters.push(own)
+  else if (view.id !== 'all' && !chipsView(view.id)) left.push(`the view ${view.name}`)
+  return { filters, left }
+}
+
+/** Whether a view is one of the workspace's saved ones: its chips are in the address already. */
+const chipsView = (id: string) => !BUILT_IN.some((v) => v.id === id)
+
+/**
+ * An old Value chip ("market=Norway", by name) as a dimension's chip, when each of its names is
+ * one value, all of one dimension, among the topics: by their keys. Otherwise it stays as it was,
+ * and `why` says why: a name that two values share is never merged into one of them.
+ */
+export function fromLegacy(
+  chips: Filters,
+  topics: readonly Topic[],
+): { chips: Filters; why?: string } {
+  const c = chipOf(chips, 'market')
+  if (!c) return { chips }
+  const keysOf = (name: string) => [
+    ...new Map(
+      topics
+        .flatMap((t) => t.values)
+        .filter((v) => v.name === name)
+        .map((v) => [v.value, v]),
+    ).values(),
+  ]
+  const found = c.values.map((name) => ({ name, keys: keysOf(name) }))
+  const shared = found.find((f) => f.keys.length > 1)
+  if (shared) {
+    const dims = [...new Set(shared.keys.map((k) => k.dimension))].map(nameOf)
+    return {
+      chips,
+      why:
+        dims.length > 1
+          ? `${shared.name} is a value of ${dims.length} dimensions: ${dims.join(', ')}. Choose one in the filter.`
+          : `${shared.name} names ${shared.keys.length} values of ${dims[0]}. Choose one in the filter.`,
+    }
+  }
+  const missing = found.find((f) => !f.keys.length)
+  if (missing) return { chips, why: `No topic in this range asked about ${missing.name}.` }
+  const dims = new Set(found.map((f) => f.keys[0]!.dimension))
+  if (dims.size > 1)
+    return { chips, why: 'Its values are of different dimensions. Choose each in the filter.' }
+  const key = [...dims][0] as DimKey
+  if (!isDim(key) || chipOf(chips, key))
+    return { chips, why: `${nameOf(key)} is filtered already. Choose its values there.` }
+  const chip: Chip = {
+    key,
+    ...(c.not ? { not: true } : {}),
+    values: found.map((f) => f.keys[0]!.value),
+  }
+  return { chips: chips.map((x) => (x === c ? chip : x)) }
 }
 
 /* ---------- facets: each value with what it counts ---------- */
