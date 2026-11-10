@@ -41,6 +41,7 @@ test('add chips from the picker, change one, move them, and take them off', asyn
 
   // A field first, then its value, by the arrows and Space; it applies at once.
   await page.keyboard.press('f')
+  await expect(picker(page)).toBeFocused()
   await page.keyboard.type('answer')
   await page.keyboard.press('Enter')
   await expect(page.getByRole('combobox', { name: 'Search the values of Answer' })).toBeFocused()
@@ -114,6 +115,7 @@ test('add chips from the picker, change one, move them, and take them off', asyn
 
   // Backspace in the picker's empty first step takes the last chip off; Back puts it on again.
   await page.getByRole('button', { name: 'Filter', exact: true }).click()
+  await expect(picker(page)).toBeFocused()
   await page.keyboard.press('Backspace')
   await expect(page).not.toHaveURL(/answer=/)
   await expect(page.getByText(/^Removed the filter Answer is Not found$/)).toBeAttached()
