@@ -82,11 +82,11 @@ A connector that cannot read a folder stops the service at start. A folder that 
 
 ## The product
 
-| Setting              | Default | What it does                                                                                                                                |
-| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                     |
-| `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built |
-| `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                        |
-| `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. Refused in production                                                                           |
+| Setting              | Default | What it does                                                                                                                                               |
+| -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                                    |
+| `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built                |
+| `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                                       |
+| `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. A day in the past is kept whole: Ask's records read it as ending at the end of that day. Refused in production |
 
 Report a problem opens a mail in the person's own mail app, or an issue on GitHub when `HEED_SUPPORT_EMAIL` is unset, and sends nothing through the service. An issue leaves out the install's address.
