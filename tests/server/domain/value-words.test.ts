@@ -4,7 +4,7 @@ import { planBundle, PLAN_TODAY } from '../../../src/server/modules/answer/plan-
 
 /*
   A word after "in" that names nothing, on the Larchwood names (the plan world): asked about only
-  when it looks like a value (a typo of one, or one word that ends what it says), never when it
+  when it looks like a value (a typo of one, or one capitalised word that ends what it says, in Ask only), never when it
   is an ordinary word. The phrasings are those an independent check of PR 180 found read as an
   unknown value (2026-11-10), and the ones it found right. DEMO DATA ONLY.
 */
@@ -34,6 +34,11 @@ describe('a value word after "in"', () => {
     'orders in practice',
     'net revenue in euros',
     'orders in short',
+    'revenue in gbp',
+    'orders in bulk',
+    'discount cost in cash',
+    'anything written about orders in jordan?',
+    'orders in oslo',
   ])('reads "%s" as main does: an ordinary word is no value', (question) => {
     expect(asked(question)).toEqual([])
   })
@@ -48,6 +53,16 @@ describe('a value word after "in"', () => {
     )
   })
 
+  it.each([
+    'anything written about orders in Jordan?',
+    'orders in Norwy last month',
+    'net revenue in local currency',
+    'orders in gbp',
+  ])('reads "%s" as main does when an agent asks: no issue', (question) => {
+    const r = extractScope(question, planBundle.terms, PLAN_TODAY)
+    expect(r.status).toBe('resolved')
+  })
+
   it('still reads "orders in online channel" as the Channel dimension', () => {
     expect(read('orders in online channel')).toMatchObject({
       status: 'resolved',
@@ -56,8 +71,8 @@ describe('a value word after "in"', () => {
   })
 
   it.each([
-    ['anything written about orders in jordan?', /named 'jordan'\.$/],
-    ['orders in oslo', /named 'oslo'\.$/],
+    ['anything written about orders in Jordan?', /named 'Jordan'\.$/],
+    ['orders in Oslo', /named 'Oslo'\.$/],
     ['orders in Norwy last month', /named 'Norwy'\. Did you mean Norway\?$/],
     // A typo of a value is the value's word alone, not the words after it.
     ['do orders in germnay lag 2 days or what', /named 'germnay'\. Did you mean Germany\?$/],

@@ -418,19 +418,23 @@ describe('scope extraction', () => {
     const today = '2026-10-23'
 
     it('asks about it, by the dimensions of the view the metric is in, never reading every value', () => {
-      expect(extractScope('anything on tickets closed in payroll?', desk, today)).toEqual({
+      expect(
+        extractScope('anything on tickets closed in Payroll?', desk, today, { loose: true }),
+      ).toEqual({
         status: 'need_more_detail',
         issues: [
           {
             field: 'dim:team',
-            input: 'payroll',
+            input: 'Payroll',
             options: ['val:team/billing', 'val:team/platform'],
-            message: "There is no value of Team named 'payroll'.",
+            message: "There is no value of Team named 'Payroll'.",
           },
         ],
       })
       // A typo is suggested, never chosen.
-      expect(extractScope('tickets closed in Billng last week', desk, today)).toMatchObject({
+      expect(
+        extractScope('tickets closed in Billng last week', desk, today, { loose: true }),
+      ).toMatchObject({
         issues: [
           {
             input: 'Billng',
@@ -443,11 +447,27 @@ describe('scope extraction', () => {
         'resolved',
       )
       // With no metric to say which view, every dimension with values.
-      expect(extractScope('Billing in payroll', desk, today)).toMatchObject({
+      expect(extractScope('Billing in Payroll', desk, today, { loose: true })).toMatchObject({
         issues: [
-          { field: 'values', message: "There is no value of Team or Region named 'payroll'." },
+          { field: 'values', message: "There is no value of Team or Region named 'Payroll'." },
         ],
       })
+    })
+
+    it('reads as before without loose, as an agent asks: the word is dropped', () => {
+      expect(extractScope('anything on tickets closed in Payroll?', desk, today)).toMatchObject({
+        status: 'resolved',
+        scope: { metrics: ['metric:tickets_closed'] },
+      })
+      expect(extractScope('tickets closed in Billng last week', desk, today).status).toBe(
+        'resolved',
+      )
+    })
+
+    it('leaves a lowercase word that is no typo alone, even in Ask', () => {
+      expect(
+        extractScope('anything on tickets closed in payroll?', desk, today, { loose: true }),
+      ).toMatchObject({ status: 'resolved', scope: { metrics: ['metric:tickets_closed'] } })
     })
 
     it('reads known values, dates and words that say how or when as before', () => {

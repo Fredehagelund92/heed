@@ -133,10 +133,12 @@ function oneTypoApart(a: string, b: string): boolean {
 
 /**
  * A word after "in" that follows a name the question names, names nothing Heed knows, and looks
- * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word that
- * ends what the question says ("orders in jordan?", "orders in oslo last month") and is no plural
+ * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word the
+ * person wrote capitalised that ends what the question says ("orders in Jordan?", "orders in Oslo
+ * last month") and is no plural
  * ("stores"), nor the name of the product or of a tool a definition comes from ("cube"). An ordinary
- * word ("in local currency", "in relative terms") is no value, and the question reads as before.
+ * word ("in local currency", "in relative terms", "in gbp") is no value, and the question reads as before.
+ * A lowercase "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before.
  * Each is where it is in the normalised text, with the values it is a typo of.
  */
 function unknownValuesAfterIn(
@@ -145,6 +147,7 @@ function unknownValuesAfterIn(
   dated: ReadonlySet<number>,
   terms: readonly Term[],
   values: readonly Term[],
+  capitalised: (span: DateSpan) => boolean,
 ): (DateSpan & { typoOf: string[] })[] {
   const found: (DateSpan & { typoOf: string[] })[] = []
   const tools = new Set(
@@ -167,6 +170,7 @@ function unknownValuesAfterIn(
       (next !== undefined && nonValueWords.has(next))
     const nameLike =
       ends &&
+      capitalised({ start, end }) &&
       word.length >= 3 &&
       /^\p{L}+$/u.test(word) &&
       !word.endsWith('s') &&
@@ -454,8 +458,11 @@ export function extractScope(
   const values = terms.filter(
     (term) => term.kind === 'dimension_value' && dimensions.some((d) => d.key === term.parentKey),
   )
-  if (structured.filters === undefined && dimensions.length)
-    for (const span of unknownValuesAfterIn(text, occupied, dated, terms, values)) {
+  if (structured.loose && structured.filters === undefined && dimensions.length)
+    for (const span of unknownValuesAfterIn(text, occupied, dated, terms, values, (span) => {
+      const written = found.written(span)
+      return /^\p{Lu}/u.test(question.slice(written.start, written.end))
+    })) {
       // The words as the person wrote them: "Jordan", not "jordan".
       const written = found.written(span)
       const value = question.slice(written.start, written.end)

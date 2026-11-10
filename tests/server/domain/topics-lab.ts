@@ -433,9 +433,8 @@ export const phrasings: Phrasing[] = [
   {
     kind: 'typo',
     question: 'Orders in Norwy last month',
-    // A value word after "in" that names nothing is asked about, never dropped (2026-11-10).
-    topic: null,
-    state: 'missing',
+    topic: 'area_sales|metric:orders||2026-09',
+    state: 'partial',
   },
   {
     kind: 'typo',

@@ -181,10 +181,10 @@ describe("Ask's loop on the rules' gaps (the retrieval test, 2026-11-10)", () =>
 
   it('reads a value it does not know as unread: Not found, and no other value cited', async () => {
     const a = await asked(
-      'anything written about orders in jordan?',
+      'anything written about orders in Jordan?',
       [
-        { toolName: 'get_context', input: { about: 'orders in jordan' } },
-        { toolName: 'find_context', input: { words: 'orders jordan' } },
+        { toolName: 'get_context', input: { about: 'orders in Jordan' } },
+        { toolName: 'find_context', input: { words: 'orders Jordan' } },
       ],
       // The search matches only "orders": the model cites an item about another market anyway.
       (results) => `Orders has items [${itemsOf(results[1]!.value)[0]!.id}].`,
@@ -192,12 +192,12 @@ describe("Ask's loop on the rules' gaps (the retrieval test, 2026-11-10)", () =>
     expect(a.state).toBe('missing')
     expect(a.sources).toEqual([])
     expect(a.read?.[0]).toBe(
-      "Looked up “orders in jordan”: nothing applies. There is no value of Market named 'jordan'.",
+      "Looked up “orders in Jordan”: nothing applies. There is no value of Market named 'Jordan'.",
     )
     // As the mock's own reader asks it too: never Orders in every market.
     const plain = await (
       await world.as(ML)
-    ).ask({ question: 'anything written about orders in jordan?' })
+    ).ask({ question: 'anything written about orders in Jordan?' })
     expect(plain.state).not.toBe('conflict')
     expect(plain.sources).toEqual([])
   })
