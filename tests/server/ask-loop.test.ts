@@ -362,7 +362,7 @@ describe("Ask's loop on a scripted model", () => {
 
   it('stops at its step limit, the last step with no reads, and shows only a fixed sentence', async () => {
     const reads: boolean[] = []
-    const { turn } = await turnWith(
+    const { turn, errors } = await turnWith(
       ({ canRead }) => {
         reads.push(canRead)
         // A model that keeps reading, even when told it may not.
@@ -372,6 +372,7 @@ describe("Ask's loop on a scripted model", () => {
     )
     expect(reads).toEqual([true, true, false])
     expect(turn).toMatchObject({ kind: 'stopped', stopped: 'steps', sources: [], state: null })
+    expect(errors).toEqual([])
     expect(turn.read.length).toBeGreaterThan(0)
     expect(turn.read.join(' ')).toContain('Searched')
     expect(turn.reads).toEqual([])
