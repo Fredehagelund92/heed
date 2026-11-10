@@ -989,7 +989,9 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
      * The filter's second step (FR-620): one dimension's values asked about in the view's range, a
      * page of 50, the most asked first or A to Z, each counted over the topics that pass every
      * filter but the dimension's own; or, without a dimension, the words searched in every one.
-     * Only values of the definitions are listed, so a dimension with none has "any value" alone.
+     * The values of the definitions and any other a topic of the range names are listed, so a
+     * dimension with none has "any value" alone. In a quiet or empty range only the definitions'
+     * dimensions are known: a dimension only a topic names is 404 there.
      */
     async values(input: ObsValuesInput): Promise<ObsValues> {
       const r = await rangeView(input)

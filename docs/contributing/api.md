@@ -891,7 +891,7 @@ over its months) found nothing at least the minimum times.
   days, a week each for 90, counted back from the last day), every topic of the range in the
   domains the reader sees (its metric and month as the definitions name them, its `values`, each
   `{ dimension, value, name }` such as `{ dimension: "dim:market", value: "val:market/norway",
-name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, name }` for
+  name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, name }` for
   "Orders by channel", its counts, which views it is in, and what waits for its gap in the Inbox:
   the draft written from it, a suggestion, or nothing yet), the subjects (a topic over its months)
   and the domains, `notFound` (what found nothing at least the minimum times in the last 7 days,
@@ -899,7 +899,9 @@ name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, nam
   domain: an administrator's whole view only), what was published in the range, and the kinds of
   agent that asked (administrators only). `filters` narrows the topics and the subjects to those
   that pass every filter (see below), and `narrowed` says what they add up to; without filters it
-  is null. The numbers, the chart, the domains and `notFound` stay the view's own.
+  is null. The numbers, the chart, the domains and `notFound` stay the view's own. A kept subject
+  still names the topics of all its months, some not in `topics`: read a filtered view's sums from
+  `narrowed`, never add them up from `topics`.
 - Filters, on `GET /observability/agents`, `/dimensions` and `/values`: up to 20, one per field or
   dimension, sent as `filters[0][key]=dim:channel&filters[0][values][0]=val:channel/webshop`
   (`filters[0][not]=true` for "is not"). A filter is on a dimension, with the keys of that
@@ -911,8 +913,8 @@ name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, nam
   dimension like any other.
 - `GET /observability/dimensions` (the filter's first step): `range`, `areaId`, `agent` and
   `filters`, as above. Every dimension of the definitions, and any other a topic of the range
-  names, with `values`, how many values the definitions give it (none: it is filtered by "any
-  value" alone), and `asked`: the topics of the range that name it and pass every filter but its
+  names, with `values`, how many values it has, the definitions' and any other a topic of the range
+  names (none: it is filtered by "any value" alone), and `asked`: the topics of the range that name it and pass every filter but its
   own, so its other values stay in sight, with what was asked about them. The most asked first,
   then A to Z; `asked` is null unless the range is counted (`state` `normal`).
 - `GET /observability/values` (the filter's second step): the same, with `dimension` for one
@@ -923,8 +925,9 @@ name: "Norway" }`, the `dimensions` it names with no value, as `{ dimension, nam
   page of 50 dimensions. Each group carries its `asked` for any value, `matched` (how many values
   asked about in the range match, on every page) and `notAsked` (values of the definitions that
   match but were not asked about in the range); `notAsked` beside the groups counts them in every
-  dimension. Only values of the definitions, and values a topic of the range names, are listed. A
-  `dimension` that is neither is 404.
+  dimension. Values of the definitions and any other a topic of the range names are listed. In a
+  quiet or empty range only the definitions' dimensions are known, so a `dimension` only a topic
+  names is 404 there, as one that is neither.
 - The filters' counts (`narrowed`, and `asked` on `/dimensions` and `/values`) are never counted
   on their own: each is what the topics' shown counts add up to after the view's one disclosure
   pass, from a whole domain's total, a whole subject's or each topic's, and `total` is null with

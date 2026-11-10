@@ -167,12 +167,17 @@ export const obsAgentsSchema = z.object({
   bars: z.array(z.object({ start: day, days: z.number(), counts: shownCounts })),
   /** The topics of the range in the domains the reader sees, those that pass the filters. */
   topics: z.array(obsTopicSchema),
-  /** The subjects of those topics, each counted over all its months. */
+  /**
+   * The subjects of those topics, each counted over all its months. With filters a kept subject
+   * still names the topics of all its months, some of which are not in `topics`: read a filtered
+   * view's sums from `narrowed`, never add them up from `topics`.
+   */
   subjects: z.array(obsSubjectSchema),
   domains: z.array(z.object({ areaId: z.nullable(areaId), total: shown, atLeast: z.number() })),
   /**
    * With filters: what the topics that pass them add up to, from shown counts alone (a whole
-   * domain's total, a whole subject's, else each topic's), never a count of its own.
+   * domain's total, a whole subject's, else each topic's), never a count of its own. It is where a
+   * filtered view's sums are read; adding up `topics` with whole totals would count too much.
    */
   narrowed: z.nullable(
     z.object({
@@ -221,8 +226,9 @@ const viewHead = {
 export const obsDimensionsSchema = z.object({
   ...viewHead,
   /**
-   * Every dimension of the definitions, the most asked about in the range first, then A to Z:
-   * how many values it has (none: "any value" alone), and the topics that name it and pass every
+   * Every dimension of the definitions and any other a topic of the range names, the most asked
+   * about in the range first, then A to Z: how many values it has, the definitions' and any other
+   * a topic names (none: "any value" alone), and the topics that name it and pass every
    * filter but its own, with what was asked about them; null unless the range is counted.
    */
   dimensions: z.array(

@@ -334,8 +334,8 @@ describe('the filter by dimension (obs.dimensions, obs.values)', () => {
     const narrow = await market([webshop])
     expect(narrow.total).toBe(20)
     // A total with and without the filter is never 1 to 4 apart.
-    if (whole.total !== null)
-      expect(whole.total - narrow.total! === 0 || whole.total - narrow.total! >= 5).toBe(true)
+    expect(whole.total).toBeNull()
+    expect(whole.atLeast).toBeGreaterThanOrEqual(narrow.total!)
   })
 
   it('lists every dimension, the most asked first, each counted without its own filter', async () => {
