@@ -1093,6 +1093,8 @@ const recordsOutput = z.object({
       domainId: z.string(),
       about: z.array(z.string()),
       status: z.string(),
+      /** Why it is due for a check, when it is. */
+      why: z.nullable(z.string()),
       published: z.nullable(z.string()),
       changed: z.nullable(z.string()),
       lastChecked: z.nullable(z.string()),

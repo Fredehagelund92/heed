@@ -1802,7 +1802,7 @@
           "about": ["metric:returns", "value:market/norway"],
           "status": "due",
           "checked": "2026-07-02",
-          "outOfDate": "its check date passed on 2026-10-02",
+          "outOfDate": "its check date passed on 2 Oct 2026",
           "n": 1
         },
         {
@@ -1813,7 +1813,7 @@
           "about": ["metric:gross_margin", "value:market/spain"],
           "status": "due",
           "checked": "2026-09-30",
-          "outOfDate": "its check date passed on 2027-03-01",
+          "outOfDate": "its definition changed",
           "n": 2
         },
         {
@@ -1824,7 +1824,7 @@
           "about": ["metric:discount_cost", "value:market/italy"],
           "status": "due",
           "checked": "2026-06-20",
-          "outOfDate": "its check date passed on 2026-09-18",
+          "outOfDate": "its check date passed on 18 Sep 2026",
           "n": 3
         }
       ],
@@ -2060,7 +2060,7 @@
           "about": ["metric:returns", "value:market/norway"],
           "status": "due",
           "checked": "2026-07-02",
-          "outOfDate": "its check date passed on 2026-10-02",
+          "outOfDate": "its check date passed on 2 Oct 2026",
           "n": 1
         },
         {
@@ -2071,7 +2071,7 @@
           "about": ["metric:gross_margin", "value:market/spain"],
           "status": "due",
           "checked": "2026-09-30",
-          "outOfDate": "its check date passed on 2027-03-01",
+          "outOfDate": "its definition changed",
           "n": 2
         },
         {

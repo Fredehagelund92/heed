@@ -244,6 +244,25 @@ describe("Ask's loop answer, state by state", () => {
     expect(cited.length).toBeGreaterThan(first.length)
   })
 
+  it("An overview code drew in the model's place: the model's lead line first, then the total", () => {
+    const turn = example('loop-overview')
+    const lead: LoopTurn['body'] = [
+      {
+        t: 'p',
+        runs: [
+          { t: 'text', text: 'Your Inbox holds ' },
+          { t: 'count', value: '20', of: null },
+          { t: 'text', text: ' cards.' },
+        ],
+      },
+    ]
+    const el = render({ ...turn, body: lead }, 'what do i need to handle?')
+    const words = text(el.querySelector('[data-answer-words]')!)
+    expect(words.startsWith('Your Inbox holds 20 cards.')).toBe(true)
+    expect(words.indexOf('cards wait on you in your Inbox')).toBeGreaterThan(0)
+    expect(el.querySelectorAll('[data-answer-words]')).toHaveLength(1)
+  })
+
   it('An overview of the records: by status, what needs a check first', () => {
     const el = render(example('loop-overview-domain'))
     expect(el.querySelector('h3')?.textContent).toMatch(/^due for a check/)
