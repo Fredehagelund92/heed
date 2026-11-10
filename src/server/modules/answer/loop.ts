@@ -3,6 +3,7 @@ import {
   isStepCount,
   streamText,
   tool,
+  ToolChoiceViolationError,
   type ModelMessage,
   type StopCondition,
   type Tool,
@@ -599,6 +600,8 @@ export async function* askLoop(
     if (deps.signal?.aborted) return
     if (error instanceof SpendLimitStop) yield stopped('spending', error.stop)
     else if (timeout.aborted) yield stopped('time')
+    // The last step may not read; a model that reads anyway has reached the step limit.
+    else if (ToolChoiceViolationError.isInstance(error)) yield stopped('steps')
     else {
       deps.onError?.(error)
       yield stopped('model')
