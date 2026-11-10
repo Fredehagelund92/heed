@@ -94,6 +94,12 @@ describe('the code graders', () => {
       '6',
     ])
     expect(ungroundedNumbers(reply('Today is 23 October 2026.'), ctx)).toEqual([])
+    // A span of years written short is its first year: "2025–26" is no 26.
+    const winter = { evidence: ['It applied from 3 August 2025 to 5 June 2026.'] }
+    expect(ungroundedNumbers(reply('It covers the winter of 2025–26.', winter), ctx)).toEqual([])
+    expect(ungroundedNumbers(reply('It covers the winter of 2024–25.', winter), ctx)).toEqual([
+      '2024',
+    ])
     expect(
       ungroundedNumbers(reply('There are 9 of them.', { evidence: ['9 context items'] }), ctx),
     ).toEqual([])

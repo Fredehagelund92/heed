@@ -626,6 +626,7 @@ export const metrics: Metric[] = [
   },
   {
     name: 'Discount cost',
+    otherNames: ['Discounts'],
     group: 'Marketing',
     domain: 'marketing',
     facts: 3,

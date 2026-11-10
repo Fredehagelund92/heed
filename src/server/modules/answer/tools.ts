@@ -7,7 +7,7 @@ import { nounId, termKeyOf } from '../../../domain/ask-nouns.ts'
 import { windowWords } from '../../../domain/dates.ts'
 import { kindFilters } from '../../../domain/mcp-text.ts'
 import { anyDate, isCalendarDate, shiftDate } from '../../../domain/validity.ts'
-import { namesOf, normalizeName } from '../../../domain/vocabulary.ts'
+import { namesOf, normalizeName, phrasesIn } from '../../../domain/vocabulary.ts'
 import type { ResolvedScope } from '../../../domain/scope.ts'
 import { productName } from '../../brand.ts'
 import { closest, quoted } from '../../mcp/outcomes.ts'
@@ -605,6 +605,8 @@ const readSchema = z.object({
   assumedToday: z.boolean(),
   /** How the words' dates were read, when they named some. */
   datesRead: z.nullable(z.string()),
+  /** The words read only by a synonym someone wrote in Definitions, and what each was read as. */
+  synonyms: z.array(z.object({ word: z.string(), name: z.string() })).optional(),
 })
 const getOutput = z.object({
   /** The answer state (FR-349), by code from what applies; null when the words could not be read. */
@@ -641,7 +643,14 @@ const getOutput = z.object({
   searched: z.array(searchedSchema),
   widened: widenedSchema,
   outOf: outOfSchema,
-  unread: z.nullable(z.object({ words: z.array(z.string()), closest: z.array(z.string()) })),
+  unread: z.nullable(
+    z.object({
+      words: z.array(z.string()),
+      closest: z.array(z.string()),
+      /** Why a value word could not be read: "There is no value of Market named 'Jordan'." */
+      why: z.array(z.string()).optional(),
+    }),
+  ),
   nothing: z.nullable(z.string()),
   names: namesSchema,
   ids,
@@ -752,16 +761,19 @@ function getContext(view: View, input: z.output<typeof getInput>, today: string)
   const owners = ownersFor(view, [...metricAreas, ...items.map((i) => byId.get(i.id)?.areaId)])
   const cut = counted.leftOut.filter((l) => l.reason === 'cut').length
   const shownItems = [...items, ...widerItems, ...nearby].flatMap((i) => byId.get(i.id) ?? [])
+  const readWords = searched.at(wider ? 0 : -1)!.words
+  const synonyms = synonymsRead(view, readWords, keysOf(counted))
   return {
     state: counted.state,
     read: scope
       ? {
-          words: searched.at(wider ? 0 : -1)!.words,
+          words: readWords,
           names: keysOf(counted).map((k) => termName(view, k)),
           about: keysOf(counted).map(nounId),
           period: windowWords(scope.window),
           assumedToday: counted.assumed !== null,
           datesRead: counted.dates?.reads_as ?? null,
+          ...(synonyms.length ? { synonyms } : {}),
         }
       : null,
     items,
@@ -781,7 +793,7 @@ function getContext(view: View, input: z.output<typeof getInput>, today: string)
     unread: null,
     nothing: items.length
       ? null
-      : `No context item you may read applies to all of it. ${nothingSaid(searched, view)}`,
+      : `No context item you may read applies to all of it. ${nothingSaid(searched, view)}${synonyms.map((x) => ` "${x.word}" was read as ${x.name} only by a synonym written in Definitions, and may mean something else.`).join('')}`,
     names: itemNames(view, shownItems, {
       terms: [...keysOf(counted), ...(wider ? keysOf(wider) : [])],
       areas: owners.map((o) => o.id.slice('domain:'.length)),
@@ -789,6 +801,25 @@ function getContext(view: View, input: z.output<typeof getInput>, today: string)
     }),
     ids: [...items, ...widerItems].map((i) => i.id).concat(nearby.map((n) => n.id)),
   }
+}
+
+/**
+ * The words read only through a synonym someone wrote in Definitions ("sales" for Net revenue),
+ * and what each was read as: a person's word for a metric or a dimension, not its source's name,
+ * so the read says it rather than reading it silently.
+ */
+function synonymsRead(view: View, words: string, keys: readonly string[]) {
+  const text = normalizeName(words)
+  const written = new Set(view.bundle.written.map((w) => normalizeName(w.name)))
+  return view.bundle.written.flatMap((w) => {
+    if (w.meaning !== null || !w.sameAs || !keys.includes(w.sameAs)) return []
+    const term = view.bundle.terms.find((t) => t.key === w.sameAs)
+    const own = term ? namesOf(term).filter((n) => !written.has(n)) : []
+    const said = phrasesIn(text, [normalizeName(w.name), ...own]).found
+    return said.length && said.every((f) => f.name === normalizeName(w.name))
+      ? [{ word: w.name, name: termName(view, w.sameAs) }]
+      : []
+  })
 }
 
 /** Words that name nothing the person may read: what could not be read, and the closest names. */
@@ -808,6 +839,14 @@ function unreadOf(
     const c = closest(w, shownTerms, (t) => [t.name, ...t.aliases])
     return c ? [c.name] : []
   })
+  // A value word Heed does not know, in words that name a metric: what it is not, said plainly,
+  // only when the person may see every dimension and value the words name.
+  const shownIssue = (i: Answer['issues'][number]) =>
+    (i.field === 'values'
+      ? view.bundle.terms.every((t) => t.kind !== 'dimension' || isShown(view, t.key))
+      : i.field.startsWith('dim:') && isShown(view, i.field)) &&
+    i.options.every((k) => isShown(view, k))
+  const why = issues.flatMap((i) => (i.message && shownIssue(i) ? [i.message] : []))
   const searched: Searched = {
     words: about,
     names: [],
@@ -831,8 +870,12 @@ function unreadOf(
     searched: [searched, ...(tried?.searched.slice(1) ?? [])],
     widened: tried?.widened ?? ('not asked' as const),
     outOf: outOf(view),
-    unread: { words: unknown.length ? unknown : [about], closest: [...new Set(near)] },
-    nothing: `The words "${about}" name no metric, value or date ${productName} knows, so nothing was looked up.${near.length ? ` The closest names are ${list([...new Set(near)])}.` : ''}`,
+    unread: {
+      words: unknown.length ? unknown : [about],
+      closest: [...new Set(near)],
+      ...(why.length ? { why } : {}),
+    },
+    nothing: `${why.length ? `${why.join(' ')} So nothing was looked up, for any value.` : `The words "${about}" name no metric, value or date ${productName} knows, so nothing was looked up.`}${near.length ? ` The closest names are ${list([...new Set(near)])}.` : ''}`,
     names: [],
     ids: [],
   }

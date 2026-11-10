@@ -137,16 +137,18 @@ export function ungroundedNumbers(reply: Reply, ctx: GradeContext): string[] {
       ].join('\n'),
     ),
   )
-  // "Items 6 and 7" names sources by their place, as [6] and [7] do.
-  const places = reply.text.replace(
-    /\bitems? (\d+)((?:,? (?:and |or )?\d+)*)/gi,
-    (all: string, ...[first, rest]: string[]) =>
-      [first, ...(rest ?? '').split(/\D+/)]
-        .filter(Boolean)
-        .every((n) => Number(n) >= 1 && Number(n) <= reply.sources.length)
-        ? ' '
-        : all,
-  )
+  // "Items 6 and 7" names sources by their place, as [6] and [7] do; "2025–26" is a span of years.
+  const places = reply.text
+    .replace(/\b((?:19|20)\d{2})\s*[-–/]\s*\d{2}\b(?![-–/]?\d)/g, '$1')
+    .replace(
+      /\bitems? (\d+)((?:,? (?:and |or )?\d+)*)/gi,
+      (all: string, ...[first, rest]: string[]) =>
+        [first, ...(rest ?? '').split(/\D+/)]
+          .filter(Boolean)
+          .every((n) => Number(n) >= 1 && Number(n) <= reply.sources.length)
+          ? ' '
+          : all,
+    )
   return [...new Set(numbersIn(places).filter((n) => !known.has(n)))]
 }
 

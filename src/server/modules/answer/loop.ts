@@ -42,6 +42,7 @@ import {
   overviewProblem,
   overviewWords,
   shownBody,
+  withoutCites,
   withoutLastSentence,
   wordsOf,
   type NumberedRead,
@@ -788,7 +789,8 @@ function foundIds(m: MadeRead, whole = false): string[] {
  * read found carries that read's state; one that uses only items a search or a read of an item
  * found carries what they are (Outdated when one may be out of date, else Checked). An answer
  * that uses none carries the subject read's state when the turn made one, Not found after a
- * search, and none after no read at all.
+ * search, and none after no read at all. A subject read that could not read a value its words
+ * name ("orders in jordan") is a read that found nothing: Not found.
  */
 export function stateOf(
   made: readonly MadeRead[],
@@ -798,9 +800,13 @@ export function stateOf(
   const ok = made.filter((m) => !isError(m.result))
   if (!ok.length) return null
   const subject = ok.flatMap((m) =>
-    m.tool === 'get_context' && isObj(m.result) && typeof m.result.state === 'string'
-      ? [m.result.state as AnswerState]
-      : [],
+    m.tool !== 'get_context' || !isObj(m.result)
+      ? []
+      : typeof m.result.state === 'string'
+        ? [m.result.state as AnswerState]
+        : isObj(m.result.unread) && Array.isArray(m.result.unread.why) && m.result.unread.why.length
+          ? ['missing' as const]
+          : [],
   )
   const ofSubject = new Set(ok.filter((m) => m.tool === 'get_context').flatMap((m) => foundIds(m)))
   const ofContext = new Set(
@@ -902,14 +908,22 @@ export function readLines(made: readonly MadeRead[]): string[] {
         const read = isObj(r.read) ? r.read : null
         const items = arr(r.items).length
         const nearby = arr(r.nearby).length
-        if (!read)
+        if (!read) {
+          const why = isObj(r.unread) && Array.isArray(r.unread.why) ? r.unread.why.map(str) : []
           return [
-            `Looked up “${str(m.input.about)}”: it names no metric, market or date the workspace knows.`,
+            why.length
+              ? `Looked up “${str(m.input.about)}”: nothing applies. ${why.join(' ')}`
+              : `Looked up “${str(m.input.about)}”: it names no metric, value or date the workspace knows.`,
           ]
+        }
         const names = Array.isArray(read.names) ? (read.names as string[]) : []
         const wider = arr(r.searched).slice(1)
+        const synonyms = arr(read.synonyms).map(
+          (x) =>
+            ` “${str(x.word)}” was read as ${str(x.name)}, by a synonym written in Definitions.`,
+        )
         return [
-          `Looked up ${names.length ? listWords(names) : `“${str(read.words)}”`}, ${str(read.period)}: ${counted(items, 'item applies', 'items apply')}${nearby ? `, ${counted(nearby, 'nearby item does', 'nearby items do')} not` : ''}${wider.length ? `; then, wider, ${wider.map(searchedLine).join('; ')}` : ''}.`,
+          `Looked up ${names.length ? listWords(names) : `“${str(read.words)}”`}, ${str(read.period)}: ${counted(items, 'item applies', 'items apply')}${nearby ? `, ${counted(nearby, 'nearby item does', 'nearby items do')} not` : ''}${wider.length ? `; then, wider, ${wider.map(searchedLine).join('; ')}` : ''}.${synonyms.join('')}`,
         ]
       }
       case 'read_context':
@@ -963,9 +977,12 @@ export function footerOf(
     const wider = isObj(r.wider) && arr(r.searched)[1] ? arr(r.wider.items).length : null
     return `${n.toLocaleString('en-GB')} of ${of} ${n === 1 ? 'applies' : 'apply'}${wider !== null ? `; a wider read found ${wider.toLocaleString('en-GB')}` : ''}.`
   }
+  // An answer that cites what a search found, where the subject's read found none, says what it
+  // is out of, never that none apply.
+  const applies = subject && (arr((subject.result as Obj).items).length || !cited.length)
   const denominator = records
     ? `Counted ${str((records.result as Obj).counted)}.`
-    : subject && outOf
+    : applies && outOf
       ? applying(subject.result as Obj)
       : outOf
         ? `Out of ${of}.`
@@ -1192,8 +1209,8 @@ export function turnOf(
         b.t === 'list'
           ? []
           : b.t === 'p'
-            ? [{ ...b, runs: b.runs.filter((r) => r.t !== 'cite') }]
-            : [{ ...b, items: b.items.map((i) => i.filter((r) => r.t !== 'cite')) }],
+            ? [{ ...b, runs: withoutCites(b.runs) }]
+            : [{ ...b, items: b.items.map(withoutCites) }],
       )
     : words.body
   const sources = missing ? [] : words.cited

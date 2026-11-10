@@ -7,12 +7,14 @@ import {
   normalizeName,
   normalizeWithMap,
   phrasesIn,
+  refView,
   resolveTerm,
   suggestTerms,
   type ContestedWord,
   type Term,
   type WordMeaning,
 } from './vocabulary.ts'
+import { DEFAULT_PRODUCT_NAME } from './brand.ts'
 
 /**
  * `filters` maps each dimension the question names to the values it chose. An empty list names
@@ -89,6 +91,96 @@ const nonValueWords = new Set(
     ' ',
   ),
 )
+/** Words after "in" that say how or when, not which value: "in total", "in mid October". */
+const notValuesAfterIn = new Set(
+  'all any both each every either neither it its itself me my our ours some that their them these they those us what which you your general particular total detail details short brief full practice fact theory principle summary sum stock person public private context terms view mind case turn part kind order line place time future past advance progress addition contrast common question words numbers number figures data euros euro eur usd dollars percent mid early late end start beginning middle week weeks month months year years day days spring summer autumn fall winter english'.split(
+    ' ',
+  ),
+)
+
+/**
+ * The dimensions a value word after "in" could be a value of: those of the views the metrics are
+ * in that have values, or every dimension with values when no metric says.
+ */
+function valueDimensions(terms: readonly Term[], metrics: readonly string[]): Term[] {
+  const valued = terms.filter(
+    (term) => term.kind === 'dimension' && terms.some((value) => value.parentKey === term.key),
+  )
+  const views = new Set(
+    terms
+      .filter((term) => metrics.includes(term.key))
+      .flatMap((term) => term.definitionRefs.map(refView))
+      .filter((view) => view !== null),
+  )
+  const sliced = valued.filter((dimension) =>
+    dimension.definitionRefs.some((ref) => views.has(refView(ref) ?? '')),
+  )
+  return sliced.length ? sliced : valued
+}
+
+/** Whether two words are one typo apart: a letter added, left out, changed or swapped. */
+function oneTypoApart(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  while (i < a.length && a[i] === b[i]) i++
+  if (a.length === b.length)
+    return (
+      a.slice(i + 1) === b.slice(i + 1) ||
+      (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2))
+    )
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1)
+}
+
+/**
+ * A word after "in" that follows a name the question names, names nothing Heed knows, and looks
+ * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word the
+ * person wrote in Title case ("Jordan", never "GBP" or "jordan") that ends what the question says
+ * ("orders in Jordan?", "orders in Oslo last month") and is no plural ("stores"), nor the name of
+ * the product or of a tool a definition comes from ("cube"). An ordinary word ("in local currency",
+ * "in relative terms", "in gbp") is no value, and the question reads as before. A lowercase
+ * "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before.
+ * A stop-gap the value-linking V1 slice replaces with rules by place, so it is kept small on
+ * purpose. Each is where it is in the normalised text, with the values it is a typo of.
+ */
+function unknownValuesAfterIn(
+  text: string,
+  occupied: ReadonlySet<number>,
+  dated: ReadonlySet<number>,
+  terms: readonly Term[],
+  values: readonly Term[],
+  capitalised: (span: DateSpan) => boolean,
+): (DateSpan & { typoOf: string[] })[] {
+  const found: (DateSpan & { typoOf: string[] })[] = []
+  const tools = new Set(
+    terms.flatMap((t) => t.definitionRefs.map((ref) => normalizeName(ref.split(':')[0]!))),
+  )
+  for (const match of text.matchAll(/ in ([\p{L}][\p{L}\p{N}_'-]*)/gu)) {
+    const start = match.index + 4
+    const word = match[1]!
+    const end = start + word.length
+    if (!occupied.has(match.index - 1) || occupied.has(start) || dated.has(start)) continue
+    if (nonValueWords.has(word) || notValuesAfterIn.has(word.replace(/'s$/, ''))) continue
+    const typoOf = values.flatMap((v) =>
+      word.length >= 4 && namesOf(v).some((n) => oneTypoApart(word, n)) ? [v.key] : [],
+    )
+    // What follows it ends what the question says: nothing, a stop, a date or a little word.
+    const next = text.slice(end).match(/^ ?([\p{L}\p{N}_'-]+)/u)?.[1]
+    const ends =
+      !/^ ?[\p{L}\p{N}_'-]/u.test(text.slice(end)) ||
+      dated.has(end + 1) ||
+      (next !== undefined && nonValueWords.has(next))
+    const nameLike =
+      ends &&
+      capitalised({ start, end }) &&
+      word.length >= 3 &&
+      /^\p{L}+$/u.test(word) &&
+      !word.endsWith('s') &&
+      !tools.has(word) &&
+      word !== normalizeName(DEFAULT_PRODUCT_NAME)
+    if (typoOf.length || nameLike) found.push({ start, end, typoOf })
+  }
+  return found
+}
 
 /**
  * What a reply says when Heed read a question at today because it gave no dates: the day, its
@@ -251,6 +343,25 @@ export function unknownName(
 }
 
 /**
+ * A value word Heed does not know, in words, with the dimensions it could be a value of and the
+ * closest values: "There is no value of Market named 'Jordan'."
+ */
+export function unknownValue(
+  input: string,
+  dimensions: readonly Term[],
+  suggestions: readonly string[],
+  terms: readonly Term[],
+): string {
+  const names = dimensions.map((d) => d.name)
+  const of =
+    names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`
+  const near = suggestions.slice(0, 3).map((key) => terms.find((t) => t.key === key)?.name ?? key)
+  const words =
+    near.length < 2 ? near.join('') : `${near.slice(0, -1).join(', ')} or ${near.at(-1)}`
+  return `There is no value of ${of} named '${input}'.${near.length ? ` Did you mean ${words}?` : ''}`
+}
+
+/**
  * Structured fields take precedence. Text extraction uses whole, longest vocabulary phrases, and
  * the dates in the words are read by `readDates`, which says how it read them (`dates`). Dates the
  * words give are never replaced: words Heed cannot read as dates ask for them, and say what Heed
@@ -343,6 +454,30 @@ export function extractScope(
             resolve(value, ['dimension_value'], dimension.key, dimension.key)
         }
       }
+    }
+  const dimensions = valueDimensions(terms, metrics)
+  const values = terms.filter(
+    (term) => term.kind === 'dimension_value' && dimensions.some((d) => d.key === term.parentKey),
+  )
+  if (structured.loose && structured.filters === undefined && dimensions.length)
+    for (const span of unknownValuesAfterIn(text, occupied, dated, terms, values, (span) => {
+      const written = found.written(span)
+      return /^\p{Lu}\p{Ll}*$/u.test(question.slice(written.start, written.end))
+    })) {
+      // The words as the person wrote them: "Jordan", not "jordan".
+      const written = found.written(span)
+      const value = question.slice(written.start, written.end)
+      issues.push({
+        field: dimensions.length === 1 ? dimensions[0]!.key : 'values',
+        input: value,
+        options: span.typoOf.length
+          ? span.typoOf
+          : values
+              .map((term) => term.key)
+              .sort()
+              .slice(0, 25),
+        message: unknownValue(value, dimensions, span.typoOf, terms),
+      })
     }
   let window: DateWindow | null = structured.window ?? null
   let assumed: AssumedDate | undefined

@@ -156,3 +156,114 @@ describe("Ask's loop", () => {
     expect(after.join('\n')).not.toContain(marker)
   })
 })
+
+/** The ids of the items a read returned, in its order, and how each matched a search. */
+const itemsOf = (value: unknown) =>
+  ((value as { items?: { id: string; title: string; match?: string }[] }).items ?? []).map(
+    ({ id, title, match }) => ({ id, title, match }),
+  )
+
+describe("Ask's loop on the rules' gaps (the retrieval test, 2026-11-10)", () => {
+  /** A model that reads with `calls`, then answers in the words `text` writes from the reads. */
+  const asked = async (
+    question: string,
+    calls: { toolName: string; input: Record<string, unknown> }[],
+    text: (results: ScriptedPrompt['results']) => string,
+  ) => {
+    const api = await world.as(ML)
+    decide = ({ results, step }) => (step === 0 ? { calls } : { text: text(results) })
+    try {
+      return await api.ask({ question })
+    } finally {
+      decide = null
+    }
+  }
+
+  it('reads a value it does not know as unread: Not found, and no other value cited', async () => {
+    const a = await asked(
+      'anything written about orders in Jordan?',
+      [
+        { toolName: 'get_context', input: { about: 'orders in Jordan' } },
+        { toolName: 'find_context', input: { words: 'orders Jordan' } },
+      ],
+      // The search matches only "orders": the model cites an item about another market anyway.
+      (results) => `Orders has items [${itemsOf(results[1]!.value)[0]!.id}].`,
+    )
+    expect(a.state).toBe('missing')
+    expect(a.sources).toEqual([])
+    expect(a.read?.[0]).toBe(
+      "Looked up “orders in Jordan”: nothing applies. There is no value of Market named 'Jordan'.",
+    )
+    // As the mock's own reader asks it too: never Orders in every market.
+    const plain = await (
+      await world.as(ML)
+    ).ask({ question: 'anything written about orders in Jordan?' })
+    expect(plain.state).not.toBe('conflict')
+    expect(plain.sources).toEqual([])
+  })
+
+  it('keeps what a search found by every word when the subject read finds nothing', async () => {
+    let found: { id: string; match?: string }[] = []
+    const a = await asked(
+      'should we bring the norway campaigns back?',
+      [
+        { toolName: 'get_context', input: { about: 'norway campaigns' } },
+        { toolName: 'find_context', input: { words: 'Norway campaigns' } },
+      ],
+      (results) => {
+        found = itemsOf(results[1]!.value)
+          .filter((i) => i.match === 'all')
+          .slice(0, 2)
+        return `What is written is about the Norway campaigns [${found[0]!.id}] [${found[1]!.id}].`
+      },
+    )
+    expect(found).toHaveLength(2)
+    expect(a.state).not.toBe('missing')
+    expect(a.sources).toEqual(found.map((i) => i.id))
+    expect(a.text).toContain('[1] [2]')
+    // What the count is out of, never that none apply under what the answer cites.
+    expect(a.footer?.denominator).toBe('Out of 21 published context items you may read.')
+  })
+
+  it('under Not found, leaves out the words that only listed what it cited', async () => {
+    const a = await asked(
+      'Give me all about orders in poland',
+      [{ toolName: 'get_context', input: { about: 'orders in poland' } }],
+      (results) => {
+        const near = (results[0]!.value as { nearby: { id: string }[] }).nearby.map((n) => n.id)
+        return `Nothing written covers orders in Poland. Other markets each have their own items, such as [${near[0]}], [${near[1]}] and [${near[2] ?? near[0]}].`
+      },
+    )
+    expect(a.state).toBe('missing')
+    expect(a.sources).toEqual([])
+    expect(a.text).toBe(
+      'Nothing written covers orders in Poland. Other markets each have their own items.',
+    )
+  })
+
+  it('says a word it read only by a synonym written in Definitions', async () => {
+    const a = await asked(
+      'when do you reckon online sales to norway will come back',
+      [{ toolName: 'get_context', input: { about: 'online sales to norway' } }],
+      () => 'Nothing written covers it.',
+    )
+    expect(a.read?.[0]).toMatch(
+      /^Looked up Net revenue and Norway, .*\. “Sales” was read as Net revenue, by a synonym written in Definitions\.$/,
+    )
+  })
+
+  it('reads "discounts" as Discount cost', async () => {
+    let found: { id: string; title: string }[] = []
+    const a = await asked(
+      'anything on norway discounts from last winter?',
+      [{ toolName: 'get_context', input: { about: 'norway discounts from last winter' } }],
+      (results) => {
+        found = itemsOf(results[0]!.value)
+        return `A VAT rule applied [${found[0]?.id ?? 'itm_none0000'}].`
+      },
+    )
+    expect(a.read?.[0]).toMatch(/^Looked up Discount cost and Norway, /)
+    expect(found.map((i) => i.title)).toContain('New VAT rate applied in Norway from 3 August 2025')
+    expect(a.sources).toEqual([found[0]!.id])
+  })
+})
