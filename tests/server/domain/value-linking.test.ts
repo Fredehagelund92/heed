@@ -341,7 +341,7 @@ describe('golden questions: asking which', () => {
       key: `term:t${i}`,
       name: `Meaning ${i}`,
     }))
-    const said = contestedQuestion({ word: 'oak', meanings } as never, { terms })
+    const said = contestedQuestion({ word: 'oak', meanings }, { terms })
     expect(said).toBe(
       'Oak can mean the term Meaning 0, the term Meaning 1, the term Meaning 2, the term Meaning 3, the term Meaning 4, the term Meaning 5, the term Meaning 6, the term Meaning 7 or 2 more. Which do you mean?',
     )
