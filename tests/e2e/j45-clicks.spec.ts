@@ -1,9 +1,9 @@
-import { expect, go, mode, test } from './go.ts'
+import { expect, go, mode, onServiceOnly, test } from './go.ts'
 import type { Page } from '@playwright/test'
 
 // J45: a click answers at once. Pointing at a link fetches its page's code first, the click's
 // first frame shows where it went before the rows mount, and a first visit draws the rows the shell
-// already holds.
+// already holds. A quick view reads its own item, never the lists the shell holds again.
 
 const nav = (page: Page, name: string) =>
   page.locator('[data-sidebar="menu-button"]').filter({ hasText: name })
@@ -104,4 +104,30 @@ test('the slow network flag still shows the list loading', async ({ page }) => {
   await go(page, '/context?slow=1')
   await expect(page.getByRole('status', { name: 'Loading' }).first()).toBeVisible()
   await expect(page.locator('main tbody tr').first()).toBeVisible()
+})
+
+test('opening a quick view reads its item, not the lists the shell holds', async ({ page }) => {
+  await onServiceOnly('requests a quick view sends', async () => {
+    await page.clock.install()
+    await go(page, '/context')
+    await expect(page.locator('main tbody tr').first()).toBeVisible()
+    // Long enough that every list the shell read is older than staleTime.
+    await page.clock.fastForward(31_000)
+    const reads: string[] = []
+    page.on('request', (r) => {
+      const path = new URL(r.url()).pathname
+      if (path.startsWith('/api/v1/')) reads.push(path.slice('/api/v1'.length))
+    })
+    await page
+      .getByRole('button', { name: 'Norway orders are card and cash payments only', exact: true })
+      .click()
+    const peek = page.getByRole('region', { name: 'Context' })
+    await expect(peek.getByRole('button', { name: 'Compare and decide' })).toBeEnabled()
+    await expect(peek.getByRole('button', { name: /^History: / })).toBeVisible()
+    // The people and the domains come with the item's own read, beside it: they name its owners.
+    const shared =
+      /^\/(library|members|invites|workspace|setup|settings|comments|inbox\/feed|auth\/session|proposals|context\/changes|vocabulary|terms|catalogue)$/
+    expect(reads.filter((path) => shared.test(path))).toEqual([])
+    expect(reads.some((path) => /^\/items\/[^/]+\/page$/.test(path))).toBe(true)
+  })
 })

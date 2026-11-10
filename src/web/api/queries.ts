@@ -1,3 +1,4 @@
+import * as React from 'react'
 import {
   queryOptions,
   useMutation,
@@ -9,6 +10,7 @@ import {
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
 import {
   isPageRead,
+  type Library,
   type ObsFilterView,
   type ObsPageInput,
   type ObsValuesInput,
@@ -393,24 +395,40 @@ export const sharedQueries = () => [
   connectReviewQuery(),
 ]
 
-export const useSession = () => useSuspenseQuery(sessionQuery()).data
+/**
+ * Inside the dock, the shared reads are what the shell holds: opening a panel reads none of them
+ * again. Each new observer of a read older than staleTime would otherwise fetch it once more, so a
+ * quick view sent a dozen reads it does not need ahead of its own. The page behind keeps them as
+ * fresh as before: a write refreshes what it changed, and so does the tab coming back.
+ */
+export const InDock = React.createContext(false)
+
+/** A shared read's options as a place reads it: in the dock, without fetching it on mount. */
+export const sharedReadIn = <O extends object>(options: O, inDock: boolean): O =>
+  inDock ? { ...options, refetchOnMount: false } : options
+
+const useSharedRead = <O extends object>(options: O): O =>
+  sharedReadIn(options, React.useContext(InDock))
+
+export const useSession = () => useSuspenseQuery(useSharedRead(sessionQuery())).data
 /** The workspace, from the cache the shell filled. */
-export const useWorkspace = () => useSuspenseQuery(workspaceQuery()).data
+export const useWorkspace = () => useSuspenseQuery(useSharedRead(workspaceQuery())).data
 /** The library, from the cache the shell filled. */
-export const useLibrary = () => useSuspenseQuery(libraryQuery()).data
-export const useVocabulary = () => useSuspenseQuery(vocabularyQuery()).data
-export const useComments = () => useSuspenseQuery(commentsQuery()).data
-export const useDefinitions = () => useSuspenseQuery(definitionsQuery()).data
-export const useInbox = () => useSuspenseQuery(inboxQuery()).data
-export const useReviews = () => useSuspenseQuery(reviewsQuery()).data
-export const useSavedQuestions = () => useSuspenseQuery(savedQuestionsQuery()).data
-export const useAlerts = () => useSuspenseQuery(alertsQuery()).data
-export const useSavedViews = () => useSuspenseQuery(savedViewsQuery()).data
-export const useAskExamples = () => useSuspenseQuery(askExamplesQuery()).data
-export const useChats = () => useSuspenseQuery(chatsQuery()).data
-export const useSettings = () => useSuspenseQuery(settingsQuery()).data
-export const useIntegrations = () => useSuspenseQuery(integrationsQuery()).data
-export const useAgentConnections = () => useSuspenseQuery(agentConnectionsQuery()).data
+export const useLibrary = () => useSuspenseQuery(useSharedRead(libraryQuery())).data
+export const useVocabulary = () => useSuspenseQuery(useSharedRead(vocabularyQuery())).data
+export const useComments = () => useSuspenseQuery(useSharedRead(commentsQuery())).data
+export const useDefinitions = () => useSuspenseQuery(useSharedRead(definitionsQuery())).data
+export const useInbox = () => useSuspenseQuery(useSharedRead(inboxQuery())).data
+export const useReviews = () => useSuspenseQuery(useSharedRead(reviewsQuery())).data
+export const useSavedQuestions = () => useSuspenseQuery(useSharedRead(savedQuestionsQuery())).data
+export const useAlerts = () => useSuspenseQuery(useSharedRead(alertsQuery())).data
+export const useSavedViews = () => useSuspenseQuery(useSharedRead(savedViewsQuery())).data
+export const useAskExamples = () => useSuspenseQuery(useSharedRead(askExamplesQuery())).data
+export const useChats = () => useSuspenseQuery(useSharedRead(chatsQuery())).data
+export const useSettings = () => useSuspenseQuery(useSharedRead(settingsQuery())).data
+export const useIntegrations = () => useSuspenseQuery(useSharedRead(integrationsQuery())).data
+export const useAgentConnections = () =>
+  useSuspenseQuery(useSharedRead(agentConnectionsQuery())).data
 
 /* ---------- writes ---------- */
 
@@ -542,7 +560,8 @@ export const invalidations: {
   invite: () => workspace,
   resendInvite: () => workspace,
   removePerson: () => workspace,
-  markViewed: () => [queryKeys.library],
+  // Set in place (`inPlace`): opening an item changes nothing else the library holds.
+  markViewed: () => [],
   editItem: () => items,
   restoreAsDraft: () => items,
   // A published item may answer a Not found card, and be the setup checklist's first item.
@@ -671,6 +690,21 @@ export function coveringKeys(keys: readonly QueryKey[]): QueryKey[] {
   )
 }
 
+/**
+ * What a write changes that the app can say itself, set in its cache in place of reading the
+ * whole cache again. Opening an item marks it opened; read again, the library is five requests.
+ */
+const inPlace: {
+  [K in WriteOperation]?: (queryClient: QueryClient, input: WriteInput<K>) => void
+} = {
+  markViewed: (queryClient, { id }) =>
+    queryClient.setQueryData<Library>(queryKeys.library, (library) =>
+      library && !library.viewed[id]
+        ? { ...library, viewed: { ...library.viewed, [id]: true } }
+        : library,
+    ),
+}
+
 /** Marks every cache a write made stale, so open screens fetch them again. */
 export async function invalidateAfter<K extends WriteOperation>(
   queryClient: QueryClient,
@@ -684,6 +718,7 @@ export async function invalidateAfter<K extends WriteOperation>(
     await queryClient.cancelQueries()
     queryClient.removeQueries({ type: 'inactive' })
   }
+  inPlace[operation]?.(queryClient, input)
   const keys = coveringKeys(invalidations[operation](input, result))
   await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }

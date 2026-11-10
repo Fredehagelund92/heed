@@ -644,15 +644,25 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  /** A published item's page, or a draft's; null for anything else. */
+  /**
+   * A published item's page, or a draft's; null for anything else. The item is asked for beside
+   * the names and words it is read with, not after them.
+   */
   async function itemPage(id: string) {
-    const [names, vocabulary] = await Promise.all([readNames(), readWords()])
     if (isItemId(id)) {
-      const page = await orNull(() => read(() => client.items.page({ id })))
+      const [page, names, vocabulary] = await Promise.all([
+        orNull(() => read(() => client.items.page({ id }))),
+        readNames(),
+        readWords(),
+      ])
       return page ? itemPageOf(page, names, vocabulary, calendar.shift) : null
     }
     if (!isUuid(id)) return null
-    const proposal = await orNull(() => read(() => client.proposals.get({ id })))
+    const [proposal, names, vocabulary] = await Promise.all([
+      orNull(() => read(() => client.proposals.get({ id }))),
+      readNames(),
+      readWords(),
+    ])
     return proposal?.subject === 'item' && proposal.state === 'draft'
       ? { item: factOfDraft(proposal, names, vocabulary), history: [] as Version[] }
       : null

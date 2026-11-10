@@ -3,7 +3,7 @@ import { Outlet } from '@tanstack/react-router'
 import { QueryClientProvider, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { mockControls } from '@/api'
 import { createQueryClient } from '@/api/query-client'
-import { isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
+import { InDock, isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
 import { ShortcutsDialog } from '@/components/shortcuts-dialog'
@@ -240,9 +240,11 @@ function SafeDock() {
   const dock = useDock()
   return (
     <ErrorBoundary key={`${dock?.kind}.${dock?.id}`}>
-      <div className="h-full dock-swap">
-        <DockContent />
-      </div>
+      <InDock.Provider value>
+        <div className="h-full dock-swap">
+          <DockContent />
+        </div>
+      </InDock.Provider>
     </ErrorBoundary>
   )
 }
