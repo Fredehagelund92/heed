@@ -152,6 +152,8 @@ test('try again asks the last question again, with its mentions, and no model re
   await box.pressSequentially('I am working in ')
   await mention(page, 'Sales')
   await ask(page, 'what are the context that needs checking?')
+  // Typing before the answer is written to its end can lose the words typed.
+  await expect(newest(page).getByRole('group', { name: 'Answer actions' })).toBeVisible()
   await box.click()
   await box.pressSequentially('I am in ')
   await mention(page, 'Paid media')

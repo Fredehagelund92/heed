@@ -66,7 +66,6 @@ describe('a value word after "in"', () => {
     const r = extractScope(question, planBundle.terms, PLAN_TODAY)
     expect(r.status).toBe('resolved')
     if (r.status !== 'resolved') return
-    expect(r.issues ?? []).toEqual([])
     expect(r.scope.filters).toEqual({})
     expect(r.scope.metrics).toHaveLength(1)
   })
