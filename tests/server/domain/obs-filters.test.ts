@@ -398,11 +398,10 @@ describe('the dimensions and their values', () => {
     const page = valuePage(wsView, filters, market, markets, { q: '', sort: 'asked' })
     expect(page.values.map((v) => v.key)).toEqual(['val:market/norway'])
     expect(page.notAsked).toBe(1)
-    const found = valueSearch(wsView, filters, [market], new Map([[market.key, markets]]), {
-      q: 'm',
-      sort: 'asked',
-    })
-    expect(found.notAsked).toBe(1)
+    const search = (q: string) =>
+      valueSearch(wsView, filters, [market], new Map([[market.key, markets]]), { q, sort: 'asked' })
+    expect(search('den').notAsked).toBe(1)
+    expect(search('swe').notAsked).toBe(0)
   })
 
   it('matches nothing for a search of punctuation alone, and everything for an empty one', () => {
