@@ -349,11 +349,11 @@ function meaningWords(meaning: WordMeaning, all: readonly WordMeaning[], bundle?
     ? `the ${kindOfKey(meaning.key)} ${meaning.name}`
     : meaning.name
 }
-const meaningsWords = (meanings: readonly WordMeaning[], bundle?: Names) =>
-  list(
-    meanings.map((m) => meaningWords(m, meanings, bundle)),
-    'or',
-  )
+const meaningsWords = (meanings: readonly WordMeaning[], bundle?: Names) => {
+  const named = meanings.slice(0, SAID_MEANINGS).map((m) => meaningWords(m, meanings, bundle))
+  const more = meanings.length - named.length
+  return more ? `${named.join(', ')} or ${count(more, 'more', 'more')}` : list(named, 'or')
+}
 const capitalWord = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /**

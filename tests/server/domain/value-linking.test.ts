@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { heldOf } from '../../../src/domain/ask-held.ts'
 import { chatOf, routeQuestion } from '../../../src/domain/ask-route.ts'
 import type { ChatTurn } from '../../../src/domain/ask-chat.ts'
-import { contestedQuestion } from '../../../src/domain/say.ts'
+import { contestedAlso, contestedQuestion } from '../../../src/domain/say.ts'
 import { extractScope, readQuestion, type ScopeResult } from '../../../src/domain/scope.ts'
 import type { Term } from '../../../src/domain/vocabulary.ts'
 import { scopeOf } from '../../../src/server/mcp/service.ts'
@@ -262,6 +262,34 @@ describe('golden questions: value words', () => {
   })
 })
 
+describe('golden questions: lowercase names that end like everyday words', () => {
+  const without = terms.filter((t) => !t.key.startsWith('val:country/italy'))
+  const read = (question: string) => short(extractScope(question, without, today, { loose: true }))
+  const every = ['Country', 'Campaign', 'Aisle', 'Brand', 'Store']
+
+  it.each<[string, Reading]>([
+    ['orders from italy', { none: 'italy', of: every }],
+    ['orders in beijing', { none: 'beijing', of: every }],
+    ['orders to ealing', { none: 'ealing', of: every }],
+    ['orders from sicily', { none: 'sicily', of: every }],
+  ])('says "%s" has no such value', (question, reading) => {
+    expect(read(question)).toEqual(reading)
+  })
+
+  it('still asks about a lowercase name after a dimension word, "country italy"', () => {
+    const result = extractScope('orders for country italy', without, today, { loose: true })
+    expect(result).toMatchObject({
+      status: 'need_more_detail',
+      issues: [{ field: 'dim:country', input: 'italy' }],
+    })
+  })
+
+  it('still reads "doing" after a dimension word as how', () => {
+    for (const question of ['how is the mobile team doing', 'how is the mobile team doing this week'])
+      expect(read(question)).toMatchObject({ reads: { 'dim:team': ['val:team/mobile'] } })
+  })
+})
+
 describe('golden questions: asking which', () => {
   const said = (question: string) => {
     const held = heldOf(ask(question))
@@ -291,6 +319,18 @@ describe('golden questions: asking which', () => {
     expect(contestedQuestion(held!, { terms: many })).toBe(
       'Oak is a value of Dimension 0, Dimension 1, Dimension 10, Dimension 2, Dimension 3, Dimension 4, Dimension 5, Dimension 6 and 3 more. Which do you mean?',
     )
+  })
+
+  it('counts the meanings past eight for terms, and beside an answer', () => {
+    const meanings = Array.from({ length: 10 }, (_, i) => ({
+      key: `term:t${i}`,
+      name: `Meaning ${i}`,
+    }))
+    const said = contestedQuestion({ word: 'oak', meanings } as never, { terms })
+    expect(said).toBe(
+      'Oak can mean the term Meaning 0, the term Meaning 1, the term Meaning 2, the term Meaning 3, the term Meaning 4, the term Meaning 5, the term Meaning 6, the term Meaning 7 or 2 more. Which do you mean?',
+    )
+    expect(contestedAlso('oak', meanings as never, { terms })).toContain(' or 2 more.')
   })
 })
 

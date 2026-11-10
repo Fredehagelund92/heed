@@ -59,7 +59,7 @@ overall together apart especially generally mostly mainly partly roughly nearly 
 approx approximately
 
 amount amounts answer answers area areas basis board breakdown budget bulk business case cases
-cash cause causes change chart company comparison context cost costs count data deal deals
+cash cause caused causes change chart company comparison context cost costs count data deal deals
 detail details difference drivers effect effects end example fact figure figures future
 general growth idea impact information issue issues item items kind kinds level levels line
 lines list matter mind mix money note notes number numbers order part parts past percentage
@@ -101,10 +101,14 @@ language languages translation
 export const everydayWords: ReadonlySet<string> = /* @__PURE__ */ (() =>
   new Set(words.split(/\s+/).filter(Boolean)))()
 
+/** Whether a word, lowercase as normalizeName gives it, is in the list of everyday words. */
+export const isEverydayWord = (word: string) => everydayWords.has(word.replace(/'s$/, ''))
+
 /**
- * Whether a word, lowercase as normalizeName gives it, is an everyday word: in the list, or, when
- * the person did not write it in Title case, a word that says how something went ("growing",
- * "dropped", "weekly"). A person who means a value so named writes it in Title case ("Hiking").
+ * Whether a word that is not written in Title case says how something went ("growing", "dropped",
+ * "weekly"), by its ending. A person who means a value so named writes it in Title case
+ * ("Hiking"). Only where a name is not what is being looked for; where a value goes, only the
+ * list applies.
  */
-export const isEverydayWord = (word: string, titleCase = false) =>
-  everydayWords.has(word.replace(/'s$/, '')) || (!titleCase && /(ing|ed|ly)$/.test(word))
+export const saysHow = (word: string, titleCase: boolean, ending = /(ing|ed|ly)$/) =>
+  !titleCase && ending.test(word)

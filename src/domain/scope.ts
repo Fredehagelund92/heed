@@ -15,7 +15,7 @@ import {
   type WordMeaning,
 } from './vocabulary.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
-import { everydayWords, isEverydayWord } from './everyday-words.ts'
+import { everydayWords, isEverydayWord, saysHow } from './everyday-words.ts'
 
 /**
  * `filters` maps each dimension the question names to the values it chose. An empty list names
@@ -187,7 +187,7 @@ function unknownValuesByPlace(
       run.every((w) => /^\p{L}[\p{L}'-]*$/u.test(w.word) && !/^\p{Lu}{2,}$/u.test(w.as)) &&
       (code
         ? !everydayWords.has(word)
-        : run.some((w, k) => !isEverydayWord(w.word, titled(i + k))) &&
+        : run.some((w) => !isEverydayWord(w.word)) &&
           (run.length > 1 || word.length >= 3) &&
           !tools.has(word) &&
           !known.has(word.replace(/'s$/, '')) &&
@@ -200,7 +200,8 @@ function unknownValuesByPlace(
     const compound =
       before !== undefined &&
       !valuePlaces.has(before.word) &&
-      !isEverydayWord(before.word, titled(i - 1)) &&
+      !isEverydayWord(before.word) &&
+      !saysHow(before.word, titled(i - 1)) &&
       !named.find((n) => n.end === before.end)?.keys.every((k) => k.startsWith('val:'))
     const next = compound ? undefined : nameAt(j + 1)
     const beforeMetric = !!next?.keys.some((k) => k.startsWith('metric:') || k.startsWith('group:'))
@@ -600,7 +601,8 @@ export function extractScope(
           if (
             !occupied.has(valueStart) &&
             !dated.has(valueStart) &&
-            !isEverydayWord(value, titleCase)
+            !isEverydayWord(value) &&
+            !saysHow(value, titleCase, /ing$/)
           )
             resolve(value, ['dimension_value'], dimension.key, dimension.key)
         }
