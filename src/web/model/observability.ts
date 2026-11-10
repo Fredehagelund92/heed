@@ -100,10 +100,19 @@ export type Publish = {
 /** A topic's `where` when it named no value: it was asked over every value. */
 export const ALL_VALUES = 'All values'
 
+/** A value a topic asked about: its key (`val:market/norway`), its dimension's and its name. */
+export type TopicValue = { dimension: string; value: string; name: string }
+
 export type Topic = {
   id: string
   /** The metric, or the metric group, as people name it; empty when no metric was named. */
   metric: string
+  /** The keys of its metrics or metric group, as a filter takes them: `metric:orders`. */
+  metrics: string[]
+  /** The values asked about, each with its dimension, as the definitions name them. */
+  values: TopicValue[]
+  /** The dimensions it names with no value, "Orders by channel": `dim:channel`. */
+  dimensions: { dimension: string; name: string }[]
   /** The values asked about, of any dimension (a market, a product, an event); ALL_VALUES when none was. */
   where: string
   /** The domain of its metrics. A topic with no metric named has none. */

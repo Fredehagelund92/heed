@@ -364,7 +364,7 @@ function TopicLine({
               href={st.href}
               className={cn(
                 buttonVariants({ variant: 'outline', size: 'xs' }),
-                'gap-1 font-normal',
+                'gap-1 font-normal whitespace-nowrap',
               )}
             >
               <ArrowUpRightIcon />
@@ -373,7 +373,7 @@ function TopicLine({
           ) : (
             <span
               className={cn(
-                'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs',
+                'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs whitespace-nowrap',
                 st.tone === 'warn' && 'border-warn/45',
               )}
             >

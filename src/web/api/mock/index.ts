@@ -1,4 +1,4 @@
-import type { HeedApi, HeedApiMethod, Inbox } from '../client'
+import type { HeedApi, HeedApiMethod, Inbox, ObsPageInput } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
 import { asksUndefinedWords, limitOf, readsBeyond } from '@domain/ask-plan'
@@ -39,7 +39,7 @@ import {
   readDefinitionsFrom,
   readQuestion,
 } from './data/ask'
-import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
+import { advancedOf, contextFile, demoAccessKey, historyFile, type Pins } from './advanced'
 import { loopExample, playAnswer } from './ask-live'
 import { cannotAnswer, followsOn, heldFor, plannedFor } from './planner'
 import { createChats } from './chats'
@@ -59,6 +59,7 @@ import { figureFor, figureTryFor } from './data/figures'
 import { recordsAnswer, replyAnswer, reportedOn, type AskInput } from '@/model/ask'
 import { queueOf, readsPlainlyFor, recognisedFor, recordsFor, recordsOf } from './records'
 import { createDefinitions } from './definitions'
+import { dimensionsOf, valuesOf } from './obs-filters'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
 import { createSaved } from './saved'
@@ -93,6 +94,15 @@ export function createMockApi() {
   const workspace = createWorkspace()
   const comments = createComments()
   const definitions = createDefinitions()
+  /** The dimensions an admin pinned on Overview in this visit (observability.pinned_dimensions). */
+  let pins: Pins = { keys: [] }
+  /** An Observability page as the person signed in may read it, for a view. */
+  const obsPageFor = ({ range, domain, agent }: Omit<ObsPageInput, 'section'>) => {
+    const person = workspace.people().find((p) => p.name === me())
+    const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
+    const view = { range, ...(domain ? { domain } : {}), ...(agent ? { agent } : {}) }
+    return obsPage(obsData(scenario.obsState()), view, reader)
+  }
   const saved = createSaved()
   const alerts = createAlerts()
   const chats = createChats()
@@ -860,11 +870,20 @@ export function createMockApi() {
 
     // Observability
     observabilityPage: ({ section, ...view }) =>
-      read('observabilityPage', JSON.stringify([section, view]), () => {
-        const person = workspace.people().find((p) => p.name === me())
-        const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
-        return obsPage(obsData(scenario.obsState()), view, reader)
+      read('observabilityPage', JSON.stringify([section, view]), () => obsPageFor(view)),
+    obsDimensions: (input) =>
+      now(() => {
+        const list = dimensionsOf(definitions.list(), obsPageFor(input), input)
+        const known = new Set(list.dimensions.map((d) => d.key))
+        return { ...list, pinned: pins.keys.filter((k) => known.has(k)) }
       }),
+    pinDimensions: ({ pinned, reason }) =>
+      now(() => {
+        if (!workspace.person(me())?.admin)
+          throw new ApiError('forbidden', 'Only an admin pins dimensions for the workspace.')
+        pins = { keys: [...pinned], changed: { who: me(), when: 'Today', why: reason } }
+      }),
+    obsValues: (input) => now(() => valuesOf(definitions.list(), obsPageFor(input), input)),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {
@@ -921,7 +940,7 @@ export function createMockApi() {
           )
       }),
     advancedPage: () =>
-      read('advancedPage', '', () => advancedOf(state.log, state.about, autoPublishOn())),
+      read('advancedPage', '', () => advancedOf(state.log, state.about, autoPublishOn(), pins)),
     checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
     exportHistory: () => now(() => historyFile(state.log)),
     exportContext: () =>

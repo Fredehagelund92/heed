@@ -700,6 +700,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         areaId: t.area,
         subject: subjectOf(t),
         metric: t.metrics.map((m) => r.names.get(m) ?? fallbackName(m)).join(', '),
+        metrics: t.metrics,
         named: !t.metrics.length ? 'none' : group ? 'group' : 'metric',
         values: t.values.map((v) => ({
           dimension: dimensionOf(v) ?? '',
@@ -966,8 +967,23 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
      */
     async dimensions(input: ObsDimensionsInput): Promise<ObsDimensions> {
       const r = await rangeView(input)
-      const head = { state: r.state, range: input.range, last: r.last, minimumCount: r.least }
       const terms = await filterTerms(r.state === 'normal' ? r : null)
+      // The pins an admin set, as far as the definitions still have them.
+      const [pins] = await tx.query<{ value: unknown }>(
+        `select value from settings_versions where key = 'observability.pinned_dimensions'
+          order by version desc limit 1`,
+      )
+      const known = new Set(terms.dimensions.map((d) => d.key))
+      const pinned = Array.isArray(pins?.value)
+        ? pins.value.filter((k): k is string => typeof k === 'string' && known.has(k))
+        : []
+      const head = {
+        state: r.state,
+        range: input.range,
+        last: r.last,
+        minimumCount: r.least,
+        pinned,
+      }
       if (r.state !== 'normal')
         return {
           ...head,

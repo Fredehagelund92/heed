@@ -1,8 +1,18 @@
 ---
 title: What's new
 line: Changes people notice, newest first.
-reviewed: 2026-11-03
+reviewed: 2026-11-10
 ---
+
+## Filter by any dimension: pick it, then its values
+
+2026-11-10
+
+Overview's Filter button, or F, opens one list: pick a field or a dimension, then its values, the ones agents asked about most first, with what each counts, a search, A to Z, and is or is not. Type two letters to find a value in any dimension.
+
+A filter reads in parts, such as Store · is any of · 3 values, and a click on its middle flips is and is not. Old links that filter by a market still open.
+
+Beside the topics, the facets keep the fixed fields, one By facet you switch between dimensions, and a facet for each dimension an admin pins for everyone. Your recent dimensions come first in the filter, and stay in your browser.
 
 ## Select days on the chart, and drill into a bar
 

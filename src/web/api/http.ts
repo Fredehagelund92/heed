@@ -94,6 +94,7 @@ import {
   emptyObs,
   familyOf,
   obsAgentsOf,
+  obsViewInput,
   obsFeedbackOf,
   obsUsageOf,
   replayOf,
@@ -254,6 +255,9 @@ export const wiredMethods = [
   'reportAnswer',
   'getMyReports',
   'observabilityPage',
+  'obsDimensions',
+  'obsValues',
+  'pinDimensions',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -2161,6 +2165,34 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         return emptyObs(range, raised.length ? 'normal' : 'empty')
       }
       return emptyObs(range)
+    },
+    obsDimensions: async (input) => {
+      const view = await read(() => client.obs.dimensions(obsViewInput(input)))
+      return { state: view.state, dimensions: view.dimensions, pinned: view.pinned }
+    },
+    pinDimensions: async ({ pinned, reason }) => {
+      const key = 'observability.pinned_dimensions'
+      // A change is a new version of the setting: the one read now, or a conflict.
+      const now = (await read(() => client.settings.list())).find((s) => s.key === key)
+      const input = { key, version: now?.version ?? 1, value: pinned, reason }
+      await write('settings.set', input, (o) => client.settings.set(input, o))
+    },
+    obsValues: async ({ dimension, q, cursor, sort, ...input }) => {
+      const view = await read(() =>
+        client.obs.values({
+          ...obsViewInput(input),
+          q,
+          sort,
+          ...(dimension ? { dimension } : {}),
+          ...(cursor ? { cursor } : {}),
+        }),
+      )
+      return {
+        state: view.state,
+        groups: view.groups,
+        notAsked: view.notAsked,
+        nextCursor: view.nextCursor,
+      }
     },
     replayTopic: async ({ topic, when }) => {
       const named = listedTopics.get(topic)

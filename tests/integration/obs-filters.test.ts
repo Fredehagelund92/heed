@@ -239,6 +239,8 @@ describe('topics by dimension (obs.agents)', () => {
       { dimension: 'dim:channel', value: 'val:channel/webshop', name: 'Webshop' },
     ])
     expect(topic('norway-webshop').dimensions).toEqual([])
+    // The metric's key beside its name, as a filter takes it.
+    expect(topic('norway-webshop').metrics).toEqual(['metric:orders'])
     expect(topic('by-campaign')).toMatchObject({
       values: [],
       dimensions: [{ dimension: 'dim:campaign', name: 'Campaign' }],
@@ -483,5 +485,52 @@ describe('the filter by dimension (obs.dimensions, obs.values)', () => {
         dimension: 'dim:market',
       }),
     ).toMatchObject({ state: 'quiet', groups: [], notAsked: 0 })
+  })
+})
+
+describe('the dimensions an admin pins (observability.pinned_dimensions)', () => {
+  const pin = async (name: string, value: unknown, version: number) =>
+    app.inject({
+      method: 'PUT',
+      url: '/api/v1/settings/observability.pinned_dimensions',
+      headers: { ...(await login(name)), 'idempotency-key': randomUUID() },
+      payload: { version, value, reason: 'Pinned on Overview.' },
+    })
+
+  it('start with none, and are read with the dimensions by whoever sees Observability', async () => {
+    const dims = await ok<ObsDimensions>('owner', '/observability/dimensions', { range: '7' })
+    expect(dims.pinned).toEqual([])
+  })
+
+  it('are pinned by an admin alone, as a new version of the setting with its reason, in the history log', async () => {
+    expect((await pin('owner', ['dim:store'], 1)).statusCode).toBe(403)
+    const saved = await pin('admin', ['dim:store', 'dim:market'], 1)
+    expect(saved.statusCode, saved.body).toBe(200)
+    expect(saved.json()).toMatchObject({ key: 'observability.pinned_dimensions', version: 2 })
+    const { rows } = await client.query<{ details: { value: unknown; reason: string } }>(
+      `select details from audit_log
+        where action = 'setting.changed' and subject_id = 'observability.pinned_dimensions'`,
+    )
+    expect(rows.map((r) => r.details)).toMatchObject([
+      { value: ['dim:store', 'dim:market'], reason: 'Pinned on Overview.' },
+    ])
+    // In their order, for an owner too; a dimension the definitions no longer have is left out.
+    expect(
+      (await ok<ObsDimensions>('owner', '/observability/dimensions', { range: '7' })).pinned,
+    ).toEqual(['dim:store', 'dim:market'])
+    expect((await pin('admin', ['dim:gone', 'dim:channel'], 2)).statusCode).toBe(200)
+    expect(
+      (await ok<ObsDimensions>('admin', '/observability/dimensions', { range: '7' })).pinned,
+    ).toEqual(['dim:channel'])
+  })
+
+  it('take dimension keys only, each once, at most eight', async () => {
+    for (const value of [
+      ['val:market/norway'],
+      ['dim:market', 'dim:market'],
+      'dim:market',
+      Array.from({ length: 9 }, (_, i) => `dim:d${i}`),
+    ])
+      expect((await pin('admin', value, 3)).statusCode, JSON.stringify(value)).toBe(422)
   })
 })

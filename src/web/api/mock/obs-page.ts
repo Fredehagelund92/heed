@@ -12,6 +12,7 @@ import {
 import { visibleCount } from '@domain/gaps'
 import type { DomainId } from '@/model/items'
 import {
+  ALL_VALUES,
   dateLabel,
   dayLabel,
   HIDE_UNDER,
@@ -45,6 +46,30 @@ const atOf = (day: string) => Date.parse(`${day}T00:00:00Z`)
 const subjectOf = (t: FixtureTopic) =>
   [t.domain ?? '', t.named ?? 'metric', t.metric, t.where].join('|')
 const counts = (c: StateCounts): Counts => ({ ...c })
+const slug = (name: string) => name.toLowerCase().replace(/\W+/g, '_')
+
+/**
+ * A topic's keys, as the service's topics carry them: its metric's, and its value's in the demo
+ * world's dimensions (records.ts): a market, or else one of the campaigns, as Black Friday is.
+ */
+function keysOf(t: FixtureTopic, markets: readonly string[]) {
+  const metrics =
+    t.named === 'none' || !t.metric
+      ? []
+      : [`${t.named === 'group' ? 'group' : 'metric'}:${slug(t.metric)}`]
+  const dimension = markets.includes(t.where) ? 'market' : 'campaign'
+  const values =
+    t.where === ALL_VALUES
+      ? []
+      : [
+          {
+            dimension: `dim:${dimension}`,
+            value: `val:${dimension}/${slug(t.where)}`,
+            name: t.where,
+          },
+        ]
+  return { metrics, values, dimensions: [] }
+}
 
 function empty(state: ObsState, range: Range, last: number): ObsData {
   const none = { grounded: null, partial: null, conflict: null, stale: null, missing: null }
@@ -136,6 +161,7 @@ export function obsPage(fixture: Fixture, view: View, reader: Reader): ObsData {
     return {
       id: t.id,
       metric: t.metric,
+      ...keysOf(t, fixture.markets),
       where: t.where,
       domain: t.domain,
       month: t.month,

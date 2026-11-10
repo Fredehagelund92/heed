@@ -98372,6 +98372,12 @@
                           "metric": {
                             "type": "string"
                           },
+                          "metrics": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "named": {
                             "enum": [
                               "metric",
@@ -98571,6 +98577,7 @@
                           "areaId",
                           "subject",
                           "metric",
+                          "metrics",
                           "named",
                           "values",
                           "dimensions",
@@ -99031,6 +99038,12 @@
                           "metric": {
                             "type": "string"
                           },
+                          "metrics": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "named": {
                             "enum": [
                               "metric",
@@ -99230,6 +99243,7 @@
                           "areaId",
                           "subject",
                           "metric",
+                          "metrics",
                           "named",
                           "values",
                           "dimensions",
@@ -99719,6 +99733,12 @@
                     "minimumCount": {
                       "type": "number"
                     },
+                    "pinned": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "dimensions": {
                       "type": "array",
                       "items": {
@@ -99781,6 +99801,7 @@
                     "range",
                     "last",
                     "minimumCount",
+                    "pinned",
                     "dimensions"
                   ]
                 }
@@ -103797,23 +103818,31 @@
                         "properties": {
                           "chips": {
                             "type": "array",
-                            "maxItems": 9,
+                            "maxItems": 20,
                             "items": {
                               "type": "object",
                               "properties": {
                                 "key": {
-                                  "enum": [
-                                    "answer",
-                                    "domain",
-                                    "agent",
-                                    "market",
-                                    "metric",
-                                    "month",
-                                    "gap",
-                                    "reported",
-                                    "topic"
-                                  ],
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "enum": [
+                                        "answer",
+                                        "domain",
+                                        "agent",
+                                        "market",
+                                        "metric",
+                                        "month",
+                                        "gap",
+                                        "reported",
+                                        "topic"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^dim:[a-z0-9_]+$"
+                                    }
+                                  ]
                                 },
                                 "not": {
                                   "type": "boolean"
@@ -103826,6 +103855,14 @@
                                     "minLength": 1,
                                     "maxLength": 200
                                   }
+                                },
+                                "flag": {
+                                  "enum": [
+                                    "shared",
+                                    "unknown",
+                                    "taken"
+                                  ],
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -104156,23 +104193,31 @@
                     "properties": {
                       "chips": {
                         "type": "array",
-                        "maxItems": 9,
+                        "maxItems": 20,
                         "items": {
                           "type": "object",
                           "properties": {
                             "key": {
-                              "enum": [
-                                "answer",
-                                "domain",
-                                "agent",
-                                "market",
-                                "metric",
-                                "month",
-                                "gap",
-                                "reported",
-                                "topic"
-                              ],
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "answer",
+                                    "domain",
+                                    "agent",
+                                    "market",
+                                    "metric",
+                                    "month",
+                                    "gap",
+                                    "reported",
+                                    "topic"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "pattern": "^dim:[a-z0-9_]+$"
+                                }
+                              ]
                             },
                             "not": {
                               "type": "boolean"
@@ -104185,6 +104230,14 @@
                                 "minLength": 1,
                                 "maxLength": 200
                               }
+                            },
+                            "flag": {
+                              "enum": [
+                                "shared",
+                                "unknown",
+                                "taken"
+                              ],
+                              "type": "string"
                             }
                           },
                           "required": [
@@ -104260,23 +104313,31 @@
                       "properties": {
                         "chips": {
                           "type": "array",
-                          "maxItems": 9,
+                          "maxItems": 20,
                           "items": {
                             "type": "object",
                             "properties": {
                               "key": {
-                                "enum": [
-                                  "answer",
-                                  "domain",
-                                  "agent",
-                                  "market",
-                                  "metric",
-                                  "month",
-                                  "gap",
-                                  "reported",
-                                  "topic"
-                                ],
-                                "type": "string"
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "answer",
+                                      "domain",
+                                      "agent",
+                                      "market",
+                                      "metric",
+                                      "month",
+                                      "gap",
+                                      "reported",
+                                      "topic"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^dim:[a-z0-9_]+$"
+                                  }
+                                ]
                               },
                               "not": {
                                 "type": "boolean"
@@ -104289,6 +104350,14 @@
                                   "minLength": 1,
                                   "maxLength": 200
                                 }
+                              },
+                              "flag": {
+                                "enum": [
+                                  "shared",
+                                  "unknown",
+                                  "taken"
+                                ],
+                                "type": "string"
                               }
                             },
                             "required": [

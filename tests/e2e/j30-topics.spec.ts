@@ -56,7 +56,9 @@ test('Overview shows each exact topic, or a domain at a time, and filters by mon
   await expect(table.getByRole('button', { name: /^Sales/ })).toContainText('96 asked')
   await expect(table.getByRole('button', { name: /^No domain/ })).toBeVisible()
   await go(page, '/observability/questions?group=none&month=2026-09')
-  await expect(page.getByText('Month asked about is September 2026')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: /^Month asked about is September 2026\./ }),
+  ).toBeVisible()
   await expect(page.getByRole('button', { name: /, September 2026$/ })).toHaveCount(2)
   await expect(page.getByRole('button', { name: /, October 2026$/ })).toHaveCount(0)
 })

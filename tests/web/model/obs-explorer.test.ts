@@ -22,6 +22,9 @@ const counts = (c: Partial<Topic['counts']> = {}): Topic['counts'] => ({
 const topic = (id: string, over: Partial<Topic> = {}): Topic => ({
   id,
   metric: 'Orders',
+  metrics: ['metric:orders'],
+  values: [],
+  dimensions: [],
   where: id,
   domain: 'sales',
   month: '2026-10',
