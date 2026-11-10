@@ -182,8 +182,8 @@ export function TopicTable({
                 <span className="font-medium">Could not be read</span>
                 <span className="tabular-nums">{shownCount(unread)} calls</span>
                 <span className="text-xs text-muted-foreground">
-                  Named no metric and no market from the definitions, so they have no topic.
-                  Counted, never the words.
+                  Named no metric and no value from the definitions, so they have no topic. Counted,
+                  never the words.
                 </span>
               </span>
             </td>
@@ -432,7 +432,7 @@ function Flags({
     },
     g.named === 'none' && {
       label: 'No metric named',
-      tip: 'Agents named a market but no metric from the definitions. An owner can add the word they use as another name.',
+      tip: 'Agents named a value but no metric from the definitions. An owner can add the word they use as another name.',
       warn: true,
     },
     g.rows.length > 1 &&

@@ -26,7 +26,14 @@ import { ReadingCard } from '@/components/heed/reading'
 import { DockStepper } from '@/components/heed/list'
 import { BarRows } from '@/components/obs/charts'
 import { SaveQuestion } from '@/components/obs/save-question'
-import { shownCount, type Counts, type Shown, type Topic, monthName } from '@/model/observability'
+import {
+  ALL_VALUES,
+  shownCount,
+  type Counts,
+  type Shown,
+  type Topic,
+  monthName,
+} from '@/model/observability'
 import { openDock } from '@/lib/dock'
 import { useObsView } from '@/lib/obs'
 import { afterAnswer, type ReplayStep, type When } from '@/model/replay'
@@ -82,7 +89,7 @@ export function AnswerPanel({ id }: { id: string }) {
       ? t.gap.href
       : href('/context/new', {
           metric: t.metric,
-          market: t.where === 'All markets' ? undefined : t.where,
+          market: t.where === ALL_VALUES ? undefined : t.where,
         })
 
   return (
@@ -335,7 +342,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                     {s.scope.map((c) => (
                       <span key={c.kind} className="inline-flex items-center gap-1">
-                        {c.kind === 'metric' ? 'Metric' : c.kind === 'market' ? 'Market' : 'Dates'}
+                        {c.kind === 'metric' ? 'Metric' : c.kind === 'market' ? 'Value' : 'Dates'}
                         <span className="rounded-md border px-1.5 py-0.5 text-foreground">
                           {c.label}
                         </span>

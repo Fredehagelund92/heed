@@ -81,7 +81,7 @@ import { listOf } from '@/model/people'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
-import type { FigureView } from '@/model/figures'
+import { figureAskOf, type FigureView } from '@/model/figures'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useRelated } from '@/hooks/use-related'
@@ -1080,8 +1080,9 @@ function AskableKinds({ answer }: { answer: Answer }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Ask answers three kinds of question: about a metric or a market, about the workspace&apos;s
-        records, and about what Definitions lists. Type @ to scope one to a metric or a market.
+        Ask answers three kinds of question: about a metric and the values it&apos;s split by, about
+        the workspace&apos;s records, and about what Definitions lists. Type @ to scope one to a
+        metric or a market.
       </p>
       {close.length > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -1162,7 +1163,7 @@ export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
             }
           >
             <PencilIcon data-icon="inline-start" />
-            Write context for {scope}
+            {scope ? `Write context for ${scope}` : 'Write context'}
           </Button>
         )}
         {answer.times && (
@@ -1466,13 +1467,7 @@ function ContextAnswerBody({
   const writing = answered && isLive(turn) && !revealed
   const where = !draft && !docked && facts.length > 0
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
-  const asked = {
-    metric: answer.metric,
-    markets: answer.markets,
-    dates: answer.dates,
-    state: answer.state,
-    sources: answer.sources,
-  }
+  const asked = figureAskOf(answer)
   const figure = useQuery({ ...figureQuery(asked), enabled: !draft && answer.state !== null })
   const figures = useFigures()
   const view = draft ? null : (figure.data ?? null)

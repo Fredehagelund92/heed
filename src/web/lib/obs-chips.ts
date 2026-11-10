@@ -20,7 +20,7 @@ export const FILTER_KEYS = [
 ] as const
 export type FilterKey = (typeof FILTER_KEYS)[number]
 
-/** One filter that is on: "Market is not Norway". `not` leaves its values out. */
+/** One filter that is on: "Value is not Norway". `not` leaves its values out. */
 export type Chip = { key: FilterKey; not?: boolean; values: string[] }
 export type Filters = Chip[]
 
@@ -28,7 +28,7 @@ export const FILTER_WORDS: Record<FilterKey, string> = {
   answer: 'Answer',
   domain: 'Domain',
   agent: 'Agent kind',
-  market: 'Market',
+  market: 'Value',
   metric: 'Metric',
   month: 'Month asked about',
   gap: 'In the Inbox',

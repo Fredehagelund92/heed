@@ -57,7 +57,7 @@ export const seesObservability = (me: { admin: boolean; owns: string[] }) =>
 /** What each page is for, in a line under its title. */
 export const OBS_PURPOSE: Record<ObsSection, string> = {
   overview:
-    'What agents asked and what they got, by topic: a metric, a market and the month asked about. Counts only: never the words, never who asked.',
+    'What agents asked and what they got, by topic: a metric, the values asked about and the month. Counts only: never the words, never who asked.',
   quality:
     'Saved questions are checked against every change. Free, no model key needed. It checks what agents get, not how an agent words it.',
   feedback:
