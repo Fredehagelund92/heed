@@ -1,4 +1,4 @@
-import { expect, go, moveTo, test } from './go.ts'
+import { card, expect, go, mode, moveTo, test } from './go.ts'
 import type { Page } from '@playwright/test'
 
 // J47: a context item's quick view never looks settled before it is. The list's row draws it at
@@ -56,4 +56,30 @@ test('nothing is settled from the quick view while its read is out', async ({ pa
   )
   await moveTo(page, `/context?dock=context.${stale}`)
   await expect(peek(page).getByRole('button', { name: 'Still true' })).toBeEnabled()
+})
+
+const flagged = 'itm_pfet8zj3'
+
+test('a reported item whose read fails says it is not checked, and Try again checks again', async ({
+  page,
+}) => {
+  test.skip(mode !== 'mock', 'Opens a mock item with the mock report beside it')
+  await go(page, `/context?dock=context.${flagged}&flag=${card('flag-germany')}&state=failed`)
+  await expect(peek(page).getByText(/Reported unclear/)).toBeVisible()
+  await expect(peek(page).getByText(/Not checked whether another item disagrees/)).toBeVisible()
+  await expect(peek(page).getByRole('button', { name: 'Not a problem' })).toBeDisabled()
+  await peek(page).getByRole('button', { name: 'Try again' }).click()
+  await expect(peek(page).getByRole('button', { name: 'Not a problem' })).toBeEnabled()
+  await expect(peek(page).getByText(/Not checked/)).toHaveCount(0)
+})
+
+test('a reported item whose read takes too long says it is not checked', async ({ page }) => {
+  test.skip(mode !== 'mock', 'Opens a mock item with the mock report beside it')
+  await page.clock.install()
+  await go(page, `/context?dock=context.${flagged}&flag=${card('flag-germany')}&state=loading`)
+  await expect(peek(page).getByRole('button', { name: 'Not a problem' })).toBeDisabled()
+  await page.clock.fastForward(8_000)
+  await expect(peek(page).getByText(/Not checked whether another item disagrees/)).toBeVisible()
+  await expect(peek(page).getByRole('button', { name: 'Not a problem' })).toBeDisabled()
+  await expect(peek(page).getByRole('button', { name: 'Try again' })).toBeVisible()
 })

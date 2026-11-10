@@ -75,7 +75,7 @@ export function FactPeek({ id }: { id: string }) {
   // and Try again starts the wait over.
   const [attempt, setAttempt] = React.useState(0)
   const checked = read !== undefined
-  const itemSlow = useTooLong(!checked && !itemRead.isError, attempt)
+  const itemSlow = useTooLong(!checked && (!itemRead.isError || itemRead.isFetching), attempt)
   const unchecked = !checked && (failedNow(itemRead) || itemSlow)
   const facts = useFacts()
   const me = useMe()
@@ -136,23 +136,31 @@ export function FactPeek({ id }: { id: string }) {
     <PeekAttention
       icon={MessageSquareWarningIcon}
       action={
-        owner && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!checked}
-            onClick={() => {
-              void write('completeCard', { card: flag.id, outcome: 'Not a problem' })
-              toast('Report closed', { description: 'The context item stays as it is.' })
-              closeDock()
-            }}
-          >
-            Not a problem
-          </Button>
-        )
+        <span className="flex flex-wrap gap-2">
+          {owner && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!checked}
+              onClick={() => {
+                void write('completeCard', { card: flag.id, outcome: 'Not a problem' })
+                toast('Report closed', { description: 'The context item stays as it is.' })
+                closeDock()
+              }}
+            >
+              Not a problem
+            </Button>
+          )}
+          {unchecked && (
+            <Button variant="outline" size="sm" onClick={retry}>
+              Try again
+            </Button>
+          )}
+        </span>
       }
     >
       Reported {flag.flag!.reason}, {flag.flag!.when}: “{flag.flag!.note}”
+      {unchecked && " Not checked whether another item disagrees: it didn't load."}
     </PeekAttention>
   ) : overlap ? (
     <Disagreement other={overlap} pair={pair} onRetry={retry} />
