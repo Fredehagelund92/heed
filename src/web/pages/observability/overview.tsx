@@ -89,6 +89,7 @@ import {
   type Filters,
   type Span,
 } from '@/lib/obs-views'
+import { afterDrawn } from '@/lib/loading'
 import { rememberTopics } from '@/lib/obs-names'
 import { useRecentDimensions } from '@/lib/obs-recent'
 import { changeQuery, href, setQuery, useRoute } from '@/lib/router'
@@ -193,10 +194,16 @@ function Explorer({
   // An owner reads their own domains, one at a time: their domain is no chip, as they can't take
   // it off. A kind of agent is for admins.
   const own = view.owned && view.domain ? view.domain : undefined
-  const shown = chips.filter(
-    (c) => !(own && c.key === 'domain') && !(view.owned && c.key === 'agent'),
-  )
+  const barOf = (all: Filters) =>
+    all.filter((c) => !(own && c.key === 'domain') && !(view.owned && c.key === 'agent'))
+  const shown = barOf(chips)
   const on: Filters = own ? [{ key: 'domain', values: [own] }, ...shown] : shown
+  // The filters a tick or a chip just chose, until the address has them: the bar, the picker and
+  // the facets show them in the frame of the click (a selection is instant), and the page follows
+  // the address once that frame is drawn.
+  const [choosing] = React.useState(chosenNow)
+  const address = addressOf(query)
+  React.useEffect(() => choosing.settle(address), [choosing, address])
   const viewId = query.get('view') ?? 'all'
   const sorting = sortingFrom(TOPIC_SORTS, query, 'asked')
   const sortBy = (s: Sorting<Sort>) => setQuery(sortingTo(TOPIC_SORTS, s, 'asked'))
@@ -210,18 +217,20 @@ function Explorer({
 
   // A change of the filters is a step in the address, so Back undoes it. The topics and the chips
   // move to their new places while the numbers count (one view transition, none with reduced
-  // motion); a chip moved by its keys moves at once, as the keyboard's tier is instant.
+  // motion); a chip moved by its keys moves at once, as the keyboard's tier is instant. What was
+  // chosen shows first, and changes made in one frame are one step.
   const set = (next: Filters, opts?: { instant?: boolean; clearDays?: boolean }) => {
     const keep = own ? next.filter((c) => c.key !== 'domain') : next
     const domain = own
       ? (chipOf(next, 'domain') ?? { key: 'domain' as const, values: [own] })
       : null
-    moveTo(
-      {
-        ...chipsTo(domain ? [domain, ...keep] : keep, query),
-        ...(opts?.clearDays ? { days: undefined } : {}),
-      },
-      reduced || !!opts?.instant,
+    const all = domain ? [domain, ...keep] : keep
+    choosing.choose(address, all)
+    onceDrawn(() =>
+      moveTo(
+        { ...chipsTo(all, query), ...(opts?.clearDays ? { days: undefined } : {}) },
+        reduced || !!opts?.instant,
+      ),
     )
   }
 
@@ -444,23 +453,27 @@ function Explorer({
           <SaveView filters={on} said={said} disabled={!said.length} />
         </span>
       </div>
-      <FilterBar
-        chips={shown}
-        onChange={(next, _said, instant) => set(next, { instant })}
-        time={daysSaid ? { words: daysSaid, onRemove: clearSpan, onEdit: toChart } : undefined}
-        onClearAll={() => set([], { clearDays: true })}
-        fields={fields}
-        facet={facetOf}
-        words={words}
-        view={pickerView}
-        days={view.range}
-        left={wire.left}
-        pinned={pinned}
-        recent={recent}
-        onPin={onPin}
-        legacy={legacy.why}
-        facets={{ on: rail, toggle: toggleFacets, sheet: !wide }}
-      />
+      <Chosen store={choosing} address={address} chips={on} of={barOf}>
+        {(chips) => (
+          <FilterBar
+            chips={chips}
+            onChange={(next, _said, instant) => set(next, { instant })}
+            time={daysSaid ? { words: daysSaid, onRemove: clearSpan, onEdit: toChart } : undefined}
+            onClearAll={() => set([], { clearDays: true })}
+            fields={fields}
+            facet={facetOf}
+            words={words}
+            view={pickerView}
+            days={view.range}
+            left={wire.left}
+            pinned={pinned}
+            recent={recent}
+            onPin={onPin}
+            legacy={legacy.why}
+            facets={{ on: rail, toggle: toggleFacets, sheet: !wide }}
+          />
+        )}
+      </Chosen>
       <div
         ref={setBody}
         className={cn(
@@ -472,7 +485,11 @@ function Explorer({
               : 'grid-cols-(--cols-facets-shut)',
         )}
       >
-        {wide && <FacetRail {...facetProps} folded={!rail} />}
+        {wide && (
+          <Chosen store={choosing} address={address} chips={on}>
+            {(chips) => <FacetRail {...facetProps} chips={chips} folded={!rail} />}
+          </Chosen>
+        )}
         {/* The topics measure the room beside the facets, not the page's. */}
         <div className="@container/main min-w-0">
           <Numbers
@@ -549,13 +566,85 @@ function Explorer({
           </div>
         </div>
       </div>
-      {!wide && <FacetSheet open={sheet} onOpenChange={setSheet} {...facetProps} />}
+      {!wide && (
+        <Chosen store={choosing} address={address} chips={on}>
+          {(chips) => (
+            <FacetSheet open={sheet} onOpenChange={setSheet} {...facetProps} chips={chips} />
+          )}
+        </Chosen>
+      )}
     </Frame>
   )
 }
 
 /** An address's params in one order, to tell whether two are the same. */
 const addressOf = (q: URLSearchParams) => [...q].sort(([a], [b]) => a.localeCompare(b)).join('&')
+
+/**
+ * The filters chosen and not yet in the address, by the address they were chosen on: once the
+ * address is another, they are not shown, and are let go.
+ */
+type Choice = { at: string; filters: Filters } | null
+
+function chosenNow() {
+  let now: Choice = null
+  const heard = new Set<() => void>()
+  const tell = () => heard.forEach((l) => l())
+  return {
+    get: () => now,
+    subscribe: (l: () => void) => {
+      heard.add(l)
+      return () => heard.delete(l)
+    },
+    choose: (at: string, filters: Filters) => {
+      now = { at, filters }
+      tell()
+    },
+    settle: (at: string) => {
+      if (now && now.at !== at) {
+        now = null
+        tell()
+      }
+    },
+  }
+}
+
+/**
+ * The filters as the bar or the facets show them: those on their way to the address, else the
+ * address's. Only what it draws listens, so a tick is drawn without the page behind it.
+ */
+function Chosen({
+  store,
+  address,
+  chips,
+  of = (f) => f,
+  children,
+}: {
+  store: ReturnType<typeof chosenNow>
+  address: string
+  chips: Filters
+  of?: (filters: Filters) => Filters
+  children: (chips: Filters) => React.ReactNode
+}) {
+  const now = React.useSyncExternalStore(store.subscribe, store.get)
+  return children(of(now && now.at === address ? now.filters : chips))
+}
+
+/**
+ * Makes the last change asked for in a frame once that frame is drawn: what was chosen is on the
+ * screen before the page reads the new address (and before a view transition takes its picture).
+ */
+let next: (() => void) | null = null
+function onceDrawn(change: () => void) {
+  const waiting = next
+  next = change
+  if (waiting) return
+  afterDrawn(() => {
+    const run = next
+    next = null
+    run?.()
+  })
+}
 
 /** The view transition of a change of the filters, while it runs. */
 let moving: ViewTransition | null = null
@@ -570,9 +659,11 @@ function moveTo(changes: Record<string, string | undefined>, instant: boolean) {
   if (instant || moving || !document.startViewTransition) return void changeQuery(changes)
   const root = document.documentElement
   root.dataset.vt = 'filters'
+  inSight()
   const t = document.startViewTransition(async () => {
     await Promise.race([changeQuery(changes), new Promise((done) => setTimeout(done, DRAWN_IN))])
     flushSync(() => {})
+    inSight()
   })
   moving = t
   void t.finished.finally(() => {
@@ -580,6 +671,19 @@ function moveTo(changes: Record<string, string | undefined>, instant: boolean) {
     moving = null
     delete root.dataset.vt
   })
+}
+
+/**
+ * Marks the rows and chips on the screen as those that move: a transition takes a picture of each
+ * one it moves, and hundreds of topic rows out of sight would hold the page still for seconds.
+ */
+function inSight() {
+  const high = window.innerHeight
+  for (const el of document.querySelectorAll<HTMLElement>('[data-vt-move]')) {
+    const box = el.getBoundingClientRect()
+    if (box.bottom > 0 && box.top < high) el.dataset.vtSeen = ''
+    else delete el.dataset.vtSeen
+  }
 }
 /** How long a transition waits for the new address to be drawn, in ms. */
 const DRAWN_IN = 200
