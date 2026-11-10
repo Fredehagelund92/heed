@@ -84,14 +84,16 @@ const wordsOnly = (input: LookupInput) =>
 /**
  * The service's own moment, and what moves a stamp to it: a demo or a test may pin the day
  * (`HEED_FIXED_TODAY`), and then every time the database stamped while it runs is moved by the same
- * days, so "the last 24 hours" ends now on the day it keeps. A stamp already on or before that
- * moment is the day it says, as the Context list shows it: it is left alone.
+ * days, onto the day it keeps. A day pinned in the past is kept whole: its moment is the end of that
+ * day, so all it holds has happened, at any hour it runs. A stamp already on or before that moment
+ * is the day it says, as the Context list shows it: it is left alone.
  */
 export function momentOf(clock: Clock): { now: string; moved: (iso: string) => string } {
   const real = clock.now()
-  const gap = Date.parse(clock.today()) - Date.parse(real.toISOString().slice(0, 10))
+  const kept = Date.parse(clock.today())
+  const gap = kept - Date.parse(real.toISOString().slice(0, 10))
   const shift = Math.round(gap / DAY) * DAY
-  const now = new Date(real.getTime() + gap).toISOString()
+  const now = new Date(shift < 0 ? kept + DAY - 1 : real.getTime() + gap).toISOString()
   return {
     now,
     moved: (iso) =>
@@ -135,7 +137,7 @@ const isRecordsKind = (kind: string): kind is RecordsKind =>
  * Each date is the field the list shows: the last check is its `lastChecked`, and an item is due
  * when its `trust` says so.
  */
-async function itemsOf(
+export async function itemsOf(
   tx: Queryable,
   index: LibraryIndex,
   moment: Pick<ReturnType<typeof momentOf>, 'moved'>,

@@ -250,6 +250,7 @@ async function compose(
     trustedProxies: config.trustedProxies,
     nodeEnv: config.nodeEnv,
     metricsToken: config.metricsToken,
+    askLoop: config.askLoop,
     // The end-to-end tests serve their web pages on this machine; elsewhere, the public web only.
     ...(config.webReadLoopback ? { readPage: createPageReader({ loopback: true }) } : {}),
     login,

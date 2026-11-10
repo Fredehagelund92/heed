@@ -239,9 +239,10 @@ Ask is being rebuilt as one model in a tool loop on Heed's own read tools, run a
 asking. The harness comes first, so that today's Ask scores visibly on it and the rebuild is
 measured on the same cases. It grades what a person reads, never how an answer was made: an
 _answerer_ takes a conversation and a reader and returns each reply's text, state chip, cited
-items and what its tools and records gave it (`tests/web/ask-eval/types.ts`). Today's main, which
-asks the service the way the Ask page does, is one answerer (`tests/web/integration/ask-answerers.ts`);
-the agent will be another.
+items and what its tools and records gave it (`tests/web/ask-eval/types.ts`). Both answerers ask the
+service the way the Ask page does (`tests/web/integration/ask-answerers.ts`): today's main (the
+router, the planner and the words), and Ask's loop (one model on the read tools, below), where the
+service runs it.
 
 - **Cases are conversations** (`tests/web/ask-eval/cases.ts`), each asked by the person it names on
   the demo week through the real service, sign-in and row security (`askWorld`): the maintainer's
@@ -279,22 +280,29 @@ the agent will be another.
   answerer reads which of them failed or tunes on them.
 - **The report** prints scores by class and by promise, then the held-back counts.
 
-| Run    | When                                                                 | What it does                                                                                                                                                                                      |
-| ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Mocked | Every build, `tests/web/integration/ask-eval.test.ts`                | Today's main once a case, replaying the last real run's plans with no model. Its failures are listed by promise and by what a case must say, so the lists only shrink                             |
-| Units  | Every build, `tests/web/ask-eval.test.ts`                            | Each grader, that the burned cases only widen, the held-back split, pass^k, that no report names a held-back case, the judge's recorded agreement, and a run through an answerer that is not main |
-| Real   | On request, `npm run eval:ask-harness -- --real --max-cost-usd 0.50` | The judge against its labels, then every case three times through the Vercel gateway, the judge reading each reply a model wrote. No case starts once the ceiling is spent                        |
+| Run    | When                                                                 | What it does                                                                                                                                                                                       |
+| ------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mocked | Every build, `tests/web/integration/ask-eval.test.ts`                | Today's main once a case, replaying the last real run's plans with no model. Its failures are listed by promise and by what a case must say, so the lists only shrink                              |
+| Mocked | Every build, `tests/web/integration/ask-eval-loop.test.ts`           | Ask's loop once a case, taking the last real run's steps again with no model (`ask-eval-loop-steps.json`); a step it did not record is the scripted reader's. Its failures are listed the same way |
+| Units  | Every build, `tests/web/ask-eval.test.ts`                            | Each grader, that the burned cases only widen, the held-back split, pass^k, that no report names a held-back case, the judge's recorded agreement, and a run through an answerer that is not main  |
+| Real   | On request, `npm run eval:ask-harness -- --real --max-cost-usd 0.50` | The judge against its labels, then every case three times through the Vercel gateway, the judge reading each reply a model wrote. No case starts once the ceiling is spent                         |
 
-`npm run eval:ask-harness` with no flags runs the mocked form and prints its report; `--real` needs
+`npm run eval:ask-harness` with no flags runs the mocked form of today's main and prints its
+report; `--answerer loop` runs Ask's loop instead, in every form. `--real` needs
 `VERCEL_AI_GATEWAY_API_KEY` in the environment and runs in a database of its own, copied from the
 test template, so its spend never reaches another ledger. `--record` keeps the plans
-(`tests/web/integration/ask-eval-plans.json`) and the judge's verdicts the builds replay,
-`--tries` and `--cases` narrow a run, and `--out` names the report file, which holds every open
-case's turns and the held-back ones only as counts.
+(`tests/web/integration/ask-eval-plans.json`), or the loop's steps, each by what the model was
+sent, and the judge's verdicts the builds replay; `--no-judge-set` leaves out measuring the judge
+against its labels, `--tries` and `--cases` narrow a run, and `--out` names the report file,
+which holds every open case's turns and the held-back ones only as counts. The loop's evidence for
+the judge and the number grader is every value its reads returned, the chat's earlier reads made
+again included.
 
-A real run asks one chat at a time: a look-up holds one of the service's database connections for
-its whole request and the real planner opens a second to check the spending limits, so as many
-live chats at once as the pool has connections wait on each other for good. A message the service
+A real run asks one chat at a time: the loop's reads for a reply are the last ones the service's
+trace heard, and today's main holds one of the service's database connections for its whole
+request while its real planner opens a second to check the spending limits, so as many live chats
+at once as the pool has connections wait on each other for good. The loop does not
+(`tests/web/integration/ask-loop-pool.test.ts`). A message the service
 gives no reply to is sent once more; a second miss ends that try as unanswered, which counts as
 missing what the case must say and is reported apart, never as a promise broken. The run journals
 each graded try next to its report (`<out>.jsonl`) with what has been spent so far, by the
@@ -302,6 +310,111 @@ service's meter and the judge's, and reads the gateway's own counter at its star
 that dies keeps what it paid for: `--resume <journal>` goes on with it, asks only the tries it had
 not, and counts its spend against the same ceiling. `--replay <journal>` grades a real run's
 replies and judge findings again on the demo week with no model, after a grader changes.
+
+### Ask's tools
+
+The rebuilt Ask reads through eight read-only tools (`src/server/modules/answer/tools.ts`), each
+run as the person asking, inside a transaction of theirs, through the services their own requests
+use (`requestServices` in `src/server/http/api.ts`). Ask's loop calls them (below). Each
+takes a typed input, returns a typed result with every id it gave (so a citation can be held to
+the reads of a turn), and answers a wrong input, or a name it does not know, with what was asked
+and the closest name rather than with nothing. `createAskTools(...).ai()` gives them in the AI
+SDK's shape.
+
+- **The engine agents get.** `find_context`, `get_context` and `read_context` run the same code as
+  the MCP tools and Ask's look-up (`createToolService`, `answer`) on the live edition narrowed to
+  the items the person's Context list gives them: a hidden item is not there, so it reads as one
+  that does not exist. They record no delivery, no request and no demand.
+- **The person's own pages.** `definitions` (Definitions), `records` (the Context list, counted,
+  listed and ranked by code, each count with what it is out of), `conflicts` (the Conflicts
+  filter), `agent_questions` (what agents asked, as FR-614 discloses it to that reader: a floor
+  stays a floor, a topic under the minimum is not listed and reads as one never asked) and `inbox`
+  (the person's own cards, never a comment's, a report's or a saved question's words).
+- **No dead ends.** A search that finds nothing says what it searched (the names, the period and
+  the kinds) out of how many published items the person may read, what is nearby and why it does
+  not apply, and who owns the subject. Given `widen`, it searches once more by another name of the
+  same thing or without one part; a read without a part stays nearby and never sets the state.
+
+| Promise                                     | Kept by                                                                                        | Checked by                                                                                                              |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| FR-718.1 as the person, through their reads | Every tool reads the person's own services in their transaction                                | `tests/web/integration/ask-tools.test.ts`: per persona, Definitions, Context's filters, Conflicts, Inbox, Observability |
+| FR-718.2 what is hidden stays hidden        | The edition narrowed to the Context list; per-reader asked counts; no comment or draft is read | `tests/integration/audience.test.ts` (every tool, every role, the hidden item); drafts and small counts per persona     |
+| FR-718.4 read only, not an agent            | No write, no delivery record, no demand                                                        | `ask-tools.test.ts`: every tool for every persona leaves every table as it was                                          |
+| FR-718.5 agents see no change               | The MCP tools are only called, never changed                                                   | `tests/server/ask-tools.test.ts` (the MCP tools and their schema digest); the engine digest in `ask-plan-cases.test.ts` |
+| FR-719.3 no dead ends                       | `searched`, `nothing`, `nearby`, `owners`, `outOf` and one `widen`                             | `ask-tools.test.ts`, "no dead ends"                                                                                     |
+| FR-719.4 a question's words kept nowhere    | The tools keep nothing and log nothing                                                         | `tests/integration/privacy.test.ts`: a marker given to every tool is in no table, and no table changes                  |
+| FR-719.5 text is data                       | An item's words come back only as its fields                                                   | `ask-tools.test.ts`, "text is data": an instruction written into an item                                                |
+| FR-720.2, FR-720.3 citations and numbers    | Every result lists its ids; every count, rank and denominator is computed in code              | `ask-tools.test.ts` (every id is readable and listed); `tests/server/ask-tools.test.ts` (the records tool)              |
+
+### Ask's loop
+
+With `HEED_ASK_LOOP=on`, Ask answers with one model in a tool loop on these tools in place of its
+router, through the same endpoint (`ask.lookup`, `src/server/modules/answer/loop.ts`). It is off by
+default: what it shows is not yet checked beyond its citations. The answer check of FR-720.10 comes
+next, and until it ships the router serves everyone.
+
+- **One model, the whole chat.** The model of `models.assistant` gets a short prompt written once
+  from the product's rules and promises, with no case or example in it, the chat so far, and the
+  eight tools as its only reads, beside `ask_back` for one question back with its readings as
+  choices. The browser sends each earlier turn with what Ask said and the reads it made, by tool
+  and input (`reply` and `reads` in `chatTurnSchema`). The service makes each read again, as the
+  person, now, before the model sees its result, and leaves out of an earlier reply each sentence
+  that cites an item no read returns any more. A turn sent with a result is refused.
+- **Limits** (FR-719.7). At most `ask.max_steps` model steps (6), the last with no reads, and
+  `ask.time_limit_seconds` (30); the person's spending limits are checked before every step, and
+  every step is metered as the assistant's. A turn that stops at a limit, or whose model fails,
+  shows only a fixed sentence.
+- **Code writes the rest, from the reads.** Each citation is checked against the ids the chat's
+  reads returned and numbered as a source; a mark to an id no read returned is dropped. The state
+  comes from the get_context reads about the question's subject, the least sure of several; an
+  answer whose items only the records listed carries none; under Not found, what the reads found
+  nearby is listed and not used. Then the footer, what was read line by line, and a step as each
+  read starts and once it is done.
+- **The answer as the page draws it** (`src/server/modules/answer/loop-body.ts`). Each result has a
+  ref (`r1`) and names every noun it returns by the id a typed mention writes
+  (`src/domain/ask-nouns.ts`): `metric:<id>`, `dimension:<id>`, `value:<dimension>/<value>`,
+  `domain:<id>`, `person:<id>`, a value always with its own dimension. The model writes
+  `[@value:<dimension>/<value>]` for a noun, `[#r1.count]` for a number or a day a read holds,
+  `[list:r1]` for a read's items as rows, and lines that start with a dash for a short list. Code
+  checks each against the chat's reads: a mention no read named is plain words, a reference no read
+  holds leaves its sentence out, a long enumeration after a colon becomes a list, and what the
+  check found (`checks`) is kept for the answer check, never shown as the words. The turn carries
+  the words in plain words (`text`, what the graders read), as the model wrote them with what they
+  cite, by id (`said`, what the chat sends back), and as blocks the page draws beside the evidence
+  (`body`): a mention that trails its clause or follows its own name is drawn on the words that
+  give its name, and under Not found nothing is cited and a list of the items the closest written
+  show is left out, with its lead. Then the nouns, the item rows, the closest
+  written under Not found (counted by each other value of whichever dimension the question
+  narrowed), the owners, and the definition only when the question asks what it is or turns on a
+  word of it. A set asked for as a whole ends the turn with `show_overview`: the groups of an
+  inbox read, or of a records read with `group_by`, with their counts and rows by code, the total
+  the groups add up to, and the page's own count beside it, with why, when the two differ. Nothing
+  in the tools, the prompt or the page knows a dimension, a domain or a person by name. Ask on the
+  web keeps a chat's finished loop answers in the browser with the chat, so opening it again shows
+  them and asks nothing.
+- **The pool.** The request ends before the model's first step. Each read, spending check and meter
+  line is a transaction of its own as the person, and a turn's reads take one connection at a
+  time, so no turn holds a connection while its model works or while it waits for another.
+- **With no model** (`MODELS=mock`) the loop runs a scripted reader (`loop-mock.ts`), which looks
+  the message up once and says what applies. The search page of FR-718.6 is not built yet.
+
+| Promise                                          | Kept by                                                                                                                  | Checked by                                                                                                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FR-718.3 earlier turns checked again             | Reads made again as the person; sentences citing what they no longer return left out                                     | `tests/web/integration/ask-loop.test.ts`: an item hidden between two turns, an edited reply, a result sent back; `tests/server/ask-loop.test.ts` |
+| FR-718.4 read only                               | The tools write nothing; the request writes only that Ask was used and, with a real model, its steps' spend ledger lines | `ask-loop.test.ts`: a chat leaves every table as it was                                                                                          |
+| FR-719.1 the whole chat                          | Every earlier turn, its words and its reads made again, in the model's messages                                          | The harness's follow-up cases                                                                                                                    |
+| FR-719.2 one question back                       | `ask_back` ends the turn, with no state                                                                                  | `tests/server/ask-loop.test.ts`; the harness's X cases                                                                                           |
+| FR-719.4 a question's words kept nowhere         | The loop logs a failure by its name only                                                                                 | `ask-loop.test.ts`: a marker in a chat is in no table; the harness's `stored`                                                                    |
+| FR-719.7 limits, said                            | `ask.max_steps`, `ask.time_limit_seconds`, the spending limits, fixed sentences                                          | `tests/server/ask-loop.test.ts` (steps, time, a failing model); `ask-loop-pool.test.ts` (spending)                                               |
+| FR-720.2 citations                               | Every mark held to the ids the chat's reads returned                                                                     | `tests/server/ask-loop.test.ts`; the harness's citation grader                                                                                   |
+| FR-720.4, FR-720.5, FR-720.9 state, footer, read | Written by code from the reads                                                                                           | `tests/server/ask-loop.test.ts`; the harness's state grader                                                                                      |
+| FR-720.2, FR-720.3 nouns, numbers and lists      | Every typed mention, reference and list held to the chat's reads; the words as blocks                                    | `tests/server/ask-loop-body.test.ts`, `tests/server/ask-invented.test.ts` (a workspace of teams and sprints)                                     |
+| The answer's shapes, overviews among them        | The evidence, the overview's groups and total, by code                                                                   | `tests/web/integration/ask-loop-shapes.test.ts` (the demo week); `tests/web/loop-answer.test.ts`; `tests/e2e/visual-ask-loop.spec.ts`            |
+| The pool                                         | No connection held across a model call; one at a time per turn                                                           | `ask-loop-pool.test.ts`: 4 and 8 live asks at once on a pool of 4, with a slow scripted model                                                    |
+
+Without the answer check, these are the model's own: every number from a read (FR-720.3, beyond
+the counts the tools compute), no advice (FR-720.6), no verdict (FR-720.7) and no unsupported
+sentence (the judge's part of FR-720.2). The harness measures each.
 
 ## Quality reads
 

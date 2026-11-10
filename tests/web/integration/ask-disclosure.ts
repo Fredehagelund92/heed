@@ -1,6 +1,6 @@
 import { domains } from '@/api/mock/data/world'
 import type { HeedApi } from '@/api/client'
-import type { ObsData } from '@/model/observability'
+import { ALL_VALUES, type ObsData } from '@/model/observability'
 
 /*
   What each person may see of what agents asked (FR-614), from the pages themselves: their own
@@ -11,7 +11,7 @@ import type { ObsData } from '@/model/observability'
 
 /** A topic as Ask names it. */
 const titleOf = (t: ObsData['topics'][number]) =>
-  [t.metric, t.where === 'All markets' ? '' : t.where].filter(Boolean).join(' in ')
+  [t.metric, t.where === ALL_VALUES ? '' : t.where].filter(Boolean).join(' in ')
 
 /** How much of a count a page shows: the count, or only a floor; null for none. */
 export type Cell = { count: number | null; atLeast: number } | null

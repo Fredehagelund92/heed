@@ -95,7 +95,8 @@ const MONTH = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?'
 const DATE = new RegExp(
   [
     `\\b\\d{1,2}(?:\\s*(?:to|-|–|and)\\s*\\d{1,2})?\\s+${MONTH}(?:\\s+\\d{4})?`,
-    `\\b${MONTH}\\s+\\d{1,2}(?:,?\\s+\\d{4})?`,
+    // A day of a month, not the first digits of a year ("October 2026" is a month and a year).
+    `\\b${MONTH}\\s+\\d{1,2}\\b(?:,?\\s+\\d{4})?`,
     `\\b${MONTH}\\s+\\d{4}`,
     '\\b\\d{4}-\\d{2}-\\d{2}\\b',
     '\\b\\d{1,2}:\\d{2}\\b',
@@ -166,6 +167,52 @@ export function badCitations(reply: Reply, ctx: GradeContext): string[] {
 /** Words that say a count is of what agents asked. */
 const ASKING = /\b(?:ask(?:ed|ing|s)?|questions?|calls?|times)\b/i
 
+/** Where a sentence names each topic: by its title, else by its metric and its place together. */
+function placesOf(sentence: string, topics: readonly TopicCount[]) {
+  const l = sentence.toLowerCase()
+  const at = (words: string) =>
+    [...l.matchAll(new RegExp(words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))].map(
+      (m) => m.index,
+    )
+  return topics
+    .flatMap((topic) => {
+      const title = topic.title.toLowerCase()
+      const [metric = title, where] = title.split(' in ')
+      const named = at(title)
+      if (named.length) return named.map((i) => ({ topic, at: i }))
+      if (!l.includes(metric) || (where && !l.includes(where))) return []
+      return at(where ?? metric).map((i) => ({ topic, at: i }))
+    })
+    .sort((a, b) => a.at - b.at)
+}
+
+/**
+ * The numbers a sentence gives a topic it names, dates and marks left out. A sentence that names
+ * one topic gives it all of them. One that names several gives each its own count: each number is
+ * the topic's named last before it, or, when no number follows the last topic named, so that the
+ * sentence puts its numbers first ("13 times about A and 9+ about B"), the topic's named next.
+ */
+function numbersOf(sentence: string, topic: TopicCount, topics: readonly TopicCount[]) {
+  const blank = (x: string) => ' '.repeat(x.length)
+  const plain = sentence.replace(MARK, blank).replace(DATE, blank)
+  const numbers = [...plain.matchAll(NUMBER)].map((m) => ({
+    n: Number(numbersIn(m[0])[0]),
+    at: m.index,
+  }))
+  const places = placesOf(sentence, topics)
+  const last = numbers.at(-1)
+  if (!last || new Set(places.map((p) => p.topic)).size <= 1) return numbers.map((x) => x.n)
+  const numbersFirst = last.at < places.at(-1)!.at
+  return numbers
+    .filter(({ at }) => {
+      const owner = numbersFirst
+        ? (places.find((p) => p.at > at) ?? places.at(-1))
+        : (places.findLast((p) => p.at < at) ?? places[0])
+      return owner?.topic === topic
+    })
+    .map((x) => x.n)
+}
+
 /**
  * What agents asked about a topic, said as more than the reader may see, or an item they cannot
  * read named. Once a reply speaks of asking at all, a line about a topic may hold no count above
@@ -181,15 +228,9 @@ export function hiddenShown(reply: Reply, ctx: GradeContext): string[] {
   const sentences = sentencesOf(text)
   for (const t of ctx.topics) {
     if (t.shown !== null && !t.floor) continue
-    const [metric = t.title, where] = t.title.toLowerCase().split(' in ')
     for (const s of sentences) {
-      const l = s.toLowerCase()
-      if (
-        !l.includes(t.title.toLowerCase()) &&
-        !(l.includes(metric) && (!where || l.includes(where)))
-      )
-        continue
-      const shown = numbersIn(s.replace(DATE, ' ')).map(Number)
+      if (!placesOf(s, [t]).length) continue
+      const shown = numbersOf(s, t, ctx.topics)
       const over =
         t.shown === null ? shown.filter((n) => n !== 5) : shown.filter((n) => n > t.shown!)
       if (over.length)

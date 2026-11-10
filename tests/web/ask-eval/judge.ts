@@ -101,7 +101,9 @@ export async function judge(choice: ModelChoice, input: JudgeInput): Promise<Jud
         providerOptions: choice.options,
         system: judgeSystem,
         prompt: judgePrompt(input),
-        maxOutputTokens: 800,
+        // Room for a long reply's quotes: at 800 a judge that quoted many sentences was cut off
+        // before its JSON closed.
+        maxOutputTokens: 2_000,
         abortSignal: AbortSignal.timeout(30_000),
       })
     } catch {

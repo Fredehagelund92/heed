@@ -11,6 +11,7 @@ import {
   type Topic,
 } from '../obs-engine'
 import type { DomainId } from '@/model/items'
+import { ALL_VALUES } from '@/model/observability'
 import { markets } from './world'
 
 // What Observability counts: what agents asked and how it was answered, as scopes and counts only.
@@ -143,7 +144,7 @@ const TOPICS: Topic[] = [
     month: '2026-09',
   }),
   topic('revenue-norway', 'Revenue', 'Norway', 'sales', [5, 0, 0, 0, 0], { named: 'group' }),
-  topic('units-sold-all', 'Units sold', 'All markets', 'sales', [11, 0, 0, 0, 1]),
+  topic('units-sold-all', 'Units sold', ALL_VALUES, 'sales', [11, 0, 0, 0, 1]),
   topic('norway-no-metric', '', 'Norway', undefined, [4, 1, 0, 0, 0], { named: 'none' }),
   topic('discount-black-friday', 'Discount cost', 'Black Friday', 'marketing', [10, 1, 0, 3, 0]),
   topic('orders-poland', 'Orders', 'Poland', 'sales', [4, 2, 0, 1, 6], {
@@ -162,13 +163,7 @@ const TOPICS: Topic[] = [
   topic('cpa-germany', 'Cost per acquisition', 'Germany', 'marketing', [8, 1, 1, 0, 0]),
   topic('new-customers-norway', 'New customers', 'Norway', 'customer_value', [5, 1, 0, 0, 0]),
   topic('roas-sweden', 'Return on ad spend', 'Sweden', 'paid_media', [5, 0, 0, 1, 0]),
-  topic(
-    'repeat-purchases-all',
-    'Repeat purchases',
-    'All markets',
-    'customer_value',
-    [3, 1, 0, 0, 1],
-  ),
+  topic('repeat-purchases-all', 'Repeat purchases', ALL_VALUES, 'customer_value', [3, 1, 0, 0, 1]),
 ]
 
 /**

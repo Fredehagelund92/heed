@@ -28,6 +28,8 @@ import { compareIds } from '../../../domain/resolver.ts'
 import { askedTotals } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
+import type { ModelChoice } from '../models/index.ts'
+import type { LoopDeps } from './loop.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { quoted } from '../../mcp/outcomes.ts'
 import { createObservabilityService } from '../observability/index.ts'
@@ -118,6 +120,10 @@ export type AskTrace = {
   planner?: Planner
   onPlan?: (prompt: string, text: string) => void
   onDropped?: (dropped: readonly DroppedSentence[]) => void
+  /** Ask's loop: the model it asks in place of the assistant's, such as a recorded one. */
+  loopModel?: ModelChoice
+  /** Each loop turn's reads, and the chat's earlier reads made again, with what they returned. */
+  onLoopTurn?: LoopDeps['onTurn']
 }
 
 /** What Ask's look-up may call beside the engine, each when the service has it. */

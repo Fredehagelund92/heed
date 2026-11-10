@@ -1,5 +1,8 @@
+import type { LoopTurn } from '@contract/answer'
+import { loopAnswerOf } from '@/api/http-ask'
 import type { Answer } from '@/model/ask'
 import type { AskLive } from '@/model/ask-turn'
+import { ApiError } from '../errors'
 
 // How the mock's answers arrive in a live chat, so Ask on the mock reads as it does on the service
 // with a real model: a look-up, what it found, the engine's answer with its state and sources, then
@@ -50,4 +53,21 @@ export async function playAnswer(answer: Answer, live: AskLive): Promise<Answer>
       tell({ type: 'sentence', text })
     }
   return answer
+}
+
+/**
+ * One of Ask's loop answers by its example id (`?example=loop-missing`), as the service wrote it on
+ * the demo week (tests/web/integration/ask-loop-shapes.test.ts writes them): loaded only when asked.
+ */
+export async function loopExample(id: string): Promise<Answer> {
+  const { default: examples } = await import('./data/loop-examples.json')
+  const found = (examples as unknown as Record<string, { question: string; turn: LoopTurn }>)[id]
+  if (!found) throw new ApiError('not-found', 'This example is not offered any more.')
+  const names = {
+    metric: (k: string) => k,
+    value: (k: string) => k,
+    metricKey: () => undefined,
+    marketKey: () => undefined,
+  }
+  return { ...loopAnswerOf(found.turn, found.question, names), id: `example-${id}` }
 }

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { AnswerResult, Asked } from '@contract/answer'
+import type { AnswerResult, Asked, LoopTurn } from '@contract/answer'
+import type { Answer } from '@/model/ask'
 import {
   answerOf,
   askedWeekOf,
   createChatShelf,
+  KEPT_ANSWERS,
   dayOf,
   examplesOf,
   linksOf,
+  loopAnswerOf,
   lookupFields,
   namesOf,
   type Shelf,
@@ -502,6 +505,39 @@ describe("the person's chats in the browser", () => {
     expect(chats.undo('a-decision-token')).toBe(false)
   })
 
+  it("keeps a chat's finished loop answers with it, for the newest chats only", () => {
+    let now = Date.parse('2026-10-23T09:00:00')
+    const shelf = memory()
+    const chats = createChatShelf(shelf, () => now)
+    const answer = (question: string): Answer => ({
+      id: 'a',
+      question,
+      metric: '',
+      markets: [],
+      state: null,
+      text: 'Said.',
+      sources: [],
+      said: '',
+    })
+    chats.add('per_jon', 'c1', 'First?', '')
+    chats.keep('per_jon', 'c1', 'First?', [answer('First?'), answer('And then?')])
+    // Opened again, the chat has its answers: nothing need be asked again.
+    expect(chats.list('per_jon')[0]?.answers?.map((a) => a.question)).toEqual([
+      'First?',
+      'And then?',
+    ])
+    for (let i = 2; i <= KEPT_ANSWERS + 1; i++) {
+      now += 60_000
+      chats.keep('per_jon', `c${i}`, `Q${i}?`, [answer(`Q${i}?`)])
+    }
+    const kept = chats.list('per_jon')
+    expect(kept).toHaveLength(KEPT_ANSWERS + 1)
+    // The oldest gives its answers up, and asks again when it is opened.
+    expect(kept.at(-1)).toMatchObject({ id: 'c1' })
+    expect(kept.at(-1)?.answers).toBeUndefined()
+    expect(kept.filter((t) => t.answers?.length)).toHaveLength(KEPT_ANSWERS)
+  })
+
   it('reads a shelf it cannot parse as no chats', () => {
     const shelf = memory()
     shelf.set('heed.ask.chats.per_jon', '{not json')
@@ -575,5 +611,78 @@ describe('the links an answer followed', () => {
   it('says nothing of links for an answer that carries none', () => {
     expect(linksOf(result())).toBeUndefined()
     expect(answerOf(result(), 'Orders?', namesOf(vocabulary)).links).toBeUndefined()
+  })
+})
+
+describe("the subject of a loop turn's answer", () => {
+  const nouns = [
+    { id: 'metric:tickets', name: 'Tickets closed', of: null, type: null },
+    {
+      id: 'value:team/billing',
+      name: 'Billing',
+      of: { id: 'dimension:team', name: 'Team' },
+      type: null,
+    },
+  ]
+  const turn = (
+    subject: Omit<NonNullable<LoopTurn['subject']>, 'carried' | 'uncovered'> | null,
+  ): LoopTurn => ({
+    kind: 'answer',
+    text: '',
+    sources: [],
+    state: 'missing',
+    footer: { denominator: null, notSeen: null, stale: null },
+    read: [],
+    subject: subject && { ...subject, carried: false, uncovered: [] },
+    nearby: [],
+    conflict: [],
+    definitions: [],
+    choices: [],
+    reads: [],
+    stopped: null,
+    body: [],
+    said: '',
+    nouns,
+    items: [],
+    closest: null,
+    owners: [],
+    overview: null,
+    checks: [],
+  })
+
+  it('names the metric, the values of any dimension and the days the subject was read for', () => {
+    const a = loopAnswerOf(
+      turn({
+        names: ['Tickets closed', 'Billing'],
+        about: ['metric:tickets', 'value:team/billing'],
+        period: '1-31 Aug 2026',
+        assumedToday: false,
+      }),
+      'Tickets closed by billing?',
+      names,
+    )
+    expect(a.metric).toBe('Tickets closed')
+    expect(a.markets).toEqual(['Billing'])
+    expect(a.dates).toBe('1 to 31 Aug 2026')
+    // The page draws the turn itself.
+    expect(a.loop?.nouns).toEqual(nouns)
+  })
+
+  it('gives no days when the read assumed today, and no subject when there was none', () => {
+    const today = loopAnswerOf(
+      turn({
+        names: ['Tickets closed'],
+        about: ['metric:tickets'],
+        period: '8 Nov 2026',
+        assumedToday: true,
+      }),
+      'Tickets?',
+      names,
+    )
+    expect(today.metric).toBe('Tickets closed')
+    expect(today.dates).toBeUndefined()
+    const none = loopAnswerOf(turn(null), 'Hi', names)
+    expect(none.metric).toBe('')
+    expect(none.markets).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import { useChats, useWrite } from '@/api/queries'
-import type { Thread } from '@/model/ask'
+import type { Answer, Thread } from '@/model/ask'
 
 // The chats under Ask as the screens use them, from the shared chats read (src/web/api). Only the
 // person's own chats in Ask: what agents ask is kept as scopes and counts, never as conversations.
@@ -17,6 +17,9 @@ export function useThreadActions() {
   return {
     /** A chat the person just started, at the top of Today. */
     add: (id: string, question: string) => void write('saveChat', { id, question }),
+    /** Ask's loop: keeps a chat's finished answers with it, so opening it asks nothing again. */
+    keep: (id: string, question: string, answers: Answer[]) =>
+      void write('saveChat', { id, question, answers }),
     rename: (id: string, title: string) => void write('renameChat', { id, title }),
     /** Deletes a chat; the token puts it back where it was. */
     remove: async (id: string) => (await write('deleteChat', { id })).undo,

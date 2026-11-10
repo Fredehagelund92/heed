@@ -67,16 +67,19 @@ export function useShownStage(turn: Turn): ShownStage {
   return stopped ? target : shown.stage
 }
 
-/** Whether a look-up has been looking for `ASK_STILL_WAITING_MS`. */
-export function useStillLooking(looking: boolean) {
-  const [still, setStill] = React.useState(false)
+/**
+ * Whether a look-up has been looking for `ASK_STILL_WAITING_MS` since it began or since its
+ * `progress` last changed: each new progress line shows before it is called still looking.
+ */
+export function useStillLooking(looking: boolean, progress?: string | null) {
+  const [still, setStill] = React.useState<string | null>(null)
+  const mark = progress ?? ''
   React.useEffect(() => {
     if (!looking) return
-    const id = window.setTimeout(() => setStill(true), ASK_STILL_WAITING_MS)
+    const id = window.setTimeout(() => setStill(mark), ASK_STILL_WAITING_MS)
     return () => window.clearTimeout(id)
-  }, [looking])
-  // Looking only ever comes once in an answer's life: asked again, its answer is drawn anew.
-  return looking && still
+  }, [looking, mark])
+  return looking && still === mark
 }
 
 /**
