@@ -54,11 +54,13 @@ docker network create --subnet "$subnet.0/24" "$run" > /dev/null ||
   fail "the private network $subnet.0/24 is made (HEED_BOOT_SUBNET moves it)"
 docker run -d --name "$run-db" --network "$run" -e POSTGRES_HOST_AUTH_METHOD=trust \
   postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336 > /dev/null
+# Over TCP: the first-boot init server listens only on its socket, so a socket check can pass
+# just before that server stops and the real one starts.
 for _ in $(seq 60); do
-  if docker exec "$run-db" pg_isready -U postgres > /dev/null 2>&1; then break; fi
+  if docker exec "$run-db" pg_isready -h 127.0.0.1 -U postgres > /dev/null 2>&1; then break; fi
   sleep 1
 done
-docker exec "$run-db" pg_isready -U postgres > /dev/null || fail 'PostgreSQL is ready'
+docker exec "$run-db" pg_isready -h 127.0.0.1 -U postgres > /dev/null || fail 'PostgreSQL is ready'
 
 # As compose.yaml connects: the superuser makes the roles and the database, then each part of
 # the service takes its own role.
