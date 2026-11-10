@@ -33,7 +33,9 @@ days` stay resolvable). A dimension named without a value becomes a filter with 
   (`{ 'dim:market': [] }`), and a named dimension alone is scope. `spans` gives where each name and
   the dates sit in the words as written. This is a conservative vocabulary parser, not general
   language understanding; callers should supply structured scope, especially for multiword unknown
-  values.
+  values. Up to three words after a name and "in" that name nothing Heed knows ("orders in
+  jordan") are read as a value it does not know, never dropped, so the read is not every value; the
+  issue names the dimensions it could be a value of and the closest values.
 - `dates.ts`: `readDates`, the period the words of a question name, counted from `today` in one
   time zone (UTC: Heed has no company time zone, NFR-048), with a reads-as phrase such as "1 Jan to
   7 Oct 2026 (this year so far; UTC)". It reads an ISO day, a day, month or quarter with or
