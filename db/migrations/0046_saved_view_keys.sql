@@ -12,13 +12,18 @@
 --
 -- It can be undone: each view changed keeps its filters as they were in `filters_before_keys`, and
 -- `select observability_views_from_keys()` puts them back (and `observability_views_to_keys()` runs
--- the move again). The filters may now be longer: 20 chips of up to 50 keys each.
+-- the move again). The move also keeps what it produced, in `filters_after_keys`. The rollback
+-- restores a view only while its filters are still exactly that: a view changed since (a chip
+-- edited, a dimension chip added) keeps its current filters untouched, is not converted back, and
+-- is named in a notice. Either way the view stops being tracked by the move. The rollback returns
+-- how many views it restored. The filters may now be longer: 20 chips of up to 50 keys each.
 
 alter table public.observability_views
   drop constraint observability_views_filters_check,
   add constraint observability_views_filters_check
     check (jsonb_typeof(filters) = 'object' and octet_length(filters::text) <= 65536),
-  add column filters_before_keys jsonb;
+  add column filters_before_keys jsonb,
+  add column filters_after_keys jsonb;
 
 create function public.observability_views_to_keys() returns integer
     language plpgsql
@@ -78,7 +83,8 @@ begin
     end loop;
     update observability_views
        set filters_before_keys = filters,
-           filters = jsonb_set(filters, '{chips}', chips)
+           filters = jsonb_set(filters, '{chips}', chips),
+           filters_after_keys = jsonb_set(filters, '{chips}', chips)
      where id = v.id;
     n := n + 1;
   end loop;
@@ -87,15 +93,28 @@ end
 $$;
 
 create function public.observability_views_from_keys() returns integer
-    language sql
+    language plpgsql
     set search_path to 'public', 'pg_temp'
     as $$
-  with back as (
+declare
+  v record;
+  n integer := 0;
+begin
+  for v in select id, name, filters, filters_before_keys, filters_after_keys
+             from observability_views where filters_before_keys is not null
+  loop
+    if v.filters = v.filters_after_keys then
+      update observability_views set filters = v.filters_before_keys where id = v.id;
+      n := n + 1;
+    else
+      raise notice 'observability view % (%) was changed after the move to keys; kept as it is',
+        v.id, v.name;
+    end if;
     update observability_views
-       set filters = filters_before_keys, filters_before_keys = null
-     where filters_before_keys is not null
-    returning 1)
-  select count(*)::int from back
+       set filters_before_keys = null, filters_after_keys = null where id = v.id;
+  end loop;
+  return n;
+end
 $$;
 
 select public.observability_views_to_keys();
