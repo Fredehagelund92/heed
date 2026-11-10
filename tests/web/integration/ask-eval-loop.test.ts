@@ -9,10 +9,11 @@ import { askEvalSuite } from './ask-eval-suite.ts'
 
   Read by hand, the breaches listed are: P04 and P05, a share the model worked out itself ("1 of
   its 4 items, or 25%"); V04, a decline the advice pattern reads as advice ("Ask does not answer
-  questions about what you should do"); and five must-nots. 25 steps follow tool results that are
-  not the same from one run to the next (an Inbox card's id is made afresh each run), so no
-  recorded step matches them, even on the code that recorded them: the scripted reader takes
-  those in every build.
+  questions about what you should do"); and four must-nots. About 25 steps follow tool results
+  that are not the same from one run to the next (an Inbox card's id is made afresh each run), so
+  no recorded step matches them, even on the code that recorded them: the scripted reader takes
+  those in every build. The 19 cases the rules' gaps fix changed were recorded again on 10
+  November 2026; in that run G23's words no longer say that a count is not shown.
 */
 
 askEvalSuite({
@@ -20,14 +21,12 @@ askEvalSuite({
   brokenToday: {
     numbers: ['P04', 'P05'],
     advice: ['V04'],
-    never: ['V08', 'G06', 'H04', 'H06', 'H13'],
+    never: ['G06', 'H04', 'H06', 'H13'],
   },
   missingToday: [
-    'K02',
     'K12',
     'K15',
     'V01',
-    'V09',
     'F01',
     'F05',
     'F06',
@@ -38,7 +37,6 @@ askEvalSuite({
     'F16',
     'F17',
     'F18',
-    'F19',
     'F21',
     'F29',
     'F30',
@@ -58,6 +56,7 @@ askEvalSuite({
     'G15',
     'G18',
     'G22',
+    'G23',
     'G27',
     'G29',
     'G30',
