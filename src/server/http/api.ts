@@ -38,6 +38,7 @@ import {
   listClients,
   listSettings,
   plainReason,
+  readInstall,
   readWorkspace,
   saveClient,
   searchAudit,
@@ -173,6 +174,8 @@ export interface ApiServices {
   workspaceSources?: WorkspaceSources
   /** Opens a web page a link in a draft points at; the public web only by default. */
   readPage?: PageReader
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show; none by default. */
+  profileLabel?: string | null
 }
 type RequestContext = { request: FastifyRequest; reply: FastifyReply }
 const idempotencyKey = (context: RequestContext) =>
@@ -289,6 +292,7 @@ export function createRouter({
   readPage,
   askTrace,
   askLoop = false,
+  profileLabel = null,
 }: ApiServices) {
   const limitGapReports = createLimiter(() => clock.now())
   // The editions the answer engine reads, kept a short while: one for every person.
@@ -1109,6 +1113,11 @@ export function createRouter({
     me: { get: authorized.me.get.handler(({ context }) => context.session!.person) },
     workspace: {
       get: authorized.workspace.get.handler(({ context }) => readWorkspace(context.tx)),
+    },
+    install: {
+      get: authorized.install.get.handler(({ context }) =>
+        readInstall(context.tx, { method: signIn.method, profileLabel }),
+      ),
     },
     settings: {
       list: authorized.settings.list.handler(({ context }) => listSettings(context.tx)),

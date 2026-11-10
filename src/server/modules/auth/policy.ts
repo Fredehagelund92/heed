@@ -27,6 +27,8 @@ export const policies = {
   'serving.stops': 'read',
   'serving.setStop': 'admin',
   'auth.methods': 'public',
+  // Whether this is the demo, and its label: the sign-in screen says both before anyone signs in.
+  'install.get': 'public',
   // An invite link's token is its own key: the sign-in screen reads it before anyone signs in.
   'invites.lookup': 'public',
   'auth.people': 'public',

@@ -290,6 +290,12 @@ export type BulkChange = {
  */
 export type SignInMethod = { kind: 'picker' } | { kind: 'oidc'; name: string; start: string }
 
+/**
+ * What this install is, read signed out: whether it holds the invented demo, and the label that
+ * names it (HEED_PROFILE_LABEL), null when none is set.
+ */
+export type InstallInfo = { demo: boolean; profileLabel: string | null }
+
 /** What an open invite's link says on the sign-in screen: the domains by name, read signed out. */
 export type InviteNote = { email: string; admin: boolean; domains: string[] }
 
@@ -307,6 +313,8 @@ export interface HeedApi {
   getSession: () => Promise<Session>
   /** How people sign in here. Needs no session. */
   getSignInMethod: () => Promise<SignInMethod>
+  /** Whether this install is the demo, and the label naming it. Needs no session. */
+  getInstall: () => Promise<InstallInfo>
   /** What an invite link's token opens, or null for a link that opens no invite. Needs no session. */
   readInvite: (input: { token: string }) => Promise<InviteNote | null>
   /** The people the demo's sign-in offers, by name. Needs no session. */
@@ -755,6 +763,7 @@ export interface HeedApi {
 export const heedApiMethods = [
   'getSession',
   'getSignInMethod',
+  'getInstall',
   'readInvite',
   'listSignInPeople',
   'signIn',

@@ -34,6 +34,10 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
   await expect(page.getByRole('listitem').first()).toContainText('Ravi Kapoor')
   await expect(page.getByRole('listitem').last()).toBeInViewport()
   await expect(page.getByRole('switch')).toHaveCount(0)
+  // The demo loaded, so the page says its company is invented; no label names this install.
+  await expect(page.getByText('This is a demo. Pick who you are.')).toBeVisible()
+  await expect(page.getByText(/is an invented company/)).toBeVisible()
+  await expect(page.locator('[data-profile-label]')).toHaveCount(0)
   await page.getByRole('button', { name: /Jon Abara/ }).click()
   await expect(page).toHaveURL(/\/inbox$/)
   // Signed out, the sign-in page's reads are refused as they should be; from here none may be.

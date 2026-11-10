@@ -268,6 +268,7 @@ import {
   setSettingSchema,
   settingSchema,
   workspaceSchema,
+  installSchema,
   setToolSchema,
   toolSwitchSchema,
 } from './admin.ts'
@@ -1740,6 +1741,17 @@ export const contract = {
           "The workspace's name, which an admin sets (workspace.name), for everyone signed in (FR-818)",
       })
       .output(workspaceSchema),
+  },
+  install: {
+    get: publicRoute
+      .route({
+        method: 'GET',
+        path: '/install',
+        tags: ['session'],
+        summary:
+          'What this install is, before anyone signs in: whether it holds the invented demo, and the label naming it (HEED_PROFILE_LABEL)',
+      })
+      .output(installSchema),
   },
   me: {
     get: read

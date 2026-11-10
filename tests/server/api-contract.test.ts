@@ -284,6 +284,7 @@ describe('the API over HTTP', () => {
       '/inbox/feed',
       '/inbox/names',
       '/inbox/names/decide',
+      '/install',
       '/invites',
       '/invites/lookup',
       '/invites/{id}/resend',

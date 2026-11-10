@@ -87,6 +87,8 @@ export interface AppDependencies {
   askTrace?: AskTrace
   /** HEED_ASK_LOOP: Ask reads with one model and its read tools (FR-718 to FR-720). Off by default. */
   askLoop?: boolean
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show. None by default. */
+  profileLabel?: string | undefined
 }
 
 /**
@@ -124,6 +126,7 @@ export function buildApp({
   trustedProxies = [],
   askTrace,
   askLoop = false,
+  profileLabel,
 }: AppDependencies): FastifyInstance {
   const app = Fastify({
     loggerInstance: logger,
@@ -201,6 +204,7 @@ export function buildApp({
     ...(readPage ? { readPage } : {}),
     ...(askTrace ? { askTrace } : {}),
     askLoop,
+    profileLabel: profileLabel ?? null,
   })
 
   app.addHook('onClose', async () => {

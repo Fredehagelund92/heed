@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { open } from '@/lib/events'
 import { TruncatedText } from '@/components/heed/truncated'
 import { OfflineBanner } from '@/components/heed/load-state'
+import { ProfileLabel } from '@/components/heed/profile-label'
 import { pageTitle } from '@/lib/page-title'
 
 /** The nav's toggle, always in the same spot, saying what it will do and its shortcut. */
@@ -213,6 +214,8 @@ export function SiteHeader({
             </Button>
           )}
           {children}
+          {/* Which install this is, when it is named: last but the theme, so it never moves. */}
+          <ProfileLabel className="max-sm:max-w-28" />
           {!bare && <ThemeMenu />}
         </div>
       </header>

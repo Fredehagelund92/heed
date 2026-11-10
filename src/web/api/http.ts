@@ -137,6 +137,7 @@ type CallContext = {
 export const wiredMethods = [
   'getSession',
   'getSignInMethod',
+  'getInstall',
   'readInvite',
   'listSignInPeople',
   'signIn',
@@ -1249,6 +1250,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
           }
         : { kind: 'picker' as const }
     },
+    getInstall: () => read(() => client.install.get()),
     readInvite: async ({ token }) => {
       try {
         const invite = await read(() => client.invites.lookup({ token }))

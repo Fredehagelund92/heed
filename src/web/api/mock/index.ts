@@ -377,6 +377,8 @@ export function createMockApi() {
     getSession: () => now(() => ({ user: state.user, install: state.install, fresh: state.fresh })),
     // The demo signs in with the person picker; an invite link opens the invite it names.
     getSignInMethod: () => now(() => ({ kind: 'picker' as const })),
+    // The mock is the demo, with no label.
+    getInstall: () => now(() => ({ demo: true, profileLabel: null })),
     readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
     signIn: ({ name }) => {

@@ -1999,6 +1999,24 @@
       }
     }
   },
+  "install": {
+    "get": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "public"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/install",
+          "tags": [
+            "session"
+          ],
+          "summary": "What this install is, before anyone signs in: whether it holds the invented demo, and the label naming it (HEED_PROFILE_LABEL)"
+        }
+      }
+    }
+  },
   "me": {
     "get": {
       "~orpc": {

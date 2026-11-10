@@ -27,6 +27,7 @@ export const queryKeys = {
   session: ['getSession'] as const,
   signInPeople: ['listSignInPeople'] as const,
   signInMethod: ['getSignInMethod'] as const,
+  install: ['getInstall'] as const,
   invite: ['readInvite'] as const,
   workspace: ['getWorkspace'] as const,
   vocabulary: ['getVocabulary'] as const,
@@ -103,6 +104,14 @@ export const signInMethodQuery = () =>
   queryOptions({
     queryKey: queryKeys.signInMethod,
     queryFn: () => api.getSignInMethod(),
+    staleTime: Infinity,
+  })
+
+/** Whether this install is the demo, and the label naming it, for every page and sign-in. */
+export const installQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.install,
+    queryFn: () => api.getInstall(),
     staleTime: Infinity,
   })
 
@@ -377,6 +386,7 @@ export const draftFromTextQuery = (text: string) =>
  * page read instead (`*Page`), which its loading state shows.
  */
 export const sharedQueries = () => [
+  installQuery(),
   workspaceQuery(),
   vocabularyQuery(),
   libraryQuery(),
@@ -441,6 +451,7 @@ type Read =
   | 'getVocabulary'
   | 'getActivity'
   | 'getSignInMethod'
+  | 'getInstall'
   | 'readInvite'
   | 'getLibrary'
   | 'searchAll'

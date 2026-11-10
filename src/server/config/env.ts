@@ -1,6 +1,6 @@
 import { isIP } from 'node:net'
 import * as z from 'zod'
-import { DEFAULT_WEB_ORIGINS } from '../../contract/limits.ts'
+import { DEFAULT_WEB_ORIGINS, PROFILE_LABEL_MAX } from '../../contract/limits.ts'
 import { productNameProblem } from '../../domain/brand.ts'
 import {
   renamedSettingsWarning,
@@ -190,6 +190,17 @@ const envSchema = z
         if (problem) context.addIssue({ code: 'custom', message: problem })
       })
       .optional(),
+    // A name for this install that the header and the sign-in page show, so a person who runs
+    // more than one (the demo and a private profile) always sees which one they are in. Unset
+    // shows none.
+    HEED_PROFILE_LABEL: z
+      .string()
+      .trim()
+      .min(1)
+      .max(PROFILE_LABEL_MAX, `Keep the label to ${PROFILE_LABEL_MAX} characters`)
+      // eslint-disable-next-line no-control-regex -- the point is to refuse control characters
+      .regex(/^[^\u0000-\u001f\u007f]*$/, 'Expected one line, without control characters')
+      .optional(),
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV === 'production' && (env.HEED_AUTH === 'dev' || env.HEED_AUTH === 'demo')) {
@@ -342,6 +353,8 @@ export interface Config {
   metricsToken: string | undefined
   /** read_source may open http pages on this machine too (tests only). */
   webReadLoopback: boolean
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show; unset shows none. */
+  profileLabel: string | undefined
 }
 
 /** What a refusal adds when production has no sign-in configured. */
@@ -428,6 +441,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     secretsDir: env.HEED_SECRETS_DIR,
     metricsToken: env.HEED_METRICS_TOKEN,
     webReadLoopback: env.HEED_WEB_READ_LOOPBACK === 'on',
+    profileLabel: env.HEED_PROFILE_LABEL,
   }
 }
 

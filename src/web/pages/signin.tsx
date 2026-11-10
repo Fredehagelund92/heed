@@ -2,6 +2,7 @@ import { usePageTitle } from '@/lib/page-title'
 import { ChevronRightIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Logo } from '@/components/heed/logo'
+import { ProfileLabel } from '@/components/heed/profile-label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldGroup } from '@/components/ui/field'
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/item'
 import { useQuery } from '@tanstack/react-query'
 import {
+  installQuery,
   inviteQuery,
   signInMethodQuery,
   signInPeopleQuery,
@@ -56,6 +58,30 @@ function InviteLine({ token }: { token: string }) {
   )
 }
 
+/** The logo, and under it the label that names this install when one is set. */
+function SignInMark() {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <Logo className="h-8" />
+      {/* Room for the whole label here, unlike in a page's header. */}
+      <ProfileLabel className="max-w-full" />
+    </div>
+  )
+}
+
+/**
+ * Says the demo is invented, under the sign-in card. Only on the demo (HEED_AUTH=demo, or the demo
+ * loaded): an install with its own data, a private profile on the dev picker say, never says so.
+ */
+function DemoNote() {
+  if (!useQuery(installQuery()).data?.demo) return null
+  return (
+    <p className="px-6 text-center text-xs text-balance text-muted-foreground">
+      Larchwood Outdoor is an invented company. Every name, fact and number here is mock data.
+    </p>
+  )
+}
+
 /**
  * Sign-in as the login-03 block lays it out. With the company's provider (OIDC), one button that
  * goes there and comes back signed in; an invite link names its invite first, and a sign-in that
@@ -64,10 +90,12 @@ function InviteLine({ token }: { token: string }) {
 export function SignInPage() {
   usePageTitle('Sign in')
   const method = useQuery(signInMethodQuery())
+  const install = useQuery(installQuery())
   const query = useRoute().query
   const token = query.get('invite')
-  // Nothing until the service says how it signs people in, so the picker never flashes.
-  if (method.isPending) return null
+  // Nothing until the service says how it signs people in and what this install is, so neither
+  // the picker nor the demo's note flashes.
+  if (method.isPending || install.isPending) return null
   if (method.data?.kind !== 'oidc') return <PickerSignIn token={token} />
   const provider = method.data
   const refused = refusalWords(query.get('error') ?? '', provider.name)
@@ -75,7 +103,7 @@ export function SignInPage() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <Logo className="h-8 self-center" />
+        <SignInMark />
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Sign in to {PRODUCT}</CardTitle>
@@ -95,6 +123,7 @@ export function SignInPage() {
             </FieldGroup>
           </CardContent>
         </Card>
+        <DemoNote />
       </div>
     </main>
   )
@@ -103,18 +132,21 @@ export function SignInPage() {
 /** More people than this, and the picker lays them out in two columns on a wide screen. */
 const ONE_COLUMN = 6
 
-// The demo person picker. A long list of people takes two columns on a wide screen, so they stay
-// in view without scrolling.
+// The person picker, of a demo or of development. A long list of people takes two columns on a
+// wide screen, so they stay in view without scrolling.
 function PickerSignIn({ token }: { token: string | null }) {
   const wide = (useQuery(signInPeopleQuery()).data?.length ?? 0) > ONE_COLUMN
+  const demo = useQuery(installQuery()).data?.demo
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
       <div className={cn('flex w-full max-w-sm flex-col gap-6', wide && 'sm:max-w-2xl')}>
-        <Logo className="h-8 self-center" />
+        <SignInMark />
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Sign in to {PRODUCT}</CardTitle>
-            <CardDescription>This is a demo. Pick who you are.</CardDescription>
+            <CardDescription>
+              {demo ? 'This is a demo. Pick who you are.' : 'Pick who you are.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
@@ -123,9 +155,7 @@ function PickerSignIn({ token }: { token: string | null }) {
             </FieldGroup>
           </CardContent>
         </Card>
-        <p className="px-6 text-center text-xs text-balance text-muted-foreground">
-          Larchwood Outdoor is an invented company. Every name, fact and number here is mock data.
-        </p>
+        <DemoNote />
       </div>
     </main>
   )
