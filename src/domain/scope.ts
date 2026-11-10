@@ -93,7 +93,7 @@ const nonValueWords = new Set(
 )
 /** Words after "in" that say how or when, not which value: "in total", "in mid October". */
 const notValuesAfterIn = new Set(
-  'all any both each every either neither it its itself me my our ours some that their them these they those us what which you your general particular total detail details short brief full practice fact theory principle summary sum stock person public private context terms view mind case turn part kind order line place time future past advance progress addition contrast common question words numbers number figures data euros euro eur usd dollars percent mid early late end start beginning middle week weeks month months year years day days spring summer autumn fall winter'.split(
+  'all any both each every either neither it its itself me my our ours some that their them these they those us what which you your general particular total detail details short brief full practice fact theory principle summary sum stock person public private context terms view mind case turn part kind order line place time future past advance progress addition contrast common question words numbers number figures data euros euro eur usd dollars percent mid early late end start beginning middle week weeks month months year years day days spring summer autumn fall winter english'.split(
     ' ',
   ),
 )
@@ -134,11 +134,11 @@ function oneTypoApart(a: string, b: string): boolean {
 /**
  * A word after "in" that follows a name the question names, names nothing Heed knows, and looks
  * like a value of `values`' dimensions: one typo from a value ("Norwy", "germnay"), or one word the
- * person wrote capitalised that ends what the question says ("orders in Jordan?", "orders in Oslo
+ * person wrote in Title case ("Jordan", never "GBP" or "jordan") that ends what the question says ("orders in Jordan?", "orders in Oslo
  * last month") and is no plural
  * ("stores"), nor the name of the product or of a tool a definition comes from ("cube"). An ordinary
  * word ("in local currency", "in relative terms", "in gbp") is no value, and the question reads as before.
- * A lowercase "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before.
+ * A lowercase "jordan" is knowingly not caught yet. Only Ask reads this way (`loose`); agents read as before. A stop-gap the value-linking V1 slice replaces with rules by place, so it is kept small on purpose.
  * Each is where it is in the normalised text, with the values it is a typo of.
  */
 function unknownValuesAfterIn(
@@ -461,7 +461,7 @@ export function extractScope(
   if (structured.loose && structured.filters === undefined && dimensions.length)
     for (const span of unknownValuesAfterIn(text, occupied, dated, terms, values, (span) => {
       const written = found.written(span)
-      return /^\p{Lu}/u.test(question.slice(written.start, written.end))
+      return /^\p{Lu}\p{Ll}*$/u.test(question.slice(written.start, written.end))
     })) {
       // The words as the person wrote them: "Jordan", not "jordan".
       const written = found.written(span)

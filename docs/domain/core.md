@@ -35,10 +35,10 @@ days` stay resolvable). A dimension named without a value becomes a filter with 
   language understanding; callers should supply structured scope, especially for multiword unknown
   values. A word after a name and "in" that names nothing Heed knows is read as a value it does not
   know, never dropped, only when it looks like one: one typo from a value ("Norwy"), or one word the
-  person wrote capitalised that ends what the question says ("orders in Jordan?") and is no
+  person wrote in Title case ("Jordan", not "GBP") that ends what the question says ("orders in Jordan?") and is no
   plural nor a tool's or the product's name. This is Ask's rule only (`loose`); agents read as
   before. Ordinary words ("in local currency", "in gbp") read as before, and a lowercase
-  "jordan" is knowingly not caught yet (the value-linking research will settle it). The
+  "jordan" is knowingly not caught yet. This heuristic is a stop-gap that the value-linking V1 slice replaces with rules by place, so it is kept small on purpose. The
   issue names the dimensions it could be a value of and, for a typo, the value it is close to.
 - `dates.ts`: `readDates`, the period the words of a question name, counted from `today` in one
   time zone (UTC: Heed has no company time zone, NFR-048), with a reads-as phrase such as "1 Jan to

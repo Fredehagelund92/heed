@@ -39,6 +39,10 @@ describe('a value word after "in"', () => {
     'discount cost in cash',
     'anything written about orders in jordan?',
     'orders in oslo',
+    'revenue in GBP',
+    'discount cost in CHF',
+    'sales in YTD',
+    'orders in English',
   ])('reads "%s" as main does: an ordinary word is no value', (question) => {
     expect(asked(question)).toEqual([])
   })
@@ -61,6 +65,10 @@ describe('a value word after "in"', () => {
   ])('reads "%s" as main does when an agent asks: no issue', (question) => {
     const r = extractScope(question, planBundle.terms, PLAN_TODAY)
     expect(r.status).toBe('resolved')
+    if (r.status !== 'resolved') return
+    expect(r.issues ?? []).toEqual([])
+    expect(r.scope.filters).toEqual({})
+    expect(r.scope.metrics).toHaveLength(1)
   })
 
   it('still reads "orders in online channel" as the Channel dimension', () => {
