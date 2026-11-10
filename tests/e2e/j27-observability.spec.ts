@@ -489,14 +489,14 @@ test('Limits: every tuning setting, read only, with where its value comes from',
   await page.getByRole('link', { name: 'Limits' }).click()
   await expect(page).toHaveURL(/\/settings\/advanced$/)
   await expect(
-    page.getByText('All 35 settings and their values now. This page only shows them.'),
+    page.getByText('All 36 settings and their values now. This page only shows them.'),
   ).toBeVisible()
   // The page says how a setting is really changed, and names no command that does not exist.
   await expect(page.getByText('PUT /api/v1/settings/{key}')).toBeVisible()
   await expect(page.getByText(/settings set/)).toHaveCount(0)
   const settings = page.getByRole('table', { name: 'Tuning settings' })
-  // A header for each of the 7 groups, and one for each of the 35 settings.
-  await expect(settings.getByRole('rowheader')).toHaveCount(7 + 35)
+  // A header for each of the 7 groups, and one for each of the 36 settings.
+  await expect(settings.getByRole('rowheader')).toHaveCount(7 + 36)
   await expect(settings.getByRole('rowheader', { name: 'Model spend', exact: true })).toBeVisible()
   // The cap Usage reads was changed after the install; the privacy minimum keeps its default.
   await expect(settings.getByRole('row', { name: /limits\.llm_monthly_cap_micros/ })).toContainText(

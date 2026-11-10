@@ -228,6 +228,11 @@ const viewHead = {
 export const obsDimensionsSchema = z.object({
   ...viewHead,
   /**
+   * The dimensions an admin pinned for the workspace (`observability.pinned_dimensions`), in
+   * their order: Overview keeps a facet for each and lists them first. Only keys listed here.
+   */
+  pinned: z.array(z.string()),
+  /**
    * Every dimension of the definitions and any other a topic of the range names, the most asked
    * about in the range first, then A to Z: how many values it has, the definitions' and any other
    * a topic names (none: "any value" alone), and the topics that name it and pass every

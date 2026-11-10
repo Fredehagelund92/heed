@@ -52,6 +52,8 @@ export type FilterBarProps = {
   left: string[]
   pinned: DimKey[]
   recent: DimKey[]
+  /** An admin pins a dimension for everyone, or unpins it. */
+  onPin?: (key: DimKey, on: boolean) => void
   /** Why an old Value chip was not read as a dimension's, when it was not. */
   legacy?: string
   /** The facets beside the topics, or in a sheet on a narrow page. */
@@ -85,6 +87,7 @@ export function FilterBar({
   left,
   pinned,
   recent,
+  onPin,
   legacy,
   facets,
   time,
@@ -220,6 +223,7 @@ export function FilterBar({
         left={left}
         pinned={pinned}
         recent={recent}
+        {...(onPin ? { onPin } : {})}
         at={at}
         onClose={close}
         onBackspace={() => {

@@ -647,6 +647,7 @@ export const invalidations: {
   renameChat: () => [queryKeys.chats],
   deleteChat: () => [queryKeys.chats],
   removeView: () => [queryKeys.savedViews],
+  pinDimensions: () => [queryKeys.obsDimensionLists, queryKeys.settings, queryKeys.advancedPage],
   muteAlert: () => [queryKeys.alerts],
   setAlertThreshold: () => [queryKeys.alerts],
 }

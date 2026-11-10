@@ -1,4 +1,4 @@
-import { domainId, expect, go, test } from './go.ts'
+import { domainId, expect, go, mode, signInAs, test } from './go.ts'
 import type { Page } from '@playwright/test'
 
 // J42: Overview's filters. Filters are chips in parts that read as sentences, added from one
@@ -95,7 +95,9 @@ test('add chips from the picker, change one, move them, and take them off', asyn
   await expect(page).not.toHaveURL(/chips=/)
   await expect(page.getByRole('button', { name: /^Answer is Not found\./ })).toBeFocused()
 
-  // A drag moves it back: the market chip dropped before the answer chip.
+  // A drag moves it back: the market chip dropped before the answer chip, once the last change's
+  // view transition, which takes the pointer while it runs, has ended.
+  await page.waitForFunction(() => !document.documentElement.dataset.vt)
   const market = page.locator('[data-chip="dim:market"]')
   const answer = page.locator('[data-chip=answer]')
   const from = (await market.boundingBox())!
@@ -156,6 +158,68 @@ test("an old link's market by name is read as the one value it names", async ({ 
   await go(page, '/observability?range=30&market=Narnia')
   await expect(page.getByRole('button', { name: /^Value is Narnia\./ })).toBeVisible()
   await expect(page.getByText('No topic in this range asked about Narnia.')).toBeAttached()
+})
+
+test('a By facet switches between dimensions, and an admin pins one for everyone', async ({
+  page,
+}) => {
+  await go(page, '/observability?range=30')
+  const facets = page.getByRole('complementary', { name: 'Facets' })
+  // By starts on the dimension agents asked about most; a tick adds its value. The demo asks
+  // about markets, and on the mock also a campaign (Black Friday); the service's demo week keeps
+  // Black Friday as an event with no value.
+  const by = facets.getByRole('region', { name: 'By Market' })
+  await expect(by.getByRole('checkbox', { name: 'Norway' })).toBeVisible()
+  const dims = mode === 'mock' ? '2 dimensions were' : '1 dimension was'
+  await expect(
+    facets.getByText(`${dims} asked about in 30 days. Pin one`, { exact: false }),
+  ).toBeVisible()
+  await by.getByRole('checkbox', { name: 'Norway' }).click()
+  await expect(page).toHaveURL(/d\.market=norway/)
+  // Counted without Market's own chip, the other dimensions follow it: no campaign in Norway.
+  await expect(facets.getByText(/1 dimension was asked about in 30 days/)).toBeVisible()
+  await by.getByRole('button', { name: 'Clear Market' }).click()
+  await expect(page).not.toHaveURL(/d\.market/)
+  if (mode === 'mock') {
+    await facets.getByRole('combobox', { name: 'Break the facets down by a dimension' }).click()
+    await page.getByRole('option', { name: /^Campaign/ }).click()
+    await expect(facets.getByRole('region', { name: 'By Campaign' })).toContainText('Black Friday')
+    await facets.getByRole('combobox', { name: 'Break the facets down by a dimension' }).click()
+    await page.getByRole('option', { name: /^Market/ }).click()
+  }
+
+  // Pinned for everyone: a facet of its own, first in the filter, and a setting with a reason.
+  await facets
+    .getByRole('region', { name: 'By Market' })
+    .getByRole('button', { name: 'Pin Market for everyone' })
+    .click()
+  await expect(page.getByText('Pinned Market for everyone')).toBeVisible()
+  const pinned = facets.getByRole('region', { name: 'Market', exact: true })
+  await expect(pinned.getByRole('checkbox', { name: 'Norway' })).toBeVisible()
+  await expect(facets.getByRole('region', { name: 'By Market' })).toHaveCount(0)
+  await page.keyboard.press('f')
+  await expect(page.getByRole('group', { name: 'Pinned' }).getByRole('option')).toHaveText([
+    /^Market/,
+  ])
+  await page.keyboard.press('Escape')
+  await go(page, '/settings/advanced')
+  await expect(page.getByText('Dimensions pinned on Observability’s Overview')).toBeVisible()
+  await go(page, '/observability?range=30')
+  await pinned.getByRole('button', { name: 'Unpin Market for everyone' }).click()
+  await expect(pinned).toHaveCount(0)
+  await expect(facets.getByRole('region', { name: 'By Market' })).toBeVisible()
+
+  // An owner reads the pins and picks in By, and pins nothing.
+  await facets
+    .getByRole('region', { name: 'By Market' })
+    .getByRole('button', { name: 'Pin Market for everyone' })
+    .click()
+  await expect(page.getByText('Pinned Market for everyone').last()).toBeVisible()
+  await signInAs(page, 'Tomas Eriksen')
+  await go(page, '/observability?range=30')
+  await expect(page.getByRole('button', { name: /^Pin .* for everyone$/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Unpin .* for everyone$/ })).toHaveCount(0)
+  await expect(facets.getByText(/An admin can pin one here for everyone/)).toBeVisible()
 })
 
 test('the facets count each value without its own chip, and a count looks at only it', async ({

@@ -99,7 +99,7 @@ export function dimensionsOf(
   definitions: readonly Definition[],
   page: ObsData,
   input: ObsFilterView,
-): ObsDimensionList {
+): Omit<ObsDimensionList, 'pinned'> {
   const terms = termsFor(definitions, page)
   if (page.state === 'empty' || page.state === 'quiet')
     return {

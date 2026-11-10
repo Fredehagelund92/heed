@@ -1,1 +1,1 @@
-0044_topic_value_index.sql
+0045_observability_pins.sql

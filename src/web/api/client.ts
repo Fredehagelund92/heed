@@ -101,8 +101,13 @@ export type ObsFilterView = Omit<ObsPageInput, 'section'> & { filters: ObsFilter
 export type ObsSum = TopicSum
 /** A dimension, with how many values it has and what was asked about it in the range. */
 export type ObsDimension = { key: string; name: string; values: number; asked: ObsSum | null }
-/** The filter's first step: every dimension, the most asked about first. */
-export type ObsDimensionList = { state: ObsData['state']; dimensions: ObsDimension[] }
+/** The filter's first step: every dimension, the most asked about first, and the pinned ones. */
+export type ObsDimensionList = {
+  state: ObsData['state']
+  dimensions: ObsDimension[]
+  /** The dimensions an admin pinned for the workspace, in their order. */
+  pinned: string[]
+}
 /** The filter's second step: a dimension's values a page at a time, or the words in every one. */
 export type ObsValuesInput = ObsFilterView & {
   dimension?: string
@@ -547,6 +552,12 @@ export interface HeedApi {
    * first or A to Z; or, with no dimension, the words (2 letters or more) in every dimension.
    */
   obsValues: (input: ObsValuesInput) => Promise<ObsValueList>
+  /**
+   * An admin pins dimensions on Overview for the whole workspace: a facet each, listed first in
+   * the filter. A change of the setting `observability.pinned_dimensions`, with its reason, which
+   * the history log keeps.
+   */
+  pinDimensions: (input: { pinned: string[]; reason: string }) => Promise<void>
   /** The views people saved on Questions, beyond the five every workspace starts with. */
   getSavedViews: () => Promise<SavedView[]>
   saveView: (input: { name: string; filters: Filters }) => Promise<{ id: string }>
@@ -818,6 +829,7 @@ export const heedApiMethods = [
   'observabilityPage',
   'obsDimensions',
   'obsValues',
+  'pinDimensions',
   'replayTopic',
   'getSavedViews',
   'saveView',

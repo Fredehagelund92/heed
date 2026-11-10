@@ -134,6 +134,8 @@ export {
   PenLineIcon,
   PencilIcon,
   PencilLineIcon,
+  PinIcon,
+  PinOffIcon,
   PlayIcon,
   PlugIcon,
   PlusIcon,

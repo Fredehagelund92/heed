@@ -99733,6 +99733,12 @@
                     "minimumCount": {
                       "type": "number"
                     },
+                    "pinned": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
                     "dimensions": {
                       "type": "array",
                       "items": {
@@ -99795,6 +99801,7 @@
                     "range",
                     "last",
                     "minimumCount",
+                    "pinned",
                     "dimensions"
                   ]
                 }

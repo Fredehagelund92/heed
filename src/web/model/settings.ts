@@ -53,6 +53,11 @@ const GROUPS: { group: string; settings: Entry[] }[] = [
         value: (v) => text(v, 'No name yet'),
       },
       {
+        key: 'observability.pinned_dimensions',
+        what: 'Dimensions pinned on Observability’s Overview: a facet each, first in its filter',
+        value: (v) => (Array.isArray(v) && v.length ? count(v.length, 'dimension') : 'None'),
+      },
+      {
         key: 'business.about',
         what: 'About our business: background the assistant and agents get, never evidence',
         value: (v) => (typeof v === 'string' && v ? count(v.length, 'character') : 'No text yet'),

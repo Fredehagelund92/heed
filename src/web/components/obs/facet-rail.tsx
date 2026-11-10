@@ -1,9 +1,21 @@
 import * as React from 'react'
-import { SearchIcon } from '@/components/icons'
+import { useQuery } from '@tanstack/react-query'
+import type { ObsDimension, ObsFilterView } from '@/api/client'
+import { obsValuesQuery } from '@/api/queries'
+import { PinIcon, PinOffIcon, SearchIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
   SheetContent,
@@ -15,7 +27,11 @@ import { ShowMoreButton } from '@/components/heed/show-more'
 import { CountUp } from '@/components/heed/count-up'
 import { Swatch } from '@/components/obs/charts'
 import type { Field } from '@/components/obs/filter-bar'
+import { countOf } from '@/components/obs/filter-picker'
+import { useDebounced } from '@/lib/mentions'
+import { nameOf, rememberNames } from '@/lib/obs-names'
 import {
+  ANY,
   chipOf,
   facetSaid,
   facetSize,
@@ -24,16 +40,19 @@ import {
   opWords,
   toggled,
   withValues,
+  type DimKey,
   type FacetValue,
   type FieldKey,
   type Filters,
 } from '@/lib/obs-views'
 import type { Shown } from '@/model/observability'
 
-// The facets: every field's values with what each counts, counted without the field's own chip so
-// the other values stay in sight. A tick adds the value to the field's chip; a count looks at only
-// that value. Beside the topics on a wide page, in a sheet on a narrow one. The counts are the
-// disclosed counts added up (lib/obs-views.ts): "13+" when a part is hidden, "Fewer than 5", and
+// The facets: the fixed fields, the dimensions an admin pinned for the workspace, and one By facet
+// that switches between the other dimensions, each value with what it counts, counted without its
+// own chip so the other values stay in sight. A tick adds the value to its chip; a count looks at
+// only that value. Beside the topics on a wide page, in a sheet on a narrow one. The fields' counts
+// are the disclosed counts added up (lib/obs-views.ts), a dimension's the service's
+// (/observability/values, the most asked 50): "13+" when a part is hidden, "Fewer than 5", and
 // "Not shown" where the service keeps no count for the topics in view.
 
 /** How many values a field shows before Show more. */
@@ -45,6 +64,19 @@ export type FacetsProps = {
   fields: Field[]
   facet: (key: FieldKey) => FacetValue[]
   words: (key: FieldKey, v: string) => string
+  /** The dimensions' facets: pinned ones, and one By facet. */
+  dims?: DimensionFacetsProps
+}
+
+export type DimensionFacetsProps = {
+  /** The view the counts follow, and its range in days. */
+  view: ObsFilterView
+  days: number
+  /** Every dimension, the most asked first, as the filter's first step lists them. */
+  dimensions: ObsDimension[]
+  pinned: DimKey[]
+  /** An admin pins a dimension for everyone, or unpins it. */
+  onPin?: (key: DimKey, on: boolean) => void
 }
 
 /** The facets beside the topics; folded away, they keep their place shut and out of reach. */
@@ -85,7 +117,7 @@ export function FacetSheet({
   )
 }
 
-function Facets({ chips, onChange, fields, facet, words }: FacetsProps) {
+function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
   const [q, setQ] = React.useState('')
   const [more, setMore] = React.useState<FieldKey[]>([])
   const find = q.trim().toLowerCase()
@@ -208,7 +240,290 @@ function Facets({ chips, onChange, fields, facet, words }: FacetsProps) {
           </section>
         )
       })}
+      {dims && <DimensionFacets {...dims} chips={chips} onChange={onChange} find={q.trim()} />}
     </div>
+  )
+}
+
+/**
+ * The dimensions' facets: one for each dimension an admin pinned, in their order, then one By
+ * facet that shows another dimension, the most asked first, switched in its menu. Each lists the
+ * values agents asked about most in the range (one page from the service, never every value).
+ */
+function DimensionFacets({
+  view,
+  days,
+  dimensions,
+  pinned,
+  onPin,
+  chips,
+  onChange,
+  find,
+}: DimensionFacetsProps & {
+  chips: Filters
+  onChange: (chips: Filters, said: string) => void
+  find: string
+}) {
+  const asked = dimensions.filter((d) => (d.asked?.topics ?? 0) > 0)
+  const shown = pinned.flatMap((k) => dimensions.find((d) => d.key === k) ?? [])
+  const others = asked.filter((d) => !pinned.includes(d.key as DimKey))
+  // By starts on a dimension a chip is on, else the most asked; the person's choice after that.
+  const [by, setBy] = React.useState<DimKey | null>(null)
+  const start = others.find((d) => chipOf(chips, d.key as DimKey)) ?? others[0]
+  const chosen = others.find((d) => d.key === by) ?? start
+  const pin = (d: ObsDimension, on: boolean) =>
+    onPin && (
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="text-muted-foreground pointer-coarse:size-11"
+        aria-label={`${on ? 'Pin' : 'Unpin'} ${d.name} for everyone`}
+        title={on ? 'Pin for everyone: a facet of its own' : 'Unpin for everyone'}
+        onClick={() => onPin(d.key as DimKey, on)}
+      >
+        {on ? <PinIcon /> : <PinOffIcon />}
+      </Button>
+    )
+  return (
+    <>
+      {shown.map((d) => (
+        <DimensionFacet
+          key={d.key}
+          d={d}
+          view={view}
+          chips={chips}
+          onChange={onChange}
+          find={find}
+          head={
+            <>
+              <PinIcon aria-hidden className="size-3 shrink-0" />
+              <span className="truncate">{d.name}</span>
+            </>
+          }
+          tools={pin(d, false)}
+        />
+      ))}
+      {chosen && (
+        <DimensionFacet
+          key={`by:${chosen.key}`}
+          d={chosen}
+          view={view}
+          chips={chips}
+          onChange={onChange}
+          find={find}
+          label={`By ${chosen.name}`}
+          head={
+            <>
+              <span className="shrink-0">By</span>
+              <Select
+                items={others.map((d) => ({ label: d.name, value: d.key }))}
+                value={chosen.key}
+                onValueChange={(v) => v && setBy(v as DimKey)}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Break the facets down by a dimension"
+                  className="h-6 min-w-0 gap-1 border-transparent px-1.5 text-xs font-medium text-foreground hover:bg-muted pointer-coarse:h-11"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {others.map((d) => (
+                      <SelectItem key={d.key} value={d.key}>
+                        <span className="flex w-full items-center gap-3">
+                          <span className="truncate">{d.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {facetWords(countOf(d.asked))}
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </>
+          }
+          tools={pin(chosen, true)}
+        />
+      )}
+      <p className="border-t border-border/60 px-3 pt-2 text-xs text-muted-foreground">
+        {asked.length
+          ? `${asked.length} ${asked.length === 1 ? 'dimension was' : 'dimensions were'} asked about in ${days} days. ${
+              onPin
+                ? 'Pin one to keep it here for everyone, or pick it in By.'
+                : 'Pick one in By. An admin can pin one here for everyone.'
+            }`
+          : `Agents named no dimension in ${days} days.`}
+      </p>
+    </>
+  )
+}
+
+/** One dimension's facet: its most asked values in the range, each to tick, with its count. */
+function DimensionFacet({
+  d,
+  view,
+  chips,
+  onChange,
+  find,
+  head,
+  label,
+  tools,
+}: {
+  d: ObsDimension
+  view: ObsFilterView
+  chips: Filters
+  onChange: (chips: Filters, said: string) => void
+  find: string
+  head: React.ReactNode
+  /** Its name for a screen reader, when the head says it another way. */
+  label?: string
+  tools?: React.ReactNode
+}) {
+  const key = d.key as DimKey
+  const q = useDebounced(find)
+  const read = useQuery({
+    // Counted without its own filter, so a tick reads nothing again.
+    ...obsValuesQuery({
+      ...view,
+      filters: view.filters.filter((f) => f.key !== key),
+      dimension: key,
+      q,
+      sort: 'asked',
+    }),
+    placeholderData: (last, was) =>
+      (was?.queryKey[1] as { dimension?: string } | undefined)?.dimension === key
+        ? last
+        : undefined,
+  })
+  const [all, setAll] = React.useState(false)
+  const group = read.data?.groups[0]
+  rememberNames([d, ...(group?.values ?? [])])
+  const chip = chipOf(chips, key)
+  const read50 = group?.values ?? []
+  // The values chosen come first, those the page lists and those it does not (from a link, or
+  // fewer asks than its 50), then the most asked.
+  const chosen = (chip?.values ?? []).filter(
+    (v) => v !== ANY && (!find || nameOf(v).toLowerCase().includes(find.toLowerCase())),
+  )
+  const values = [
+    ...chosen.map(
+      (v) =>
+        read50.find((x) => x.key === v) ?? {
+          key: v,
+          name: nameOf(v),
+          asked: { total: 0, atLeast: 0, topics: 0 },
+        },
+    ),
+    ...read50.filter((v) => !chosen.includes(v.key)),
+  ]
+  const list = all || find ? values : values.slice(0, Math.max(FIRST, chosen.length))
+  const max = Math.max(1, ...values.map((v) => facetSize(countOf(v.asked))))
+  if (find && read.data && !values.length) return null
+  return (
+    <section aria-label={label ?? d.name} className="border-t border-border/60 px-3 py-2">
+      <h3 className="flex h-6 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        {head}
+        <span className="ml-auto flex shrink-0 items-center">
+          {chip && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs font-normal"
+              onClick={() =>
+                onChange(
+                  chips.filter((c) => c.key !== key),
+                  `Removed the filter ${d.name}`,
+                )
+              }
+            >
+              Clear
+              <span className="sr-only"> {d.name}</span>
+            </Button>
+          )}
+          {tools}
+        </span>
+      </h3>
+      {read.isPending ? (
+        <div aria-hidden className="flex flex-col gap-2 py-1.5">
+          {[70, 55, 62].map((w) => (
+            <Skeleton key={w} className="h-3" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      ) : read.isError ? (
+        <p className="py-1 text-xs text-muted-foreground">
+          Couldn’t load the values of {d.name}.{' '}
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-xs"
+            onClick={() => void read.refetch()}
+          >
+            Try again
+          </Button>
+        </p>
+      ) : !values.length ? (
+        <p className="py-1 text-xs text-muted-foreground">
+          {d.values ? 'No value asked about in this range.' : 'No values from the definitions.'}
+        </p>
+      ) : (
+        <ul className="flex flex-col">
+          {list.map((v) => {
+            const on = !!chip?.values.includes(v.key)
+            const id = `facet-${v.key}`
+            const f = { value: v.key, topics: v.asked.topics, count: countOf(v.asked) }
+            return (
+              <li key={v.key} className="flex h-7 items-center gap-2 pointer-coarse:h-11">
+                <Checkbox
+                  id={id}
+                  aria-label={v.name}
+                  checked={on}
+                  onCheckedChange={() =>
+                    onChange(toggled(chips, key, v.key), `${on ? 'Removed' : 'Added'} ${v.name}`)
+                  }
+                />
+                <label htmlFor={id} className="flex min-w-0 flex-1 truncate text-dense">
+                  <span className="truncate">{v.name}</span>
+                </label>
+                {read50.some((x) => x.key === v.key) ? (
+                  <FacetCount
+                    f={f}
+                    max={max}
+                    state={false}
+                    label={v.name}
+                    onDrill={() =>
+                      onChange(withValues(chips, key, [v.key], false), `Looking at only ${v.name}`)
+                    }
+                  />
+                ) : (
+                  <span
+                    className="ml-auto shrink-0 px-1 text-xs text-muted-foreground"
+                    title="Not among the values asked about most in this range"
+                  >
+                    -<span className="sr-only">, not among the values asked about most</span>
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {!all && !find && values.length > list.length && (
+        <ShowMoreButton
+          more={values.length - list.length}
+          next={values.length - list.length}
+          onClick={() => setAll(true)}
+          className="-ml-2 h-7 w-fit text-xs"
+        />
+      )}
+      {(all || find) && group?.nextCursor && (
+        <p className="pt-1 text-xs text-muted-foreground">
+          {(group.matched - values.length).toLocaleString('en-GB')} more, fewer asks each: find one
+          above.
+        </p>
+      )}
+    </section>
   )
 }
 

@@ -18,10 +18,14 @@ const capped = {
 }
 
 /** Every tuning setting in the demo: the values it was installed with, but for the name and caps. */
-function settingsOf(name: string, about: string, autoPublish: boolean) {
+function settingsOf(name: string, about: string, autoPublish: boolean, pins: Pins) {
   const values: [key: string, value: unknown, changed?: SettingChange][] = [
     ['workspace.name', name, { who: 'Jon Abara', when: '1 Oct', why: 'Name the workspace' }],
     ['business.about', about],
+    // Dimensions pinned on Overview: none as installed, until an admin pins one in the demo.
+    pins.changed
+      ? ['observability.pinned_dimensions', pins.keys, pins.changed]
+      : ['observability.pinned_dimensions', pins.keys],
     ['sources.cube_model_url', null],
     ['review.default_days', 90],
     ['review.open_issue_days', 14],
@@ -71,9 +75,17 @@ function settingsOf(name: string, about: string, autoPublish: boolean) {
 const toolHref = `/settings/integrations/${DEMO_DEFINITIONS}`
 
 /** What Settings, Advanced shows in the demo, with what this visit changed on top. */
-export function advancedOf(log: readonly LogEntry[], about = '', autoPublish = false): Advanced {
+/** The dimensions pinned on Overview in this visit, and who pinned them last. */
+export type Pins = { keys: string[]; changed?: SettingChange }
+
+export function advancedOf(
+  log: readonly LogEntry[],
+  about = '',
+  autoPublish = false,
+  pins: Pins = { keys: [] },
+): Advanced {
   return {
-    settings: settingsOf(WORKSPACE_NAME, about, autoPublish),
+    settings: settingsOf(WORKSPACE_NAME, about, autoPublish, pins),
     // Newest first: drafts and terms. Published context is archived, never deleted.
     deleted: [
       ...log

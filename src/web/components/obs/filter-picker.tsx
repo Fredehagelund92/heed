@@ -15,6 +15,8 @@ import {
   InboxIcon,
   LayersIcon,
   LoaderCircleIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   SigmaIcon,
   SplitIcon,
@@ -98,6 +100,8 @@ export type PickerProps = {
   left: string[]
   pinned: DimKey[]
   recent: DimKey[]
+  /** An admin pins a dimension for everyone, or unpins it, from its step. */
+  onPin?: (key: DimKey, on: boolean) => void
   /** Where it opens and on what, or shut. */
   at: { step: Step; anchor: Element | null; fromChip: boolean } | null
   onClose: () => void
@@ -208,6 +212,7 @@ function PickerBody({
   left,
   pinned,
   recent,
+  onPin,
   at,
   onClose,
   onBackspace,
@@ -381,6 +386,22 @@ function PickerBody({
         icon={iconOf(valueStep)}
         title={name}
       >
+        {onPin && isDim(valueStep) && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className={cn('text-muted-foreground', phone && 'size-11')}
+            aria-label={`${pinned.includes(valueStep) ? 'Unpin' : 'Pin'} ${name} for everyone`}
+            title={
+              pinned.includes(valueStep)
+                ? 'Unpin for everyone'
+                : 'Pin for everyone: first in this list, and a facet of its own'
+            }
+            onClick={() => onPin(valueStep, !pinned.includes(valueStep))}
+          >
+            {pinned.includes(valueStep) ? <PinOffIcon /> : <PinIcon />}
+          </Button>
+        )}
         {!one && (
           <TextSwitch
             label={`${name}: keep or leave out`}

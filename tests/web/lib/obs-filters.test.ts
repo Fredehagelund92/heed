@@ -221,7 +221,9 @@ describe('the chips in the address', () => {
           fc.boolean(),
         )
         .map(([values, n]) => ({ key, ...(n ? { not: true } : {}), values }))
-    const dims = fc.uniqueArray(id, { maxLength: 4 }).map((ids) => ids.map((i) => `dim:${i}`))
+    const dims = fc
+      .uniqueArray(id, { maxLength: 4 })
+      .map((ids) => ids.map((i): DimKey => `dim:${i}`))
     const chips = fc
       .tuple(fc.shuffledSubarray([...FIELD_KEYS]), dims)
       .chain(([keys, ds]) =>

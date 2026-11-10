@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { flushSync } from 'react-dom'
-import { useSavedViews, useSavedQuestions, useWrite } from '@/api/queries'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { obsDimensionsQuery, useSavedViews, useSavedQuestions, useWrite } from '@/api/queries'
 import { toast } from 'sonner'
 import {
   BotIcon,
@@ -82,6 +83,7 @@ import {
   valueWords,
   wireFilters,
   withValues,
+  type DimKey,
   type FieldKey,
   type FilterKey,
   type Filters,
@@ -318,6 +320,30 @@ function Explorer({
     filters: wire.filters,
   }
   const recent = useRecentDimensions(on)
+  // The dimensions, for the facets and the picker's first step: one read, shared.
+  const dimensionList = useQuery({
+    ...obsDimensionsQuery(pickerView),
+    placeholderData: keepPreviousData,
+  }).data
+  const pinned = (dimensionList?.pinned ?? []) as DimKey[]
+  const onPin = me.admin
+    ? (key: DimKey, pin: boolean) => {
+        const name = dimensionList?.dimensions.find((d) => d.key === key)?.name ?? key
+        const next = pin
+          ? [...pinned.filter((k) => k !== key), key]
+          : pinned.filter((k) => k !== key)
+        void write('pinDimensions', {
+          pinned: next,
+          reason: `${pin ? 'Pinned' : 'Unpinned'} ${name} on Overview.`,
+        }).then(() =>
+          toast(pin ? `Pinned ${name} for everyone` : `Unpinned ${name}`, {
+            description: pin
+              ? 'It has a facet of its own and comes first in the filter, for the whole workspace.'
+              : 'It is back among the other dimensions, for the whole workspace.',
+          }),
+        )
+      }
+    : undefined
 
   // The facets sit beside the topics where there is room for them, and the device remembers
   // whether they are shown; on a narrow page they open in a sheet.
@@ -336,6 +362,13 @@ function Explorer({
     fields,
     facet: facetOf,
     words,
+    dims: {
+      view: pickerView,
+      days: view.range,
+      dimensions: dimensionList?.dimensions ?? [],
+      pinned,
+      ...(onPin ? { onPin } : {}),
+    },
   }
 
   // Opened from Questions' old address or on a topic: the topics are what it was opened for.
@@ -422,8 +455,9 @@ function Explorer({
         view={pickerView}
         days={view.range}
         left={wire.left}
-        pinned={[]}
+        pinned={pinned}
         recent={recent}
+        onPin={onPin}
         legacy={legacy.why}
         facets={{ on: rail, toggle: toggleFacets, sheet: !wide }}
       />

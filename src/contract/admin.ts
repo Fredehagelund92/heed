@@ -18,6 +18,8 @@ import { findingSchema } from './proposals.ts'
 const reason = z.string().check(z.minLength(1), z.maxLength(500))
 /** The most characters a workspace's name may have. */
 export const WORKSPACE_NAME_MAX = 80
+/** The most dimensions an admin may pin on Overview. */
+export const PINNED_MAX = 8
 const int = (min: number, max: number) => z.number().check(z.int(), z.minimum(min), z.maximum(max))
 const days = int(1, 3650)
 const micros = int(0, 1_000_000_000_000)
@@ -123,6 +125,15 @@ export const settingSchemas = {
       `Expected at most ${ABOUT_BUSINESS_MAX} characters`,
     ),
   ),
+  // The dimensions Overview keeps as facets of their own and lists first in its filter, for the
+  // whole workspace (FR-620): their keys, in order. The service skips one the definitions no
+  // longer have; none pinned leaves the facets to the fixed fields and one By facet.
+  'observability.pinned_dimensions': z
+    .array(z.string().check(z.regex(/^dim:[a-z0-9_]{1,80}$/)))
+    .check(
+      z.maxLength(PINNED_MAX),
+      z.refine((keys) => new Set(keys).size === keys.length, 'Each dimension is pinned once'),
+    ),
   // The workspace's name, as the share card and the people of the workspace read it (FR-818).
   // Empty until an admin names it; one line, with no space at either end.
   'workspace.name': z.string().check(

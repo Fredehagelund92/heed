@@ -12,6 +12,8 @@ Overview's Filter button, or F, opens one list: pick a field or a dimension, the
 
 A filter reads in parts, such as Store · is any of · 3 values, and a click on its middle flips is and is not. Old links that filter by a market still open.
 
+Beside the topics, the facets keep the fixed fields, one By facet you switch between dimensions, and a facet for each dimension an admin pins for everyone. Your recent dimensions come first in the filter, and stay in your browser.
+
 ## Select days on the chart, and drill into a bar
 
 2026-11-03

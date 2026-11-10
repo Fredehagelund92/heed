@@ -889,7 +889,8 @@ over its months) found nothing at least the minimum times.
   `state` (`empty` when no agent asked anything in the domains read, `quiet`, or `normal`), the
   numbers (`asked`, by answer state, and the range before), the bars (a day each for 7 and 30
   days, a week each for 90, counted back from the last day), every topic of the range in the
-  domains the reader sees (its metric and month as the definitions name them, its `values`, each a
+  domains the reader sees (its metric and month as the definitions name them, `metrics`, the keys
+  of its metrics or metric group as a filter takes them, its `values`, each a
   `{ dimension, value, name }` (for Norway in the market dimension, its two ids and "Norway"), the
   `dimensions` it names with no value, as `{ dimension, name }` for "Orders by channel", its counts, which views it is in, and what waits for its gap in the Inbox:
   the draft written from it, a suggestion, or nothing yet), the subjects (a topic over its months)
@@ -915,7 +916,11 @@ over its months) found nothing at least the minimum times.
   names, with `values`, how many values it has, the definitions' and any other a topic of the range
   names (none: it is filtered by "any value" alone), and `asked`: the topics of the range that name it and pass every filter but its
   own, so its other values stay in sight, with what was asked about them. The most asked first,
-  then A to Z; `asked` is null unless the range is counted (`state` `normal`).
+  then A to Z; `asked` is null unless the range is counted (`state` `normal`). `pinned` lists the
+  dimensions an admin pinned on Overview, in their order, as far as the definitions still have
+  them: the setting `observability.pinned_dimensions` (up to 8 dimension keys), which an
+  administrator changes with `PUT /settings/observability.pinned_dimensions` like any other
+  setting, with a reason the history log keeps.
 - `GET /observability/values` (the filter's second step): the same, with `dimension` for one
   dimension's values, a page of 50 (`cursor` from `nextCursor`), the most asked about in the range
   first or A to Z (`sort`: `asked` or `name`), and `q` for the words a value's name or another name
