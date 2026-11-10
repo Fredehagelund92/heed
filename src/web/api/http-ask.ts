@@ -5,13 +5,14 @@
  * words here are written without a model, the way the mock's matcher writes them: each source's
  * first sentence with its number, then one sentence that fits the state.
  */
-import type { Asked, AnswerResult } from '@contract/answer'
+import type { Asked, AnswerResult, LoopTurn } from '@contract/answer'
 import type { Vocabulary } from '@domain/item'
 import type { Term } from '@domain/vocabulary'
 import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
 import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
+import { ALL_VALUES } from '@/model/observability'
 import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
 import {
   closestNames,
@@ -91,8 +92,8 @@ export function namesOf(vocabulary: Vocabulary): Names & {
 }
 
 /** "1 to 31 Aug 2026", "1 Jul to 30 Sep 2026": the days a question was read for. */
-const datesOf = (window: { start: string; end: string | null }) =>
-  windowWords(window).replace(/^(\d+)-/, '$1 to ')
+const datesWords = (words: string) => words.replace(/^(\d+)-/, '$1 to ')
+const datesOf = (window: { start: string; end: string | null }) => datesWords(windowWords(window))
 
 /**
  * An item's first sentence, as the answer says it. An item that opens with a question says what
@@ -345,6 +346,45 @@ export const failedAnswer = (question: string): Answer => ({
   said: "The check failed. Do not say that nothing is known; say that the check couldn't run.",
 })
 
+/**
+ * A turn of Ask's loop as the chat shows it (FR-718 to FR-720): the model's words with their
+ * numbered sources, or its one question back with the readings as choices, or the fixed sentence
+ * of a turn that stopped. The state, the footer, what was read and the items named but not used
+ * are the service's, written by code from the reads.
+ */
+export const loopAnswerOf = (
+  turn: LoopTurn,
+  question: string,
+  names: ReturnType<typeof namesOf>,
+): Answer => {
+  const nouns = new Map(turn.nouns.map((n) => [n.id, n.name]))
+  const about = turn.subject?.about ?? []
+  const named = (kind: string) =>
+    about.flatMap((id) => (id.startsWith(`${kind}:`) ? [nouns.get(id) ?? names.value(id)] : []))
+  const dates = turn.subject && !turn.subject.assumedToday ? datesWords(turn.subject.period) : null
+  return {
+    id: 'custom',
+    question,
+    loop: turn,
+    // What the question was read as: its metric, and the values it narrowed, of any dimension.
+    metric: named('metric')[0] ?? '',
+    markets: named('value'),
+    ...(dates ? { dates } : {}),
+    state: turn.state,
+    text: turn.text,
+    sources: turn.sources,
+    said: '',
+    footer: turn.footer,
+    read: turn.read,
+    reads: turn.reads,
+    ...(turn.nearby.length ? { related: turn.nearby } : {}),
+    ...(turn.conflict.length === 2 ? { conflict: turn.conflict } : {}),
+    ...(turn.definitions.length ? { definitions: turn.definitions } : {}),
+    ...(turn.kind === 'question' ? { reply: 'clarify' as const, choices: turn.choices } : {}),
+    ...(turn.stopped ? { stopped: turn.stopped } : {}),
+  }
+}
+
 /** The answer when nothing is shared with agents yet: no context, so nothing applies. */
 export const nothingLiveAnswer = (question: string): Answer => ({
   id: 'custom',
@@ -370,7 +410,7 @@ export function askedWeekOf(asked: Asked | null, names: Names): AskedWeek {
       topic: {
         id: `${r.title}|${month}`,
         metric: r.scope.metrics[0] ? names.metric(r.scope.metrics[0]) : '',
-        where: markets.length ? markets.map(names.value).join(' and ') : 'All markets',
+        where: markets.length ? markets.map(names.value).join(' and ') : ALL_VALUES,
         ...(r.area ? { domain: r.area } : {}),
         month: month.slice(0, 7),
       },
@@ -424,7 +464,18 @@ export function examplesOf(asked: Asked | null): (Example & { scope: ReadScope }
 
 /* ---------- the person's chats, in their browser ---------- */
 
-type StoredChat = { id: string; title: string; question: string; at: number; preview: string }
+type StoredChat = {
+  id: string
+  title: string
+  question: string
+  at: number
+  preview: string
+  /** Ask's loop: its finished answers, for the newest chats only (`KEPT_ANSWERS`). */
+  answers?: Answer[]
+}
+
+/** The most chats that keep their answers in the browser; an older one asks again when opened. */
+export const KEPT_ANSWERS = 20
 
 const SHORT_MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0)
@@ -502,6 +553,7 @@ export function createChatShelf(shelf: Shelf, now: () => number = Date.now) {
           title: c.title,
           question: c.question,
           preview: c.preview,
+          ...(c.answers?.length ? { answers: c.answers } : {}),
           ...dayOf(c.at, now()),
         })),
     /** A chat the person just started, at the top of Today, with what its first answer said. */
@@ -510,6 +562,25 @@ export function createChatShelf(shelf: Shelf, now: () => number = Date.now) {
         { id, title: question, question, at: now(), preview },
         ...read(person).filter((c) => c.id !== id),
       ])
+    },
+    /**
+     * The finished answers of a chat of Ask's loop, kept with it: the newest chats keep theirs, so
+     * what the browser holds stays small.
+     */
+    keep(person: string, id: string, question: string, answers: Answer[]) {
+      const chats = read(person)
+      const at = chats.find((c) => c.id === id)
+      const kept = at
+        ? chats.map((c) => (c.id === id ? { ...c, answers } : c))
+        : [{ id, title: question, question, at: now(), preview: '', answers }, ...chats]
+      const newest = [...kept]
+        .sort((a, b) => b.at - a.at)
+        .slice(0, KEPT_ANSWERS)
+        .map((c) => c.id)
+      write(
+        person,
+        kept.map(({ answers: a, ...c }) => (a && newest.includes(c.id) ? { ...c, answers: a } : c)),
+      )
     },
     rename(person: string, id: string, title: string) {
       write(

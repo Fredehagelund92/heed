@@ -1028,6 +1028,19 @@ export function describeHeedApi(
                 'Orders, added up for Norway from 1 to 31 Aug 2026, and the same for 1 to 31 Jul 2026 to compare.',
             },
           })
+          // An answer read as keys asks for its values by key: the same figure for Norway.
+          expect(await live.readFigure({ ...orders, values: ['val:market/norway'] })).toMatchObject(
+            { kind: 'line', figure: { label: 'Orders in Norway, 1 to 31 Aug 2026' } },
+          )
+          // Footwear orders in August are never the orders of every product: the demo's Orders
+          // splits by market only, so there is no figure, and it says why.
+          expect(
+            await live.readFigure({ ...orders, markets: [], values: ['val:product/footwear'] }),
+          ).toEqual({
+            kind: 'none',
+            why: "Cube can't split orders the way the question does, so no figure is read for it.",
+            closest: [],
+          })
           // A figure that can't be read for the question is no figure, never a guess.
           expect(await live.readFigure({ ...orders, dates: undefined })).toBeNull()
           expect(await live.readFigure({ ...orders, state: 'failed' })).toBeNull()

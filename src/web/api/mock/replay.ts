@@ -1,6 +1,7 @@
 import { countedState, stateLabel, type Answer } from '@/model/ask'
 import { servedToAgents, type Fact } from '@/model/items'
 import { monthName, monthShort, observability, type Topic } from '@/api/mock/obs-engine'
+import { ALL_VALUES } from '@/model/observability'
 import { NEXT, type ReplayStep, type When } from '@/model/replay'
 import { answerFor } from './data/ask'
 import { obsData } from './data/observability'
@@ -25,7 +26,7 @@ export function replay(t: Topic, when: When = 'now', pool: Fact[] = allFacts) {
     when === 'before'
       ? pool.map((f) => (f.id === BEFORE.factId ? { ...f, summary: BEFORE.summary } : f))
       : pool
-  const markets = t.where === 'All markets' ? [] : [t.where]
+  const markets = t.where === ALL_VALUES ? [] : [t.where]
   const month = monthName(t.month)
   const answer: Answer = answerFor(
     `What should I know about ${topicName(t)} in ${month}?`,

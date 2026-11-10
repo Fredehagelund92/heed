@@ -222,6 +222,16 @@ const GROUPS: { group: string; settings: Entry[] }[] = [
     group: 'Models',
     settings: [
       { key: 'models.assistant', what: 'The model that answers in Ask', value: model },
+      {
+        key: 'ask.max_steps',
+        what: 'Model steps one answer in Ask can take when it reads with its tools, the last with none',
+        value: (v) => count(v, 'step'),
+      },
+      {
+        key: 'ask.time_limit_seconds',
+        what: 'How long one answer in Ask can take when it reads with its tools',
+        value: seconds,
+      },
       { key: 'models.eval_answer', what: 'The model that answers in answer tests', value: model },
       {
         key: 'models.judge',

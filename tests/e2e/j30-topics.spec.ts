@@ -4,11 +4,11 @@ import { expect, go, inMockUntil, onMockOnly, test } from './go.ts'
 // rows for reading; a month under 5 is never given away; a gap counts across a month edge; calls
 // that could not be read are counted, never their words.
 
-test('Overview groups topics by metric and market, opens to the months, and never gives a small month away', async ({
+test('Overview groups topics by metric and values, opens to the months, and never gives a small month away', async ({
   page,
 }) => {
   await go(page, '/observability/questions')
-  await expect(page.getByRole('button', { name: /Group Metric and market/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Group Metric and values/ })).toBeVisible()
   const orders = page
     .getByRole('row')
     .filter({ has: page.getByRole('button', { name: /^Orders in Norway/ }) })

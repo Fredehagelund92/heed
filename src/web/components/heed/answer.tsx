@@ -24,6 +24,7 @@ import { DefinitionHelp, StateHelp } from '@/components/heed/state-help'
 import { asksWhatItIs } from '@domain/scope'
 import { SharePopover } from '@/components/heed/share-answer'
 import { recordsParts } from '@/components/heed/records-parts'
+import { loopParts } from '@/components/heed/loop-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
 import { sentencesOf, type Sentence } from '@/lib/where'
@@ -64,7 +65,7 @@ import {
 import { isLive, type Turn } from '@/model/ask-turn'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
-import { openDock, useDock } from '@/lib/dock'
+import { closeDock, openDock, useDock } from '@/lib/dock'
 import { href, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
@@ -80,7 +81,7 @@ import { listOf } from '@/model/people'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
-import type { FigureView } from '@/model/figures'
+import { figureAskOf, type FigureView } from '@/model/figures'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useRelated } from '@/hooks/use-related'
@@ -128,6 +129,17 @@ function IconButton({
 
 /* ---------- the question ---------- */
 
+/** What Ask's loop answer is handed of Ask: its parts, and the answer's own actions. */
+const loopAnswerParts = () => ({ ...loopParts, AnswerActions, ReportLine, SomethingWrong })
+
+/** Ask's loop draws its own answer, loaded with the first one: most chats never need it. */
+const LoopAnswerBody = React.lazy(() =>
+  import('@/components/heed/loop-answer').then((m) => ({ default: m.LoopAnswerBody })),
+)
+const LoopReadLine = React.lazy(() =>
+  import('@/components/heed/loop-answer').then((m) => ({ default: m.LoopReadLine })),
+)
+
 /** True when the question was read as something its words don't say: a synonym, a metric or market it doesn't name, or dates it doesn't give. */
 function readDifferently(answer: Answer) {
   const q = answer.question.toLowerCase()
@@ -151,10 +163,15 @@ export function Question({
 }) {
   const [copied, copy] = useCopied()
   // Scoped with '@', the answer's header says how; read by the planner, how it read it and what
-  // it carried; otherwise one quiet line, only when the reading differs from the words.
+  // it carried; otherwise one quiet line, only when the reading differs from the words. Ask's
+  // loop says what it read as, with its chips, every time.
   const reading = !answer.scope?.length ? answer.reading : undefined
   const showReadAs =
-    !reading && !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
+    !answer.loop &&
+    !reading &&
+    !answer.scope?.length &&
+    !!scopeText(answer) &&
+    readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
       <div className="max-w-22/25 min-w-0 rounded-surface bg-muted px-4 py-2.5 text-base leading-chat wrap-anywhere whitespace-pre-line @lg:max-w-4/5 [&_.mention-chip]:bg-background">
@@ -168,6 +185,11 @@ export function Question({
             )
           : answer.question}
       </div>
+      {answer.loop && (
+        <React.Suspense fallback={null}>
+          <LoopReadLine parts={loopAnswerParts()} answer={answer} onRescope={onRescope} />
+        </React.Suspense>
+      )}
       {/* Copy, and Edit to put the question back in the box: under the bubble, so it keeps its width; always there on a touch screen. */}
       <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
         <IconButton
@@ -313,7 +335,7 @@ function LookupCard({
   const raw = agentReply(answer, facts)
   // Looking up and reading come from the look-up's own steps, until its answer is in.
   const running = !stopped && !answered
-  const still = useStillLooking(running && shown === 'looking')
+  const still = useStillLooking(running && shown === 'looking', turn.working)
   const found = turn.found ?? 0
   // What the agent followed with get_related, as the answer says: one step each, never a retired target.
   const { followed, notFollowed, on: enabled } = answer.links ?? NO_LINKS
@@ -341,13 +363,20 @@ function LookupCard({
           : found
             ? `Reading ${found} context ${found === 1 ? 'item' : 'items'}…`
             : 'Found no context items'
-        : answer.state === null
-          ? 'Nothing was looked up'
-          : answer.state === 'failed'
-            ? 'The look-up failed'
-            : facts.length
-              ? `Looked up ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}${linkWords}`
-              : 'Looked up: no context items'
+        : answer.read
+          ? // Ask's loop: what it cited, else that it read, from its own reads.
+            facts.length
+            ? `Used ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}`
+            : answer.read.length
+              ? 'What Ask read'
+              : 'Nothing was looked up'
+          : answer.state === null
+            ? 'Nothing was looked up'
+            : answer.state === 'failed'
+              ? 'The look-up failed'
+              : facts.length
+                ? `Looked up ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}${linkWords}`
+                : 'Looked up: no context items'
   if (!answered)
     return (
       <p className="flex min-h-6 items-center">
@@ -364,103 +393,150 @@ function LookupCard({
         <FoldTrigger variant="inline" label={line} className="px-1 text-xs text-muted-foreground" />
       </div>
       <CollapsibleContent>
-        <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-muted-foreground">
-          <p className="text-xs font-medium text-foreground">What agents get</p>
-          <p>
-            <span className="text-foreground">Read:</span> {scope}.
-          </p>
-          <p>
-            <span className="text-foreground">Told the agent:</span> “{answer.said}”
-          </p>
-          {facts.length > 0 && (
+        {answer.read ? (
+          <LoopReads answer={answer} />
+        ) : (
+          <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-muted-foreground">
+            <p className="text-xs font-medium text-foreground">What agents get</p>
             <p>
-              The agent got each context item with its source, who checked it, and its “don't
-              conclude” line.
+              <span className="text-foreground">Read:</span> {scope}.
             </p>
-          )}
-          {answer.leftOut && (
             <p>
-              <span className="text-foreground">Left out:</span> {answer.leftOut}
+              <span className="text-foreground">Told the agent:</span> “{answer.said}”
             </p>
-          )}
-          {/* The links it followed with get_related: one step, where each led, and what it left alone. */}
-          {facts.length > 0 && !enabled && (
-            <p>It didn't follow any links: following links is switched off in Agents and access.</p>
-          )}
-          {(n > 0 || notFollowed.length > 0) && (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-medium text-foreground">Links it followed, one step</p>
-              <ul className="flex flex-col gap-2">
-                {followed.map((f) => (
-                  <li key={`${f.from.id}>${f.to.id}`} className="flex flex-col gap-1">
-                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-                      <span className="line-clamp-1 max-w-56">{f.from.title}</span>
-                      <span>{relLabel[f.rel]}</span>
+            {facts.length > 0 && (
+              <p>
+                The agent got each context item with its source, who checked it, and its “don't
+                conclude” line.
+              </p>
+            )}
+            {answer.leftOut && (
+              <p>
+                <span className="text-foreground">Left out:</span> {answer.leftOut}
+              </p>
+            )}
+            {/* The links it followed with get_related: one step, where each led, and what it left alone. */}
+            {facts.length > 0 && !enabled && (
+              <p>
+                It didn't follow any links: following links is switched off in Agents and access.
+              </p>
+            )}
+            {(n > 0 || notFollowed.length > 0) && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium text-foreground">Links it followed, one step</p>
+                <ul className="flex flex-col gap-2">
+                  {followed.map((f) => (
+                    <li key={`${f.from.id}>${f.to.id}`} className="flex flex-col gap-1">
+                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                        <span className="line-clamp-1 max-w-56">{f.from.title}</span>
+                        <span>{relLabel[f.rel]}</span>
+                        <MentionChip mention={f.to} />
+                      </span>
+                      <span className="line-clamp-2 border-l-2 pl-2 text-xs">{f.read}</span>
+                    </li>
+                  ))}
+                  {notFollowed.map((f) => (
+                    <li
+                      key={`${f.from.id}>${f.to.id}`}
+                      className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
+                    >
                       <MentionChip mention={f.to} />
-                    </span>
-                    <span className="line-clamp-2 border-l-2 pl-2 text-xs">{f.read}</span>
-                  </li>
-                ))}
-                {notFollowed.map((f) => (
-                  <li
-                    key={`${f.from.id}>${f.to.id}`}
-                    className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
-                  >
-                    <MentionChip mention={f.to} />
-                    <span>no longer available, not followed</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs">
-                It follows one step, never a link from a link, and it never changes which context
-                the answer used.
-              </p>
-            </div>
-          )}
-          <Collapsible>
-            <FoldTrigger
-              variant="inline"
-              label="Developer details"
-              className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
-            />
-            <CollapsibleContent>
-              <p className="mt-2 text-xs">
-                Tool <span className="font-mono text-foreground">get_context</span>
-              </p>
-              <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
-                {JSON.stringify(raw, null, 2)}
-              </pre>
-              {n > 0 && (
-                <>
-                  <p className="mt-2 text-xs">
-                    Tool <span className="font-mono text-foreground">get_related</span>
-                  </p>
-                  <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
-                    {JSON.stringify(
-                      {
-                        depth: 1,
-                        nodes: followed.map((f) => ({
-                          id: f.to.id,
-                          label: f.to.label,
-                          rel: f.rel,
-                          from: `context:${f.from.id}`,
-                        })),
-                        not_followed: notFollowed.map((f) => ({
-                          id: f.to.id,
-                          status: 'retired',
-                        })),
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
-                </>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+                      <span>no longer available, not followed</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs">
+                  It follows one step, never a link from a link, and it never changes which context
+                  the answer used.
+                </p>
+              </div>
+            )}
+            <Collapsible>
+              <FoldTrigger
+                variant="inline"
+                label="Developer details"
+                className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
+              />
+              <CollapsibleContent>
+                <p className="mt-2 text-xs">
+                  Tool <span className="font-mono text-foreground">get_context</span>
+                </p>
+                <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+                  {JSON.stringify(raw, null, 2)}
+                </pre>
+                {n > 0 && (
+                  <>
+                    <p className="mt-2 text-xs">
+                      Tool <span className="font-mono text-foreground">get_related</span>
+                    </p>
+                    <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+                      {JSON.stringify(
+                        {
+                          depth: 1,
+                          nodes: followed.map((f) => ({
+                            id: f.to.id,
+                            label: f.to.label,
+                            rel: f.rel,
+                            from: `context:${f.from.id}`,
+                          })),
+                          not_followed: notFollowed.map((f) => ({
+                            id: f.to.id,
+                            status: 'retired',
+                          })),
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+/**
+ * What Ask's loop read for an answer (FR-720.9): each search with its words and period, what it
+ * counted and each item it read, in lines written by code from the reads; and the reads
+ * themselves, by tool and input, under Developer details.
+ */
+function LoopReads({ answer }: { answer: Answer }) {
+  const lines = answer.read ?? []
+  return (
+    <div className="flex max-w-reading flex-col gap-2 rounded-frame border bg-background px-3.5 py-3 text-muted-foreground">
+      <p className="text-xs font-medium text-foreground">What Ask read</p>
+      {lines.length ? (
+        <ul className="flex flex-col gap-1.5">
+          {lines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nothing was read for this answer.</p>
+      )}
+      <p className="text-xs">
+        Each read runs as you, so it sees only what your own pages show you. Earlier reads in this
+        chat are read again before they are used.
+      </p>
+      {!!answer.reads?.length && (
+        <Collapsible>
+          <FoldTrigger
+            variant="inline"
+            label="Developer details"
+            className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
+          />
+          <CollapsibleContent>
+            <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+              {JSON.stringify(answer.reads, null, 2)}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </div>
   )
 }
 
@@ -653,20 +729,24 @@ function AnswerWords({
           {cites}
         </span>
       )
-    const opens = !live && done
+    // Only a sentence with a source behind it opens: there is nothing to show for Ask's own words.
+    const opens = !live && done && s.cites.length > 0
+    const pressed = opens && open === i + 1
+    // A second press puts the sources away again.
+    const toggle = () => (pressed ? closeDock() : show(i + 1))
     return (
       <span
         key={i}
         role={opens ? 'button' : undefined}
         tabIndex={opens ? 0 : undefined}
-        aria-pressed={opens ? open === i + 1 : undefined}
-        onClick={opens ? () => show(i + 1) : undefined}
+        aria-pressed={opens ? pressed : undefined}
+        onClick={opens ? toggle : undefined}
         onKeyDown={
           opens
             ? (e) => {
                 if (e.key !== 'Enter' && e.key !== ' ') return
                 e.preventDefault()
-                show(i + 1)
+                toggle()
               }
             : undefined
         }
@@ -676,7 +756,7 @@ function AnswerWords({
           // py-1: an inline box is its font's height (about 19px), so one that fits a line is under the
           // 24px target size; the padding makes it 24px or more and leaves the line height alone.
           opens &&
-            'cursor-pointer py-1 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
+            'cursor-pointer py-1 decoration-muted-foreground/40 underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 dark:aria-pressed:bg-primary/25',
         )}
       >
         {words}
@@ -692,8 +772,9 @@ function AnswerWords({
       </span>
     )
   }
-  const run = (from: number, to: number) => (
-    <p>
+  // Sentences in their paragraphs: a sentence that starts one begins a new block.
+  const paragraph = (from: number, to: number) => (
+    <p key={from}>
       {shown.slice(from, to).map((s, j) => (
         <React.Fragment key={from + j}>
           {j > 0 && ' '}
@@ -702,6 +783,18 @@ function AnswerWords({
       ))}
     </p>
   )
+  const run = (from: number, to: number) => {
+    const starts = [
+      from,
+      ...shown.slice(from + 1, to).flatMap((s, j) => (s.starts ? [from + 1 + j] : [])),
+    ]
+    if (starts.length === 1) return paragraph(from, to)
+    return (
+      <div className="flex flex-col gap-3">
+        {starts.map((at, k) => paragraph(at, starts[k + 1] ?? to))}
+      </div>
+    )
+  }
   if (first < 0) return run(0, shown.length)
   return (
     <div className="flex flex-col gap-4">
@@ -810,7 +903,7 @@ function SourceChip({
 
 /** The Something wrong? form: a flag, or a suggestion when a correction is given. */
 /** What became of your report, in this chat only: sent, then what the owner did. */
-function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
+export function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
   return (
     <p
       role="status"
@@ -829,7 +922,7 @@ function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
   )
 }
 
-function SomethingWrong({
+export function SomethingWrong({
   answer,
   facts,
   figure,
@@ -987,8 +1080,9 @@ function AskableKinds({ answer }: { answer: Answer }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Ask answers three kinds of question: about a metric or a market, about the workspace&apos;s
-        records, and about what Definitions lists. Type @ to scope one to a metric or a market.
+        Ask answers three kinds of question: about a metric and the values it&apos;s split by, about
+        the workspace&apos;s records, and about what Definitions lists. Type @ to scope one to a
+        metric or a market.
       </p>
       {close.length > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -1044,7 +1138,7 @@ function AnswerDefinitions({ definitions }: { definitions: AskedDefinition[] }) 
 }
 
 /** The next step that fits the state: for the owner, or for everyone else. */
-function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
+export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const me = useMe()
   const write = useWrite()
   const owns = me.owns.includes('sales') || me.admin
@@ -1069,7 +1163,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
             }
           >
             <PencilIcon data-icon="inline-start" />
-            Write context for {scope}
+            {scope ? `Write context for ${scope}` : 'Write context'}
           </Button>
         )}
         {answer.times && (
@@ -1086,8 +1180,8 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
     return <ConflictNextStep pairKey={answer.conflict.join('.')} />
   }
   if (answer.state === 'stale') {
-    // An Outdated answer rests on at least one item.
-    const f = facts.find((x) => x.outOfDate) ?? facts[0]!
+    const f = facts.find((x) => x.outOfDate) ?? facts[0]
+    if (!f) return null
     return owns ? (
       <div className="flex flex-wrap gap-2">
         <Button
@@ -1130,16 +1224,25 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   return null
 }
 
+const RELATED_SHOWN = 4
+
 /** Items that apply to the scope but not to this question: named, not used. One row each, 44px tall on a touch screen. */
-function Related({ ids }: { ids: string[] }) {
+export function Related({ ids }: { ids: string[] }) {
   const all = useFacts()
-  const items = ids.map((id) => all.find((f) => f.id === id)).filter((f): f is Fact => !!f)
+  const domains = useDomains()
+  const [everything, setAll] = React.useState(false)
+  const items = [...new Set(ids)]
+    .map((id) => all.find((f) => f.id === id))
+    .filter((f): f is Fact => !!f)
+  const shown = everything ? items : items.slice(0, RELATED_SHOWN)
+  const titles = new Map<string, number>()
+  for (const f of items) titles.set(f.title, (titles.get(f.title) ?? 0) + 1)
   return (
     <div className="text-xs text-muted-foreground">
       <p>Also related, not used here:</p>
       <ul className="mt-0.5 flex flex-col pointer-coarse:gap-0.5">
-        {items.map((f) => (
-          <li key={f.id}>
+        {shown.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center gap-x-2">
             <button
               type="button"
               className="flex min-h-7 items-center rounded-sm text-left text-foreground underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11"
@@ -1147,9 +1250,25 @@ function Related({ ids }: { ids: string[] }) {
             >
               {f.title}
             </button>
+            {titles.get(f.title)! > 1 ? (
+              <span>
+                {[domains[f.domain]?.name, f.checkedOn ? `checked ${f.checkedOn}` : undefined]
+                  .filter(Boolean)
+                  .join(' - ')}
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>
+      {items.length > RELATED_SHOWN && !everything ? (
+        <button
+          type="button"
+          className="mt-0.5 flex min-h-7 items-center rounded-sm underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11"
+          onClick={() => setAll(true)}
+        >
+          Show {items.length - RELATED_SHOWN} more
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -1175,6 +1294,8 @@ type AnswerBodyProps = {
   /** Ask is itself in the right panel: what would open there opens in place. */
   docked?: boolean
   onRetry?: () => void
+  /** Sends one of a question back's choices as the person's reply: the chat's last answer only. */
+  onAsk?: (question: string) => void
   /** Told while the turn's words are still on their way to the screen, and when the last shows. */
   onRevealing?: (id: string, revealing: boolean) => void
   /** The chat's last answer: its actions always show, and it can be asked again from them. */
@@ -1231,6 +1352,15 @@ const RecordsAnswerBody = React.lazy(() =>
 export function AnswerBody(props: AnswerBodyProps) {
   const { records } = props.turn.answer
   if (props.turn.error) return <Unanswered error={props.turn.error} onRetry={props.onRetry} />
+  // Ask's loop: from its first read's step to its answer, drawn by its own body.
+  if (props.turn.answer.loop || props.turn.reads)
+    return (
+      <React.Suspense
+        fallback={<ReadingLine running>{props.turn.working ?? 'Reading…'}</ReadingLine>}
+      >
+        <LoopAnswerBody parts={loopAnswerParts()} {...props} />
+      </React.Suspense>
+    )
   if (!records) return <ContextAnswerBody {...props} />
   return (
     <React.Suspense
@@ -1259,7 +1389,15 @@ function Unanswered({ error, onRetry }: { error: string; onRetry?: () => void })
   )
 }
 
-function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }: AnswerBodyProps) {
+function ContextAnswerBody({
+  turn,
+  draft,
+  onRetry,
+  onAsk,
+  docked,
+  onRevealing,
+  latest,
+}: AnswerBodyProps) {
   const { answer, stopped } = turn
   // A Conflict's pair is read while the answer is still being written, so it shows with the rest
   // of the finished answer and nothing below it moves once it is in view.
@@ -1329,13 +1467,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   const writing = answered && isLive(turn) && !revealed
   const where = !draft && !docked && facts.length > 0
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
-  const asked = {
-    metric: answer.metric,
-    markets: answer.markets,
-    dates: answer.dates,
-    state: answer.state,
-    sources: answer.sources,
-  }
+  const asked = figureAskOf(answer)
   const figure = useQuery({ ...figureQuery(asked), enabled: !draft && answer.state !== null })
   const figures = useFigures()
   const view = draft ? null : (figure.data ?? null)
@@ -1479,6 +1611,25 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
       {answered && answer.reply === 'cannot' && answer.definitions && (
         <AnswerDefinitions definitions={answer.definitions} />
       )}
+      {/* A question back's readings, under it: the last one's send the choice as the reply. */}
+      {answered && !!answer.choices?.length && (
+        <div className="flex flex-wrap gap-2">
+          {answer.choices.map((choice) =>
+            onAsk ? (
+              <Button key={choice} variant="outline" size="sm" onClick={() => onAsk(choice)}>
+                {choice}
+              </Button>
+            ) : (
+              <span
+                key={choice}
+                className="rounded-full border px-3 py-1 text-sm text-muted-foreground"
+              >
+                {choice}
+              </span>
+            ),
+          )}
+        </div>
+      )}
       {answered && answer.write && (
         <p className="text-sm">
           <a
@@ -1518,7 +1669,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
       )}
       {finished && (
         <div className="flex animate-in flex-col gap-4 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
-          {answer.state === 'failed' && onRetry && (
+          {(answer.state === 'failed' || answer.stopped) && onRetry && (
             <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
@@ -1549,7 +1700,8 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           {answer.related?.length ? <Related ids={answer.related} /> : null}
           {answer.state === null
             ? // A question back, or one off topic, says what it needs on its own.
-              !answer.reply && <AskableKinds answer={answer} />
+              // Ask's loop says what it read instead.
+              !answer.reply && !answer.read && <AskableKinds answer={answer} />
             : !draft && <NextStep answer={answer} facts={facts} />}
           {!draft && report && <ReportLine report={report} />}
           {!draft && wrong && !report && facts.length > 0 && (
@@ -1588,7 +1740,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
  * and More with the rest (Something wrong?, Save question, Share). The last answer always shows
  * them; an earlier one on hover or focus, and always on a touch screen.
  */
-function AnswerActions({
+export function AnswerActions({
   answer,
   copyText,
   facts,

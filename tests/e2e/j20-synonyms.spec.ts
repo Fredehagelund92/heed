@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { expect, go, mode, test } from './go.ts'
 
 // J20, synonyms as tags: a comma or Enter makes a tag at once, a word that means something else
@@ -99,6 +100,114 @@ test('typing words and commas makes tags; a taken word says who has it', async (
   await box.press('Escape')
   await expect(box).toHaveValue('')
   await expect(tags.getByText('Sales Value', { exact: true })).toBeVisible()
+})
+
+/**
+ * Each synonym's save waits until `release`: on the service the request is held, and the mock's
+ * ?slow=1 makes every send take 1.5s.
+ */
+async function holdSaves(page: Page) {
+  let release = () => {}
+  const released = new Promise<void>((resolve) => (release = resolve))
+  if (mode === 'http')
+    await page.route(/\/api\/v1\/terms(\/delete)?$/, async (route) => {
+      if (route.request().method() === 'POST') await released
+      await route.fallback()
+    })
+  return release
+}
+
+/**
+ * The synonym box as the next frame after `act` paints it: its text, its tags, whether it kept the
+ * focus, and what was announced. Read in the page, so no retry can wait for a save to land.
+ */
+async function nextFrame(page: Page, event: 'keydown' | 'click', act: () => Promise<void>) {
+  await page.evaluate((event) => {
+    const seen = window as unknown as { frame?: unknown }
+    delete seen.frame
+    document.addEventListener(
+      event,
+      () =>
+        requestAnimationFrame(() => {
+          const box = document.querySelector<HTMLInputElement>('input[aria-label^="Add another"]')!
+          const section = box.closest('section')!
+          seen.frame = {
+            text: box.value,
+            focused: document.activeElement === box,
+            tags: [...section.querySelectorAll('button[aria-label^="Remove the synonym "]')].map(
+              (b) => b.getAttribute('aria-label')!.slice('Remove the synonym '.length),
+            ),
+            said: section.querySelector('[role="status"]')!.textContent,
+          }
+        }),
+      { capture: true, once: true },
+    )
+  }, event)
+  await act()
+  const frame = await page.waitForFunction(() => (window as unknown as { frame?: unknown }).frame)
+  return (await frame.jsonValue()) as {
+    text: string
+    focused: boolean
+    tags: string[]
+    said: string
+  }
+}
+
+test('a tag shows the moment its comma is typed, and goes the moment it is removed, while the save runs', async ({
+  page,
+}) => {
+  const release = await holdSaves(page)
+  await go(page, '/definitions/Gross%20sales?slow=1')
+  const box = page.getByRole('textbox', { name: 'Add another name for Gross sales' })
+  await box.pressSequentially('Sales Value')
+  const typed = await nextFrame(page, 'keydown', () => box.press(','))
+  expect(typed).toMatchObject({ text: '', focused: true, said: '' })
+  expect(typed.tags).toContain('Sales Value')
+  // A second comma before the save is in makes no second tag, and nothing is sent twice.
+  await box.pressSequentially('sales value,')
+  await expect(page.getByText('Sales Value', { exact: true })).toHaveCount(1)
+  // Removed while the save still runs: it goes now, and comes off once it is in.
+  const removed = await nextFrame(page, 'click', () =>
+    page.getByRole('button', { name: 'Remove the synonym Sales Value' }).click(),
+  )
+  expect(removed.focused).toBe(true)
+  expect(removed.tags).not.toContain('Sales Value')
+  expect(removed.said).not.toContain('Removed')
+  release()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Removed synonym Sales Value.' }),
+  ).toBeAttached()
+  await expect(page.getByText('Sales Value', { exact: true })).toHaveCount(0)
+})
+
+test('a save that fails takes its tag back and says so; Try again saves it', async ({ page }) => {
+  await go(page, '/definitions/Gross%20sales?state=failed')
+  // The mock fails the page's own first load too.
+  if (mode === 'mock') await page.getByRole('button', { name: 'Retry' }).click()
+  const box = page.getByRole('textbox', { name: 'Add another name for Gross sales' })
+  const tag = page.getByRole('button', { name: 'Remove the synonym Sales Value' })
+  await box.pressSequentially('Sales Value')
+  expect((await nextFrame(page, 'keydown', () => box.press(','))).tags).toContain('Sales Value')
+  const toast = page
+    .locator('[data-sonner-toast]')
+    .filter({ hasText: "Couldn't add “Sales Value”" })
+  await expect(toast).toContainText('Nothing was saved.')
+  await expect(tag).toHaveCount(0)
+  await expect(box).toBeFocused()
+  await toast.getByRole('button', { name: 'Try again' }).click()
+  await expect(tag).toBeVisible()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Added synonym Sales Value.' }),
+  ).toBeAttached()
+  // A failed removal brings the tag back the same way.
+  expect((await nextFrame(page, 'click', () => tag.click())).tags).not.toContain('Sales Value')
+  await expect(
+    page
+      .locator('[data-sonner-toast]')
+      .filter({ hasText: "Couldn't remove “Sales Value”" })
+      .filter({ hasText: 'It is still another name for Gross sales.' }),
+  ).toBeVisible()
+  await expect(tag).toBeVisible()
 })
 
 test('the list folds synonyms into their row; Terms counts only real terms', async ({ page }) => {

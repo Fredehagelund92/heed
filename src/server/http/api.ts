@@ -8,7 +8,7 @@ import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { API_PREFIX, contract } from '../../contract/index.ts'
 import { refusalOfCode, refusals } from '../../contract/refusals.ts'
-import { forRequest, type Database } from '../db/database.ts'
+import { forRequest, type Database, type Queryable } from '../db/database.ts'
 import type { Clock } from '../clock.ts'
 import {
   createProposalsService,
@@ -49,7 +49,7 @@ import { operationsView, type JobRunner } from '../modules/jobs/index.ts'
 import { ITEM_FILE_MAX_LENGTH } from '../../domain/item-file.ts'
 import { TERM_BATCH_BODY_MAX } from '../../contract/review.ts'
 import { itemJsonSchema } from '../../domain/item-version.ts'
-import { checkModelSetting, type ModelPort } from '../modules/models/index.ts'
+import { checkModelSetting, readSpendLimits, type ModelPort } from '../modules/models/index.ts'
 import { labelOperation } from '../observability/metrics.ts'
 import { createLimiter } from './rate-limit.ts'
 import {
@@ -73,14 +73,22 @@ import {
 import {
   askedFor,
   askedThisWeek,
+  askLoop as askWithLoop,
+  createAskTools,
   createBundleCache,
+  liveServingBundle,
   lookupQuestion,
+  readLoopLimits,
+  readWordsModel,
+  scriptedLoopModel,
   planQuestion,
   planWords,
   replayTopic,
   scriptedPlan,
   wordsInputOf,
   writeWords,
+  toolReadsIn,
+  type BundleCache,
   type LookupDeps,
   type AskTrace,
 } from '../modules/answer/index.ts'
@@ -151,6 +159,8 @@ export interface ApiServices {
   models: ModelPort
   /** What a run of Ask's cases hears or replaces. Never set by the service. */
   askTrace?: AskTrace
+  /** Ask reads with one model and its read tools (FR-718 to FR-720) in place of its router. */
+  askLoop?: boolean
   /** The MCP server's public address (`MCP_RESOURCE_URL`); null when this app serves no MCP. */
   mcpAddress?: string | null
   /** The built-in login server for agents; without it there is nothing to approve or list. */
@@ -168,6 +178,100 @@ type RequestContext = { request: FastifyRequest; reply: FastifyReply }
 const idempotencyKey = (context: RequestContext) =>
   context.request.headers['idempotency-key'] as string | undefined
 
+/**
+ * The services one request reads and writes through, inside its transaction, as its person: what
+ * every handler gets beside the transaction and the session. Ask's tools read through the same ones
+ * (src/server/modules/answer/tools.ts), so they read what the person's own pages read.
+ */
+export function requestServices(
+  tx: Queryable,
+  personId: string,
+  {
+    clock,
+    answerBundles,
+    models,
+    readPage,
+    hooks,
+  }: {
+    clock: Clock
+    answerBundles: BundleCache
+    models: ModelPort
+    readPage?: PageReader | undefined
+    hooks: TransactionHooks
+  },
+) {
+  const proposals = createProposalsService(tx, clock, personId)
+  const review = createReviewService(tx, clock)
+  const names = createNamesService(tx)
+  const gaps = createGapsService(tx)
+  const comments = createCommentsService(tx)
+  const reviewPath = createReviewPath(
+    tx,
+    clock,
+    answerBundles,
+    review,
+    (id) => proposals.get(id),
+    comments,
+  )
+  const library = createLibraryService(tx, clock)
+  return {
+    library,
+    context: createContextService(tx, clock, answerBundles, {
+      library,
+      proposals,
+      review,
+      path: reviewPath,
+      readPage,
+    }),
+    conflicts: createConflictsService(tx, clock, answerBundles, {
+      library,
+      proposals,
+      review,
+      path: reviewPath,
+      comments,
+    }),
+    catalogue: createCatalogueService(tx, clock),
+    terms: createTermsService(tx),
+    areas: createAreasService(tx),
+    people: createPeopleService(tx),
+    vocabulary: createVocabularyService(tx),
+    proposals,
+    review,
+    path: reviewPath,
+    cards: createInboxFeedService(tx, clock, answerBundles, {
+      review,
+      path: reviewPath,
+      gaps,
+      comments,
+      names,
+    }),
+    names,
+    comments,
+    reports: createReportsService(tx),
+    gaps,
+    evals: createEvalsService(tx, { port: models, clock }),
+    observability: createObservabilityService(tx, clock),
+    saved: createSavedQuestionsService(tx, clock, answerBundles),
+    alerts: createAlertsService(tx),
+    hooks,
+  }
+}
+
+/**
+ * Ask's tools for one request, as its person (FR-718.1): they read through the request's own
+ * services, inside its transaction, and write nothing.
+ */
+export function askToolsOf(
+  tx: Queryable,
+  clock: Clock,
+  answerBundles: BundleCache,
+  services: ReturnType<typeof requestServices>,
+) {
+  return createAskTools(
+    toolReadsIn(tx, clock, answerBundles, { ...services, people: () => listMembers(tx) }),
+  )
+}
+
 export function createRouter({
   database,
   signIn,
@@ -184,6 +288,7 @@ export function createRouter({
   }),
   readPage,
   askTrace,
+  askLoop = false,
 }: ApiServices) {
   const limitGapReports = createLimiter(() => clock.now())
   // The editions the answer engine reads, kept a short while: one for every person.
@@ -222,63 +327,17 @@ export function createRouter({
             checkMutation(context.request, session, origins, operation === 'auth.signIn')
           }
           await tx.query("select set_config('cl.person_id',$1,true)", [session?.person.id ?? ''])
-          const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
-          const review = createReviewService(tx, clock)
-          const names = createNamesService(tx)
-          const gaps = createGapsService(tx)
-          const comments = createCommentsService(tx)
-          const reviewPath = createReviewPath(
-            tx,
-            clock,
-            answerBundles,
-            review,
-            (id) => proposals.get(id),
-            comments,
-          )
-          const library = createLibraryService(tx, clock)
           return next({
             context: {
               tx,
               session,
-              library,
-              context: createContextService(tx, clock, answerBundles, {
-                library,
-                proposals,
-                review,
-                path: reviewPath,
+              ...requestServices(tx, session?.person.id ?? '', {
+                clock,
+                answerBundles,
+                models,
                 readPage,
+                hooks,
               }),
-              conflicts: createConflictsService(tx, clock, answerBundles, {
-                library,
-                proposals,
-                review,
-                path: reviewPath,
-                comments,
-              }),
-              catalogue: createCatalogueService(tx, clock),
-              terms: createTermsService(tx),
-              areas: createAreasService(tx),
-              people: createPeopleService(tx),
-              vocabulary: createVocabularyService(tx),
-              proposals,
-              review,
-              path: reviewPath,
-              cards: createInboxFeedService(tx, clock, answerBundles, {
-                review,
-                path: reviewPath,
-                gaps,
-                comments,
-                names,
-              }),
-              names,
-              comments,
-              reports: createReportsService(tx),
-              gaps,
-              evals: createEvalsService(tx, { port: models, clock }),
-              observability: createObservabilityService(tx, clock),
-              saved: createSavedQuestionsService(tx, clock, answerBundles),
-              alerts: createAlertsService(tx),
-              hooks,
             },
           })
         },
@@ -336,6 +395,61 @@ export function createRouter({
   const found = <T>(value: T | null): T => {
     if (value === null) throw new ORPCError('NOT_FOUND')
     return value
+  }
+  /**
+   * Ask's loop for one turn (FR-718 to FR-720): what it needs is read inside the request, which
+   * then ends; the loop runs after it, and each of its reads, spending checks and meter lines is a
+   * transaction of its own as the person, so no turn holds a connection while its model works.
+   */
+  const loopTurn = async (
+    context: RequestContext &
+      ReturnType<typeof requestServices> & {
+        tx: Queryable
+        session: { person: { id: string } } | null
+      },
+    input: Parameters<typeof askWithLoop>[1],
+    signal: AbortSignal | undefined,
+  ) => {
+    const person = context.session!.person.id
+    // Nothing shared with agents yet: refused, as the look-up refuses it.
+    await liveServingBundle(context.tx, answerBundles)
+    const live = models.mode === 'live'
+    const { steps, seconds } = await readLoopLimits(context.tx)
+    const model =
+      askTrace?.loopModel ?? (live ? await readWordsModel(context.tx, models) : scriptedLoopModel())
+    const limits = live ? await readSpendLimits(context.tx, 'assistant') : null
+    const scope = await readerScope(context.tx)
+    const areas = await context.areas.list()
+    const log = context.request.log
+    const noHooks: TransactionHooks = { onCommit: () => {}, onRollback: () => {} }
+    return askWithLoop(
+      {
+        database: forRequest(database, context.request.id),
+        person,
+        toolsIn: (tx) =>
+          askToolsOf(
+            tx,
+            clock,
+            answerBundles,
+            requestServices(tx, person, { clock, answerBundles, models, readPage, hooks: noHooks }),
+          ),
+        model,
+        limits,
+        asker: {
+          admin: scope.admin,
+          owns: areas.filter((a) => scope.areas.includes(a.id)).map((a) => a.name),
+        },
+        today: clock.today(),
+        steps,
+        timeoutMs: seconds * 1000,
+        ...(signal ? { signal } : {}),
+        // Names the failure only, never the question, the chat or what was read.
+        onError: (error) =>
+          log.warn({ error: error instanceof Error ? error.name : 'unknown' }, 'ask loop'),
+        ...(askTrace?.onLoopTurn ? { onTurn: askTrace.onLoopTurn } : {}),
+      },
+      input,
+    )
   }
   return authorized.router({
     proposals: {
@@ -1144,6 +1258,7 @@ export function createRouter({
       lookup: authorized.ask.lookup.handler(async ({ context, input, signal }) => {
         // The setup checklist's Ask step (FR-816): only that Ask was used, never what or by whom.
         await context.cards.askedOnce()
+        if (askLoop) return loopTurn(context, input, signal)
         // With a real model, the assistant's model writes the words after the answer; like the
         // assistant's turn, that call outlives the request's transaction and opens its own.
         const plan = await planWords(context.tx, models, context.session!.person.id)

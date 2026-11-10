@@ -65,7 +65,13 @@ export function sourceOfMetric(name: string): string | undefined {
   return metrics.some((m) => m.name === name) ? DEMO_DEFINITIONS : undefined
 }
 
-type Asked = { metric: string; markets: string[]; dates?: string; state: string | null }
+type Asked = {
+  metric: string
+  markets: string[]
+  values?: string[]
+  dates?: string
+  state: string | null
+}
 
 const scopeOf = (a: Asked) =>
   `${a.metric}${a.markets.length ? ` in ${a.markets.join(' and ')}` : ''}${a.dates ? `, ${a.dates}` : ''}`
@@ -92,6 +98,14 @@ export function figureFor(a: Asked, enabled: (id: string) => boolean): FigureVie
       ...(href ? { href } : {}),
     }
   }
+  // The demo's views split their metrics by market only (db/seed/cube), so a value of another
+  // dimension is a split the tool can't make, as the service says: never the figure for every value.
+  if (a.values?.some((v) => !v.startsWith('val:market/')))
+    return {
+      kind: 'none',
+      why: `${demoTool(source)} can't split ${a.metric.toLowerCase()} the way the question does, so no figure is read for it.`,
+      closest: [],
+    }
   const figure = fixtures[`${a.metric}|${a.markets.join(',')}|${a.dates}`]
   if (!figure)
     return {

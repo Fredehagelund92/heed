@@ -10,6 +10,7 @@ import type { Answer } from '@/model/ask'
 import { stateLabel } from '@/model/ask'
 import type { Filters, SavedView } from '@/lib/obs-views'
 import {
+  ALL_VALUES,
   dateLabel,
   dayLabel,
   monthName,
@@ -65,7 +66,7 @@ export function topicOf(t: ObsTopic): Topic {
   return {
     id: t.id,
     metric: t.metric,
-    where: t.values.length ? t.values.join(', ') : 'All markets',
+    where: t.values.length ? t.values.join(', ') : ALL_VALUES,
     ...(t.areaId ? { domain: t.areaId } : {}),
     month: t.month,
     subject: t.subject,
@@ -278,7 +279,7 @@ const why: Record<string, string> = {
   cut: 'did not fit the reply',
   replaced: 'was replaced',
   dates: 'is for other dates',
-  values: 'is about another market',
+  values: 'is about another value',
   dimension: 'is about another breakdown',
 }
 
@@ -355,7 +356,7 @@ export function replayOf(
     id: `replay:${run.when}`,
     question: `What should I know about ${topic.name} in ${month}?`,
     metric: topic.metric,
-    markets: topic.where === 'All markets' ? [] : [topic.where],
+    markets: topic.where === ALL_VALUES ? [] : [topic.where],
     state: a.state,
     text: a.say,
     sources: a.items.map((i) => i.id),

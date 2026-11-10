@@ -3,8 +3,12 @@ import pg from 'pg'
 import { afterAll, beforeAll, inject } from 'vitest'
 import { bulkSeed } from '../../db/seed/bulk.ts'
 import { contract } from '../../src/contract/index.ts'
+import type { Clock } from '../../src/server/clock.ts'
 import { calendarDateTypes, databaseFromPool, type Database } from '../../src/server/db/database.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
+import { askToolsOf, requestServices } from '../../src/server/http/api.ts'
+import { createBundleCache, type AskTools } from '../../src/server/modules/answer/index.ts'
+import { createModelPort } from '../../src/server/modules/models/index.ts'
 import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { seededName, seedingName } from './global-setup.ts'
 
@@ -129,6 +133,31 @@ export function apiDatabase(url: string): Database {
   })
   ignoreTeardownDisconnects(pool)
   return databaseFromPool(pool)
+}
+
+/**
+ * Ask's tools as one person (FR-718.1): inside a transaction of theirs, through the services a
+ * request of theirs has, as the API role, so row security and the audience rule apply.
+ */
+export function askToolsAs(database: Database, clock: Clock) {
+  const bundles = createBundleCache()
+  const noHooks = { onCommit: () => {}, onRollback: () => {} }
+  return <T>(person: string, work: (tools: AskTools) => Promise<T>) =>
+    database.transaction(person, (tx) =>
+      work(
+        askToolsOf(
+          tx,
+          clock,
+          bundles,
+          requestServices(tx, person, {
+            clock,
+            answerBundles: bundles,
+            models: createModelPort({ mode: 'mock' }),
+            hooks: noHooks,
+          }),
+        ),
+      ),
+    )
 }
 
 /** A pool as the serving role, with calendar days kept as strings like the service's own pool. */

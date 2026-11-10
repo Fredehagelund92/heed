@@ -53,6 +53,7 @@ import {
   type SummaryPeriod,
 } from '../../../domain/obs-summary.ts'
 import { summaryWords } from '../../../domain/obs-summary-words.ts'
+import { topicWords } from '../../../domain/say.ts'
 import { shiftDate } from '../../../domain/validity.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -162,20 +163,11 @@ type TopicRow = {
   calls: number
 }
 
-/**
- * A topic as people read it: "Orders in Norway"; over every market "Units sold, all markets"; with
- * another value "Discount cost, Black Friday"; with no metric "Norway, no metric named".
- */
-function topicName(metrics: string[], values: string[], names: Map<string, string>) {
-  const name = (key: string) => names.get(key) ?? fallbackName(key)
-  const where = values.map(name).join(', ')
-  if (!metrics.length) return `${where || 'Everything'}, no metric named`
-  const metric = metrics.map(name).join(', ')
-  if (!values.length) return `${metric}, all markets`
-  return values.every((v) => v.startsWith('val:market/'))
-    ? `${metric} in ${where}`
-    : `${metric}, ${where}`
-}
+/** A topic as people read it, whatever its dimensions (topicWords): "Orders in Norway", "Orders by channel". */
+const topicName = (
+  topic: { metrics: readonly string[]; values: readonly string[]; dimensions: readonly string[] },
+  names: Map<string, string>,
+) => topicWords(topic, (key) => names.get(key) ?? fallbackName(key))
 
 /** A topic's scope without its month: the months of one subject read as one row (FR-606). */
 const subjectOf = (t: Pick<TopicRow, 'area' | 'metrics' | 'values' | 'dimensions'>) =>
@@ -565,7 +557,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         total: subjects.size,
         spots: spots.map((g, i) => ({
           id: g.id,
-          title: topicName(g.metrics, g.values, names),
+          title: topicName(g, names),
           areaId: g.area,
           firstSeen: g.firstSeen,
           missing: view.open[i] ?? null,
@@ -973,12 +965,13 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         topic: string | null
         metrics: string[] | null
         values: string[] | null
+        dimensions: string[] | null
         closed: boolean
       }>(
         `select f.id::text, f.verdict::text as kind, coalesce(f.area_id, t.area_id) as area,
                 f.created_hour::text as at, f.note, f.client_label as client,
                 first.id as item, first.title, d.topic_id::text as topic,
-                t.metric_keys as metrics, t.value_keys as values,
+                t.metric_keys as metrics, t.value_keys as values, t.dimension_keys as dimensions,
                 exists (select 1 from card_states c where c.card = 'feedback:' || f.id::text) as closed
            from feedback f
            left join deliveries d on d.id = f.delivery_id
@@ -1065,7 +1058,14 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
               : null,
           kind: r.kind,
           areaId: r.area,
-          about: r.title ?? (r.metrics ? topicName(r.metrics, r.values ?? [], names) : 'An answer'),
+          about:
+            r.title ??
+            (r.metrics
+              ? topicName(
+                  { metrics: r.metrics, values: r.values ?? [], dimensions: r.dimensions ?? [] },
+                  names,
+                )
+              : 'An answer'),
           itemId: r.item,
           topicId: r.topic,
           note: r.note,

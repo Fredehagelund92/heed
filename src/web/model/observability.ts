@@ -5,7 +5,7 @@ import { flipped, type SortKey, type Sorting } from '@/lib/sort'
 
 // What Observability shows: what agents asked and how it was answered, as scopes and counts only.
 // The words of a question and who asked are never kept, so there are no threads to open: a topic
-// (a metric, a market, dates) and how often it was asked takes their place.
+// (a metric, the values asked about, dates) and how often it was asked takes their place.
 //
 // A page's data comes from the binding for one view (a range, and a domain or a kind of agent),
 // with every count already through src/domain/observability.ts: a count under 5 is null, and no
@@ -97,11 +97,14 @@ export type Publish = {
   checked?: string
 }
 
+/** A topic's `where` when it named no value: it was asked over every value. */
+export const ALL_VALUES = 'All values'
+
 export type Topic = {
   id: string
   /** The metric, or the metric group, as people name it; empty when no metric was named. */
   metric: string
-  /** The market, the event or the other value asked about; "All markets" when none was. */
+  /** The values asked about, of any dimension (a market, a product, an event); ALL_VALUES when none was. */
   where: string
   /** The domain of its metrics. A topic with no metric named has none. */
   domain?: DomainId
@@ -232,11 +235,11 @@ export type ObsData = {
 
 /* ---------- roll-ups: the same key, grouped for reading ---------- */
 
-/** How Questions and Overview group topics: each exact scope, metric and market (the default), or domain only. */
+/** How Questions and Overview group topics: each exact scope, metric and values (the default), or domain only. */
 export type Grouping = 'none' | 'metric' | 'domain'
 export const GROUPINGS: Record<Grouping, string> = {
   none: 'None',
-  metric: 'Metric and market',
+  metric: 'Metric and values',
   domain: 'Domain only',
 }
 
@@ -324,7 +327,9 @@ export function observability(data: ObsData) {
       ? `${t.where}, no metric named`
       : markets.includes(t.where)
         ? `${t.metric} in ${t.where}`
-        : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
+        : t.where === ALL_VALUES
+          ? t.metric
+          : `${t.metric}, ${t.where}`
 
   /** The exact scope, as a person reads it: "Orders in Norway, October 2026". */
   const topicTitle = (t: Topic) => `${topicName(t)}, ${monthName(t.month)}`
@@ -359,7 +364,7 @@ export function observability(data: ObsData) {
     }
   }
 
-  /** Topics that share a domain, a metric and a market, joined; the month stays inside as a breakdown and a filter. */
+  /** Topics that share a domain, a metric and the values, joined; the month stays inside as a breakdown and a filter. */
   function rollUp(rows: Topic[]): TopicGroup[] {
     const by = new Map<string, Topic[]>()
     for (const t of rows) by.set(t.subject, [...(by.get(t.subject) ?? []), t])

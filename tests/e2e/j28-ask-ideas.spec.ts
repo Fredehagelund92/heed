@@ -80,6 +80,36 @@ test('Share copies an answer for Slack with its state and sources, or as a card;
   await expect(missing.getByRole('listitem')).toHaveCount(0)
 })
 
+test('Only a sentence with a source behind it is a button: a press shows its sources, another puts them away', async ({
+  page,
+}) => {
+  await ask(page, grounded)
+  const log = page.getByRole('log')
+  const first = log.getByRole('button', { name: world.firstSentence })
+  await expect(first).toHaveAttribute('tabindex', '0')
+  // Ask's own sentence, the last, cites nothing: plain words, with no role and no tab stop.
+  const own = log
+    .locator('span', { has: page.locator('.sr-only', { hasText: "Ask's own wording" }) })
+    .last()
+  await expect(own).toBeVisible()
+  await expect(own).not.toHaveAttribute('role', 'button')
+  await expect(own).not.toHaveAttribute('tabindex')
+  await expect(own).not.toHaveAttribute('aria-pressed')
+  await expect(own).toHaveCSS('cursor', 'auto')
+
+  await first.press('Enter')
+  await expect(page).toHaveURL(/dock=where\..*wn=1/)
+  await expect(first).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page
+      .getByRole('region', { name: 'Where it says that' })
+      .getByRole('region', { name: 'From Online sales to Norway stopped on 4 August 2026' }),
+  ).toBeVisible()
+  await first.press(' ')
+  await expect(page).not.toHaveURL(/dock=/)
+  await expect(first).toHaveAttribute('aria-pressed', 'false')
+})
+
 test('Show me where it says that: a sentence walks back to its item and the source line, exact phrases marked', async ({
   page,
 }) => {
