@@ -258,13 +258,33 @@ export interface RuntimeContext<Config = ConnectorConfig> {
 export interface FigureQuery {
   /** The metric as the tool names it, its ref without the prefix: `orders.orders`. */
   readonly metric: string
-  /** The tool's date dimension the days apply to, in the metric's own view: `orders.order_day`. */
-  readonly date: string
+  /**
+   * The tool's date dimensions in the metric's own view, by name (`orders.order_day`): the days
+   * apply to one of them. With several, the connector reads the one the model names, else the
+   * one the server's figure settings name, and fails with `several_dates` when neither does.
+   */
+  readonly dates: readonly string[]
   /** The first and last day, both included: `2026-08-01`, `2026-08-31`. */
   readonly from: string
   readonly to: string
   /** Only these values of each dimension, as the tool names the dimension. */
   readonly filters: readonly { readonly dimension: string; readonly values: readonly string[] }[]
+  /** What the server's figure settings say of the measure, for what its model leaves unsaid. */
+  readonly settings?: FigureSettings
+}
+
+/**
+ * The server's figure settings for one measure (`HEED_FIGURE_OVERRIDES`), set by whoever runs
+ * the service for a model that does not say: the date its days apply to, by name; whether it
+ * adds up over days (`false` for a snapshot such as a balance or stock on hand); and how its
+ * value is written.
+ */
+export interface FigureSettings {
+  readonly date?: string
+  readonly additive?: boolean
+  /** How the value is written, and the currency of money (`EUR`). */
+  readonly format?: 'currency' | 'percent' | 'number'
+  readonly currency?: string
 }
 
 /** How the tool says a figure is written: an amount of money, a share, or a number. */
@@ -292,6 +312,13 @@ export const figureResultSchema = z.strictObject({
    * `min`, `max`, or `number` for its own calculation. The query in words says it.
    */
   aggregation: z.optional(z.nullable(z.string().check(z.regex(/^[A-Za-z]{1,40}$/)))),
+  /** The date dimension the days applied to, one of the query's `dates`. */
+  date: z.optional(z.string().check(z.maxLength(500))),
+  /**
+   * The measure does not add up over days, a snapshot such as a balance: the value is its value
+   * on the last day, not the days added up.
+   */
+  snapshot: z.optional(z.boolean()),
 })
 export type FigureResult = z.infer<typeof figureResultSchema>
 
