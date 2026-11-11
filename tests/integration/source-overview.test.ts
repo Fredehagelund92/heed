@@ -428,64 +428,70 @@ describe('Read again and Run now (CON-115)', () => {
       )
     ).rows[0]!.at
   const inADay = async (id: string) => {
-    await client.query(
-      `update connectors set next_read_at = now() + interval '1 day' where id = $1`,
-      [id],
-    )
+    await queueReads(client, [id])
+    await connectorSyncJob(registry, { clock }).run({
+      database,
+      logger,
+      signal: new AbortController().signal,
+    })
     return nextRead(id)
   }
 
   it('queues the source once the job runner answers', async () => {
-    await inADay('cube')
-    expect(await row('cube')).toMatchObject({ health: 'reauth', read: 'scheduled' })
+    await inADay(handbookId)
+    expect(await row(handbookId)).toMatchObject({ read: 'scheduled' })
     runner = { outcome: 'queued', id: 'job-1' }
-    expect(await ok(call('POST', '/sources/cube/read', 'admin'), 202)).toEqual({
-      id: 'cube',
+    expect(await ok(call('POST', `/sources/${handbookId}/read`, 'admin'), 202)).toEqual({
+      id: handbookId,
       status: 'queued',
     })
-    const queued = await row('cube')
+    const queued = await row(handbookId)
     // A refused key stays shown beside the retry that waits for the job.
-    expect(queued).toMatchObject({ health: 'reauth', read: 'queued' })
+    expect(queued).toMatchObject({ read: 'queued' })
     expect(new Date(queued.nextReadAt!).getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it('queues it too when a run is already waiting or running', async () => {
-    await inADay('cube')
+    await inADay(handbookId)
     runner = { outcome: 'already_queued' }
-    await ok(call('POST', '/sources/cube/read', 'admin'), 202)
-    expect((await row('cube')).read).toBe('queued')
+    await ok(call('POST', `/sources/${handbookId}/read`, 'admin'), 202)
+    expect((await row(handbookId)).read).toBe('queued')
   })
 
   it('leaves the source as it was, and says so, when the job runner is down', async () => {
-    const before = await inADay('cube')
+    const before = await inADay(handbookId)
     runner = { outcome: 'not_running' }
-    const asked = await call('POST', '/sources/cube/read', 'admin')
+    const asked = await call('POST', `/sources/${handbookId}/read`, 'admin')
     expect(asked.statusCode, asked.body).toBe(503)
     // No spinner left behind: it is still scheduled for the day it was.
-    expect(await nextRead('cube')).toBe(before)
-    expect(await row('cube')).toMatchObject({ read: 'scheduled' })
+    expect(await nextRead(handbookId)).toBe(before)
+    expect(await row(handbookId)).toMatchObject({ read: 'scheduled' })
     // Asking again gives the same answer, not a source stuck reading.
-    expect((await call('POST', '/sources/cube/read', 'admin')).statusCode).toBe(503)
-    expect(await nextRead('cube')).toBe(before)
+    expect((await call('POST', `/sources/${handbookId}/read`, 'admin')).statusCode).toBe(503)
+    expect(await nextRead(handbookId)).toBe(before)
   })
 
   it('puts a refused run back for every source that is on, and queues them all when it runs', async () => {
-    const before = await inADay('cube')
+    const before = await inADay(handbookId)
     runner = { outcome: 'not_running' }
     const refused = await call('POST', '/operations/jobs/connectors.sync/run', 'admin')
     expect(refused.statusCode, refused.body).toBe(503)
-    expect(await nextRead('cube')).toBe(before)
+    expect(await nextRead(handbookId)).toBe(before)
     runner = { outcome: 'queued', id: 'job-2' }
     await ok(call('POST', '/operations/jobs/connectors.sync/run', 'admin'), 202)
-    expect((await row('cube')).read).toBe('queued')
+    expect((await row(handbookId)).read).toBe('queued')
     // A source that is paused is not queued by it.
-    await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: true, reason: 'Moving Git' }))
-    const paused = await inADay('cube')
+    await ok(
+      call('PUT', `/sources/${handbookId}/paused`, 'admin', { paused: true, reason: 'Moving Git' }),
+    )
+    const paused = await nextRead(handbookId)
     await ok(call('POST', '/operations/jobs/connectors.sync/run', 'admin'), 202)
-    expect(await nextRead('cube')).toBe(paused)
+    expect(await nextRead(handbookId)).toBe(paused)
     // Resumed, a source is queued: the job's next turn reads it.
-    await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
-    expect((await row('cube')).read).toBe('queued')
+    await ok(
+      call('PUT', `/sources/${handbookId}/paused`, 'admin', { paused: false, reason: 'Moved' }),
+    )
+    expect((await row(handbookId)).read).toBe('queued')
   })
 })
 

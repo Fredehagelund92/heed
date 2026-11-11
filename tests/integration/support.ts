@@ -6,6 +6,7 @@ import { contract } from '../../src/contract/index.ts'
 import type { Clock } from '../../src/server/clock.ts'
 import { calendarDateTypes, databaseFromPool, type Database } from '../../src/server/db/database.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
+import { readNow } from '../../src/server/modules/connectors/read-now.ts'
 import { askToolsOf, requestServices } from '../../src/server/http/api.ts'
 import { createBundleCache, type AskTools } from '../../src/server/modules/answer/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
@@ -109,13 +110,14 @@ export function testDatabase({
 }
 
 /**
- * Queues the reads of sources, as Read again does: their next read is now. The one way tests make
- * a source due; `ids` omitted queues them all.
+ * Queues the reads of sources through Read again's own write (`readNow`): their next read is now.
+ * The one way tests make a source due; `ids` omitted queues them all.
  */
 export async function queueReads(client: pg.Client, ids?: readonly string[]): Promise<void> {
-  await client.query(
-    'update connectors set next_read_at = now() where $1::text[] is null or id = any($1)',
-    [ids ?? null],
+  await readNow(
+    { query: async (text, values) => (await client.query(text, values)).rows },
+    ids ?? null,
+    async () => ({ result: undefined, ran: true }),
   )
 }
 

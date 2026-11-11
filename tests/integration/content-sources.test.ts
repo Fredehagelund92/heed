@@ -372,10 +372,7 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
   })
 
   it('refuses to read a source again while the job runner is down, and leaves it as it was (CON-115)', async () => {
-    await client.query(
-      `update connectors set next_read_at = now() + interval '1 day' where id=$1`,
-      [sourceId],
-    )
+    await read()
     expect((await call('POST', `/sources/${sourceId}/read`, 'owner')).statusCode).toBe(403)
     // The job runner is not running here, so it says so, and the source stays as it was: it is
     // not left queued with nothing to read it.
