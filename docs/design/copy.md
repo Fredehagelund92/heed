@@ -41,15 +41,15 @@ Heed is open source and any company can run it. The words do not belong to one c
 
 Do and do not:
 
-| Do                                                  | Do not                                                            |
-| --------------------------------------------------- | ----------------------------------------------------------------- |
-| "Published. Agents now say ..."                     | "The suggestion was successfully accepted into the live edition." |
-| "Nothing is written about this yet."                | "no_match: no governed item applies to that exact scope."         |
-| "Couldn't publish. Nothing changed." with Try again | "An error occurred."                                              |
-| "Your suggestion is waiting for Jon Abara."         | "Your proposal was submitted to the domain for review."           |
-| "2 skipped: owned by Sales"                         | "2 items could not be processed due to insufficient permissions." |
-| "Fewer than 5"                                      | "0" or a number that gives a hidden part away                     |
-| "Looked up 2 context items, followed 1 link"        | "Executed graph traversal over 2 nodes."                          |
+| Do                                                                        | Do not                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| "Published. Agents now say ..."                                           | "The suggestion was successfully accepted into the live edition." |
+| "Nothing is written about this yet."                                      | "no_match: no governed item applies to that exact scope."         |
+| "Couldn't publish. <the server's reason> Nothing changed." with Try again | "An error occurred."                                              |
+| "Your suggestion is waiting for Jon Abara."                               | "Your proposal was submitted to the domain for review."           |
+| "2 skipped: owned by Sales"                                               | "2 items could not be processed due to insufficient permissions." |
+| "Fewer than 5"                                                            | "0" or a number that gives a hidden part away                     |
+| "Looked up 2 context items, followed 1 link"                              | "Executed graph traversal over 2 nodes."                          |
 
 ## 3. The vocabularies
 
@@ -135,7 +135,7 @@ Under All: **Waiting on others** and **Done**. Never "Gap" or "Flag" as a card n
 
 ### Review
 
-Change kinds: **Wording**, **Formatting**, **Link**, **Order**, **Added**, **Removed**, **Dates**. Decisions: **Publish**, **Edit**, **Return with a note**, **Archive**, **Close the suggestion**. Group actions: **Publish the N you've read**, **Mark as read**. Outcomes stay on the page: "Published. Agents now say ...", with Undo. A failed try says "Couldn't publish. Nothing changed." with Try again; offline the button says "Publish is off until you're back".
+Change kinds: **Wording**, **Formatting**, **Link**, **Order**, **Added**, **Removed**, **Dates**. Decisions: **Publish**, **Edit**, **Return with a note**, **Archive**, **Close the suggestion**. Group actions: **Publish the N you've read**, **Mark as read**. Outcomes stay on the page: "Published. Agents now say ...", with Undo. A failed try says "Couldn't publish." with the server's reason when it gave one, then "Nothing changed.", and Try again repeats the same action; offline the button says "Publish is off until you're back".
 
 ### The quick view's answers
 
