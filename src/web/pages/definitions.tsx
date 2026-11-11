@@ -743,7 +743,7 @@ export function DefinitionsPage() {
               >
                 {/* Hundreds of rows draw in a render of their own: their skeleton holds the place. */}
                 {!showRows && <TableBodySkeleton colSpan={COLS} />}
-                {shown.length === 0 && (
+                {showRows && shown.length === 0 && (
                   <tr>
                     <td colSpan={COLS} className="px-6 py-10 text-center text-sm">
                       <p className="font-medium">No definitions match</p>
