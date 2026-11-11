@@ -150,6 +150,8 @@ test('a tick is on the screen in the frame after the press, and the rows follow'
   const picked = await firstFrameAfter(page, values.locator('[role=option][data-row=tick]').nth(1))
   expect(picked).toMatchObject({ ticked: true, vt: false })
   await expect(page).toHaveURL(/metric=/)
+  // The picker's own transition must be over, or its mark would be read as the facet tick's.
+  await expect(page.locator('html')).not.toHaveAttribute('data-vt', /./)
 
   // The facets beside the topics, the same.
   await page.keyboard.press('Escape')
