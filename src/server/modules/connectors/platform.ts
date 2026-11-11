@@ -79,9 +79,15 @@ export interface StoredSource {
   secrets: Readonly<Record<string, string>> | null
   /**
    * The scopes an administrator chose: a content source's, each with its domain; a definitions
-   * source's groups, which the core reads alone (every group when none is chosen).
+   * source's groups, each with the domain it maps to, which the core applies.
    */
   scopes?: readonly StoredScope[]
+  /**
+   * A definitions source reads every group, its scopes only mapping domains; false, only the
+   * groups in its scopes, an allow list, and none when they are empty. Left out, it reads every
+   * group when no scope is chosen, and only those chosen otherwise.
+   */
+  allGroups?: boolean
   /**
    * The folder on the server that whoever runs it named for the source (`CUBE_MODEL_DIR`,
    * `HEED_SERVER_FOLDERS`), which a connector that declares `capabilities.serverFolder` reads as
@@ -478,40 +484,77 @@ export const groupOf = (name: string) => {
 }
 
 /**
- * A read of a definitions source narrowed to the groups an administrator chose, each with the
- * domain they mapped it to: that domain for every definition of the group (`domain_override`),
- * or none, which leaves them shared. A group left out is not read, so a complete read marks its
- * definitions missing, as when the tool drops them. With no group chosen, the read is as the
- * tool gave it.
+ * A read narrowed to the groups listed, an allow list: a group left out is not read, so a complete
+ * read marks its definitions missing, as when the tool drops them, and the live items that rely on
+ * them are flagged for their owners. A definition in no group is never read. Each listed group the
+ * read did not find is named (`group_not_found`), and a list of none reads nothing and says so
+ * (`no_groups_chosen`), never every group. Domains stay as the read gave them.
  */
-export function withChosenGroups(
+export function withListedGroups(
   snapshot: SourceSnapshot,
-  scopes: readonly StoredScope[],
+  listed: readonly string[],
 ): SourceSnapshot {
-  if (!scopes.length) return snapshot
-  const chosen = new Map(scopes.map((scope) => [scope.id, scope.domain]))
-  const mapped: SourceWarning[] = []
-  const definitions = snapshot.definitions.flatMap((definition): Definition[] => {
+  const chosen = new Set(listed)
+  const definitions = snapshot.definitions.filter((definition) => {
     const group = groupOf(definition.name)
-    if (group === null || !chosen.has(group)) return []
-    const domain = chosen.get(group) ?? null
-    if (domain === null) return [{ ...definition, areaHint: null, domainSource: 'none' }]
-    mapped.push({ code: 'domain_override', target: definition.ref })
-    return [{ ...definition, areaHint: domain, domainSource: 'override' }]
+    return group !== null && chosen.has(group)
   })
   // A warning names a definition (by its ref or its name), a group, or neither (a file).
   const kept = new Set(definitions.flatMap((definition) => [definition.ref, definition.name]))
   const named = new Set(snapshot.definitions.flatMap((d) => [d.ref, d.name]))
   const groups = new Set(snapshot.definitions.flatMap((d) => groupOf(d.name) ?? []))
-  // What it said of a group left out, of its definitions, or of a group mapped says nothing now.
+  // What it said of a group left out, or of its definitions, says nothing now.
   const warnings = snapshot.warnings.filter((warning) =>
     named.has(warning.target)
       ? kept.has(warning.target)
       : groups.has(warning.target)
-        ? chosen.has(warning.target) && chosen.get(warning.target) === null
+        ? chosen.has(warning.target)
         : true,
   )
-  return { ...snapshot, definitions, warnings: [...warnings, ...mapped] }
+  const unlisted: SourceWarning[] = listed.length
+    ? [...chosen]
+        .filter((group) => !groups.has(group))
+        .map((group) => ({ code: 'group_not_found', target: group }))
+    : [{ code: 'no_groups_chosen', target: 'groups' }]
+  return { ...snapshot, definitions, warnings: [...warnings, ...unlisted], groups: [...chosen] }
+}
+
+/**
+ * A read of a definitions source with the groups an administrator chose, each with the domain
+ * they mapped it to: that domain for every definition of the group (`domain_override`), or none,
+ * which leaves them shared. With `allGroups` false the chosen groups are also an allow list
+ * (`withListedGroups`). With every group read and none mapped, the read is as the tool gave it.
+ */
+export function withChosenGroups(
+  snapshot: SourceSnapshot,
+  scopes: readonly StoredScope[],
+  allGroups = !scopes.length,
+): SourceSnapshot {
+  const read = allGroups
+    ? snapshot
+    : withListedGroups(
+        snapshot,
+        scopes.map((scope) => scope.id),
+      )
+  if (!scopes.length) return read
+  const chosen = new Map(scopes.map((scope) => [scope.id, scope.domain]))
+  const mapped: SourceWarning[] = []
+  const definitions = read.definitions.map((definition): Definition => {
+    const group = groupOf(definition.name)
+    if (group === null || !chosen.has(group)) return definition
+    const domain = chosen.get(group) ?? null
+    if (domain === null) return { ...definition, areaHint: null, domainSource: 'none' }
+    mapped.push({ code: 'domain_override', target: definition.ref })
+    return { ...definition, areaHint: domain, domainSource: 'override' }
+  })
+  // What it said of a group mapped to a domain says nothing now.
+  const warnings = read.warnings.filter(
+    (warning) =>
+      !chosen.has(warning.target) ||
+      chosen.get(warning.target) === null ||
+      (warning.code !== 'missing_domain' && warning.code !== 'invalid_domain'),
+  )
+  return { ...read, definitions, warnings: [...warnings, ...mapped] }
 }
 
 /** The most a stored cursor holds (the snapshot's own limit). */
@@ -588,6 +631,7 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
                 ...(message.unchanged ? { unchanged: true as const } : {}),
               },
               stored.scopes ?? [],
+              stored.allGroups,
             )
           }
           // A definitions connector sends definitions, under its tool's prefix, each once.

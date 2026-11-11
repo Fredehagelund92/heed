@@ -31,6 +31,7 @@ import type { Alerts, RuleId } from '@/model/alerts'
 import type { FigureAsk, FigureReport, FigureTry, FigureView } from '@/model/figures'
 import type {
   ConnectChoice,
+  LeftOutView,
   ConnectedSource,
   ConnectForm,
   ConnectTest,
@@ -652,18 +653,35 @@ export interface HeedApi {
     input: {
       connector: string
       chosen: ConnectChoice[]
+      /** A definitions tool reads every view; false, only those chosen. */
+      readsAll: boolean
       reason: string
     } & ConnectValues,
   ) => Promise<ConnectedSource>
-  /** Change settings of a connected tool, on the revision its form read; a secret left empty stays. */
+  /**
+   * Change settings of a connected tool, on the revision its form read; a secret left empty stays.
+   * A change that stops reading views live items rely on needs `acceptLeftOut`, once whoever
+   * changes it has seen them (`integrationLeftOut`).
+   */
   changeIntegration: (
     input: {
       id: string
       revision: number
       chosen: ConnectChoice[]
+      readsAll: boolean
+      acceptLeftOut?: boolean
       reason: string
     } & ConnectValues,
   ) => Promise<void>
+  /**
+   * What a connected definitions tool would stop reading with these views, and the live items
+   * that rely on it. It changes nothing.
+   */
+  integrationLeftOut: (input: {
+    id: string
+    readsAll: boolean
+    views: string[]
+  }) => Promise<LeftOutView>
   /**
    * Disconnects a tool, by its page's id: it is read no more and its secrets are forgotten; a
    * content tool's open suggestions are withdrawn. What it read, and what owners published, stays.
@@ -877,6 +895,7 @@ export const heedApiMethods = [
   'testIntegration',
   'connectIntegration',
   'changeIntegration',
+  'integrationLeftOut',
   'disconnectIntegration',
   'getIntegrations',
   'integrationsPage',

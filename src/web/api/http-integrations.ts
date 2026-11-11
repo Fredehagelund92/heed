@@ -242,12 +242,25 @@ export function activityOf(read: SourceReadEntry, tool: string, now: Date): Acti
       : 'Read complete'
   if (read.definitions) {
     const { seen, added, changed, gone } = read.definitions
+    // The views chosen to read that it could not: none chosen, or one the model does not have.
+    const unread = read.warnings.find((w) => w.code === 'group_not_found')?.count ?? 0
+    const listed = read.warnings.some((w) => w.code === 'no_groups_chosen')
+      ? ['no view chosen, so nothing is read']
+      : unread
+        ? [`${unread === 1 ? '1 chosen view is' : `${unread} chosen views are`} not in the model`]
+        : []
     if (read.first)
-      return { when, tone: 'ok', what, detail: `${plural(added, 'definition')} added` }
+      return {
+        when,
+        tone: listed.length ? 'changed' : 'ok',
+        what,
+        detail: [`${plural(added, 'definition')} added`, ...listed].join(', '),
+      }
     const parts = [
       changed && `${plural(changed, 'definition')} changed`,
       added && `${added} new`,
       gone && `${gone} gone`,
+      ...listed,
     ].filter(Boolean)
     return parts.length
       ? { when, tone: 'changed', what, detail: parts.join(', ') }
@@ -490,6 +503,7 @@ export function connectFormOf(
       title: scope.title,
       domain: scope.domain,
     })),
+    readsAll: settings?.allGroups ?? true,
     secretStore,
   }
 }
@@ -509,6 +523,14 @@ const READ_WARNINGS: Record<string, { title: string; detail: string }> = {
     detail: 'It stays with that source, and this one leaves it out.',
   },
   too_many_records: { title: 'More than a read can hold', detail: 'The rest is left out.' },
+  group_not_found: {
+    title: 'A chosen view is not in the model',
+    detail: 'Nothing is read for it. Leave it out, or add it to the model.',
+  },
+  no_groups_chosen: {
+    title: 'No view chosen',
+    detail: 'Nothing is read. Choose the views to read.',
+  },
 }
 
 /** A read's warnings, each kind once with how many there are, in the words of who says them. */

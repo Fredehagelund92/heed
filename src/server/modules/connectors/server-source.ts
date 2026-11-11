@@ -3,7 +3,7 @@ import * as z from 'zod'
 import { builtInConnectors } from '../../../connectors/index.ts'
 import { manifest as cubeManifest } from '../../../connectors/cube/manifest.ts'
 import { contentDigest } from '../../../domain/canonical.ts'
-import { fromModule } from './platform.ts'
+import { fromModule, withListedGroups } from './platform.ts'
 import {
   renameSchema,
   type ConnectorType,
@@ -21,7 +21,8 @@ import { workerLimits } from './worker.ts'
   by the same Cube connector an administrator adds a repository of, which gets the folder as
   `ctx.folder`. What only whoever runs the server can say is applied here, the same for any
   definitions connector: the domains of views the model names none for (`HEED_DOMAIN_OVERRIDES`),
-  and the members renamed (`CUBE_RENAMES_FILE`, CON-512).
+  and the members renamed (`CUBE_RENAMES_FILE`, CON-512). The views Cube's folder is read for
+  (`CUBE_VIEWS_FILE`) are the allow list an administrator keeps for a source they added.
 
   Any other connector that declares `capabilities.serverFolder` is read the same way from the
   folder `HEED_SERVER_FOLDERS` names for it (CON-119).
@@ -41,6 +42,8 @@ export interface CubeSourceOptions {
   domainOverridesFile?: string
   /** JSON object of renamed members, old id to new id (CON-512). */
   renamesFile?: string
+  /** JSON array of the views it reads, an allow list; unset, it reads every view. */
+  viewsFile?: string
   /** The compiler's limits, when the server sets them. */
   timeoutMs?: number
   memoryMb?: number
@@ -53,6 +56,12 @@ const viewOf = (name: string) => name.slice(0, Math.max(name.lastIndexOf('.'), 0
 
 const jsonObject = async (file: string) =>
   z.record(z.string(), z.unknown()).parse(JSON.parse(await readFile(file, 'utf8')) as unknown)
+
+/** The views a file lists: a JSON array of names, each once. An empty one lists none. */
+const viewListSchema = z
+  .array(z.string().min(1).max(500))
+  .max(2_000)
+  .refine((views) => new Set(views).size === views.length, 'Name each view once')
 
 /**
  * The server's domains for views the model names none for, applied to a read. They fill gaps
@@ -190,6 +199,7 @@ export function createCubeSource(options: CubeSourceOptions): DefinitionSource {
         value: options.domainOverridesFile ?? null,
       },
       { key: 'renames', variable: 'CUBE_RENAMES_FILE', value: options.renamesFile ?? null },
+      { key: 'views', variable: 'CUBE_VIEWS_FILE', value: options.viewsFile ?? null },
     ],
     async read(context) {
       // The files are read at each read, so a change to them applies from the next one.
@@ -197,13 +207,22 @@ export function createCubeSource(options: CubeSourceOptions): DefinitionSource {
         ? await jsonObject(options.domainOverridesFile)
         : {}
       const entries = options.renamesFile ? await jsonObject(options.renamesFile) : {}
-      const read = withOverrides(await source.read(context), overrides)
+      const views = options.viewsFile
+        ? viewListSchema.parse(JSON.parse(await readFile(options.viewsFile, 'utf8')) as unknown)
+        : null
+      const overridden = withOverrides(await source.read(context), overrides)
+      const read = views === null ? overridden : withListedGroups(overridden, views)
       const { renames, warnings } = renamesOf(read.definitions, entries)
       return {
         ...read,
         sourceVersion:
-          options.domainOverridesFile || options.renamesFile
-            ? await contentDigest({ version: read.sourceVersion, overrides, renames })
+          options.domainOverridesFile || options.renamesFile || views !== null
+            ? await contentDigest({
+                version: read.sourceVersion,
+                overrides,
+                renames,
+                ...(views === null ? {} : { views }),
+              })
             : read.sourceVersion,
         warnings: [...read.warnings, ...warnings],
         renames,

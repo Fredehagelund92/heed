@@ -75,10 +75,18 @@ interface Row {
   capabilities: { figures?: FiguresSettings }
   contact_id: string | null
   contact_name: string | null
+  /** It reads every group (a view), or only those listed. */
+  all_groups: boolean
+  listed: string[]
 }
 
 const columns = `c.id, c.type, c.name, c.capabilities, c.data_contact_id::text as contact_id,
-  p.display_name as contact_name`
+  p.display_name as contact_name, c.all_groups,
+  array(select s->>'id' from jsonb_array_elements(c.scopes) s) as listed`
+
+/** Whether a source reads the view of a member, by its name up to the last dot. */
+const reads = (row: Pick<Row, 'all_groups' | 'listed'>, name: string) =>
+  row.all_groups || row.listed.includes(name.slice(0, Math.max(name.lastIndexOf('.'), 0)))
 
 const invalid = (field: string, message: string): never => {
   throw new ORPCError('UNPROCESSABLE_CONTENT', {
@@ -244,7 +252,7 @@ export function createFigureSources({
    * The measure a try reads: of the source's views in name order, the first that has exactly one
    * date and a measure, and that view's first measure by name, with its date. Null when none has.
    */
-  async function measureToTry(tx: Queryable, id: string) {
+  async function measureToTry(tx: Queryable, row: Row) {
     const members = await tx.query<{
       kind: 'metric' | 'dimension'
       name: string
@@ -258,11 +266,12 @@ export function createFigureSources({
           and d.missing_since_snapshot is null and d.visible_groups is null
           and position('.' in d.name) > 0
         order by d.name collate "C"`,
-      [id],
+      [row.id],
     )
     const viewOf = (name: string) => name.slice(0, name.lastIndexOf('.'))
-    for (const view of [...new Set(members.map((m) => viewOf(m.name)))]) {
-      const own = members.filter((m) => viewOf(m.name) === view)
+    const read = members.filter((m) => reads(row, m.name))
+    for (const view of [...new Set(read.map((m) => viewOf(m.name)))]) {
+      const own = read.filter((m) => viewOf(m.name) === view)
       const dates = own.filter((m) => m.kind === 'dimension' && m.type === 'time')
       const measure = own.find((m) => m.kind === 'metric')
       if (dates.length === 1 && measure)
@@ -395,7 +404,7 @@ export function createFigureSources({
       const settings = row.capabilities.figures ?? {}
       const token = await tokenOf(settings)
       if (!settings.endpoint || !token) return { state: 'failed', source, failure: 'not_set_up' }
-      const measure = await measureToTry(tx, row.id)
+      const measure = await measureToTry(tx, row)
       if (!measure) return { state: 'failed', source, failure: 'no_measure' }
       const days: Days = { from: shiftDate(today, 1 - TRY_DAYS), to: today }
       const started = performance.now()
@@ -467,9 +476,24 @@ export function createFigureSources({
             and d.visible_groups is null`,
         [metric.refs],
       )
-      const sources = (await rows(tx)).filter((row) => defined.some((d) => d.source === row.id))
+      const all = await rows(tx)
+      const sources = all.filter((row) => defined.some((d) => d.source === row.id))
       const owners = new Set(defined.map((d) => d.source))
-      if (!sources.length) return { state: 'none', reason: 'undefined', source: null }
+      if (!sources.length) {
+        // Gone because its source reads only the views listed for it, and not this one.
+        const gone = await tx.query<{ source: string; name: string }>(
+          `select d.connector_id as source, d.name from definitions d
+            where d.ref = any($1::text[]) and d.kind = 'metric'
+              and d.missing_since_snapshot is not null and d.visible_groups is null`,
+          [metric.refs],
+        )
+        const unlisted = all.find((row) =>
+          gone.some((d) => d.source === row.id && !reads(row, d.name)),
+        )
+        return unlisted
+          ? { state: 'none', reason: 'not_read', source: refOf(unlisted) }
+          : { state: 'none', reason: 'undefined', source: null }
+      }
       if (owners.size > 1 || sources.length > 1)
         return { state: 'none', reason: 'ambiguous', source: null }
       const row = sources[0]!
@@ -480,6 +504,8 @@ export function createFigureSources({
       if (!prefix || !definition.ref.startsWith(`${prefix}:`))
         return { state: 'none', reason: 'undefined', source: null }
       const source = refOf(row)
+      // Its view is not one the source reads, from its next read if not already.
+      if (!reads(row, definition.name)) return { state: 'none', reason: 'not_read', source }
       const settings = row.capabilities.figures ?? {}
       if (!settings.enabled)
         return {

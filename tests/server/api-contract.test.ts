@@ -349,6 +349,7 @@ describe('the API over HTTP', () => {
       '/sources/{id}',
       '/sources/{id}/activity',
       '/sources/{id}/disconnect',
+      '/sources/{id}/left-out',
       '/sources/{id}/paused',
       '/sources/{id}/read',
       '/terms',

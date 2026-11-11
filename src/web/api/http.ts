@@ -221,6 +221,7 @@ export const wiredMethods = [
   'testIntegration',
   'connectIntegration',
   'changeIntegration',
+  'integrationLeftOut',
   'disconnectIntegration',
   'setLinks',
   'setTool',
@@ -1905,7 +1906,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       }
     },
     // The source is named after its tool; the service reads it at once (CON-115).
-    connectIntegration: async ({ connector, config, secrets, chosen, reason }) => {
+    connectIntegration: async ({ connector, config, secrets, chosen, readsAll, reason }) => {
       const { configOf, scopesOf, secretsOf } = await integrationWords()
       const type = connector
       const manifest = (await read(() => client.sources.types())).find(
@@ -1918,6 +1919,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         config: configOf(config),
         secrets: secretsOf(secrets),
         scopes: scopesOf(chosen),
+        ...(manifest.kind === 'definitions' ? { allGroups: readsAll } : {}),
         reason,
       }
       // The retry key names the secrets, never their values.
@@ -1925,7 +1927,16 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const added = await write('sources.add', keyed, (o) => client.sources.add(input, o))
       return { id: added.id, firstRead: null }
     },
-    changeIntegration: async ({ id, revision, config, secrets, chosen, reason }) => {
+    changeIntegration: async ({
+      id,
+      revision,
+      config,
+      secrets,
+      chosen,
+      readsAll,
+      acceptLeftOut,
+      reason,
+    }) => {
       const { changedConfigOf, scopesOf, secretsOf } = await integrationWords()
       const before = await read(() => client.sources.get({ id }))
       const input = {
@@ -1935,10 +1946,26 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         config: changedConfigOf(before.config, config),
         secrets: secretsOf(secrets),
         scopes: scopesOf(chosen),
+        allGroups: readsAll,
+        ...(acceptLeftOut ? { acceptLeftOut } : {}),
         reason,
       }
       const keyed = { ...input, secrets: Object.keys(input.secrets).sort() }
       await write('sources.update', keyed, (o) => client.sources.update(input, o))
+    },
+    // Changes nothing: a POST only because the views it would read may be many.
+    integrationLeftOut: async ({ id, readsAll, views }) => {
+      const left = await readPosted((o) =>
+        client.sources.leftOut({ id, allGroups: readsAll, groups: views }, o),
+      )
+      return {
+        views: left.groups.map((g) => ({
+          view: g.name,
+          metrics: g.metrics,
+          dimensions: g.dimensions,
+        })),
+        items: left.items,
+      }
     },
     disconnectIntegration: async ({ id }) => {
       const input = { id, reason: 'Disconnected, in Settings, Integrations.' }

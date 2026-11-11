@@ -59,17 +59,18 @@ With `live`, each role's provider and model come from the `models.*` settings, a
 
 ## Connectors
 
-| Setting                        | Default | What it does                                                                                                                        |
-| ------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `CUBE_MODEL_DIR`               | None    | A folder of Cube model files. Unset, the service reads two invented definitions, or in the image outside production, the demo model |
-| `HEED_DOMAIN_OVERRIDES`        | None    | A JSON file: view to domain, for what the model leaves unnamed                                                                      |
-| `CUBE_RENAMES_FILE`            | None    | A JSON file of renamed members, old id to new id                                                                                    |
-| `HEED_FIGURE_OVERRIDES`        | None    | A JSON file of [figure settings](connectors/cube.md#figure-settings-on-the-server), for what the model leaves unsaid                |
-| `CUBE_COMPILE_TIMEOUT_SECONDS` | `120`   | How long Cube's compiler may take                                                                                                   |
-| `CUBE_COMPILE_MEMORY_MB`       | `1024`  | The memory Cube's compiler may use                                                                                                  |
-| `HEED_SERVER_FOLDERS`          | None    | A JSON object of connector ids to folders on the server                                                                             |
-| `HEED_EGRESS_PRIVATE_HOSTS`    | None    | Hosts on a private network connectors may reach over https, comma-separated                                                         |
-| `HEED_SECRETS_DIR`             | None    | The folder that keeps the tokens of sources added in Integrations                                                                   |
+| Setting                        | Default | What it does                                                                                                                                                   |
+| ------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CUBE_MODEL_DIR`               | None    | A folder of Cube model files. Unset, the service reads two invented definitions, or in the image outside production, the demo model                            |
+| `HEED_DOMAIN_OVERRIDES`        | None    | A JSON file: view to domain, for what the model leaves unnamed                                                                                                 |
+| `CUBE_RENAMES_FILE`            | None    | A JSON file of renamed members, old id to new id                                                                                                               |
+| `CUBE_VIEWS_FILE`              | None    | A JSON list of the Cube views to read, such as `["orders", "revenue"]`. Unset, every view; empty, none ([views](connectors/cube.md#choose-the-views-it-reads)) |
+| `HEED_FIGURE_OVERRIDES`        | None    | A JSON file of [figure settings](connectors/cube.md#figure-settings-on-the-server), for what the model leaves unsaid                                           |
+| `CUBE_COMPILE_TIMEOUT_SECONDS` | `120`   | How long Cube's compiler may take                                                                                                                              |
+| `CUBE_COMPILE_MEMORY_MB`       | `1024`  | The memory Cube's compiler may use                                                                                                                             |
+| `HEED_SERVER_FOLDERS`          | None    | A JSON object of connector ids to folders on the server                                                                                                        |
+| `HEED_EGRESS_PRIVATE_HOSTS`    | None    | Hosts on a private network connectors may reach over https, comma-separated                                                                                    |
+| `HEED_SECRETS_DIR`             | None    | The folder that keeps the tokens of sources added in Integrations                                                                                              |
 
 `HEED_SERVER_FOLDERS` looks like `{"dbt-metricflow":"/srv/dbt/target"}`. Each folder is read by that connector as one of the server's own sources, and the demo definitions stop. In Docker, share the folder into the container and name its path there.
 

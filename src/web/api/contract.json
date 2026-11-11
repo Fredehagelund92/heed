@@ -1360,6 +1360,22 @@
         }
       }
     },
+    "leftOut": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/sources/{id}/left-out",
+          "tags": [
+            "sources"
+          ],
+          "summary": "What a definitions source would stop reading with these groups, and the live items that rely on it; changes nothing"
+        }
+      }
+    },
     "read": {
       "~orpc": {
         "errorMap": {},
