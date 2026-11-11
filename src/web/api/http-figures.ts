@@ -152,12 +152,16 @@ export function figureViewOf(
   const days = { from: read.from, to: read.to }
   const value = figureValue(read.value, read.format)
   const before = read.comparison?.value
+  // A snapshot is its value on the last day, compared with the last of the days before.
+  const on = (day: string) => daysWords({ from: day, to: day })
+  const when = read.snapshot ? `as of ${on(days.to)}` : daysWords(days)
+  const since = read.snapshot && read.comparison ? on(read.comparison.to) : comparisonWords(days)
   const figure: Figure = {
-    label: `${scope}, ${daysWords(days)}`,
+    label: `${scope}, ${when}`,
     value,
     ...(before !== null && before !== undefined && before !== 0
       ? {
-          change: `${moved(read.value, before)} from ${comparisonWords(days)} (${figureValue(before, read.format)})`,
+          change: `${moved(read.value, before)} from ${since} (${figureValue(before, read.format)})`,
         }
       : {}),
     words: read.queryInWords,
@@ -165,7 +169,9 @@ export function figureViewOf(
       ? {
           against: {
             contextId: read.against.itemId,
-            figureSays: `${scope} from ${daysWords(days)} was ${value}.`,
+            figureSays: read.snapshot
+              ? `${scope} ${when} was ${value}.`
+              : `${scope} from ${daysWords(days)} was ${value}.`,
           },
         }
       : {}),

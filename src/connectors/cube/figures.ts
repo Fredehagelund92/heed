@@ -11,8 +11,9 @@ import {
   Figures from Cube (CON-612, FR-716): one GET of Cube's REST API, `/v1/load`, at the data
   endpoint an administrator set, with the service token from the secret store, and, once in ten
   minutes, `/v1/meta` before it for what the model says of each measure: how it is worked out (its
-  `aggType`), so the query in words can say "added up", and which of its view's dates the days
-  apply to (`meta.default_time_dimension`). The query is the core's fixed template (one measure,
+  `aggType`), so the query in words can say "added up"; which of its view's dates the days apply
+  to (`meta.default_time_dimension`); and whether it adds up over days at all
+  (`meta.non_additive_dimension`): a snapshot is read on the last day only. The query is the core's fixed template (one measure,
   one date range, `equals` filters), so nothing a person or a model wrote reaches Cube. Cube
   answers from its cache or the warehouse; while a query is still running it says "Continue wait",
   and the read asks again until the figure's time limit. Nothing it returns is kept.
@@ -232,6 +233,17 @@ function dateOf(query: FigureQuery, measure: Measure | SourceError): string {
   throw failed('several_dates', 'config')
 }
 
+/**
+ * Whether the measure does not add up over days, a snapshot such as a balance: the model marks it
+ * with `meta.non_additive_dimension` (the date it is taken on, as in dbt's semantic models), else
+ * the server's settings say `additive: false`. The model's mark wins.
+ */
+function snapshotOf(query: FigureQuery, measure: Measure | SourceError): boolean {
+  const mark = measure instanceof SourceError ? undefined : measure.meta.non_additive_dimension
+  if (mark !== undefined && mark !== null && mark !== false && mark !== '') return true
+  return query.settings?.additive === false
+}
+
 /** One figure from Cube's `/v1/load`, or a `SourceError` that says why not. */
 export async function readCubeFigure(
   context: FigureContext,
@@ -239,12 +251,15 @@ export async function readCubeFigure(
 ): Promise<FigureResult> {
   const measure = await measureOf(context, query.metric)
   const date = dateOf(query, measure)
-  const result = await loadFigure(context, query, date)
+  const snapshot = snapshotOf(query, measure)
+  // A snapshot added up over days is no figure at all: it is read on the last day.
+  const result = await loadFigure(context, snapshot ? { ...query, from: query.to } : query, date)
   const type = measure instanceof SourceError ? null : measure.aggType
   return {
     ...result,
     aggregation: type && /^[A-Za-z]{1,40}$/.test(type) ? type : null,
     date,
+    ...(snapshot ? { snapshot } : {}),
   }
 }
 
@@ -299,7 +314,7 @@ async function loadFigure(
   context: FigureContext,
   query: FigureQuery,
   date: string,
-): Promise<Omit<FigureResult, 'aggregation' | 'date'>> {
+): Promise<Omit<FigureResult, 'aggregation' | 'date' | 'snapshot'>> {
   const address = new URL(context.endpoint)
   address.searchParams.set('query', JSON.stringify(cubeQuery(query, date)))
   for (;;) {

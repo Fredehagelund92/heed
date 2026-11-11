@@ -99,6 +99,8 @@ type Cached = { until: number; result: [FigureResult, FigureResult | null] }
 const figureSettingsSchema = z.strictObject({
   /** The date the days apply to, by its name in the view (`order_day`) or in full. */
   date: z.string().min(1).max(500).optional(),
+  /** False for a measure that does not add up over days: it is read on the last day only. */
+  additive: z.boolean().optional(),
 })
 
 /**
@@ -567,6 +569,7 @@ export function createFigureSources({
         from: days.from,
         to: days.to,
         comparison: compared ? { value: compared.value, ...earlier } : null,
+        ...(figure.snapshot ? { snapshot: true } : {}),
         asOf: figure.asOf ?? now().toISOString(),
         queryInWords: queryWords({
           metric: metric.name,
@@ -575,6 +578,7 @@ export function createFigureSources({
           values: named,
           days,
           ...(date ? { date: memberName(date) } : {}),
+          ...(figure.snapshot ? { snapshot: true } : {}),
         }),
         dataContact: contactOf(row),
         against: cited ? { itemId: cited.item_id } : null,

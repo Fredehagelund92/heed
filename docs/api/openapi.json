@@ -90121,6 +90121,9 @@
                             }
                           ]
                         },
+                        "snapshot": {
+                          "type": "boolean"
+                        },
                         "asOf": {
                           "type": "string"
                         },

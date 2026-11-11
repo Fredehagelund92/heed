@@ -275,10 +275,12 @@ export interface FigureQuery {
 
 /**
  * The server's figure settings for one measure (`HEED_FIGURE_OVERRIDES`), set by whoever runs
- * the service for a model that does not say: the date its days apply to, by name.
+ * the service for a model that does not say: the date its days apply to, by name, and whether it
+ * adds up over days (`false` for a snapshot such as a balance or stock on hand).
  */
 export interface FigureSettings {
   readonly date?: string
+  readonly additive?: boolean
 }
 
 /** How the tool says a figure is written: an amount of money, a share, or a number. */
@@ -308,6 +310,11 @@ export const figureResultSchema = z.strictObject({
   aggregation: z.optional(z.nullable(z.string().check(z.regex(/^[A-Za-z]{1,40}$/)))),
   /** The date dimension the days applied to, one of the query's `dates`. */
   date: z.optional(z.string().check(z.maxLength(500))),
+  /**
+   * The measure does not add up over days, a snapshot such as a balance: the value is its value
+   * on the last day, not the days added up.
+   */
+  snapshot: z.optional(z.boolean()),
 })
 export type FigureResult = z.infer<typeof figureResultSchema>
 

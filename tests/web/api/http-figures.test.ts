@@ -85,3 +85,31 @@ describe('no figure read on the service', () => {
     })
   })
 })
+
+describe('a snapshot read on the service', () => {
+  it('reads as its value on the last day, compared with the last of the days before', () => {
+    const read: FigureRead = {
+      state: 'figure',
+      source,
+      value: 1200,
+      format: { kind: 'number' },
+      from: '2026-08-01',
+      to: '2026-08-31',
+      comparison: { value: 1000, from: '2026-07-01', to: '2026-07-31' },
+      snapshot: true,
+      asOf: new Date(2026, 9, 23, 6, 0).toISOString(),
+      queryInWords: 'Units on hand for Norway as of 31 Aug 2026.',
+      dataContact: null,
+      against: null,
+    }
+    const asked = { metric: 'Units on hand', markets: ['Norway'], dates: 'August 2026' }
+    expect(figureViewOf(read, asked, known, now)).toMatchObject({
+      kind: 'line',
+      figure: {
+        label: 'Units on hand in Norway, as of 31 Aug 2026',
+        value: '1,200',
+        change: 'up 20% from 31 Jul 2026 (1,000)',
+      },
+    })
+  })
+})

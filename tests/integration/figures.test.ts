@@ -62,7 +62,10 @@ const app = buildApp({
     secrets: store,
     registry,
     // Whoever runs the service names the date Orders is read by, for when its view has several.
-    figureOverrides: { cube: { orders: { date: 'order_day' } } },
+    // And that Marketing spend is a snapshot here, read on the last day, to test how one reads.
+    figureOverrides: {
+      cube: { orders: { date: 'order_day' }, 'marketing.marketing_spend': { additive: false } },
+    },
   }),
   logger,
   clock: systemClock('2026-10-23'),
@@ -129,12 +132,14 @@ beforeAll(async () => {
       ('cube:orders.market', 'cube', 'dimension', 'orders.market', 'string', 'a'),
       ('cube:orders.order_day', 'cube', 'dimension', 'orders.order_day', 'time', 'a'),
       ('cube:marketing.discount_cost', 'cube', 'metric', 'marketing.discount_cost', 'sum', 'a'),
+      ('cube:marketing.marketing_spend', 'cube', 'metric', 'marketing.marketing_spend', 'sum', 'a'),
       ('cube:marketing.market', 'cube', 'dimension', 'marketing.market', 'string', 'a'),
       ('cube:marketing.marketing_day', 'cube', 'dimension', 'marketing.marketing_day', 'time', 'a'),
       ('cube:revenue.net_revenue', 'cube', 'metric', 'revenue.net_revenue', 'sum', 'a'),
       ('demo:returns', 'demo', 'metric', 'Returns', null, 'a')`)
     await client.query(`insert into vocab_terms (key, kind, parent_key) values
       ('metric:returns', 'metric', null), ('metric:discount_cost', 'metric', null),
+      ('metric:marketing_spend', 'metric', null),
       ('metric:net_revenue', 'metric', null), ('metric:support_contacts', 'metric', null),
       ('val:market/spain', 'dimension_value', 'dim:market'), ('dim:product', 'dimension', null),
       ('val:product/footwear', 'dimension_value', 'dim:product')`)
@@ -146,6 +151,7 @@ beforeAll(async () => {
       // Returns is defined twice, by two tools: no figure is picked.
       ['metric:returns', 'Returns', [], ['cube:orders.returns', 'demo:returns']],
       ['metric:discount_cost', 'Discount cost', [], ['cube:marketing.discount_cost']],
+      ['metric:marketing_spend', 'Marketing spend', [], ['cube:marketing.marketing_spend']],
       ['metric:net_revenue', 'Net revenue', [], ['cube:revenue.net_revenue']],
       ['metric:support_contacts', 'Support contacts', [], []],
       ['dim:market', 'Market', [], ['cube:marketing.market', 'cube:orders.market']],
@@ -424,6 +430,52 @@ describe('reading a figure (FR-716)', () => {
       await client.query(
         "delete from definitions where ref in ('cube:orders.ship_day', 'cube:marketing.campaign_day')",
       )
+    }
+  })
+
+  it('reads a measure that does not add up over days on the last day, and says why', async () => {
+    const warehouse = async (sql: string) => {
+      const db = new pg.Client({ connectionString: warehouseUrl.href })
+      await db.connect()
+      try {
+        await db.query(sql)
+      } finally {
+        await db.end()
+      }
+    }
+    // Spend on three days of Norway: added up over August it would be 5,700, not the 700 of its last day.
+    await warehouse(`insert into demo.marketing_daily (marketing_day, market_code, spend_eur) values
+      ('2026-07-31', 'Norway', 650), ('2026-08-15', 'Norway', 5000), ('2026-08-31', 'Norway', 700)`)
+    try {
+      const asked = cube.requests.length
+      expect(
+        await readFigure('author', {
+          metric: 'metric:marketing_spend',
+          values: ['val:market/norway'],
+          ...august,
+        }),
+      ).toMatchObject({
+        state: 'figure',
+        value: 700,
+        from: '2026-08-01',
+        to: '2026-08-31',
+        comparison: { value: 650, from: '2026-07-01', to: '2026-07-31' },
+        snapshot: true,
+        queryInWords:
+          "Marketing spend for Norway as of 31 Aug 2026. It can't be added up over a period, so this is its value on the last day, and the same as of 31 Jul 2026 to compare.",
+      })
+      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
+      expect(
+        loads
+          .map((r) => (r.query as { timeDimensions: { dateRange: string[] }[] }).timeDimensions)
+          .map((t) => t[0]!.dateRange)
+          .sort(),
+      ).toEqual([
+        ['2026-07-31', '2026-07-31'],
+        ['2026-08-31', '2026-08-31'],
+      ])
+    } finally {
+      await warehouse(`delete from demo.marketing_daily where spend_eur > 0`)
     }
   })
 

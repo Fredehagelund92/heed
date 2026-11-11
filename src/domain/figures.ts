@@ -106,11 +106,17 @@ export function queryWords(query: {
   days: Days
   /** The date the days applied to, as people read it, when the view has several. */
   date?: string
+  /** The measure does not add up over days: it was read on the last day. */
+  snapshot?: boolean
 }): string {
   const span = (days: Days) =>
     days.from === days.to ? `on ${daysWords(days)}` : `from ${daysWords(days)}`
   const where = query.values.length ? ` for ${listed(query.values)}` : ''
   const by = query.date ? ` by ${inSentence(query.date)}` : ''
   const before = comparisonDays(query.days)
+  if (query.snapshot) {
+    const on = (day: string) => daysWords({ from: day, to: day })
+    return `${query.metric}${where} as of ${on(query.days.to)}${by}. It can't be added up over a period, so this is its value on the last day, and the same as of ${on(before.to)} to compare.`
+  }
   return `${query.metric}, ${worked(query.type, query.tool)}${where} ${span(query.days)}${by}, and the same for ${daysWords(before)} to compare.`
 }

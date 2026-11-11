@@ -181,3 +181,53 @@ describe('a measure the token may not read', () => {
     }
   })
 })
+
+describe('a measure that does not add up over days', () => {
+  const stock = (measureMeta?: Record<string, unknown>) => ({
+    cubes: [
+      {
+        name: 'stock',
+        measures: [
+          {
+            name: 'stock.units_on_hand',
+            aggType: 'sum',
+            ...(measureMeta ? { meta: measureMeta } : {}),
+          },
+        ],
+      },
+    ],
+  })
+  const onHand = (more: Partial<FigureQuery> = {}) =>
+    query({ metric: 'stock.units_on_hand', dates: ['stock.stock_day'], ...more })
+  const rangeOf = (load: unknown) =>
+    (load as { timeDimensions: { dateRange: string[] }[] }).timeDimensions[0]!.dateRange
+
+  it('is read on the last day when the model marks it with meta.non_additive_dimension', async () => {
+    for (const mark of ['stock_day', { name: 'stock_day', window_choice: 'max' }]) {
+      const tool = cube({ meta: stock({ non_additive_dimension: mark }) })
+      expect(await readCubeFigure(tool.context, onHand())).toMatchObject({
+        value: 1200,
+        snapshot: true,
+      })
+      expect(tool.loads.map(rangeOf)).toEqual([['2026-08-31', '2026-08-31']])
+    }
+  })
+
+  it("is read on the last day when the server's settings say it does not add up", async () => {
+    const tool = cube({ meta: stock() })
+    const read = await readCubeFigure(tool.context, onHand({ settings: { additive: false } }))
+    expect(read.snapshot).toBe(true)
+    expect(tool.loads.map(rangeOf)).toEqual([['2026-08-31', '2026-08-31']])
+  })
+
+  it("keeps the model's mark over the settings, and adds up anything not marked", async () => {
+    const marked = cube({ meta: stock({ non_additive_dimension: 'stock_day' }) })
+    expect(
+      (await readCubeFigure(marked.context, onHand({ settings: { additive: true } }))).snapshot,
+    ).toBe(true)
+    const plain = cube({ meta: stock() })
+    const read = await readCubeFigure(plain.context, onHand())
+    expect(read.snapshot).toBeUndefined()
+    expect(plain.loads.map(rangeOf)).toEqual([['2026-08-01', '2026-08-31']])
+  })
+})

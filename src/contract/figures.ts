@@ -164,6 +164,11 @@ export const figureReadSchema = z.discriminatedUnion('state', [
     to: day,
     /** The same measure for the days just before, to compare; its value null when there is none. */
     comparison: z.nullable(z.object({ value: z.nullable(z.number()), from: day, to: day })),
+    /**
+     * The measure does not add up over days, a snapshot such as a balance: the value, and the one
+     * compared, are the value on the last of the days.
+     */
+    snapshot: z.optional(z.boolean()),
     /** When the tool last refreshed its data, or when the figure was read if it doesn't say. */
     asOf: z.string(),
     /** The query, in words first. */
