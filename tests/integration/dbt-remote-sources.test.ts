@@ -19,7 +19,7 @@ import { legacyManifest, withChangedRevenue } from '../server/connectors/dbt-met
 import { objectHost, type ObjectHost } from '../server/connectors/object-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase } from './support.ts'
+import { apiDatabase, queueReads, testDatabase } from './support.ts'
 
 /*
   dbt MetricFlow's address and storage routes end to end on the real service and PostgreSQL 18,
@@ -79,7 +79,7 @@ const ok = async <T>(
 
 /** One run of the sources' job, with the source made due. */
 async function read(id: string) {
-  await client.query('update connectors set next_read_at = null where id = $1', [id])
+  await queueReads(client, [id])
   const result = (await connectorSyncJob(registry, { clock }).run({
     database,
     logger,

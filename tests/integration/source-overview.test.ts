@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { SourceActivity, SourceRow, SourceSettings } from '../../src/contract/sources.ts'
 import { buildApp } from '../../src/server/app.ts'
+import type { RunNowResult } from '../../src/server/modules/jobs/index.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import {
   ConnectorRegistry,
@@ -16,7 +17,7 @@ import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, queueReads, testDatabase, transaction } from './support.ts'
 
 /*
   The sources as Settings › Integrations shows them (CON-104, CON-115), on the real service and
@@ -35,9 +36,12 @@ const clock = systemClock('2026-10-08')
 const secretsDir = await mkdtemp(join(tmpdir(), 'heed-overview-secrets-'))
 const store = await openLocalSecretStore(join(secretsDir, 'store'))
 const registry = new ConnectorRegistry([], { secrets: store })
+// What the job runner answers when asked to run now; a runner that is down by default.
+let runner: RunNowResult = { outcome: 'not_running' }
+const jobs = { ...idleJobs(), runNow: () => Promise.resolve(runner) }
 const app = buildApp({
   database,
-  jobs: idleJobs(),
+  jobs,
   sources: registry,
   workspaceSources: createWorkspaceSources({ secrets: store, registry }),
   logger,
@@ -73,7 +77,7 @@ const activity = (id: string) => ok<SourceActivity>(call('GET', `/sources/${id}/
 
 /** One run of the sources' job, with every source due, as Read again makes one. */
 async function read() {
-  await client.query('update connectors set next_read_at = null')
+  await queueReads(client)
   return connectorSyncJob(registry, { clock }).run({
     database,
     logger,
@@ -311,8 +315,9 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
       type: 'git-markdown',
       kind: 'content',
       health: 'healthy',
+      // Queued for the job's first read, not "healthy and not yet": it is about to be read.
+      read: 'queued',
       schedule: 'P1D',
-      nextReadAt: null,
       lastRead: null,
       lastGoodAt: null,
       definitions: null,
@@ -382,11 +387,105 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
     expect(said).not.toContain('anna@example.test')
   })
 
-  it('says a source asked to read now is reading until the job reads it', async () => {
-    await client.query('update connectors set next_read_at = now() where id = $1', [handbookId])
-    expect((await row(handbookId)).health).toBe('reading')
+  it('says a source asked to read now is queued, then reading while the job has it, then scheduled', async () => {
+    await queueReads(client, [handbookId])
+    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'queued' })
+    await client.query('update connectors set reading_since = now() where id = $1', [handbookId])
+    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'reading' })
     await read()
-    expect((await row(handbookId)).health).toBe('healthy')
+    // The job ends the mark with the read, and the next read is a period away.
+    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'scheduled' })
+    const [kept] = (
+      await client.query<{ mark: Date | null }>(
+        'select reading_since as mark from connectors where id = $1',
+        [handbookId],
+      )
+    ).rows
+    expect(kept!.mark).toBeNull()
+  })
+
+  it('keeps a failed read shown while its retry is queued', async () => {
+    await client.query(
+      `insert into connector_snapshots (connector_id, status, fetched_at, warnings, error)
+       values ($1, 'failed', now(), '[{"code":"unreachable","count":1}]', 'x')`,
+      [handbookId],
+    )
+    await queueReads(client, [handbookId])
+    expect(await row(handbookId)).toMatchObject({ health: 'failed', read: 'queued' })
+    await client.query('delete from connector_snapshots where connector_id = $1 and status = $2', [
+      handbookId,
+      'failed',
+    ])
+  })
+})
+
+describe('Read again and Run now (CON-115)', () => {
+  const nextRead = async (id: string) =>
+    (
+      await client.query<{ at: string }>(
+        'select next_read_at::text as at from connectors where id = $1',
+        [id],
+      )
+    ).rows[0]!.at
+  const inADay = async (id: string) => {
+    await client.query(
+      `update connectors set next_read_at = now() + interval '1 day' where id = $1`,
+      [id],
+    )
+    return nextRead(id)
+  }
+
+  it('queues the source once the job runner answers', async () => {
+    await inADay('cube')
+    expect(await row('cube')).toMatchObject({ health: 'reauth', read: 'scheduled' })
+    runner = { outcome: 'queued', id: 'job-1' }
+    expect(await ok(call('POST', '/sources/cube/read', 'admin'), 202)).toEqual({
+      id: 'cube',
+      status: 'queued',
+    })
+    const queued = await row('cube')
+    // A refused key stays shown beside the retry that waits for the job.
+    expect(queued).toMatchObject({ health: 'reauth', read: 'queued' })
+    expect(new Date(queued.nextReadAt!).getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('queues it too when a run is already waiting or running', async () => {
+    await inADay('cube')
+    runner = { outcome: 'already_queued' }
+    await ok(call('POST', '/sources/cube/read', 'admin'), 202)
+    expect((await row('cube')).read).toBe('queued')
+  })
+
+  it('leaves the source as it was, and says so, when the job runner is down', async () => {
+    const before = await inADay('cube')
+    runner = { outcome: 'not_running' }
+    const asked = await call('POST', '/sources/cube/read', 'admin')
+    expect(asked.statusCode, asked.body).toBe(503)
+    // No spinner left behind: it is still scheduled for the day it was.
+    expect(await nextRead('cube')).toBe(before)
+    expect(await row('cube')).toMatchObject({ read: 'scheduled' })
+    // Asking again gives the same answer, not a source stuck reading.
+    expect((await call('POST', '/sources/cube/read', 'admin')).statusCode).toBe(503)
+    expect(await nextRead('cube')).toBe(before)
+  })
+
+  it('puts a refused run back for every source that is on, and queues them all when it runs', async () => {
+    const before = await inADay('cube')
+    runner = { outcome: 'not_running' }
+    const refused = await call('POST', '/operations/jobs/connectors.sync/run', 'admin')
+    expect(refused.statusCode, refused.body).toBe(503)
+    expect(await nextRead('cube')).toBe(before)
+    runner = { outcome: 'queued', id: 'job-2' }
+    await ok(call('POST', '/operations/jobs/connectors.sync/run', 'admin'), 202)
+    expect((await row('cube')).read).toBe('queued')
+    // A source that is paused is not queued by it.
+    await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: true, reason: 'Moving Git' }))
+    const paused = await inADay('cube')
+    await ok(call('POST', '/operations/jobs/connectors.sync/run', 'admin'), 202)
+    expect(await nextRead('cube')).toBe(paused)
+    // Resumed, a source is queued: the job's next turn reads it.
+    await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
+    expect((await row('cube')).read).toBe('queued')
   })
 })
 

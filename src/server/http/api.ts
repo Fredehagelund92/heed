@@ -132,6 +132,7 @@ import {
   createWorkspaceSources,
   noSecretStore,
   ConnectorRegistry,
+  readNow,
   withdrawDisconnected,
   type TransactionHooks,
   type WorkspaceSources,
@@ -395,6 +396,11 @@ export function createRouter({
     hooks.onCommit(async () => {
       await jobs.runNow('connectors.sync')
     })
+  /** Runs a scheduled job now, and says whether the job runner took it. */
+  const runJob = async (name: string) => {
+    const result = await jobs.runNow(name)
+    return { result, ran: result.outcome !== 'unknown_job' && result.outcome !== 'not_running' }
+  }
   const found = <T>(value: T | null): T => {
     if (value === null) throw new ORPCError('NOT_FOUND')
     return value
@@ -942,9 +948,8 @@ export function createRouter({
           throw new ORPCError('CONFLICT', {
             message: 'This source is switched off. Switch it on to read it.',
           })
-        // Due now, on its own connection: the job may start before this request's transaction ends.
-        await database.query('update connectors set next_read_at = now() where id = $1', [input.id])
-        const result = await jobs.runNow('connectors.sync')
+        // Queued only if the job runner answers: otherwise the source stays as it was.
+        const result = await readNow(database, [input.id], () => runJob('connectors.sync'))
         if (result.outcome === 'unknown_job' || result.outcome === 'not_running')
           throw new ORPCError('SERVICE_UNAVAILABLE', {
             message: "The job runner isn't running. Ask the data team to start it.",
@@ -1158,9 +1163,10 @@ export function createRouter({
       }),
       run: authorized.operations.run.handler(async ({ input }) => {
         // Running the sources' job by hand reads every source now, whatever its schedule.
-        if (input.job === 'connectors.sync')
-          await database.query('update connectors set next_read_at = now() where enabled')
-        const result = await jobs.runNow(input.job)
+        const result =
+          input.job === 'connectors.sync'
+            ? await readNow(database, null, () => runJob(input.job))
+            : (await runJob(input.job)).result
         switch (result.outcome) {
           case 'queued':
             return { job: input.job, status: 'queued' as const, id: result.id }

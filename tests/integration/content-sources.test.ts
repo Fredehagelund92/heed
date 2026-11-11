@@ -18,7 +18,7 @@ import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, queueReads, testDatabase, transaction } from './support.ts'
 
 /*
   A content source end to end (CON-601 to CON-611), on the real service and PostgreSQL 18, with a
@@ -74,7 +74,7 @@ const ok = async <T>(
 
 /** One run of the sources' job, with every source due, as Read again makes one. */
 async function read() {
-  await client.query('update connectors set next_read_at = null')
+  await queueReads(client)
   return connectorSyncJob(registry, { clock }).run({
     database,
     logger,
@@ -371,13 +371,14 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     expect(told.rows.map((r) => r.topic)).toEqual(['source.suggested'])
   })
 
-  it('reads a source again on an admin’s word, whatever its schedule (CON-115)', async () => {
+  it('refuses to read a source again while the job runner is down, and leaves it as it was (CON-115)', async () => {
     await client.query(
       `update connectors set next_read_at = now() + interval '1 day' where id=$1`,
       [sourceId],
     )
     expect((await call('POST', `/sources/${sourceId}/read`, 'owner')).statusCode).toBe(403)
-    // The job runner is not running here, so it says so; the source is due all the same.
+    // The job runner is not running here, so it says so, and the source stays as it was: it is
+    // not left queued with nothing to read it.
     const asked = await call('POST', `/sources/${sourceId}/read`, 'admin')
     expect(asked.statusCode, asked.body).toBe(503)
     const [due] = (
@@ -386,7 +387,7 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
         [sourceId],
       )
     ).rows
-    expect(due!.due).toBe(true)
+    expect(due!.due).toBe(false)
     expect((await call('POST', '/sources/nothing-here/read', 'admin')).statusCode).toBe(404)
   })
 

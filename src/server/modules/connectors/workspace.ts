@@ -63,7 +63,7 @@ interface Row {
   scopes: StoredScope[]
   all_groups: boolean
   schedule_seconds: number | null
-  next_read_at: Date | null
+  next_read_at: Date
 }
 
 const columns = `id, type, name, config, secret_ref, revision, changed_at, changed_by::text, scopes,
@@ -205,7 +205,7 @@ export function createWorkspaceSources({
       scopes: row.scopes,
       allGroups: row.all_groups,
       schedule: row.schedule_seconds === null ? null : durationText(row.schedule_seconds),
-      nextReadAt: row.next_read_at?.toISOString() ?? null,
+      nextReadAt: row.next_read_at.toISOString(),
       changedAt: row.changed_at?.toISOString() ?? null,
       changedBy: row.changed_by,
     }
@@ -638,8 +638,8 @@ export function createWorkspaceSources({
         `update connectors set name = $2, config = $3, secret_ref = $4, revision = revision + 1,
            changed_at = now(), changed_by = cl_person(), scopes = $5, all_groups = $7,
            schedule = make_interval(secs => $6),
-           -- A change applies from the next read, which the job's next turn makes.
-           next_read_at = null
+           -- A change applies from the next read, which the job's next turn makes: queued.
+           next_read_at = now()
          where id = $1 returning ${columns}`,
         [
           row.id,
@@ -701,7 +701,7 @@ export function createWorkspaceSources({
         [row.id],
       )
       await tx.query(
-        `update connectors set enabled = false, secret_ref = null, next_read_at = null,
+        `update connectors set enabled = false, secret_ref = null,
            removed_at = now(), removed_by = cl_person(),
            -- Figures in Ask stop with it, and forget their token.
            capabilities = case when capabilities ? 'figures'

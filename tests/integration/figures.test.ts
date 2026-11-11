@@ -340,6 +340,22 @@ describe('reading a figure (FR-716)', () => {
     expect(kept.rows[0]!.hit).toBe(false)
   })
 
+  it('gets no figure while the source is paused, and again once it is resumed', async () => {
+    // Pausing a source switches its figures off in Ask, as the switch does: an answer links into
+    // the tool and nothing is asked of it.
+    const asked = cube.requests.length
+    await ok(
+      call('PUT', '/sources/cube/paused', 'admin', { paused: true, reason: 'Moving the model' }),
+    )
+    expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({
+      state: 'off',
+      source: { id: 'cube' },
+    })
+    expect(cube.requests).toHaveLength(asked)
+    await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
+    expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'figure' })
+  })
+
   it('asks the tool once a minute for the same figure', async () => {
     const asked = cube.requests.length
     await readFigure('owner', { ...orders, ...august })

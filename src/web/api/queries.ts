@@ -7,6 +7,7 @@ import {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query'
+import type { SourceRead } from '@domain/source-state'
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
 import {
   isPageRead,
@@ -233,18 +234,21 @@ export const integrationsQuery = () =>
   queryOptions({ queryKey: queryKeys.integrations, queryFn: () => api.getIntegrations() })
 
 /**
- * While a tool waits for its read (Read again), its row and its page ask again every few seconds,
- * so Reading ends when the read does.
+ * While a tool waits for its read (queued, or being read), its row and its page ask again every
+ * few seconds, so Queued and Reading end when the read does.
  */
 const READING_POLL_MS = 3_000
+/** A queued read waits for the job's next turn, up to five minutes: no need to ask as often. */
+const QUEUED_POLL_MS = 10_000
+const pollFor = (reads: readonly (SourceRead | null | undefined)[]) =>
+  reads.includes('reading') ? READING_POLL_MS : reads.includes('queued') ? QUEUED_POLL_MS : false
 
 /** Settings › Integrations: the tools connected, and what can be connected. */
 export const integrationsPageQuery = () =>
   queryOptions({
     queryKey: queryKeys.integrationsPage,
     queryFn: () => api.integrationsPage(),
-    refetchInterval: (query) =>
-      query.state.data?.sources.some((s) => s.health === 'reading') ? READING_POLL_MS : false,
+    refetchInterval: (query) => pollFor(query.state.data?.sources.map((s) => s.read) ?? []),
   })
 
 /** One connected tool's page. */
@@ -252,8 +256,7 @@ export const integrationPageQuery = (id: string) =>
   queryOptions({
     queryKey: queryKeys.integrationPage(id),
     queryFn: () => api.integrationPage({ id }),
-    refetchInterval: (query) =>
-      query.state.data?.source.health === 'reading' ? READING_POLL_MS : false,
+    refetchInterval: (query) => pollFor([query.state.data?.source.read]),
   })
 
 /** The connect flow's form: a tool to connect, or one connected whose settings change. */

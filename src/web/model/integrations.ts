@@ -1,5 +1,6 @@
 import { fieldVisible } from '@domain/connector-config'
 import type { ConnectorManifest, ManifestField } from '@domain/connector-manifest'
+import type { SourceHealth, SourceRead } from '@domain/source-state'
 import cube from '@/assets/logos/cube.svg'
 import dbt from '@/assets/logos/dbt.svg'
 import googledrive from '@/assets/logos/googledrive.svg'
@@ -109,10 +110,27 @@ export type IntegrationState =
   'normal' | 'nothing' | 'syncing' | 'failed' | 'reauth' | 'suggestions'
 
 /**
- * How a connected tool is: read as it should be; asked to read now and waiting for its read; its
- * last read failed; its key was refused; or paused by an admin.
+ * How a connected tool is, from its intent and its last read: read as it should be (also before its
+ * first read); its last read failed; its key was refused; or paused by an admin. Whether a read is
+ * pending is `Source.read`, so a failure stays shown while a retry is queued.
  */
-export type Health = 'healthy' | 'reading' | 'failed' | 'reauth' | 'paused'
+export type Health = SourceHealth
+
+/**
+ * A tool's pending read: waiting for its time; queued (its time is up, an admin asked, or it was
+ * just connected or changed) for the job's next turn; or being read now. Null while paused.
+ */
+export type Read = SourceRead
+
+/** When a source not yet read is read first, in words: "running now", "queued", "at 07:00". */
+export const firstReadWords = (source: { read: Read | null; next: When | null }) =>
+  source.read === 'reading'
+    ? 'running now'
+    : source.read === 'queued'
+      ? 'queued'
+      : source.next
+        ? `at ${source.next.time}`
+        : 'soon'
 
 /** A moment as the integrations' pages say it: a day ("Today", "Tomorrow", "21 Oct") and a time. */
 export type When = {
@@ -157,6 +175,7 @@ export type Source = {
   /** The tool it reads, as the catalog has it (its name, logo and kind): its connector's id. */
   connector: string
   health: Health
+  read: Read | null
   /** How often it is read: "every hour", "every day". */
   every: string
   /** How long it may go unread before what it read is out of date: "6 hours". */

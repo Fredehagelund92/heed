@@ -108,6 +108,17 @@ export function testDatabase({
   return { client, url: url.href }
 }
 
+/**
+ * Queues the reads of sources, as Read again does: their next read is now. The one way tests make
+ * a source due; `ids` omitted queues them all.
+ */
+export async function queueReads(client: pg.Client, ids?: readonly string[]): Promise<void> {
+  await client.query(
+    'update connectors set next_read_at = now() where $1::text[] is null or id = any($1)',
+    [ids ?? null],
+  )
+}
+
 export async function transaction<T>(client: pg.Client, work: () => Promise<T>): Promise<T> {
   await client.query('begin')
   try {

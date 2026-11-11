@@ -15,6 +15,7 @@ export {
 export { createDemoSource } from './demo.ts'
 export { syncedOf } from './synced.ts'
 export { connectorSyncJob } from './job.ts'
+export { readNow } from './read-now.ts'
 export { withdrawDisconnected } from './content.ts'
 export { reconcileSourceFlags } from './flags.ts'
 export {
