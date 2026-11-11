@@ -232,7 +232,7 @@ export function connectFormFor(
     scopes: live ? (kept?.chosen ?? demo?.chosen ?? []) : [],
     allGroups: live ? (kept?.readsAll ?? true) : true,
     schedule: null,
-    nextReadAt: null,
+    nextReadAt: new Date().toISOString(),
     changedAt: null,
     changedBy: null,
   }
@@ -378,6 +378,8 @@ function keptPage(id: string, kept: Kept | undefined, connectedAt: string): Sour
     id,
     connector: id,
     health: 'healthy',
+    // A tool read as it is connected has its next read to wait for; one not read yet is queued.
+    read: definitions ? 'scheduled' : 'queued',
     every: form?.every ?? 'every day',
     staleAfter: form?.staleAfter ?? '1 day',
     last: definitions
@@ -426,7 +428,7 @@ function keptPage(id: string, kept: Kept | undefined, connectedAt: string): Sour
     scopes: [],
     allGroups: true,
     schedule: null,
-    nextReadAt: null,
+    nextReadAt: new Date().toISOString(),
     changedAt: null,
     changedBy: null,
   }
@@ -503,10 +505,15 @@ export function createIntegrations(
     if (!page) return null
     const until = reading.get(id)
     if (until !== undefined && until <= Date.now()) reading.delete(id)
-    const health = paused.has(id) ? 'paused' : reading.has(id) ? 'reading' : page.source.health
+    const stopped = paused.has(id)
     return {
       ...page,
-      source: { ...page.source, health, next: paused.has(id) ? null : page.source.next },
+      source: {
+        ...page.source,
+        health: stopped ? 'paused' : page.source.health,
+        read: stopped ? null : reading.has(id) ? 'reading' : page.source.read,
+        next: stopped ? null : page.source.next,
+      },
       activity: [...(reads.get(id) ?? []), ...page.activity],
     }
   }

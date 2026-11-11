@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import { connectorIdPattern } from '../domain/connector-id.ts'
 import { connectorManifestSchema } from '../domain/connector-manifest.ts'
 import { checkStepSchema } from '../domain/connector-runtime.ts'
+import { sourceHealths, sourceReads } from '../domain/source-state.ts'
 
 export const staleLinkStatuses = [
   'retired',
@@ -107,8 +108,8 @@ export const sourceSettingsSchema = z.object({
   allGroups: allGroupsSchema,
   /** How often it is read; null for its connector's default. */
   schedule: z.nullable(scheduleSchema),
-  /** When it is read next, ISO 8601 in UTC; null until its first read. */
-  nextReadAt: z.nullable(time),
+  /** When it is read next, ISO 8601 in UTC; a time that has passed means it is queued. */
+  nextReadAt: time,
   /** When it was added or last changed, ISO 8601 in UTC, and by whom (a person's id). */
   changedAt: z.nullable(time),
   changedBy: z.nullable(z.string()),
@@ -260,11 +261,13 @@ export type LeftOut = z.infer<typeof leftOutSchema>
 // ---- the sources as Settings › Integrations shows them (CON-104, CON-115) ----
 
 /**
- * How a source is, as its row and its page say it: paused by an admin; asked to read now and
- * waiting for the job to read it (Read again, or a change to its settings); its last read refused
- * its key; its last read failed for another reason; or read as it should be.
+ * How a source is, as its row and its page say it: paused by an admin; its last read refused its
+ * key; its last read failed for another reason; or read as it should be (also before its first
+ * read). Whether a read is pending is a fact of its own, `read`, so a failure stays visible while
+ * a retry is queued.
  */
-export const sourceHealths = ['healthy', 'reading', 'failed', 'reauth', 'paused'] as const
+export { sourceHealths }
+export type { SourceHealth, SourceRead } from '../domain/source-state.ts'
 
 /**
  * One read of a source, codes and counts only (CON-104): never a target, which may name a
@@ -308,11 +311,17 @@ export const sourceRowSchema = z.object({
   name: z.string(),
   origin: z.enum(['workspace', 'server']),
   health: z.enum(sourceHealths),
+  /**
+   * Its pending read: waiting for its time (`scheduled`); its time is up, or an admin asked, or it
+   * was just connected or changed, and the job has not taken it (`queued`); or the job is reading
+   * it now (`reading`). Null while paused.
+   */
+  read: z.nullable(z.enum(sourceReads)),
   /** How often it is read, its own or its connector's default, as an ISO 8601 duration. */
   schedule: z.string(),
   /** How long it may go unread before its copy is out of date, as an ISO 8601 duration. */
   staleAfter: z.string(),
-  /** When it is read next, ISO 8601 in UTC; null before the job first reads it, and while paused. */
+  /** When it is read next, ISO 8601 in UTC; a time that has passed means queued. Null while paused. */
   nextReadAt: z.nullable(time),
   /** Its last read, failed or not; and when it last read without failing. */
   lastRead: z.nullable(sourceReadEntrySchema),
@@ -413,6 +422,5 @@ export const pausedSourceSchema = z.object({ id: z.string(), paused: z.boolean()
 export type SourceRow = z.infer<typeof sourceRowSchema>
 export type SourceReadEntry = z.infer<typeof sourceReadEntrySchema>
 export type SourceActivity = z.infer<typeof sourceActivitySchema>
-export type SourceHealth = (typeof sourceHealths)[number]
 export type SourceDocumentState = (typeof sourceDocumentStates)[number]
 export type PauseSourceInput = z.infer<typeof pauseSourceSchema>
