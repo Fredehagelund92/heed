@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { usePageTitle } from '@/lib/page-title'
 import { ChevronRightIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
@@ -26,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import type { SignInMethod } from '@/api/client'
 import { useRoute } from '@/lib/router'
 import { PRODUCT } from '@/lib/brand'
+import { demoLanding, signedOutOnPurpose } from '@/lib/demo-profiles'
 import { cn } from '@/lib/utils'
 
 /** Why a company sign-in came back without signing in, as the screen says it. */
@@ -85,7 +87,9 @@ function DemoNote({ method }: { method: SignInMethod }) {
 /**
  * Sign-in as the login-03 block lays it out. With the company's provider (OIDC), one button that
  * goes there and comes back signed in; an invite link names its invite first, and a sign-in that
- * came back refused says why. In a demo, or in development, the person picker.
+ * came back refused says why. In a demo the visitor is let straight in as its admin, who can view
+ * the demo as others from the header; in development, or after signing out in a demo, the person
+ * picker.
  */
 export function SignInPage() {
   usePageTitle('Sign in')
@@ -96,8 +100,15 @@ export function SignInPage() {
   // note flashes. A service that does not answer gets the picker, as before.
   if (method.isPending) return null
   const fallback: SignInMethod = { kind: 'picker', demo: false, profileLabel: null }
-  if (method.data?.kind !== 'oidc')
-    return <PickerSignIn token={token} method={method.data ?? fallback} />
+  if (method.data?.kind !== 'oidc') {
+    const picker = method.data ?? fallback
+    // An invite link names who to sign in as, so it keeps the screen that says so.
+    return picker.demo && !token && !signedOutOnPurpose() ? (
+      <DemoLanding method={picker} />
+    ) : (
+      <PickerSignIn token={token} method={picker} />
+    )
+  }
   const provider = method.data
   const refused = refusalWords(query.get('error') ?? '', provider.name)
   const start = `${provider.start}?returnTo=${encodeURIComponent('/#/inbox')}`
@@ -125,6 +136,33 @@ export function SignInPage() {
           </CardContent>
         </Card>
         <DemoNote method={provider} />
+      </div>
+    </main>
+  )
+}
+
+/**
+ * A first visit to the demo: signs in as the admin on its own, so the visitor lands in the app with
+ * nobody to pick first. If that sign-in is refused (the demo's people were changed), the picker.
+ */
+function DemoLanding({ method }: { method: SignInMethod }) {
+  const signIn = useApiWrite('signIn')
+  const started = React.useRef(false)
+  React.useEffect(() => {
+    // Once, though a development build runs effects twice.
+    if (started.current) return
+    started.current = true
+    signIn.mutate({ name: demoLanding.name })
+  }, [signIn])
+  if (signIn.isError) return <PickerSignIn token={null} method={method} />
+  return (
+    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <SignInMark method={method} />
+        <p role="status" className="text-center text-sm text-muted-foreground">
+          Opening the demo as {demoLanding.name}, {demoLanding.part.toLowerCase()}.
+        </p>
+        <DemoNote method={method} />
       </div>
     </main>
   )

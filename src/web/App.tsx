@@ -22,6 +22,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { onOpen, open } from '@/lib/events'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, redirectTo, useInAppLinks, useRoute } from '@/lib/router'
+import { rememberSignedOut } from '@/lib/demo-profiles'
 import { ThemeProvider } from '@/lib/theme'
 import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
@@ -310,6 +311,8 @@ function Gate() {
     // Signed in, there is nobody to pick: a sign-in that just finished, or /signin opened again,
     // lands in the Inbox.
     if (user && route.parts[0] === 'signin') redirectTo('/inbox')
+    // Signed in again, so a later sign-out of the demo is a new one (lib/demo-profiles).
+    if (user) rememberSignedOut(false)
   }, [user, route.parts])
   // ?open=palette, connect, shortcuts or report opens that overlay, so every state has a link.
   const overlay = route.query.get('open')

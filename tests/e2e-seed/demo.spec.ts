@@ -18,6 +18,13 @@ function watchCalls(page: Page) {
   return failed
 }
 
+/** The signed-in person, at the foot of the sidebar. */
+const sidebarUser = (page: Page) =>
+  page.locator('[data-sidebar=sidebar] [data-sidebar=footer]').first().getByRole('button')
+
+/** The "View as" switch in the page header. */
+const viewAs = (page: Page) => page.getByRole('button', { name: /^View as:/ })
+
 /** A screen is drawn: its title, and no frame that says a load failed. */
 async function drawn(page: Page, title: string) {
   await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
@@ -28,19 +35,26 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
   page,
 }) => {
   await page.goto('/')
-  await expect(page).toHaveURL(/\/signin$/)
-  // The invented administrator first, and nobody out of view at 1440 by 900. There is no switch to
-  // an empty workspace: the service has one workspace, the demo's.
-  await expect(page.getByRole('listitem').first()).toContainText('Ravi Kapoor')
-  await expect(page.getByRole('listitem').last()).toBeInViewport()
-  await expect(page.getByRole('switch')).toHaveCount(0)
-  // The demo loaded, so the page says its company is invented; no label names this install.
-  await expect(page.getByText('This is a demo. Pick who you are.')).toBeVisible()
-  await expect(page.getByText(/is an invented company/)).toBeVisible()
-  await expect(page.locator('[data-profile-label]')).toHaveCount(0)
-  await page.getByRole('button', { name: /Jon Abara/ }).click()
+  // A first visit lands straight in the app as the invented administrator: no picker first. The
+  // demo's note about its invented company is on the sign-in page, which was only passed through.
   await expect(page).toHaveURL(/\/inbox$/)
-  // Signed out, the sign-in page's reads are refused as they should be; from here none may be.
+  await expect(sidebarUser(page)).toContainText('Ravi Kapoor')
+  await expect(page.locator('[data-profile-label]')).toHaveCount(0)
+  // "View as" in the corner offers the admin, a domain owner and a reader, each with a line.
+  await viewAs(page).click()
+  const choices = page.getByRole('menuitemradio')
+  await expect(choices).toHaveCount(3)
+  await expect(choices.nth(0)).toContainText('Ravi Kapoor')
+  await expect(choices.nth(0)).toContainText('Sees everything')
+  await expect(choices.nth(1)).toContainText('Jon Abara')
+  await expect(choices.nth(1)).toContainText('Owns Sales')
+  await expect(choices.nth(2)).toContainText('Maria Lindqvist')
+  await expect(choices.nth(2)).toContainText('Reads the published context')
+  await choices.nth(1).click()
+  await expect(page.getByRole('menu')).toHaveCount(0)
+  await expect(sidebarUser(page)).toContainText('Jon Abara')
+  await expect(page).toHaveURL(/\/inbox$/)
+  // The landing's own reads, signed out, were refused as they should be; from here none may be.
   const failed = watchCalls(page)
   await drawn(page, 'Inbox')
   // The demo's present (db/seed/story.ts): what agents asked this week, the suggestions waiting
@@ -97,4 +111,40 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
       await expect(page.getByText('No agent has asked anything yet')).toHaveCount(0)
   }
   expect(failed).toEqual([])
+})
+
+test('the demo switches to a reader who has real context to read', async ({ page }) => {
+  await page.goto('/')
+  await expect(sidebarUser(page)).toContainText('Ravi Kapoor')
+  await viewAs(page).click()
+  await page.getByRole('menuitemradio', { name: /Maria Lindqvist/ }).click()
+  await expect(sidebarUser(page)).toContainText('Maria Lindqvist')
+  await expect(page).toHaveURL(/\/inbox$/)
+  // A reader reads the published library, a little less than the administrator sees.
+  await page.goto('/context')
+  await expect(page.getByText(/of 1,\d{3} context items/)).toBeVisible()
+  await expect(
+    page.getByRole('main').getByText('Online sales to Norway stopped on 4 August 2026'),
+  ).toBeVisible()
+})
+
+test('signing out of the demo shows everyone to pick from, not the landing again', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(sidebarUser(page)).toContainText('Ravi Kapoor')
+  await sidebarUser(page).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+  // The invented administrator first, and nobody out of view at 1440 by 900. There is no switch to
+  // an empty workspace: the service has one workspace, the demo's.
+  await expect(page.getByRole('listitem').first()).toContainText('Ravi Kapoor')
+  await expect(page.getByRole('listitem').last()).toBeInViewport()
+  await expect(page.getByRole('switch')).toHaveCount(0)
+  // The demo loaded, so the page says its company is invented; no label names this install.
+  await expect(page.getByText('This is a demo. Pick who you are.')).toBeVisible()
+  await expect(page.getByText(/is an invented company/)).toBeVisible()
+  await page.getByRole('button', { name: /Tomas Eriksen/ }).click()
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(sidebarUser(page)).toContainText('Tomas Eriksen')
 })

@@ -16,6 +16,7 @@ import {
   type ObsValuesInput,
   type ScopeSearchInput,
 } from '@/api/client'
+import { demoProfiles, type DemoProfile } from '@/lib/demo-profiles'
 import type { AskInput } from '@/model/ask'
 import type { FigureAsk } from '@/model/figures'
 
@@ -121,6 +122,23 @@ export const signInPeopleQuery = () =>
   queryOptions({
     queryKey: queryKeys.signInPeople,
     queryFn: () => api.listSignInPeople(),
+    staleTime: Infinity,
+  })
+
+/**
+ * The demo's profiles a signed-in person can view as: those the service offers, when this install
+ * is the demo with its person picker, and none otherwise (company sign-in, an install with its own
+ * data). Read with the shell's shared reads, so the header's switch never pops in after the page.
+ */
+export const demoProfilesQuery = () =>
+  queryOptions({
+    queryKey: ['demoProfiles'] as const,
+    queryFn: async (): Promise<DemoProfile[]> => {
+      const method = await api.getSignInMethod()
+      if (method.kind !== 'picker' || !method.demo) return []
+      const offered = await api.listSignInPeople()
+      return demoProfiles.filter((p) => offered.includes(p.name))
+    },
     staleTime: Infinity,
   })
 
@@ -420,6 +438,7 @@ export const sharedQueries = () => [
   integrationsQuery(),
   agentConnectionsQuery(),
   connectReviewQuery(),
+  demoProfilesQuery(),
 ]
 
 /**
@@ -437,6 +456,8 @@ export const sharedReadIn = <O extends object>(options: O, inDock: boolean): O =
 const useSharedRead = <O extends object>(options: O): O =>
   sharedReadIn(options, React.useContext(InDock))
 
+/** The demo's profiles to view as, from the cache the shell filled; none outside the demo. */
+export const useDemoProfiles = () => useSuspenseQuery(useSharedRead(demoProfilesQuery())).data
 export const useSession = () => useSuspenseQuery(useSharedRead(sessionQuery())).data
 /** The workspace, from the cache the shell filled. */
 export const useWorkspace = () => useSuspenseQuery(useSharedRead(workspaceQuery())).data

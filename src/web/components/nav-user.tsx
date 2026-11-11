@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar'
 import { open } from '@/lib/events'
 import { useApiWrite } from '@/api/queries'
+import { rememberSignedOut } from '@/lib/demo-profiles'
 import { useMe } from '@/lib/workspace'
 
 // The sidebar block's user menu: Connect an agent and Sign out. Help sits in the sidebar's foot, the theme in the header.
@@ -71,7 +72,9 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                // Signed out, the app moves to the sign-in page (App.tsx).
+                // Signed out, the app moves to the sign-in page (App.tsx). The demo then shows
+                // everyone to pick from, instead of opening as its admin again.
+                rememberSignedOut(true)
                 signOut.mutate()
               }}
             >

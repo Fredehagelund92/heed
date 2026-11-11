@@ -19,6 +19,7 @@ import { open } from '@/lib/events'
 import { TruncatedText } from '@/components/heed/truncated'
 import { OfflineBanner } from '@/components/heed/load-state'
 import { ProfileLabel } from '@/components/heed/profile-label'
+import { ViewAs } from '@/components/view-as'
 import { pageTitle } from '@/lib/page-title'
 import { useSession } from '@/api/queries'
 
@@ -219,6 +220,8 @@ export function SiteHeader({
           {/* Which install this is, when it is named: last but the theme, so it never moves. */}
           <ProfileLabel label={profileLabel} className="max-sm:max-w-28" />
           {!bare && <ThemeMenu />}
+          {/* The demo's switch between its people, in the corner: nothing anywhere else. */}
+          {!bare && <ViewAs />}
         </div>
       </header>
       {/* Offline, one quiet line right under the header, so the header keeps its line with the sidebar. */}

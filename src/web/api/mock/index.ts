@@ -391,9 +391,11 @@ export function createMockApi() {
         fresh: state.fresh,
         profileLabel: null,
       })),
-    // The demo signs in with the person picker, with no label; an invite link opens the invite it
-    // names.
-    getSignInMethod: () => now(() => ({ kind: 'picker' as const, demo: true, profileLabel: null })),
+    // The picker, with no label; an invite link opens the invite it names. Not the demo install
+    // (demo: false), which lets a visitor in as its admin and has its own switch between people:
+    // here every journey starts signed in, and signs in as others through the picker.
+    getSignInMethod: () =>
+      now(() => ({ kind: 'picker' as const, demo: false, profileLabel: null })),
     readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
     signIn: ({ name }) => {

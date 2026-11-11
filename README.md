@@ -82,7 +82,8 @@ docker compose -f compose.yaml -f compose.images.yaml up
 ```
 
 The first start pulls the published images and loads the demo, which takes about two minutes. Then open
-<http://localhost:8080> and sign in as any demo person: Jon Abara owns Sales, Ravi Kapoor is the admin.
+<http://localhost:8080>. It opens as Ravi Kapoor, the admin. **View as**, in the top right corner, switches to Jon
+Abara, who owns Sales, or to Maria Lindqvist, who can read and suggest. Sign out to pick any other demo person.
 
 The demo is an invented outdoor-gear retailer: people, domains and context items, with their history,
 suggestions waiting for review and what agents asked over the past weeks. Nothing leaves your computer, and no
