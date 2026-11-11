@@ -858,6 +858,12 @@ export function createMockApi() {
     ask: (input, live) => {
       // Ask's loop answers, as the service wrote them on the demo week: shown by address only.
       if (input.example?.startsWith('loop-')) return loopExample(input.example)
+      // ?loop=1: a typed question is answered as Ask's loop answers it, so a chat is kept with it.
+      if (scenario.address().query.loop === '1' && input.question) {
+        const question = input.question
+        const looped = loopExample('loop-checked').then((a) => ({ ...a, id: 'custom', question }))
+        return live?.onEvent ? looped.then((a) => playAnswer(a, live)) : looped
+      }
       const answered = now(() => {
         const a = answer(input)
         // What an agent follows from the answer's items, with the switch as it is now.

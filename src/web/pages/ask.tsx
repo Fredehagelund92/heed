@@ -43,6 +43,19 @@ import {
 } from '@/api/queries'
 import { chatTurnOf, type Answer, type AskInput, type QuestionPart } from '@/model/ask'
 import {
+  firstRead,
+  keptAnswers,
+  nextTurnId,
+  openingAnswers,
+  placeOf,
+  ready,
+  reduce,
+  sessionOf,
+  type Join,
+  type Place,
+  type Session,
+} from '@/model/ask-session'
+import {
   askedTurn,
   doneTurn,
   isLive,
@@ -57,7 +70,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, setQuery, useRoute } from '@/lib/router'
 import { composerSurface } from '@/lib/surfaces'
-import { findThread, useThreadActions, useThreads, type Day, type Thread } from '@/lib/threads'
+import { useThreadActions, useThreads, type Day, type Thread } from '@/lib/threads'
 import { TruncatedText } from '@/components/heed/truncated'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { Answering, Suggestions } from '@/components/heed/suggestions'
@@ -100,10 +113,6 @@ const askAgainInput = (turns: readonly Turn[], i: number): AskInput => {
 const lastAsked = (turns: readonly Turn[]) =>
   turns.findLastIndex((turn) => turn.answer.reply !== 'nothing_asked')
 
-/** What Ask is asked for a chat's first answer: its example, or its question. */
-const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
-  t.example ? { example: t.example } : { question: t.question }
-
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** How near the bottom, in pixels, the reader counts as at the bottom: the view follows the answer (`ASK_ANCHOR` follow). */
@@ -130,7 +139,7 @@ export function AskChat({
   draft,
   compact,
   prefill,
-  onFirstAsk,
+  onAnswered,
   onExample,
   onTurns,
   onAnswers,
@@ -140,12 +149,13 @@ export function AskChat({
   compact?: boolean
   /** A question typed into the box, waiting to be sent. */
   prefill?: string
-  onFirstAsk?: (question: string) => void
+  /** A turn was answered, however it was asked: its question, so the chat can join the history. */
+  onAnswered?: (question: string) => void
   /** An example's question opens that example instead of being asked; true when it did. */
   onExample?: (question: string) => boolean
   /** Everything this chat has asked and answered so far, so the history search finds it. */
   onTurns?: (text: string) => void
-  /** Ask's loop: the chat's answers once every one is finished, to keep with it. */
+  /** Ask's loop: the chat's finished answers once none is on its way, to keep with it. */
   onAnswers?: (answers: Answer[]) => void
 }) {
   const [turns, setTurns] = React.useState<Turn[]>(() => (initial ?? []).map(doneTurn))
@@ -166,6 +176,8 @@ export function AskChat({
   // has failed, or was stopped), nothing else is asked. The ref holds it at once, before React shows
   // it: a second click in the same moment finds it held.
   const [waiting, setWaiting] = React.useState(false)
+  // Whether a question was sent in this thread, as opposed to a chat only opened.
+  const [askedHere, setAskedHere] = React.useState(false)
   const sending = React.useRef(false)
   const answering = waiting || busy
   /** Runs one send, unless another is under way or an answer is still being written. */
@@ -173,6 +185,7 @@ export function AskChat({
     if (sending.current || busy) return
     sending.current = true
     setWaiting(true)
+    setAskedHere(true)
     try {
       await send()
     } finally {
@@ -252,6 +265,16 @@ export function AskChat({
   const week = useQuery(askedWeekQuery()).data
   const starters = examples.filter((e) => e.starter).map((e) => e.question)
   const queryClient = useQueryClient()
+  // A first answer opens again on its question alone: a question with no mentions gets the same
+  // answer, so it is kept for that, and opening the chat again looks nothing up.
+  const remember = (
+    index: number,
+    { question, parts, scope }: Pick<Answer, 'question' | 'parts' | 'scope'>,
+    answer: Answer,
+  ) => {
+    if (index === 0 && !scope?.length && (parts ?? []).every((p) => typeof p === 'string'))
+      queryClient.setQueryData(askQuery({ question }).queryKey, answer)
+  }
   const add = (asked: string | AskQuestion) =>
     one(async () => {
       const {
@@ -260,7 +283,7 @@ export function AskChat({
         scope,
       } = typeof asked === 'string' ? { text: asked, parts: undefined, scope: [] } : asked
       const index = turns.length
-      const id = `t${index}`
+      const id = nextTurnId(turns)
       follow.current = true
       // A draft's answer is the draft's own, written here: it is there at once.
       if (draft && initial?.[0]) {
@@ -283,13 +306,9 @@ export function AskChat({
         askedTurn(id, q, repeated ? { again: repeated, scope: repeated.scope } : { parts, scope }),
       ])
       keepFocus()
-      // The chat this starts joins the history once its answer is in.
-      let joined = index !== 0
-      const join = () => {
-        if (joined) return
-        joined = true
-        onFirstAsk?.(q)
-      }
+      // Any answered turn can start the chat in the history, once; the session says whether it does.
+      const words = repeated?.question ?? q
+      const join = () => onAnswered?.(words)
       try {
         const answer = await answerTurn(
           id,
@@ -298,10 +317,7 @@ export function AskChat({
         )
         if (!answer) return
         join()
-        // It opens again on its question alone: a question with no mentions gets the same answer, so
-        // it is kept for that, and opening the chat again looks nothing up.
-        if (index === 0 && !scope.length && (parts ?? []).every((p) => typeof p === 'string'))
-          queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
+        remember(index, { question: words, parts, scope }, answer)
       } catch (e) {
         // Nothing came back: the question stays in the chat, saying so, with Ask again.
         update(id, {
@@ -324,8 +340,14 @@ export function AskChat({
       setTurns((ts) =>
         ts.map((t, j) => (j === i ? askedTurn(id, question, { parts, scope, again }) : t)),
       )
+      const words = askedWords(before.answer)
       try {
-        await answerTurn(id, askAgainInput(turns, i))
+        const answer = await answerTurn(id, askAgainInput(turns, i), () =>
+          onAnswered?.(words.question),
+        )
+        if (!answer) return
+        onAnswered?.(words.question)
+        remember(i, words, answer)
       } catch (e) {
         // The answer it had stays.
         setTurns((ts) => ts.map((t, j) => (j === i ? before : t)))
@@ -421,13 +443,12 @@ export function AskChat({
   // What the chat holds, for the history search.
   const said = turns.map((t) => `${t.answer.question} ${t.answer.text}`).join(' ')
   React.useEffect(() => onTurns?.(said), [said, onTurns])
-  // Ask's loop: once every answer is in, the chat keeps them, so it opens again as it was.
-  const finished = turns.every((t) => t.stage === 'done' && !t.error && !t.stopped)
-  const kept = finished && turns.length > 0 && turns.every((t) => !!t.answer.loop)
-  const keptAnswers = React.useMemo(() => (kept ? turns.map((t) => t.answer) : null), [kept, turns])
+  // Ask's loop: once no turn is on its way, the chat keeps its done turns, so it opens again as it
+  // was. A turn asked here is what makes it worth keeping: a chat only opened is left as it is.
+  const kept = React.useMemo(() => keptAnswers(turns), [turns])
   React.useEffect(() => {
-    if (keptAnswers) onAnswers?.(keptAnswers)
-  }, [keptAnswers, onAnswers])
+    if (kept && askedHere) onAnswers?.(kept)
+  }, [kept, askedHere, onAnswers])
 
   // A new question scrolls to the top of the view, so the answer arrives under it.
   const count = turns.length
@@ -856,11 +877,11 @@ function ThreadList({
   const open = (t: Thread) => {
     if (onOpenChat) onOpenChat(t)
     else
-      setQuery(
-        t.example
-          ? { example: t.example, chat: undefined, n: undefined }
-          : { example: undefined, chat: t.id, n: t.id },
-      )
+      setQuery({
+        example: placeOf(t).example ?? undefined,
+        chat: placeOf(t).chat ?? undefined,
+        n: placeOf(t).example ? undefined : t.id,
+      })
     onPick?.()
   }
   const remove = async (t: Thread) => {
@@ -1009,6 +1030,83 @@ function ThreadList({
   )
 }
 
+/**
+ * One thread of Ask: its session (src/web/model/ask-session.ts) is made when it mounts and goes
+ * with it, so a thread that comes back is worked out from `place` and the kept chats alone. The
+ * page and the dock both show it, with their own idea of where a chat lives.
+ */
+function AskThread({
+  place,
+  mint,
+  compact,
+  prefill,
+  onJoined,
+  onExample,
+  onTurns,
+}: {
+  place: Place
+  /** The id a chat that starts in this thread gets. */
+  mint: () => string
+  compact?: boolean
+  prefill?: string
+  /** The chat this thread started is in the history: where it lives now. */
+  onJoined: (chat: string) => void
+  onExample?: (question: string) => boolean
+  onTurns?: (text: string) => void
+}) {
+  const threads = useThreads()
+  const threadActions = useThreadActions()
+  // Set once a turn is answered here; until then the session is the address's.
+  const [answered, setAnswered] = React.useState<Session | null>(null)
+  const became = React.useRef<Session | null>(null)
+  const session = answered ?? sessionOf(place, threads)
+  // An example or a chat opens on its first answer, which is read before the thread shows. Each read
+  // is a look-up, so the chat on show is not read again, nor when the window regains focus.
+  const read = firstRead(session)
+  const first = useQuery({
+    ...askQuery(read ?? { question: '' }),
+    enabled: !!read,
+    refetchOnWindowFocus: false,
+  })
+  // The thread takes these once, when it mounts: it is not shown before they are in.
+  const initial = openingAnswers(session, first.data)
+  const join = (j: Join) => {
+    if (!j.known) threadActions.add(j.chat, j.question)
+    onJoined(j.chat)
+  }
+  // Any answered turn starts the chat in the history, once, whichever button asked it.
+  const onAnswered = (question: string) => {
+    const from = became.current ?? sessionOf(place, threads)
+    const next = reduce(from, { type: 'answered', question, threads, mint: mint() })
+    if (next.session === from) return
+    became.current = next.session
+    setAnswered(next.session)
+    if (next.join) join(next.join)
+  }
+  // The chat on show keeps its loop answers, under the id it has once its first question is answered.
+  const chat = session.kind === 'live' || session.kind === 'history' ? session.chat : null
+  const keepAnswers = React.useCallback(
+    (answers: Answer[]) => {
+      if (chat && answers[0]) threadActions.keep(chat, answers[0].question, answers)
+    },
+    // threadActions is made afresh each render; the chat's id is what decides.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chat],
+  )
+  if (!ready(session, first.data)) return null
+  return (
+    <AskChat
+      compact={compact}
+      initial={initial}
+      prefill={prefill}
+      onAnswered={onAnswered}
+      onExample={onExample}
+      onTurns={onTurns}
+      onAnswers={keepAnswers}
+    />
+  )
+}
+
 export function AskPage() {
   const { query } = useRoute()
   const isMobile = useIsMobile()
@@ -1016,26 +1114,6 @@ export function AskPage() {
   const chat = query.get('chat')
   const n = query.get('n')
   const threads = useThreads()
-  const thread = findThread(threads, chat)
-  const asked = thread?.question
-  // Ask's loop keeps a chat's finished answers with it: opened again, it shows them and asks nothing.
-  const stored = thread?.answers
-  // The chat a first question in this thread started: the thread already shows it. Opening it from
-  // the history changes `n`, and then its first answer is read like any other chat's.
-  const [started, setStarted] = React.useState<{ chat: string; n: string | null }>()
-  const showing = !!chat && started?.chat === chat && started.n === n
-  // An example or a chat opens on its first answer, which is read before the thread shows. Each read
-  // is a look-up, so the chat on show is not read again, nor when the window regains focus.
-  const restored = !example && !showing && !!stored?.length
-  const first = useQuery({
-    ...askQuery(example ? { example } : { question: asked ?? '' }),
-    enabled: !!example || (!!asked && !showing && !restored),
-    refetchOnWindowFocus: false,
-  })
-  const initial = React.useMemo(
-    () => (restored ? stored : first.data ? [first.data] : []),
-    [restored, stored, first.data],
-  )
   const [sheet, setSheet] = React.useState(false)
   const [live, setLive] = React.useState('')
   const [collapsed, setCollapsedState] = React.useState(
@@ -1066,10 +1144,9 @@ export function AskPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [isMobile, collapsed, setCollapsed])
 
-  // A new chat joins the list with its first question. The thread stays mounted: only an opened
-  // chat or New chat changes `n`, which is what starts a thread afresh.
+  // A new chat joins the list with its first answered turn. The thread stays mounted: only an
+  // opened chat or New chat changes `n`, which is what starts a thread afresh.
   const write = useWrite()
-  const threadActions = useThreadActions()
   // The chat that already asks a question, so the history never gets the same question twice.
   const chatAsking = (question: string) =>
     threads.find((x) => x.question.toLowerCase() === question.toLowerCase())
@@ -1080,24 +1157,8 @@ export function AskPage() {
     setQuery({ example, chat: undefined, n: undefined })
     return true
   }
-  // The chat on show keeps its loop answers, under the id it has once its first question is asked.
-  const keepAnswers = React.useCallback(
-    (answers: Answer[]) => {
-      const id = chat ?? started?.chat
-      if (id && answers[0]) threadActions.keep(id, answers[0].question, answers)
-    },
-    // threadActions is made afresh each render; the chat's id is what decides.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chat, started?.chat],
-  )
   const setup = query.get('setup')
-  // A first question is answered in the thread as it is written, as a follow-up is; then its chat
-  // is the one on show, without starting the thread again: a new chat, or the one that asks it.
-  const onFirstAsk = (q: string) => {
-    const asking = chatAsking(q)
-    const id = asking?.id ?? `chat-${n ?? Date.now()}`
-    setStarted({ chat: id, n })
-    if (!asking) threadActions.add(id, q)
+  const onJoined = (id: string) => {
     setQuery({ chat: id, setup: undefined, q: undefined })
     // The setup step "Ask a question about it" is done by asking one.
     if (setup) {
@@ -1172,19 +1233,15 @@ export function AskPage() {
           </ResizableAside>
         </div>
         <div className="min-h-0 min-w-0 flex-1">
-          {/* An example or a chat opens on its first answer, so the thread waits for it; a chat
-              started here by asking is already showing it. */}
-          {(first.data || restored || (!example && (!asked || showing))) && (
-            <AskChat
-              key={example ? `e-${example}` : `c-${n ?? ''}`}
-              initial={initial}
-              prefill={query.get('q') ?? undefined}
-              onFirstAsk={example || asked ? undefined : onFirstAsk}
-              onExample={openExample}
-              onTurns={setLive}
-              onAnswers={keepAnswers}
-            />
-          )}
+          <AskThread
+            key={example ? `e-${example}` : `c-${n ?? ''}`}
+            place={{ example, chat }}
+            mint={() => `chat-${n ?? Date.now()}`}
+            prefill={query.get('q') ?? undefined}
+            onJoined={onJoined}
+            onExample={openExample}
+            onTurns={setLive}
+          />
         </div>
       </div>
       <Sheet open={sheet} onOpenChange={setSheet}>
@@ -1203,21 +1260,16 @@ export function AskDock() {
   // A quick view's "Try it with a question" opens Ask with the question typed in, not yet sent.
   const { query } = useRoute()
   const q = query.get('q') ?? undefined
-  // The dock keeps its own chat: History opens one here, New chat starts afresh, and a first question joins the history.
-  const [chat, setChat] = React.useState<{ key: string; initial: Answer[]; id?: string }>({
+  // The dock keeps its own place: History opens a chat here, New chat starts afresh, and a chat
+  // that joins the history stays on show. The thread itself is the page's (AskThread).
+  const [dock, setDock] = React.useState<{ key: string; place: Place }>({
     key: 'new',
-    initial: [],
+    place: { example: null, chat: null },
   })
   const [history, setHistory] = React.useState(false)
-  const queryClient = useQueryClient()
-  const threadActions = useThreadActions()
-  const newChat = () => setChat({ key: `new-${Date.now()}`, initial: [] })
-  const openChat = async (t: Thread) => {
-    // Ask's loop kept the chat's answers: they show as they were, and nothing is asked again.
-    const initial = t.answers?.length
-      ? t.answers
-      : [await queryClient.fetchQuery(askQuery(firstAsk(t)))]
-    setChat({ key: t.id, id: t.id, initial })
+  const newChat = () => setDock({ key: `new-${Date.now()}`, place: { example: null, chat: null } })
+  const openChat = (t: Thread) => {
+    setDock({ key: `${t.id}-${Date.now()}`, place: placeOf(t) })
     setHistory(false)
   }
   return (
@@ -1240,8 +1292,8 @@ export function AskDock() {
             </Tooltip>
             <PopoverContent align="end" aria-label="History" className="h-history w-72 p-0">
               <ThreadList
-                current={chat.id}
-                onOpenChat={(t) => void openChat(t)}
+                current={dock.place.example ?? dock.place.chat}
+                onOpenChat={openChat}
                 onNewChat={() => (newChat(), setHistory(false))}
               />
             </PopoverContent>
@@ -1259,16 +1311,13 @@ export function AskDock() {
         </>
       }
     >
-      <AskChat
-        key={`${q}-${chat.key}`}
+      <AskThread
+        key={`${q}-${dock.key}`}
+        place={dock.place}
+        mint={() => `chat-dock-${Date.now()}`}
         compact
-        initial={chat.initial}
-        prefill={chat.initial.length ? undefined : q}
-        onFirstAsk={
-          chat.initial.length
-            ? undefined
-            : (question) => threadActions.add(`chat-dock-${Date.now()}`, question)
-        }
+        prefill={dock.place.chat || dock.place.example ? undefined : q}
+        onJoined={(chat) => setDock((d) => ({ ...d, place: { example: null, chat } }))}
       />
     </DockFrame>
   )
