@@ -1,8 +1,9 @@
 import { relationWords } from '@domain/clash-relations'
+import { reviewActions } from '@domain/review-actions'
 import { lineDiff } from '@/lib/line-diff'
 import { kindLabel, type Fact, type Kind } from './items'
 import type { Domains } from './people'
-import type { Relation, Review } from './review'
+import { claimsToCheck, type Relation, type Review } from './review'
 import { whenLabel } from './validity'
 
 // The review's rules that only the full review page uses: the answers to a clash, and how long a
@@ -49,8 +50,21 @@ export function publishedWords(r: Review, answers: Record<string, Relation>): st
   return words.length ? words.join(' ') : 'Agents get it from the next question.'
 }
 
-/** Needs care before publishing: an unverified claim, or a clash with live context. */
-export const needsCare = (r: Review) => !!r.claims || !!r.clash
+/** Needs care before publishing: a claim to check, or a clash with live context. */
+export const needsCare = (r: Review) => claimsToCheck(r) > 0 || !!r.clash
+
+/**
+ * What may be done with a suggestion, with the owner's answers to its clash so far: the same
+ * rules the service holds (src/domain/review-actions.ts), for the panel, the phone's bar and the key.
+ */
+export const actionsOf = (r: Review, answers: Record<string, Relation>) =>
+  reviewActions({
+    mode: r.mode,
+    withdrawn: !!r.retire?.withdrawn,
+    drafted: !!r.drafted,
+    claimsToCheck: claimsToCheck(r),
+    clashes: (r.clash?.items ?? []).filter((c) => !answers[c.factId]).length,
+  })
 
 /**
  * How long a change has to be on screen before it counts as read: longer for more changed words,

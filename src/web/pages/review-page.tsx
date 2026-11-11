@@ -55,7 +55,9 @@ import {
 import type { JSONContent } from '@tiptap/core'
 import { isTyping, pageKey } from '@/lib/keys'
 import { open as openOverlay } from '@/lib/events'
-import { useSend, type Sender } from '@/lib/send'
+import { useOnline, useSend } from '@/lib/send'
+import { toApiError } from '@/api/errors'
+import type { ReviewAction, ReviewActions } from '@domain/review-actions'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { flushSync } from 'react-dom'
 import { TOUCH } from '@/lib/touch'
@@ -77,6 +79,16 @@ import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
 import { careLine, marks, readiness, type Relation, type Review } from '@/model/review'
 import {
+  decide,
+  idle,
+  reasonOf,
+  sendingOf,
+  writingReturn,
+  type DecisionEvent,
+  type DecisionState,
+} from '@/model/review-decision'
+import {
+  actionsOf,
   clashOutcome,
   draftItem,
   needsCare,
@@ -983,16 +995,26 @@ type Finished = {
 
 type DecisionProps = {
   r: Review
-  onDone: (f: Finished) => void
-  finished: Finished | null
+  /** Where the decision is, shared by the panel and the phone's bar. */
+  flow: DecisionState<Finished>
+  /** What may be done now (src/domain/review-actions.ts). */
+  actions: ReviewActions
+  /** Offline nothing is sent. */
+  online: boolean
+  /** Asks to archive (a dialog first) or opens the note. */
+  ask: (action: 'archive' | 'return') => void
+  /** Closes the dialog or the note, keeping what was written. */
+  cancel: () => void
+  /** Publish, close, and the confirmed archive. */
+  press: (action: ReviewAction) => void
+  /** Sends the note written in the panel. */
+  sendNote: (note: JSONContent) => void
+  /** Does the failed action again. */
+  retry: () => void
   onUndo: () => void
-  returning: boolean
-  setReturning: (v: boolean) => void
   /** The note being written, kept when it closes, so Esc never loses it. */
   draft?: JSONContent
   onDraft: (d: JSONContent | null) => void
-  /** Publish, archive and return go through it: offline they wait, and a failure says so with Retry. */
-  sender: Sender
   /** Previous and next, for the phone bar (the header keeps them on wider screens). */
   onStep?: (d: 1 | -1) => void
   /** The wait before the next suggestion: paused while the pointer or focus is on the outcome. */
@@ -1001,26 +1023,40 @@ type DecisionProps = {
   /** Reduced motion: nothing moves on its own, so the outcome offers Next instead. */
   reduced: boolean
   onNext: () => void
+  /** The phone's bar carries the failure and its Try again, so the panel above says it only once. */
+  barBelow?: boolean
   /** The panel beside or under the change; on a phone, also a bar stuck to the bottom edge. */
   variant?: 'panel' | 'bar'
+}
+
+/** What a failed action is called in "Couldn't ...". */
+const failedVerb: Record<ReviewAction, string> = {
+  publish: 'publish',
+  archive: 'archive it',
+  return: 'return it',
+  close: 'close it',
 }
 
 /** Ready, Overlaps and the decision: one primary action that fits the state. */
 function Decision({
   r,
-  onDone,
-  finished,
+  flow,
+  actions,
+  online,
+  ask,
+  cancel,
+  press,
+  sendNote,
+  retry,
   onUndo,
-  returning,
-  setReturning,
   draft,
   onDraft,
-  sender,
   onStep,
   onHold,
   paused,
   reduced,
   onNext,
+  barBelow = false,
   variant = 'panel',
 }: DecisionProps) {
   const hovered = React.useRef(false)
@@ -1032,139 +1068,60 @@ function Decision({
   const state = useInbox()
   const reviews = useReviews()
   const me = useMe()
-  const write = useWrite()
   const [answers] = React.useContext(RelationContext)
   // What the answers do, once every live item it overlaps has one.
   const settled = clashOutcome(r, answers)
   const first = r.from.split(' ')[0]
   const done = state.done[r.id]
-  // The last thing tried, so Retry does it again.
-  const [tried, setTried] = React.useState<'publish' | 'archive' | 'return' | 'close'>()
-  const sending = sender.state === 'sending'
-  const blockedBySend = !sender.online || sending
-  const publish = () => {
-    setTried('publish')
-    sender.send(commitPublish)
-  }
-  const commitPublish = async () => {
-    const { undo } = await write('publishReview', {
-      id: r.id,
-      ...(r.clash ? { relations: answers } : {}),
-      saveQuestion: savesQuestion(r.id),
-    })
-    onDone({
-      undo,
-      outcome: 'Published',
-      message: 'Published',
-      description: publishedWords(r, answers),
-      now: r.tryIt.after.text,
-    })
-  }
-  const archive = () => {
-    setTried('archive')
-    sender.send(commitArchive)
-  }
-  const commitArchive = async () => {
-    const { undo } = await write('archiveReview', { id: r.id })
-    setConfirmArchive(false)
-    onDone({
-      undo,
-      outcome: 'Archived',
-      message: 'Archived',
-      description: 'Agents stop getting it from the next question.',
-    })
-  }
-  // Archiving takes context away from agents, so it always asks first, from the button or the key.
-  const [confirmArchive, setConfirmArchive] = React.useState(false)
-  // A withdrawn retirement closes: nothing changes, and the context item stays live.
-  const close = () => {
-    setTried('close')
-    sender.send(async () => {
-      const { undo } = await write('closeReview', { id: r.id })
-      onDone({
-        undo,
-        outcome: 'Closed',
-        message: 'Closed',
-        description: 'Nothing changes: the context item stays live.',
-      })
-    })
-  }
+  const finished = flow.kind === 'done' ? flow.done : null
+  const returning = writingReturn(flow)
+  const sending = sendingOf(flow)
+  const blockedBySend = !online || sending !== null
   const withdrawn = r.retire?.withdrawn
-  const returnNote = React.useRef<JSONContent | null>(null)
-  const commitReturn = async () => {
-    const note = returnNote.current!
-    // The note becomes the first comment; if the return fails, it stays in the editor.
-    const { undo } = await write('returnReview', { id: r.id, note })
-    onDraft(null)
-    onDone({
-      undo,
-      outcome: 'Returned',
-      message: `Returned to ${r.from}`,
-      description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
-      // Undo takes the note back out of the comments and keeps it as a draft.
-      afterUndo: () => onDraft(note),
-    })
-  }
-  const retry = () =>
-    tried === 'close'
-      ? close()
-      : sender.send(
-          tried === 'archive' ? commitArchive : tried === 'return' ? commitReturn : commitPublish,
-        )
-  const verb =
-    tried === 'archive'
-      ? 'archive it'
-      : tried === 'return'
-        ? 'return it'
-        : tried === 'close'
-          ? 'close it'
-          : 'publish'
+  // The button of an action: it keeps its place, spinning, while it is the one being sent.
+  const busy = (action: ReviewAction) => sending === action
+  const held = (action: ReviewAction) =>
+    (blockedBySend && !busy(action)) || !!actions.blockedBy[action]
   // Offline nothing is sent; a failed try changed nothing. Both said at the button, never "Published".
   // The one action offline turns off, by name.
-  const mainVerb = r.retire?.withdrawn ? 'Close' : r.retire ? 'Archive' : 'Publish'
-  const failed = sender.state === 'failed'
-  const problem = !sender.online ? (
+  const mainVerb =
+    actions.primary === 'close' ? 'Close' : actions.primary === 'archive' ? 'Archive' : 'Publish'
+  const failed = flow.kind === 'failed' ? flow : null
+  const problem = !online ? (
     <p role="status" className="text-sm text-muted-foreground">
       <span className="font-medium text-foreground">You're offline.</span> {mainVerb} is off until
       you're back; nothing is lost.
     </p>
-  ) : failed ? (
+  ) : failed && !(barBelow && variant === 'panel' && failed.action !== 'return') ? (
     <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
       <span>
-        <span className="font-medium">Couldn't {verb}.</span>{' '}
+        <span className="font-medium">Couldn't {failedVerb[failed.action]}.</span>{' '}
         <span className="text-muted-foreground">
-          Nothing changed{tried === 'return' ? '; your note is kept' : ''}.
+          {failed.reason ? `${failed.reason} ` : ''}Nothing changed
+          {failed.action === 'return' ? '; your note is kept' : ''}.
         </span>
       </span>
       {/* A failed note retries beside its editor; a failed decision retries from the buttons below. */}
-      {tried === 'return' && (
+      {failed.action === 'return' && (
         <Button variant="outline" size="sm" onClick={retry}>
           Try again
         </Button>
       )}
     </div>
   ) : null
-  const blocked = !!r.clash && !settled
   // What Command and Enter does here, if anything: the hint only shows when the key acts.
   const keyAction =
-    done || finished || returning || blockedBySend
+    done || finished || flow.kind !== 'idle' || blockedBySend || !actions.ready
       ? null
-      : withdrawn
-        ? 'close'
-        : r.retire
-          ? 'archive'
-          : blocked || (r.claims && !r.drafted)
-            ? null
-            : 'publish'
-  // Command and Enter publishes, as the button says (the panel listens; the phone bar is the same decision).
+      : actions.primary
+  // Command and Enter does what the button says (the panel listens; the phone bar is the same decision).
   React.useEffect(() => {
     if (variant !== 'panel') return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || !keyAction || isTyping(e.target)) return
       e.preventDefault()
-      if (keyAction === 'archive') setConfirmArchive(true)
-      else if (keyAction === 'close') close()
-      else publish()
+      if (keyAction === 'archive') ask('archive')
+      else press(keyAction)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -1191,8 +1148,13 @@ function Decision({
       : base
   const ReadyIcon = ready.ok ? CircleCheckIcon : CircleDashedIcon
 
+  const returnButton = (
+    <Button variant="outline" size="sm" disabled={sending !== null} onClick={() => ask('return')}>
+      Return<span className="max-sm:hidden"> with a note</span>
+    </Button>
+  )
   // The buttons, the same in the panel and in the phone's bar.
-  const actions = r.drafted ? (
+  const offered = r.drafted ? (
     <>
       <Button variant="outline" size="sm" onClick={() => navigate('/context/new', { gap: r.id })}>
         Edit<span className="max-sm:hidden"> the draft</span>
@@ -1200,65 +1162,63 @@ function Decision({
       <Button
         size="sm"
         className="ml-auto"
-        disabled={blockedBySend && !(sending && tried === 'publish')}
-        loading={sending && tried === 'publish'}
+        disabled={held('publish')}
+        loading={busy('publish')}
         loadingLabel="Publishing…"
-        onClick={publish}
+        onClick={() => press('publish')}
       >
         Publish
       </Button>
     </>
-  ) : r.claims ? (
+  ) : actions.primary === 'return' ? (
     <>
       <Button
         variant="outline"
         size="sm"
-        disabled={blockedBySend && !(sending && tried === 'publish')}
-        loading={sending && tried === 'publish'}
+        disabled={held('publish')}
+        loading={busy('publish')}
         loadingLabel="Publishing…"
-        onClick={publish}
+        onClick={() => press('publish')}
       >
         Publish anyway
       </Button>
-      <Button size="sm" className="ml-auto" disabled={sending} onClick={() => setReturning(true)}>
+      <Button
+        size="sm"
+        className="ml-auto"
+        disabled={sending !== null}
+        onClick={() => ask('return')}
+      >
         Return<span className="max-sm:hidden"> with a note</span>
       </Button>
     </>
   ) : (
     <>
-      {withdrawn ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={blockedBySend}
-          onClick={() => setConfirmArchive(true)}
-        >
+      {actions.can.includes('archive') && withdrawn ? (
+        <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => ask('archive')}>
           Archive anyway
         </Button>
-      ) : (
-        <Button variant="outline" size="sm" disabled={sending} onClick={() => setReturning(true)}>
-          Return<span className="max-sm:hidden"> with a note</span>
-        </Button>
-      )}
-      {withdrawn ? (
+      ) : actions.can.includes('return') ? (
+        returnButton
+      ) : null}
+      {actions.primary === 'close' ? (
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blockedBySend && !(sending && tried === 'close')}
-          loading={sending && tried === 'close'}
+          disabled={held('close')}
+          loading={busy('close')}
           loadingLabel="Closing…"
-          onClick={close}
+          onClick={() => press('close')}
         >
           Close the suggestion
         </Button>
-      ) : r.retire ? (
+      ) : actions.primary === 'archive' ? (
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blockedBySend && !(sending && tried === 'archive')}
-          loading={sending && tried === 'archive'}
+          disabled={held('archive')}
+          loading={busy('archive')}
           loadingLabel="Archiving…"
-          onClick={() => setConfirmArchive(true)}
+          onClick={() => ask('archive')}
         >
           Archive<span className="max-sm:hidden"> the context item</span>
         </Button>
@@ -1266,10 +1226,10 @@ function Decision({
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blocked || (blockedBySend && !(sending && tried === 'publish'))}
-          loading={sending && tried === 'publish'}
+          disabled={held('publish')}
+          loading={busy('publish')}
           loadingLabel="Publishing…"
-          onClick={publish}
+          onClick={() => press('publish')}
         >
           Publish
         </Button>
@@ -1277,19 +1237,17 @@ function Decision({
     </>
   )
 
-  // After a failed decision there is one way forward: Try again, with Return beside it.
+  // After a failed decision there is one way forward: Try again, with Return beside it where it is offered.
   const shownActions =
-    failed && tried !== 'return' ? (
+    failed && failed.action !== 'return' ? (
       <>
-        <Button variant="outline" size="sm" onClick={() => setReturning(true)}>
-          Return<span className="max-sm:hidden"> with a note</span>
-        </Button>
+        {actions.can.includes('return') && returnButton}
         <Button size="sm" className="ml-auto" onClick={retry}>
           Try again
         </Button>
       </>
     ) : (
-      actions
+      offered
     )
 
   // What just happened, in place: what agents now say, a short countdown to the next one, and Undo.
@@ -1337,7 +1295,7 @@ function Decision({
   )
 
   const archiveDialog = r.retire && (
-    <Dialog open={confirmArchive} onOpenChange={setConfirmArchive}>
+    <Dialog open={flow.kind === 'confirmingArchive'} onOpenChange={(open) => !open && cancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Archive the context item?</DialogTitle>
@@ -1352,7 +1310,7 @@ function Decision({
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button variant={withdrawn ? 'destructive' : 'default'} onClick={archive}>
+          <Button variant={withdrawn ? 'destructive' : 'default'} onClick={() => press('archive')}>
             Archive
           </Button>
         </DialogFooter>
@@ -1469,12 +1427,8 @@ function Decision({
               onDraft={onDraft}
               clearOnPost={false}
               postDisabled={blockedBySend}
-              onCancel={() => setReturning(false)}
-              onPost={(content) => {
-                setTried('return')
-                returnNote.current = content
-                sender.send(commitReturn)
-              }}
+              onCancel={cancel}
+              onPost={sendNote}
             />
             {problem}
           </div>
@@ -1579,7 +1533,6 @@ export function ReviewPage({ id }: { id: string }) {
       ? 'preview'
       : 'source'
   const [queueOpen, setQueueOpen] = React.useState(false)
-  const [finished, setFinished] = React.useState<Finished | null>(null)
   const [mainRef, wide] = useWide<HTMLDivElement>()
   // The queue keeps its column from 80rem of pane up; below that it folds to a slim rail, opened on request.
   const [roomyRef, roomy] = useWide<HTMLDivElement>(1280)
@@ -1591,29 +1544,28 @@ export function ReviewPage({ id }: { id: string }) {
     },
     [mainRef, roomyRef],
   )
-  const [returning, setReturningState] = React.useState(false)
   const [drafts, setDrafts] = React.useState<Record<string, JSONContent>>({})
-  // One send state for the panel and the phone bar; a new item starts clean.
-  const sender = useSend()
-  const [sentFor, setSentFor] = React.useState(id)
-  if (sentFor !== id) {
-    setSentFor(id)
-    sender.reset()
-  }
+  // One decision for the panel and the phone bar; a new suggestion starts clean.
+  const online = useOnline()
+  const [flow, step] = React.useReducer(
+    (s: DecisionState<Finished>, e: DecisionEvent<Finished>) => decide(s, e),
+    id,
+    (first): DecisionState<Finished> => idle(first),
+  )
+  if (flow.id !== id) step({ type: 'open', id })
+  const finished = flow.kind === 'done' ? flow.done : null
+  const returning = writingReturn(flow)
+  const returnNote = React.useRef<JSONContent | null>(null)
+  const openId = React.useRef(id)
+  React.useEffect(() => {
+    openId.current = id
+  }, [id])
   const reduced = useReducedMotion()
   // After a decision: a short hold with Undo, then the next suggestion. A key skips it, the pointer
   // or focus on the outcome pauses it, and with reduced motion it waits for Next.
   const hold = React.useRef({ timer: 0, left: 0, since: 0 })
   const [paused, setPaused] = React.useState(false)
   React.useEffect(() => () => window.clearTimeout(hold.current.timer), [])
-  // Returning from the phone's bar opens the note where the decision is written.
-  const setReturning = (v: boolean) => {
-    setReturningState(v)
-    if (v)
-      requestAnimationFrame(() =>
-        document.getElementById('decision')?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-      )
-  }
   // The owner's answers to a clash, over the ones the service already has.
   const [chosen, setChosen] = React.useState<Record<string, Relation>>({})
   const answers = React.useMemo(
@@ -1675,11 +1627,11 @@ export function ReviewPage({ id }: { id: string }) {
     hold.current.timer = 0
     const f = finishedRef.current
     setPaused(false)
-    setFinished(null)
+    step({ type: 'finish' })
     if (f?.next) go(f.next)
     // The last one: the review says everything is handled, here, with Undo, instead of leaving.
     else if (f) setAllDone(f)
-  }, [go])
+  }, [go, step])
   const wait = (ms: number) => {
     hold.current = { timer: window.setTimeout(moveOn, ms), left: ms, since: Date.now() }
   }
@@ -1714,13 +1666,13 @@ export function ReviewPage({ id }: { id: string }) {
         e.key !== ' '
       )
         return moveOn()
-      if (e.key === 'Escape') return returning ? setReturningState(false) : leave()
+      if (e.key === 'Escape') return returning ? step({ type: 'cancel' }) : leave()
       if (e.key === 'j' && at < reviews.length - 1) go(reviews[at + 1]!.id)
       if (e.key === 'k' && at > 0) go(reviews[at - 1]!.id)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [at, go, leave, returning, finished, moveOn, reviews])
+  }, [at, go, leave, returning, finished, moveOn, reviews, step])
 
   if (!r) {
     // An old link: say why it is empty, and offer the next suggestion that still waits.
@@ -1747,15 +1699,86 @@ export function ReviewPage({ id }: { id: string }) {
 
   // A decision shows what it did in place for a moment, with Undo, then the next suggestion opens.
   const onDone = (f: Finished) => {
+    // The person moved on while it was sending: the write stands, the outcome is not for this screen.
+    if (openId.current !== r.id) return
     focusChange()
     const next =
       reviews.find((x, i) => i > at && !state.done[x.id]) ??
       reviews.find((x) => x.id !== r.id && !state.done[x.id])
-    setFinished({ ...f, next: next?.id })
+    step({ type: 'ok', id: r.id, done: { ...f, next: next?.id } })
     setPaused(false)
     window.clearTimeout(hold.current.timer)
     hold.current.timer = 0
     if (!reduced) wait(2600)
+  }
+  const onDraft = (d: JSONContent | null) =>
+    setDrafts((all) => {
+      const { [r.id]: _, ...rest } = all
+      return d ? { ...rest, [r.id]: d } : rest
+    })
+  const first = r.from.split(' ')[0]
+  // What each action writes, and what it says it did.
+  const commits: Record<ReviewAction, () => Promise<Finished>> = {
+    publish: async () => {
+      const { undo } = await write('publishReview', {
+        id: r.id,
+        ...(r.clash ? { relations: answers } : {}),
+        saveQuestion: savesQuestion(r.id),
+      })
+      return {
+        undo,
+        outcome: 'Published',
+        message: 'Published',
+        description: publishedWords(r, answers),
+        now: r.tryIt.after.text,
+      }
+    },
+    archive: async () => {
+      const { undo } = await write('archiveReview', { id: r.id })
+      return {
+        undo,
+        outcome: 'Archived',
+        message: 'Archived',
+        description: 'Agents stop getting it from the next question.',
+      }
+    },
+    // A withdrawn retirement closes: nothing changes, and the context item stays live.
+    close: async () => {
+      const { undo } = await write('closeReview', { id: r.id })
+      return {
+        undo,
+        outcome: 'Closed',
+        message: 'Closed',
+        description: 'Nothing changes: the context item stays live.',
+      }
+    },
+    return: async () => {
+      const note = returnNote.current!
+      // The note becomes the first comment; if the return fails, it stays in the editor.
+      const { undo } = await write('returnReview', { id: r.id, note })
+      onDraft(null)
+      return {
+        undo,
+        outcome: 'Returned',
+        message: `Returned to ${r.from}`,
+        description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
+        // Undo takes the note back out of the comments and keeps it as a draft.
+        afterUndo: () => onDraft(note),
+      }
+    },
+  }
+  const actions = actionsOf(r, answers)
+  // One way to start a write, whichever panel asked: the reducer says whether it may, and holds
+  // the action, so a failure is retried as itself.
+  const send = (
+    event: Extract<DecisionEvent<Finished>, { type: 'press' | 'retry' }>,
+    action: ReviewAction,
+  ) => {
+    if (!online || decide(flow, event) === flow) return
+    step(event)
+    commits[action]().then(onDone, (error: unknown) =>
+      step({ type: 'error', id: r.id, reason: reasonOf(toApiError(error)) }),
+    )
   }
   const undo = () => {
     window.clearTimeout(hold.current.timer)
@@ -1765,8 +1788,7 @@ export function ReviewPage({ id }: { id: string }) {
       void write('undo', { token: finished.undo })
       finished.afterUndo?.()
     }
-    setFinished(null)
-    setReturning(false)
+    step({ type: 'finish' })
   }
   const undoLast = () => {
     if (!allDone) return
@@ -1775,21 +1797,33 @@ export function ReviewPage({ id }: { id: string }) {
     setAllDone(null)
     focusChange()
   }
-  const onDraft = (d: JSONContent | null) =>
-    setDrafts((all) => {
-      const { [r.id]: _, ...rest } = all
-      return d ? { ...rest, [r.id]: d } : rest
-    })
   const decision = {
     r,
-    onDone,
-    finished,
+    flow,
+    actions,
+    online,
+    ask: (action: 'archive' | 'return') => {
+      const asked: DecisionEvent<Finished> = { type: 'ask', action, actions }
+      if (decide(flow, asked) === flow) return
+      step(asked)
+      // Returning from the phone's bar opens the note where the decision is written.
+      if (action === 'return')
+        requestAnimationFrame(() =>
+          document
+            .getElementById('decision')
+            ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+        )
+    },
+    cancel: () => step({ type: 'cancel' }),
+    press: (action: ReviewAction) => send({ type: 'press', action, actions }, action),
+    sendNote: (note: JSONContent) => {
+      returnNote.current = note
+      send({ type: 'press', action: 'return', actions }, 'return')
+    },
+    retry: () => flow.kind === 'failed' && send({ type: 'retry', actions }, flow.action),
     onUndo: undo,
-    returning,
-    setReturning,
     draft: drafts[r.id],
     onDraft,
-    sender,
     paused,
     reduced,
     onNext: moveOn,
@@ -1818,7 +1852,7 @@ export function ReviewPage({ id }: { id: string }) {
     <>
       {threadsSummary}
       <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
-      <Decision key={`d-${r.id}`} {...decision} />
+      <Decision key={`d-${r.id}`} {...decision} barBelow={isMobile} />
     </>
   )
 
@@ -2003,7 +2037,7 @@ export function ReviewPage({ id }: { id: string }) {
               {/* The shared panel: Try it scrolls in the body; the decision stays in reach as the footer. */}
               <Panel
                 title="Try it and decide"
-                footer={<Decision key={`d-${r.id}`} {...decision} />}
+                footer={<Decision key={`d-${r.id}`} {...decision} barBelow={isMobile} />}
               >
                 {threadsSummary}
                 <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
