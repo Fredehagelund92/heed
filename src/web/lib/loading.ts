@@ -51,6 +51,14 @@ export function useDelayedBusy(busy: boolean, after = SHOW_AFTER, hold = HOLD_AT
 }
 
 /**
+ * Runs `then` once the next frame is drawn, so what a press changed is on the screen before slower
+ * work starts. Not for motion: nothing moves frame by frame.
+ */
+export function afterDrawn(then: () => void) {
+  requestAnimationFrame(() => setTimeout(then))
+}
+
+/**
  * Inside a region that loaded after a wait the person saw (Loadable showed its skeleton): true.
  * Only then may a chart grow in; a fast load, a revisit or a filter shows it as it is.
  */

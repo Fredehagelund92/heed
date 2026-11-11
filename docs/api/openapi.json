@@ -90024,9 +90024,16 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up"
                           ],
                           "type": "string"
+                        },
+                        "dates": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
@@ -90150,6 +90157,9 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "snapshot": {
+                          "type": "boolean"
                         },
                         "asOf": {
                           "type": "string"
@@ -90742,6 +90752,7 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up",
                             "no_measure"
                           ],
@@ -91936,7 +91947,7 @@
                             "meanings": {
                               "type": "array",
                               "minItems": 2,
-                              "maxItems": 8,
+                              "maxItems": 100,
                               "items": {
                                 "type": "object",
                                 "properties": {
@@ -92022,7 +92033,7 @@
                                   "meanings": {
                                     "type": "array",
                                     "minItems": 2,
-                                    "maxItems": 8,
+                                    "maxItems": 100,
                                     "items": {
                                       "type": "object",
                                       "properties": {
@@ -93723,7 +93734,7 @@
                                         "meanings": {
                                           "type": "array",
                                           "minItems": 2,
-                                          "maxItems": 8,
+                                          "maxItems": 100,
                                           "items": {
                                             "type": "object",
                                             "properties": {
@@ -93809,7 +93820,7 @@
                                               "meanings": {
                                                 "type": "array",
                                                 "minItems": 2,
-                                                "maxItems": 8,
+                                                "maxItems": 100,
                                                 "items": {
                                                   "type": "object",
                                                   "properties": {
@@ -99826,6 +99837,9 @@
                           "values": {
                             "type": "number"
                           },
+                          "valuesAsked": {
+                            "type": "number"
+                          },
                           "asked": {
                             "anyOf": [
                               {
@@ -99864,6 +99878,7 @@
                           "key",
                           "name",
                           "values",
+                          "valuesAsked",
                           "asked"
                         ]
                       }

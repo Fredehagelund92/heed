@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ObsDimension, ObsFilterView } from '@/api/client'
-import { obsValuesQuery } from '@/api/queries'
+import { dimensionValuesQuery } from '@/api/queries'
 import { PinIcon, PinOffIcon, SearchIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ import { CountUp } from '@/components/heed/count-up'
 import { Swatch } from '@/components/obs/charts'
 import type { Field } from '@/components/obs/filter-bar'
 import { countOf } from '@/components/obs/filter-picker'
+import { useDelayedBusy } from '@/lib/loading'
 import { useDebounced } from '@/lib/mentions'
 import { nameOf, rememberNames } from '@/lib/obs-names'
 import {
@@ -384,14 +385,7 @@ function DimensionFacet({
   const key = d.key as DimKey
   const q = useDebounced(find)
   const read = useQuery({
-    // Counted without its own filter, so a tick reads nothing again.
-    ...obsValuesQuery({
-      ...view,
-      filters: view.filters.filter((f) => f.key !== key),
-      dimension: key,
-      q,
-      sort: 'asked',
-    }),
+    ...dimensionValuesQuery(view, key, q),
     placeholderData: (last, was) =>
       (was?.queryKey[1] as { dimension?: string } | undefined)?.dimension === key
         ? last
@@ -401,6 +395,15 @@ function DimensionFacet({
   const group = read.data?.groups[0]
   rememberNames([d, ...(group?.values ?? [])])
   const chip = chipOf(chips, key)
+  // Read for the first time, its rows keep their places from the first frame (skeletons once the
+  // read has taken 150 ms), and the facet keeps that height when fewer values come: nothing under
+  // it moves.
+  const [places] = React.useState(() => {
+    if (!read.isPending) return 0
+    const n = d.valuesAsked
+    return Math.max(1, chip?.values.length ?? 0, Math.min(FIRST, n)) + (n > FIRST ? 1 : 0)
+  })
+  const busy = useDelayedBusy(read.isPending)
   const read50 = group?.values ?? []
   // The values chosen come first, those the page lists and those it does not (from a link, or
   // fewer asks than its 50), then the most asked.
@@ -420,6 +423,9 @@ function DimensionFacet({
   ]
   const list = all || find ? values : values.slice(0, Math.max(FIRST, chosen.length))
   const max = Math.max(1, ...values.map((v) => facetSize(countOf(v.asked))))
+  const more = !all && !find && values.length > list.length
+  const room =
+    find || read.isPending ? 0 : places - (values.length ? list.length : 1) - (more ? 1 : 0)
   if (find && read.data && !values.length) return null
   return (
     <section aria-label={label ?? d.name} className="border-t border-border/60 px-3 py-2">
@@ -446,11 +452,7 @@ function DimensionFacet({
         </span>
       </h3>
       {read.isPending ? (
-        <div aria-hidden className="flex flex-col gap-2 py-1.5">
-          {[70, 55, 62].map((w) => (
-            <Skeleton key={w} className="h-3" style={{ width: `${w}%` }} />
-          ))}
-        </div>
+        <FacetPlaces rows={places || 3} shown={busy} />
       ) : read.isError ? (
         <p className="py-1 text-xs text-muted-foreground">
           Couldn’t load the values of {d.name}.{' '}
@@ -464,7 +466,7 @@ function DimensionFacet({
           </Button>
         </p>
       ) : !values.length ? (
-        <p className="py-1 text-xs text-muted-foreground">
+        <p className="flex min-h-7 items-center text-xs text-muted-foreground pointer-coarse:min-h-11">
           {d.values ? 'No value asked about in this range.' : 'No values from the definitions.'}
         </p>
       ) : (
@@ -509,7 +511,7 @@ function DimensionFacet({
           })}
         </ul>
       )}
-      {!all && !find && values.length > list.length && (
+      {more && (
         <ShowMoreButton
           more={values.length - list.length}
           next={values.length - list.length}
@@ -517,6 +519,7 @@ function DimensionFacet({
           className="-ml-2 h-7 w-fit text-xs"
         />
       )}
+      {room > 0 && <FacetPlaces rows={room} shown={false} />}
       {(all || find) && group?.nextCursor && (
         <p className="pt-1 text-xs text-muted-foreground">
           {(group.matched - values.length).toLocaleString('en-GB')} more, fewer asks each: find one
@@ -524,6 +527,20 @@ function DimensionFacet({
         </p>
       )}
     </section>
+  )
+}
+
+/** A facet's rows while its values load, at their own height; not shown, they only keep the room. */
+function FacetPlaces({ rows, shown }: { rows: number; shown: boolean }) {
+  return (
+    <div aria-hidden className={cn('flex flex-col', !shown && 'invisible')}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex h-7 items-center gap-2 pointer-coarse:h-11">
+          <Skeleton className="size-4 rounded-sm" />
+          <Skeleton className="h-3" style={{ width: `${[70, 55, 62, 48, 66, 58][i % 6]}%` }} />
+        </div>
+      ))}
+    </div>
   )
 }
 

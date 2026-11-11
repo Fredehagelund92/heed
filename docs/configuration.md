@@ -64,6 +64,7 @@ With `live`, each role's provider and model come from the `models.*` settings, a
 | `CUBE_MODEL_DIR`               | None    | A folder of Cube model files. Unset, the service reads two invented definitions, or in the image outside production, the demo model |
 | `HEED_DOMAIN_OVERRIDES`        | None    | A JSON file: view to domain, for what the model leaves unnamed                                                                      |
 | `CUBE_RENAMES_FILE`            | None    | A JSON file of renamed members, old id to new id                                                                                    |
+| `HEED_FIGURE_OVERRIDES`        | None    | A JSON file of [figure settings](connectors/cube.md#figure-settings-on-the-server), for what the model leaves unsaid                |
 | `CUBE_COMPILE_TIMEOUT_SECONDS` | `120`   | How long Cube's compiler may take                                                                                                   |
 | `CUBE_COMPILE_MEMORY_MB`       | `1024`  | The memory Cube's compiler may use                                                                                                  |
 | `HEED_SERVER_FOLDERS`          | None    | A JSON object of connector ids to folders on the server                                                                             |

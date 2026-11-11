@@ -20,5 +20,8 @@ describe('the words for a try that failed', () => {
   it('names the tool where the tool did it', () => {
     expect(tryFailureWords('unauthorized', 'Cube').title).toBe('Cube refused the token')
     expect(tryFailureWords('timed_out', 'Cube').title).toBe('No answer within 4 seconds')
+    expect(tryFailureWords('not_allowed', 'Cube').title).toBe(
+      "Cube doesn't let the token read this measure",
+    )
   })
 })

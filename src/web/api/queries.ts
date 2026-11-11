@@ -352,6 +352,24 @@ export const obsValuesQuery = (input: ObsValuesInput) =>
     queryFn: () => api.obsValues(input),
   })
 
+/**
+ * A dimension's first page of values, counted without its own filter (so a tick reads nothing
+ * again): one read for its facet and the picker's step, so whichever opens second has them at once.
+ */
+export const dimensionValuesQuery = (
+  view: ObsFilterView,
+  dimension: string,
+  q = '',
+  sort: ObsValuesInput['sort'] = 'asked',
+) =>
+  obsValuesQuery({
+    ...view,
+    filters: view.filters.filter((f) => f.key !== dimension),
+    dimension,
+    q,
+    sort,
+  })
+
 export const replayQuery = (topic: string, when: 'now' | 'before') =>
   queryOptions({
     queryKey: queryKeys.replay(topic, when),

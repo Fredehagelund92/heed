@@ -20,10 +20,12 @@ export const CHAT_SOURCES = 10
 export const EARLIER_SOURCES = 3
 /** The longest a turn's line of what it was read as, or of what it answered, may be. */
 export const CHAT_LINE = 200
-/** The most meanings a word Ask asks about names: one sentence can say no more. */
-export const HELD_MEANINGS = 8
 /** The most metrics, or values of one dimension, or other words, a held reading keeps. */
 export const CHAT_HELD_KEYS = 100
+/** The most meanings a word Ask asks about keeps, so a person may choose any of them. */
+export const HELD_MEANINGS = CHAT_HELD_KEYS
+/** The most meanings Ask's question names: one sentence can say no more, and counts the rest. */
+export const SAID_MEANINGS = 8
 /** The most characters a chat's turns may hold together; one turn at its largest always fits. */
 export const CHAT_CHARS = 4_000
 /** The longest of Ask's earlier replies the browser sends its loop back, and the most reads of one turn. */

@@ -1,4 +1,6 @@
+import { readFile } from 'node:fs/promises'
 import { ORPCError } from '@orpc/client'
+import * as z from 'zod'
 import type {
   DataContact,
   FigureRead,
@@ -11,7 +13,11 @@ import type {
   TryFigureInput,
 } from '../../../contract/figures.ts'
 import { noSecretStoreWords } from '../../../domain/connector-config.ts'
-import type { FigureQuery, FigureResult } from '../../../domain/connector-runtime.ts'
+import type {
+  FigureQuery,
+  FigureResult,
+  FigureSettings,
+} from '../../../domain/connector-runtime.ts'
 import { comparisonDays, queryWords, type Days } from '../../../domain/figures.ts'
 import { memberName } from '../../../domain/term-candidates.ts'
 import { shiftDate } from '../../../domain/validity.ts'
@@ -35,6 +41,11 @@ import type { TransactionHooks } from './workspace.ts'
   values. The read has 4 seconds, its result is kept a minute in this process so a busy Ask asks
   once, and nothing of it is written anywhere. No person's identity is passed on: the token is the
   integration's own (CON-406).
+
+  The days apply to one of the view's dates: its only one, or, with several, the one the tool's
+  model names, else the one the server's figure settings name (`HEED_FIGURE_OVERRIDES`, a JSON file
+  read when the service starts, by source and then by view or measure). With several and none
+  named, there is no figure, and the answer lists the dates rather than pick one.
 
   Try a figure reads one figure the same way, with the settings as they are saved and whether
   figures are on or off, so an administrator sees the endpoint and its token work before anyone
@@ -85,17 +96,70 @@ const originOf = (endpoint: string | undefined) =>
 /** A cached figure: what the tool said for the days and the days before, until it expires. */
 type Cached = { until: number; result: [FigureResult, FigureResult | null] }
 
+const figureSettingsSchema = z.strictObject({
+  /** The date the days apply to, by its name in the view (`order_day`) or in full. */
+  date: z.string().min(1).max(500).optional(),
+  /** False for a measure that does not add up over days: it is read on the last day only. */
+  additive: z.boolean().optional(),
+  /** How the value is written: money, a share (0.25 for 25%), or a number. */
+  format: z.enum(['currency', 'percent', 'number']).optional(),
+  /** The currency of money, as ISO 4217 writes it: `EUR`. */
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+})
+
+/**
+ * The server's figure settings (`HEED_FIGURE_OVERRIDES`): by source id, then by view (`orders`)
+ * or measure (`orders.revenue`), what the tool's model leaves unsaid. A measure's own win.
+ */
+export const figureOverridesSchema = z.record(
+  z.string(),
+  z.record(z.string(), figureSettingsSchema),
+)
+export type FigureOverrides = z.infer<typeof figureOverridesSchema>
+
+/** The server's figure settings file, read and checked; a file that is not one stops the start. */
+export async function readFigureOverrides(file: string): Promise<FigureOverrides> {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(await readFile(file, 'utf8'))
+  } catch {
+    throw new Error(`HEED_FIGURE_OVERRIDES: ${file} is not a JSON file that can be read.`)
+  }
+  const checked = figureOverridesSchema.safeParse(parsed)
+  if (!checked.success)
+    throw new Error(
+      `HEED_FIGURE_OVERRIDES: ${file} is not by source, then by view or measure, of known settings.`,
+    )
+  return checked.data
+}
+
 export function createFigureSources({
   secrets,
   connectors,
+  overrides = {},
   now = () => new Date(),
 }: {
   secrets: SecretStore
   /** The connectors the registry holds: those that read figures are found here by a source's type. */
   connectors: () => readonly RegisteredConnector[]
+  /** The server's figure settings, by source, then by view or measure. */
+  overrides?: FigureOverrides
   now?: () => Date
 }) {
   const cache = new Map<string, Cached>()
+  /** What the server's settings say of a source's measure: its view's, then its own. */
+  const settingsOf = (source: string, metric: string): FigureSettings | null => {
+    const set = Object.hasOwn(overrides, source) ? overrides[source]! : {}
+    const view = metric.slice(0, Math.max(metric.lastIndexOf('.'), 0))
+    const merged = {
+      ...(Object.hasOwn(set, view) ? set[view] : {}),
+      ...(Object.hasOwn(set, metric) ? set[metric] : {}),
+    }
+    return Object.keys(merged).length ? merged : null
+  }
   const capable = (type: string) =>
     connectors().find((c) => c.manifest.id === type && c.figure !== undefined)
 
@@ -336,9 +400,16 @@ export function createFigureSources({
       const days: Days = { from: shiftDate(today, 1 - TRY_DAYS), to: today }
       const started = performance.now()
       try {
+        const overridden = settingsOf(row.id, measure.name)
         const figure = await capable(row.type)!.figure!(
           { endpoint: settings.endpoint, token },
-          { metric: measure.name, date: measure.date, ...days, filters: [] },
+          {
+            metric: measure.name,
+            dates: [measure.date],
+            ...days,
+            filters: [],
+            ...(overridden ? { settings: overridden } : {}),
+          },
           AbortSignal.timeout(FIGURE_TIMEOUT_MS),
         )
         return {
@@ -352,9 +423,14 @@ export function createFigureSources({
           took: Math.round(performance.now() - started),
         }
       } catch (error) {
-        if (error instanceof FigureReadError)
-          return { state: 'failed', source, failure: error.code }
-        throw error
+        if (!(error instanceof FigureReadError)) throw error
+        // A try reads a view of one date, so it never has several to choose from.
+        const { code } = error
+        return {
+          state: 'failed',
+          source,
+          failure: code === 'several_dates' ? 'invalid_output' : code,
+        }
       }
     },
 
@@ -419,14 +495,22 @@ export function createFigureSources({
         return { state: 'none', reason: 'failed', source, failure: 'not_set_up' }
       // The date and the dimensions come from the metric's own view in the tool.
       const view = definition.name.slice(0, Math.max(definition.name.lastIndexOf('.'), 0))
-      const members = await tx.query<{ ref: string; name: string; type: string | null }>(
-        `select d.ref, d.name, d.value_type as type from definitions d
+      const members = await tx.query<{
+        ref: string
+        name: string
+        title: string | null
+        baseName: string | null
+        type: string | null
+      }>(
+        `select d.ref, d.name, d.title, d.base_name as "baseName", d.value_type as type
+          from definitions d
           where d.connector_id = $1 and d.kind = 'dimension' and d.missing_since_snapshot is null
-            and d.visible_groups is null and starts_with(d.name, $2)`,
+            and d.visible_groups is null and starts_with(d.name, $2)
+          order by d.name collate "C"`,
         [row.id, `${view}.`],
       )
       const dates = members.filter((m) => m.type === 'time')
-      if (dates.length !== 1) return { state: 'none', reason: 'no_date', source }
+      if (!dates.length) return { state: 'none', reason: 'no_date', source }
       const filters: FigureQuery['filters'][number][] = []
       const named: string[] = []
       const byDimension = new Map<string, string[]>()
@@ -448,12 +532,14 @@ export function createFigureSources({
       }
       const days: Days = { from: input.from, to: input.to }
       const earlier = comparisonDays(days)
+      const overridden = settingsOf(row.id, definition.name)
       const query: FigureQuery = {
         metric: definition.name,
-        date: dates[0]!.name,
+        dates: dates.map((d) => d.name),
         from: days.from,
         to: days.to,
         filters,
+        ...(overridden ? { settings: overridden } : {}),
       }
       let figure: FigureResult
       let compared: FigureResult | null
@@ -466,11 +552,15 @@ export function createFigureSources({
           { ...query, from: earlier.from, to: earlier.to },
         )
       } catch (error) {
-        if (error instanceof FigureReadError)
-          return { state: 'none', reason: 'failed', source, failure: error.code }
-        throw error
+        if (!(error instanceof FigureReadError)) throw error
+        const { code } = error
+        // Several dates and none named: which ones, so someone can say which it is.
+        if (code === 'several_dates')
+          return { state: 'none', reason: 'no_date', source, dates: dates.map(memberName) }
+        return { state: 'none', reason: 'failed', source, failure: code }
       }
       if (figure.value === null) return { state: 'none', reason: 'no_value', source }
+      const date = dates.length > 1 ? dates.find((d) => d.name === figure.date) : undefined
       // A figure someone said doesn't fit a context item shows beside it while their report is
       // open: one the answer cites first, else the newest.
       const disputed = await tx.query<{ item_id: string }>(
@@ -486,6 +576,7 @@ export function createFigureSources({
         from: days.from,
         to: days.to,
         comparison: compared ? { value: compared.value, ...earlier } : null,
+        ...(figure.snapshot ? { snapshot: true } : {}),
         asOf: figure.asOf ?? now().toISOString(),
         queryInWords: queryWords({
           metric: metric.name,
@@ -493,6 +584,8 @@ export function createFigureSources({
           tool: source.tool,
           values: named,
           days,
+          ...(date ? { date: memberName(date) } : {}),
+          ...(figure.snapshot ? { snapshot: true } : {}),
         }),
         dataContact: contactOf(row),
         against: cited ? { itemId: cited.item_id } : null,

@@ -17,7 +17,8 @@ import { parse } from 'yaml'
   It answers as Cube does: the rows under `data`, numbers as strings, `lastRefreshTime`, and the
   measure's format and meta under `annotation`; a token it doesn't know with 401. It records every
   request, so a test can prove what reached it and that nothing named a person, and it can say
-  "Continue wait", answer slowly or fail, to test how a read takes it.
+  "Continue wait", answer slowly, fail, or hide a member from the token as an access policy does,
+  to test how a read takes it.
 */
 
 interface Member {
@@ -122,6 +123,8 @@ export async function cubeHost({
   let waits = 0
   let delayMs = 0
   let failures: number[] = []
+  /** Members the token may not read, as a model's access policy hides them. */
+  let hidden = new Set<string>()
 
   /** The views and their measures with how each is worked out, as `/v1/meta` answers. */
   const meta = () => {
@@ -217,6 +220,12 @@ export async function cubeHost({
       if (given !== token) return send(res, 401, { error: 'Invalid token' })
       // The model's views and their measures, as Cube's meta lists them.
       if (url.pathname === '/cubejs-api/v1/meta') return send(res, 200, meta())
+      // A member the access policy hides from the token, answered with Cube's own words.
+      const asked = (query as CubeQuery | null)?.measures?.find((m) => hidden.has(m))
+      if (asked)
+        return send(res, 500, {
+          error: `Error: You requested hidden member: '${asked}'. Please make it visible using \`public: true\`.`,
+        })
       const failure = failures.shift()
       if (failure !== undefined) return send(res, failure, { error: 'Planned failure' })
       if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs))
@@ -251,6 +260,10 @@ export async function cubeHost({
     /** The next loads fail with these statuses, one each. */
     fail(...statuses: number[]) {
       failures = [...statuses]
+    },
+    /** These members are hidden from the token, as a model's access policy hides them. */
+    hide(...names: string[]) {
+      hidden = new Set(names)
     },
     async close() {
       server.closeAllConnections()

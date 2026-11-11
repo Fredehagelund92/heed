@@ -233,7 +233,14 @@ export const sizeOf = (c: ShownSum) => c.total ?? c.atLeast
 /** A term as the picker lists it: a dimension, or a value of one. */
 export type ObsTerm = { key: string; name: string; aliases: readonly string[] }
 
-export type DimensionRow = { key: string; name: string; values: number; asked: TopicSum }
+export type DimensionRow = {
+  key: string
+  name: string
+  values: number
+  /** How many of its values were asked about: as many as its values' first step lists. */
+  valuesAsked: number
+  asked: TopicSum
+}
 
 const collator = new Intl.Collator('en', { sensitivity: 'base' })
 /** A to Z by name, whatever its case and accents; the key keeps two of one name apart. */
@@ -256,12 +263,17 @@ export function dimensionRows(
   const count = counter(view)
   const naming = byDimension(view.topics)
   return dimensions
-    .map((d) => ({
-      key: d.key,
-      name: d.name,
-      values: valuesOf.get(d.key)?.length ?? 0,
-      asked: count.asked((naming.get(d.key) ?? []).filter((t) => passes(t, filters, d.key))),
-    }))
+    .map((d) => {
+      const mine = (naming.get(d.key) ?? []).filter((t) => passes(t, filters, d.key))
+      const own = new Set((valuesOf.get(d.key) ?? []).map((v) => v.key))
+      return {
+        key: d.key,
+        name: d.name,
+        values: valuesOf.get(d.key)?.length ?? 0,
+        valuesAsked: new Set(mine.flatMap((t) => t.values).filter((v) => own.has(v))).size,
+        asked: count.asked(mine),
+      }
+    })
     .sort(bySize)
 }
 

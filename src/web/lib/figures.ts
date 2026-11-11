@@ -66,6 +66,11 @@ export function tryFailureWords(
       }
     case 'rate_limited':
       return { title: `${tool} asked to slow down`, fix: 'Try again in a minute.' }
+    case 'not_allowed':
+      return {
+        title: `${tool} doesn't let the token read this measure`,
+        fix: `Its model's access rules hide it from the token. Ask the data team to allow it, or set a token that may read it.`,
+      }
     case 'unreachable':
       return {
         title: `Couldn't reach ${tool}`,

@@ -303,7 +303,7 @@ export function routeHeld(
       : null
   if (previous?.held && chosen) {
     const next = settled(previous.held, chosen, bundle.terms, today)
-    if (next.kind === 'ask') return askedWhich(next.held)
+    if (next.kind === 'ask') return askedWhich(next.held, bundle)
     if (next.kind === 'nothing')
       return {
         kind: 'reply' as const,
@@ -316,7 +316,7 @@ export function routeHeld(
       today,
       previous,
       turns,
-      settled: { also: contestedAlso(next.word, next.others) },
+      settled: { also: contestedAlso(next.word, next.others, bundle) },
       ...(c.clock ? { now: c.clock } : {}),
     })
     return {
@@ -340,13 +340,16 @@ export function routeHeld(
   if (!held) return null
   const context = planContextOf(bundle, ask.question, turns, { today, now: c.now })
   const open = scoped ? null : leftOpen(context)
-  return askedWhich({
-    ...held,
-    ...(asksWhy(ask.question) ? { why: true } : {}),
-    ...(asksDefinition(ask.question) ? { defines: true } : {}),
-    filters: { ...open?.filters, ...held.filters },
-    window: held.window ?? open?.window ?? null,
-  })
+  return askedWhich(
+    {
+      ...held,
+      ...(asksWhy(ask.question) ? { why: true } : {}),
+      ...(asksDefinition(ask.question) ? { defines: true } : {}),
+      filters: { ...open?.filters, ...held.filters },
+      window: held.window ?? open?.window ?? null,
+    },
+    bundle,
+  )
 }
 
 /**
@@ -517,9 +520,9 @@ function withRulesFacets(ask: RecordsAsk, rules: RecordsRecognition | null): Rec
 }
 
 /** One plain question about a word's meanings, from the fixed rules: nothing looked up, no model. */
-const askedWhich = (held: HeldReading) => ({
+const askedWhich = (held: HeldReading, bundle: RouteBundle) => ({
   kind: 'reply' as const,
-  reply: { kind: 'clarify' as const, text: contestedQuestion(held), held },
+  reply: { kind: 'clarify' as const, text: contestedQuestion(held, bundle), held },
   reason: null,
   asked: false,
 })
