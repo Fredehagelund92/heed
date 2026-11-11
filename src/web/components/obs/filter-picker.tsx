@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { meets, searchable, type TopicSum, type ValueGroup } from '@domain/obs-filters'
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { meets, searchable, VALUE_PAGE, type TopicSum, type ValueGroup } from '@domain/obs-filters'
 import { api } from '@/api'
 import type { ObsDimension, ObsFilterView } from '@/api/client'
-import { obsDimensionsQuery, obsValuesQuery } from '@/api/queries'
+import { dimensionValuesQuery, obsDimensionsQuery, obsValuesQuery } from '@/api/queries'
 import {
   BotIcon,
   CalendarIcon,
@@ -84,6 +84,8 @@ const GROUPS = 4
 const NAMES = 5
 /** How long a later read waits before its spinner shows, in ms. */
 const SPIN_AFTER = 1000
+/** The most rows a step keeps a place for while its values load: more than the list shows. */
+const KEEP_AT_MOST = 12
 
 export type PickerProps = {
   chips: Filters
@@ -136,6 +138,8 @@ type Section = {
   rows: Row[]
   /** Said under the rows: what matched but was not asked about, or why nothing shows. */
   note?: React.ReactNode
+  /** Rows of places under the rows: skeletons while busy, else room the list keeps. */
+  keep?: number
   busy?: boolean
 }
 
@@ -232,6 +236,9 @@ function PickerBody({
   const [sortDims, setSortDims] = React.useState<Sort>('asked')
   const [sortValues, setSortValues] = React.useState<Sort>('asked')
   const [allGroups, setAllGroups] = React.useState(false)
+  // The rows a dimension's step holds a place for while its first read is on its way: its values
+  // take those places, and the list keeps its height when they are fewer, so nothing moves.
+  const [kept, setKept] = React.useState<{ key: FilterKey; rows: number } | null>(null)
   const ids = React.useId()
   const listId = `${ids}-list`
   const list = React.useRef<HTMLDivElement>(null)
@@ -254,6 +261,7 @@ function PickerBody({
     setText(words)
     setActive(0)
     setAllGroups(false)
+    setKept(null)
     if (list.current) list.current.scrollTop = 0
     if (next && next !== 'all')
       setSaid(`${keyWords(next)}: choose its values. Backspace goes back.`)
@@ -275,26 +283,30 @@ function PickerBody({
 
   const valueStep = step && step !== 'all' ? step : null
 
-  // One dimension's values: the service's, a page at a time.
+  // One dimension's values: the service's, a page at a time. The first page is the read its facet
+  // makes, so a dimension the facets (or an earlier step) read opens with its values in the same
+  // frame, never an empty step first.
   const stepDimension = valueStep && isDim(valueStep) ? valueStep : undefined
-  // A dimension's values are counted without its own filter, so a tick reads nothing again.
-  const valueInput = {
-    ...view,
-    filters: view.filters.filter((f) => f.key !== stepDimension),
-    dimension: stepDimension,
-    q,
-    sort: sortValues,
-  }
+  const client = useQueryClient()
+  const firstPage = dimensionValuesQuery(view, stepDimension ?? '', q, sortValues)
+  const valueInput = firstPage.queryKey[1]
   const pages = useInfiniteQuery({
-    queryKey: [...obsValuesQuery(valueInput).queryKey, 'pages'],
+    queryKey: [...firstPage.queryKey, 'pages'],
     queryFn: ({ pageParam }) =>
-      api.obsValues({ ...valueInput, ...(pageParam ? { cursor: pageParam } : {}) }),
+      pageParam
+        ? api.obsValues({ ...valueInput, cursor: pageParam })
+        : client.fetchQuery(firstPage),
+    initialData: () => {
+      const read = client.getQueryData(firstPage.queryKey)
+      return read && { pages: [read], pageParams: [''] }
+    },
+    initialDataUpdatedAt: () => client.getQueryState(firstPage.queryKey)?.dataUpdatedAt,
     initialPageParam: '',
     getNextPageParam: (last) => last.groups[0]?.nextCursor ?? undefined,
-    enabled: !!valueInput.dimension,
+    enabled: !!stepDimension,
     // Another search or order of the same dimension keeps its rows until the next has loaded.
     placeholderData: (last, was) =>
-      (was?.queryKey[1] as { dimension?: string } | undefined)?.dimension === valueInput.dimension
+      (was?.queryKey[1] as { dimension?: string } | undefined)?.dimension === stepDimension
         ? last
         : undefined,
   })
@@ -304,12 +316,15 @@ function PickerBody({
     enabled: step === null && searchable(q),
     placeholderData: keepPreviousData,
   })
+  if (stepDimension && !pages.data) {
+    const rows = placesFor(dimOf(stepDimension))
+    if (kept?.key !== stepDimension || kept.rows !== rows) setKept({ key: stepDimension, rows })
+  }
   const firstLook = useDelayedBusy(
-    (!!valueInput.dimension && pages.isPending) ||
-      (step === null && searchable(q) && search.isPending),
+    (!!stepDimension && pages.isPending) || (step === null && searchable(q) && search.isPending),
   )
   const slow = useAfter(
-    (!!valueInput.dimension && pages.isFetching && !pages.isFetchingNextPage) ||
+    (!!stepDimension && pages.isFetching && !pages.isFetchingNextPage) ||
       (step === null && search.isFetching) ||
       typed !== debounced,
     SPIN_AFTER,
@@ -590,7 +605,6 @@ function PickerBody({
       out.push({
         id: 'values',
         rows: rest,
-        busy: firstLook && !found,
         note: search.isError ? (
           <Retry what="the values" onRetry={() => void search.refetch()} />
         ) : found?.notAsked ? (
@@ -685,12 +699,14 @@ function PickerBody({
           },
         ],
       })
-    if (group)
-      tools = sorting(
-        q
+    // The bar is there from the first frame, its count once read, so the rows never move down.
+    tools = sorting(
+      !group
+        ? ''
+        : q
           ? plural(group.matched, 'match', 'matches')
           : `${group.matched.toLocaleString('en-GB')} asked about in ${days} days${d?.values ? ` of ${d.values.toLocaleString('en-GB')}` : ''}`,
-      )
+    )
     const more = group ? group.matched - loaded.length : 0
     if (pages.hasNextPage && more > 0)
       rows.push({
@@ -699,26 +715,30 @@ function PickerBody({
         n: more,
         label: `Show ${plural(more, 'more value')}, fewer asks each`,
       })
+    const note = pages.isError ? (
+      <Retry what={`the values of ${keyWords(key)}`} onRetry={() => void pages.refetch()} />
+    ) : group && !rows.length ? (
+      <>
+        {q
+          ? `No value of ${keyWords(key)} matches “${q}” and was asked about in ${days} days.`
+          : d && !d.values
+            ? `${keyWords(key)} has no values from the definitions, so only Any value can be chosen.`
+            : `No agent asked about a value of ${keyWords(key)} in ${days} days.`}
+        {group.notAsked > 0 &&
+          ` ${plural(group.notAsked, 'value')} ${group.notAsked === 1 ? 'matches' : 'match'}, but no agent asked about ${group.notAsked === 1 ? 'it' : 'them'}.`}
+      </>
+    ) : group?.notAsked && q ? (
+      `${plural(group.notAsked, 'more value')} ${group.notAsked === 1 ? 'matches' : 'match'}, but no agent asked about ${group.notAsked === 1 ? 'it' : 'them'} in ${days} days.`
+    ) : undefined
+    // The places kept for the values while they load, and those they leave when fewer came.
+    const places = kept?.key === key && !q ? Math.min(KEEP_AT_MOST, kept.rows) : 0
     out.push({
       id: 'values',
       heading: undefined,
       rows,
+      keep: places - rows.length - (note ? 1 : 0),
       busy: firstLook && !pages.data,
-      note: pages.isError ? (
-        <Retry what={`the values of ${keyWords(key)}`} onRetry={() => void pages.refetch()} />
-      ) : group && !rows.length ? (
-        <>
-          {q
-            ? `No value of ${keyWords(key)} matches “${q}” and was asked about in ${days} days.`
-            : d && !d.values
-              ? `${keyWords(key)} has no values from the definitions, so only Any value can be chosen.`
-              : `No agent asked about a value of ${keyWords(key)} in ${days} days.`}
-          {group.notAsked > 0 &&
-            ` ${plural(group.notAsked, 'value')} ${group.notAsked === 1 ? 'matches' : 'match'}, but no agent asked about ${group.notAsked === 1 ? 'it' : 'them'}.`}
-        </>
-      ) : group?.notAsked && q ? (
-        `${plural(group.notAsked, 'more value')} ${group.notAsked === 1 ? 'matches' : 'match'}, but no agent asked about ${group.notAsked === 1 ? 'it' : 'them'} in ${days} days.`
-      ) : undefined,
+      note,
     })
     return out
   }
@@ -895,7 +915,7 @@ function PickerBody({
             phone && 'text-base',
           )}
         />
-        {slow && (
+        {(slow || (step === null && firstLook)) && (
           <LoaderCircleIcon
             role="img"
             aria-label="Loading"
@@ -949,7 +969,9 @@ function PickerBody({
                 />
               )
             })}
-            {s.busy && <SkeletonRows />}
+            {s.keep !== undefined
+              ? s.keep > 0 && <SkeletonRows rows={s.keep} shown={!!s.busy} phone={!!phone} />
+              : s.busy && <SkeletonRows phone={!!phone} />}
             {s.note && (
               <p role="presentation" className="px-2 py-2 text-xs text-muted-foreground">
                 {s.note}
@@ -973,6 +995,15 @@ function PickerBody({
 
 const optionId = (list: string, row: string) => `${list}-${row.replace(/[^\w-]/g, '_')}`
 const termOf = (d: ObsDimension) => ({ key: d.key, name: d.name, aliases: [] })
+
+/**
+ * The rows a dimension's step lists before it is read: a row for each value asked about, a page at
+ * most and "Show more" under it, or one line that says there are none.
+ */
+const placesFor = (d: ObsDimension | undefined) =>
+  d
+    ? Math.max(1, Math.min(d.valuesAsked, VALUE_PAGE) + (d.valuesAsked > VALUE_PAGE ? 1 : 0))
+    : WIDTHS.length
 
 /** Dimensions in order: the most asked first, or A to Z. */
 const order = <T extends ObsDimension>(list: T[], sort: Sort) =>
@@ -1059,14 +1090,33 @@ function Retry({ what, onRetry }: { what: string; onRetry: () => void }) {
   )
 }
 
-/** Rows of the list's own shape while its first read is on its way. */
-function SkeletonRows() {
+const WIDTHS = [70, 55, 80, 45, 62]
+
+/**
+ * Rows of the list's own shape, each an option's height, while its first read is on its way; not
+ * shown yet, they only keep the places, as nothing shows before 150 ms.
+ */
+function SkeletonRows({
+  rows = WIDTHS.length,
+  shown = true,
+  phone,
+}: {
+  rows?: number
+  shown?: boolean
+  phone: boolean
+}) {
   return (
-    <div aria-hidden className="flex flex-col">
-      {[70, 55, 80, 45, 62].map((w) => (
-        <div key={w} className="flex h-8 items-center gap-2 px-2">
+    <div aria-hidden className={cn('flex flex-col', !shown && 'invisible')}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className={cn(
+            'flex min-h-8 items-center gap-2 px-2 pointer-coarse:min-h-11',
+            phone && 'min-h-11',
+          )}
+        >
           <Skeleton className="size-4 rounded-sm" />
-          <Skeleton className="h-3" style={{ width: `${w}%` }} />
+          <Skeleton className="h-3" style={{ width: `${WIDTHS[i % WIDTHS.length]}%` }} />
         </div>
       ))}
     </div>

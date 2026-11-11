@@ -914,7 +914,8 @@ over its months) found nothing at least the minimum times.
 - `GET /observability/dimensions` (the filter's first step): `range`, `areaId`, `agent` and
   `filters`, as above. Every dimension of the definitions, and any other a topic of the range
   names, with `values`, how many values it has, the definitions' and any other a topic of the range
-  names (none: it is filtered by "any value" alone), and `asked`: the topics of the range that name it and pass every filter but its
+  names (none: it is filtered by "any value" alone), `valuesAsked`, how many of them were asked
+  about (as many as its values' first step lists as `matched`), and `asked`: the topics of the range that name it and pass every filter but its
   own, so its other values stay in sight, with what was asked about them. The most asked first,
   then A to Z; `asked` is null unless the range is counted (`state` `normal`). `pinned` lists the
   dimensions an admin pinned on Overview, in their order, as far as the definitions still have
