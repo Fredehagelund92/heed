@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { creationChannels } from './item.ts'
-import { proposalStates, type ProposalState } from './proposal-state.ts'
+import { proposalStates } from './proposal-state.ts'
 
 export const proposalActions = ['create', 'change', 'retire', 'recheck'] as const
 /**
@@ -55,17 +55,3 @@ export const proposalSchema = z
     ),
   )
 export type Proposal = z.infer<typeof proposalSchema>
-
-/** Proposal transitions from requirements section 4.2. */
-const transitions: Record<ProposalState, readonly ProposalState[]> = {
-  draft: ['submitted'],
-  submitted: ['in_review', 'accepted', 'changes_requested', 'rejected', 'withdrawn'],
-  in_review: ['accepted', 'changes_requested', 'rejected', 'withdrawn'],
-  changes_requested: ['submitted', 'withdrawn'],
-  accepted: [],
-  rejected: [],
-  withdrawn: [],
-}
-export function canTransitionProposal(from: ProposalState, to: ProposalState): boolean {
-  return transitions[from].includes(to)
-}
