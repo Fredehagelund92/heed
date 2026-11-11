@@ -5,13 +5,14 @@ import { dayWords, fullDayWords } from './dates.ts'
 import {
   answer,
   answerItemOf,
-  answerState,
+  uncoveredParts,
   type Answer,
   type AnswerBundle,
   type AnswerItem,
   type AnswerSource,
   type AnswerStep,
 } from './answer.ts'
+import { answerStateOf } from './answer-state.ts'
 import type { ItemKind } from './item.ts'
 import { canRead } from './links.ts'
 import { compareIds, metricsOf } from './resolver.ts'
@@ -219,24 +220,20 @@ function itemsAnswer(
   const ids = new Set(found.map((item) => item.id))
   const items: AnswerItem[] = found.map((item) => answerItemOf(item, null, ids, today))
   const looked = now()
-  // A metric asked that no item is about, or about every metric, is the part with nothing.
-  const covers = (item: AnswerSource, metric: string) =>
-    item.scope.metrics.length === 0 ||
-    item.scope.metrics.some((key) => key === metric || metricsOf(bundle, key).includes(metric))
-  const metrics = (scope?.metrics ?? []).flatMap((key) => {
-    const opened = metricsOf(bundle, key)
-    return opened.length ? opened : [key]
-  })
-  const uncovered = {
-    metrics: [...new Set(metrics)].filter((m) => !found.some((item) => covers(item, m))).sort(),
-    values: [...values],
-  }
+  const parts = scope
+    ? uncoveredParts(
+        bundle,
+        scope,
+        found.map((item) => ({ item, match: 'exact' as const })),
+      )
+    : { metrics: [], values: [] }
+  const uncovered = { metrics: parts.metrics, values: [...new Set([...parts.values, ...values])] }
   const status = !items.length
     ? 'no_match'
     : items.some((item) => item.conflictsWith.length)
       ? 'conflict'
       : 'matched'
-  const state = answerState({ status, given: items, uncovered, assumed: false })
+  const state = answerStateOf({ status, items, uncovered, assumed: false })
   const base = {
     edition: bundle.edition,
     overlay: bundle.overlay,

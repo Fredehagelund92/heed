@@ -6,6 +6,7 @@ import {
   type AnswerBundle,
   type AnswerStepName,
 } from '../../../src/domain/answer.ts'
+import { replyStatus, stateOfStatus } from '../../../src/domain/answer-state.ts'
 import { metricsOf, type EditionBundle, type ResolveRequest } from '../../../src/domain/resolver.ts'
 import { terms } from './fixtures.ts'
 import { oracle } from './oracle.ts'
@@ -110,11 +111,24 @@ it(
           expect(result.state === 'missing').toBe(result.items.length === 0)
           expect(result.state === 'conflict').toBe(expected.status === 'conflict')
           const covered = !result.uncovered.metrics.length && !result.uncovered.values.length
-          if (result.state === 'partial') expect(covered).toBe(false)
+          if (result.state === 'partial')
+            expect(
+              !covered ||
+                result.assumed !== null ||
+                result.items.every((item) => item.match === 'partial'),
+            ).toBe(true)
           if (result.state === 'stale')
             expect(covered && result.items.some((item) => item.unverified)).toBe(true)
           if (result.state === 'grounded')
             expect(covered && result.items.every((item) => !item.unverified)).toBe(true)
+          // get_context reads the state through replyStatus from the same facts: one rule.
+          const reply = replyStatus({
+            status: result.status,
+            items: result.items,
+            uncovered: result.uncovered,
+            assumed: result.assumed !== null,
+          })
+          expect(stateOfStatus(reply) ?? 'missing').toBe(result.state)
           for (const value of result.uncovered.values)
             expect(Object.values(scope.filters).flat()).toContain(value)
 

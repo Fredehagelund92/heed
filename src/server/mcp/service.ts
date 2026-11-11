@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { uncoveredParts } from '../../domain/answer.ts'
 import { replyStatus, stateOfStatus } from '../../domain/answer-state.ts'
 import { canonicalJson } from '../../domain/canonical.ts'
 import { noGroups } from '../../domain/item.ts'
@@ -796,20 +797,6 @@ export function createToolService(
         const domains = askedDomains(bundle, resolution.scope, concise)
         // The reply's status, which carries the answer state (FR-349), as the items stand after
         // any cut: get_facts keeps the resolver's.
-        // A value the question asks about, such as one of two markets, that no item given applies
-        // to: an item applies to it when it names no value of that dimension, or names it.
-        const uncovered = () =>
-          Object.entries(resolution.scope?.filters ?? {}).some(([dimension, values]) =>
-            values.some(
-              (value) =>
-                !items.some((item) => {
-                  const own = (index.item(item.id) as ServingItem).scope.dimensionValues.filter(
-                    (row) => row.dimension === dimension,
-                  )
-                  return !own.length || own.some((row) => row.value === value)
-                }),
-            ),
-          )
         const statusNow = () =>
           v1
             ? replyStatus({
@@ -818,7 +805,16 @@ export function createToolService(
                   match: item.match,
                   unverified: item.freshness === 'unverified',
                 })),
-                uncovered: uncovered(),
+                uncovered: resolution.scope
+                  ? uncoveredParts(
+                      bundle,
+                      resolution.scope,
+                      items.map((item) => ({
+                        item: index.item(item.id) as ServingItem,
+                        match: item.match,
+                      })),
+                    )
+                  : { metrics: [], values: [] },
                 assumed: !!assumed,
               })
             : resolution.status
