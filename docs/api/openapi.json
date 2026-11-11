@@ -63232,7 +63232,14 @@
                         }
                       },
                       "invitedBy": {
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "sentAt": {
                         "type": "string"
@@ -63594,7 +63601,14 @@
                                     }
                                   },
                                   "invitedBy": {
-                                    "type": "string"
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   },
                                   "sentAt": {
                                     "type": "string"
@@ -63679,7 +63693,14 @@
                                     }
                                   },
                                   "invitedBy": {
-                                    "type": "string"
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   },
                                   "sentAt": {
                                     "type": "string"
@@ -64027,7 +64048,14 @@
                           }
                         },
                         "invitedBy": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "sentAt": {
                           "type": "string"
