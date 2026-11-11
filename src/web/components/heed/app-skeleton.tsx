@@ -1,6 +1,4 @@
 import * as React from 'react'
-import { preload } from 'react-dom'
-import fontUrl from '@fontsource-variable/nunito-sans/files/nunito-sans-latin-wght-normal.woff2?url'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sidebar,
@@ -26,8 +24,9 @@ import { cn } from '@/lib/utils'
 // fetched as the app starts, so the first load stays small; App.tsx waits 150ms before it shows
 // one, by which time this code is in.
 
-// The skeleton draws no text, so without this the font is fetched only when the page arrives, and the page re-wraps once it lands.
-preload(fontUrl, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
+// The skeleton draws no text, so the app's font would only load once the page arrives, and the
+// page would draw in a fallback font and then re-wrap. Load it while the skeleton shows.
+void document.fonts.load('1em "Nunito Sans Variable"')
 
 /** The shapes: a review, an editor, Definitions' list, any other page, the documentation's home or a page. */
 export type Shape = 'review' | 'editor' | 'page' | 'definitions' | 'docs-home' | 'docs-page'
