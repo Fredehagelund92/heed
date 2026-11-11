@@ -300,6 +300,8 @@ export async function readCubeFigure(
   query: FigureQuery,
 ): Promise<FigureResult> {
   const measure = await measureOf(context, query.metric)
+  // Whether the measure adds up is unknown when Cube couldn't say and the settings don't: not read.
+  if (measure instanceof SourceError && typeof query.settings?.additive !== 'boolean') throw measure
   const date = dateOf(query, measure)
   const snapshot = snapshotOf(query, measure)
   // A snapshot added up over days is no figure at all: it is read on the last day.

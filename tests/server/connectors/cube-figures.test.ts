@@ -112,7 +112,10 @@ const failure = async (read: Promise<unknown>) => {
 describe('the date a figure is read by', () => {
   it("is the view's only date, without asking what the model names", async () => {
     const tool = cube({ metaStatus: 503 })
-    const read = await readCubeFigure(tool.context, query({ dates: ['sales.order_day'] }))
+    const read = await readCubeFigure(
+      tool.context,
+      query({ dates: ['sales.order_day'], settings: { additive: true } }),
+    )
     expect(read).toMatchObject({ value: 1200, date: 'sales.order_day' })
     expect(tool.loads.map(dateOf)).toEqual(['sales.order_day'])
   })
@@ -158,11 +161,16 @@ describe('the date a figure is read by', () => {
     const refused = cube({ metaStatus: 401 })
     expect(await failure(readCubeFigure(refused.context, query()))).toBe('unauthorized')
     const down = cube({ metaStatus: 503 })
-    expect(await failure(readCubeFigure(down.context, query()))).toBe('unreachable')
+    expect(
+      await failure(readCubeFigure(down.context, query({ settings: { additive: true } }))),
+    ).toBe('unreachable')
     // The server's setting still names one, so the figure is read.
     const named = cube({ metaStatus: 503 })
     expect(
-      await readCubeFigure(named.context, query({ settings: { date: 'order_day' } })),
+      await readCubeFigure(
+        named.context,
+        query({ settings: { date: 'order_day', additive: true } }),
+      ),
     ).toMatchObject({ value: 1200, aggregation: null, date: 'sales.order_day' })
   })
 })
@@ -230,6 +238,21 @@ describe('a measure that does not add up over days', () => {
 
   it("is read on the last day when the server's settings say it does not add up", async () => {
     const tool = cube({ meta: stock() })
+    const read = await readCubeFigure(tool.context, onHand({ settings: { additive: false } }))
+    expect(read.snapshot).toBe(true)
+    expect(tool.loads.map(rangeOf)).toEqual([['2026-08-31', '2026-08-31']])
+  })
+
+  it('is not read when Cube cannot say whether it adds up and the settings do not either', async () => {
+    for (const dates of [['stock.stock_day'], ['stock.stock_day', 'stock.count_day']]) {
+      const tool = cube({ metaStatus: 503 })
+      expect(await failure(readCubeFigure(tool.context, onHand({ dates })))).toBe('unreachable')
+      expect(tool.loads).toEqual([])
+    }
+  })
+
+  it('is read on the last day when Cube cannot say but the settings say it does not add up', async () => {
+    const tool = cube({ metaStatus: 503 })
     const read = await readCubeFigure(tool.context, onHand({ settings: { additive: false } }))
     expect(read.snapshot).toBe(true)
     expect(tool.loads.map(rangeOf)).toEqual([['2026-08-31', '2026-08-31']])

@@ -158,7 +158,7 @@ measures:
       non_additive_dimension: stock_day
 ```
 
-Its figure is then read on the last of the days only, and so is the one it is compared with. Ask says it is the value as of that day, and that it can't be added up over a period. It is still added up across the values the question names, such as two markets on that day.
+Its figure is then read on the last of the days only, and so is the one it is compared with. Ask says it is the value as of that day, and that it can't be added up over a period. It is still added up across the values the question names, such as two markets on that day. When Cube cannot say whether a measure adds up (its model could not be read) and the server's figure settings do not say either, the figure is not read, rather than risk adding up a snapshot.
 
 ### How the value is written
 
