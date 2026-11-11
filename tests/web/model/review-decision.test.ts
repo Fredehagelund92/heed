@@ -119,6 +119,15 @@ describe('the decision', () => {
     expect(run(held, { type: 'retry', actions: clashing })).toBe(held)
   })
 
+  it('failed return: an edited note can be posted again', () => {
+    expect(run(failed('return'), { type: 'press', action: 'return', actions: edit })).toEqual(
+      sending('return'),
+    )
+    expect(run(failed('publish'), { type: 'press', action: 'return', actions: edit })).toEqual(
+      failed('publish'),
+    )
+  })
+
   it('failed: a decision can still be returned instead, but not where Return is refused', () => {
     expect(run(failed('publish'), { type: 'ask', action: 'return', actions: edit })).toEqual({
       kind: 'writingReturn',

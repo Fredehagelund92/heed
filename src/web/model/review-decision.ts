@@ -61,7 +61,11 @@ export function decide<D>(state: DecisionState<D>, event: DecisionEvent<D>): Dec
           : event.action === 'return'
             ? 'writingReturn'
             : 'idle'
-      return state.kind === from ? { kind: 'sending', id, action: event.action } : state
+      const fromFailedReturn =
+        event.action === 'return' && state.kind === 'failed' && state.action === 'return'
+      return state.kind === from || fromFailedReturn
+        ? { kind: 'sending', id, action: event.action }
+        : state
     }
     case 'retry':
       // The action travels with the failure; it still has to be one that may be done.
