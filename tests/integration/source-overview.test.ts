@@ -497,6 +497,9 @@ describe('Read again and Run now (CON-115)', () => {
 
 describe('Pause reading (CON-115)', () => {
   it('pauses a source and lets it go on, kept in the history log with why', async () => {
+    const logged = (
+      await client.query<{ seq: string }>('select coalesce(max(seq), 0) as seq from audit_log')
+    ).rows[0]!.seq
     const paused = await ok<{ id: string; paused: boolean }>(
       call('PUT', `/sources/${handbookId}/paused`, 'admin', {
         paused: true,
@@ -525,8 +528,9 @@ describe('Pause reading (CON-115)', () => {
     expect((await row(handbookId)).health).not.toBe('paused')
     const log = await client.query<{ action: string; reason: string }>(
       `select action, details->>'reason' as reason from audit_log
-        where subject_type = 'source' and subject_id = $1 and action like 'source.%' order by seq`,
-      [handbookId],
+        where subject_type = 'source' and subject_id = $1 and action like 'source.%'
+          and (seq > $2 or action = 'source.added') order by seq`,
+      [handbookId, logged],
     )
     expect(log.rows).toEqual([
       { action: 'source.added', reason: 'Read the handbook' },
