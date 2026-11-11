@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { ChevronsUpDownIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Button } from '@/components/ui/button'
@@ -57,7 +58,12 @@ export function ViewAs() {
               const name = value
               if (name === me.name) return
               // The page may be one the next person can't open, so they start in their Inbox.
-              void signIn.mutateAsync({ name }).then(() => navigate('/inbox'))
+              signIn
+                .mutateAsync({ name })
+                .then(() => navigate('/inbox'))
+                .catch(() =>
+                  toast.error('The switch did not work. You are still viewing as yourself.'),
+                )
             }}
           >
             {profiles.map((p) => (
