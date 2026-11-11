@@ -30,6 +30,19 @@ export const demoProfiles: readonly DemoProfile[] = [
   },
 ]
 
+/**
+ * The profiles to view as, from the workspace the shell already loaded (so the switch costs no read
+ * and never pops in): the demo's own invented company has its sandbox domain, which only the demo's
+ * seed makes, and an install with its own data has none. Each profile needs its person to be there.
+ */
+export function profilesIn(workspace: {
+  domains: readonly { sandbox?: boolean }[]
+  people: readonly { name: string }[]
+}): DemoProfile[] {
+  if (!workspace.domains.some((d) => d.sandbox)) return []
+  return demoProfiles.filter((p) => workspace.people.some((x) => x.name === p.name))
+}
+
 /** Who the demo opens as, so a visitor lands in the app with nothing to pick first. */
 export const demoLanding = demoProfiles[0]!
 

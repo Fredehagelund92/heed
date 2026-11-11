@@ -7,21 +7,10 @@ import { areas, roleGrants } from '../../../db/seed/fixtures/reference-data.ts'
 import {
   demoLanding,
   demoProfiles,
+  profilesIn,
   rememberSignedOut,
   signedOutOnPurpose,
 } from '@/lib/demo-profiles'
-
-const signIn = vi.hoisted(() => {
-  const method: Record<string, unknown> = { kind: 'picker', demo: true, profileLabel: null }
-  return { method, people: [] as string[] }
-})
-vi.mock('@/api', () => ({
-  api: {
-    getSignInMethod: () => Promise.resolve(signIn.method),
-    listSignInPeople: () => Promise.resolve(signIn.people),
-  },
-}))
-const { demoProfilesQuery } = await import('@/api/queries')
 
 type DevPerson = { email: string; name: string; roles?: string[] }
 const devPeople = parse(
@@ -65,25 +54,21 @@ describe("the demo's profiles", () => {
 
 describe('the profiles a signed-in person can view as', () => {
   const names = demoProfiles.map((p) => p.name)
-  const read = () => demoProfilesQuery().queryFn!({} as never)
+  const demo = [{ sandbox: true }, {}]
+  const inWorkspace = (...who: string[]) => who.map((name) => ({ name }))
 
-  it('are all of them in the demo', async () => {
-    signIn.people = [...names, 'Tomas Eriksen']
-    expect((await read()).map((p) => p.name)).toEqual(names)
+  it('are all of them in the demo, found by its sandbox domain', () => {
+    const profiles = profilesIn({ domains: demo, people: inWorkspace(...names, 'Tomas Eriksen') })
+    expect(profiles.map((p) => p.name)).toEqual(names)
   })
 
-  it('leave out anyone the service does not offer', async () => {
-    signIn.people = names.slice(0, 2)
-    expect((await read()).map((p) => p.name)).toEqual(names.slice(0, 2))
+  it('leave out anyone who is not in the workspace', () => {
+    const profiles = profilesIn({ domains: demo, people: inWorkspace(...names.slice(0, 2)) })
+    expect(profiles.map((p) => p.name)).toEqual(names.slice(0, 2))
   })
 
-  it('are none outside the demo: company sign-in, or an install with its own data', async () => {
-    signIn.people = names
-    signIn.method = { kind: 'oidc', demo: true, name: 'Acme', start: '/x', profileLabel: null }
-    expect(await read()).toEqual([])
-    signIn.method = { kind: 'picker', demo: false, profileLabel: 'Mine' }
-    expect(await read()).toEqual([])
-    signIn.method = { kind: 'picker', demo: true, profileLabel: null }
+  it('are none in an install with its own data, which has no sandbox', () => {
+    expect(profilesIn({ domains: [{}, {}], people: inWorkspace(...names) })).toEqual([])
   })
 })
 

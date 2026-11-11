@@ -18,6 +18,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import {
   inviteQuery,
+  sessionQuery,
   signInMethodQuery,
   signInPeopleQuery,
   useApiWrite,
@@ -94,8 +95,12 @@ function DemoNote({ method }: { method: SignInMethod }) {
 export function SignInPage() {
   usePageTitle('Sign in')
   const method = useQuery(signInMethodQuery())
+  const signedIn = !!useQuery(sessionQuery()).data?.user
   const query = useRoute().query
   const token = query.get('invite')
+  // Opened again while signed in, the page only waits for the app to move on (App.tsx): nothing
+  // here may sign anyone in, or the demo's landing would swap the person for its admin.
+  if (signedIn) return null
   // Nothing until the service says how it signs people in, so neither the picker nor the demo's
   // note flashes. A service that does not answer gets the picker, as before.
   if (method.isPending) return null

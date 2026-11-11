@@ -126,6 +126,13 @@ test('the demo switches to a reader who has real context to read', async ({ page
   await expect(
     page.getByRole('main').getByText('Online sales to Norway stopped on 4 August 2026'),
   ).toBeVisible()
+  // The reader has the switch too, and /signin opened again does not swap them for the admin.
+  await page.goto('/signin')
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(sidebarUser(page)).toContainText('Maria Lindqvist')
+  await viewAs(page).click()
+  await page.getByRole('menuitemradio', { name: /Ravi Kapoor/ }).click()
+  await expect(sidebarUser(page)).toContainText('Ravi Kapoor')
 })
 
 test('signing out of the demo shows everyone to pick from, not the landing again', async ({

@@ -10,20 +10,24 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useApiWrite, useDemoProfiles } from '@/api/queries'
+import { mockControls } from '@/api'
+import { useApiWrite, useWorkspace } from '@/api/queries'
+import { profilesIn } from '@/lib/demo-profiles'
 import { navigate } from '@/lib/router'
 import { useMe } from '@/lib/workspace'
 
 /**
  * The demo's "View as" switch, in the corner of every page header: the admin, a domain owner and
  * a plain reader, each with a line saying what they can do, so a visitor sees the same company as
- * each of them without signing out. Only the demo shows it (nothing for company sign-in, or an
- * install with its own data).
+ * each of them without signing out. Only the demo shows it: the invented company, found by its
+ * sandbox domain (nothing for an install with its own data).
  */
 export function ViewAs() {
-  const profiles = useDemoProfiles()
+  const workspace = useWorkspace()
   const me = useMe()
   const signIn = useApiWrite('signIn')
+  // The mock has a sandbox too, but it is not the demo install: its journeys sign in by the picker.
+  const profiles = mockControls ? [] : profilesIn(workspace)
   if (!profiles.length) return null
   return (
     <DropdownMenu>
