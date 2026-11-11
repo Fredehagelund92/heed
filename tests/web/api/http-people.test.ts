@@ -72,4 +72,36 @@ describe('the people and their domains', () => {
     ])
     expect(domains.map((d) => d.owners)).toEqual([['Jon Abara'], ['nina@larchwood.example']])
   })
+
+  it('reads an invite with no sender, one made at the command line, like any other', () => {
+    const { people, domains } = peopleOf({
+      now,
+      domains: [{ id: 'area_sales', name: 'Sales', owners: [], covers: '', text: '' }],
+      members: [],
+      invites: [
+        {
+          id: 'i2',
+          email: 'first@larchwood.example',
+          role: 'admin',
+          areaIds: ['area_sales'],
+          invitedBy: null,
+          sentAt: '2026-10-23T09:00:00Z',
+          expiresAt: '2026-10-30T09:00:00Z',
+          expired: false,
+        },
+      ],
+    })
+    expect(people).toEqual([
+      {
+        name: 'first@larchwood.example',
+        role: 'Invited',
+        owns: ['area_sales'],
+        admin: true,
+        email: 'first@larchwood.example',
+        invited: true,
+        lastActive: 'Not yet',
+      },
+    ])
+    expect(domains[0]!.owners).toEqual(['first@larchwood.example'])
+  })
 })

@@ -2,12 +2,12 @@ import { ORPCError } from '@orpc/client'
 import type {
   PauseSourceInput,
   SourceActivity,
-  SourceHealth,
   SourceReadEntry,
   SourceRow,
 } from '../../../contract/sources.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
 import { durationText, scheduleSeconds } from '../../../domain/source-schedule.ts'
+import { KEY_REFUSED_CODES, sourceState } from '../../../domain/source-state.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
 import type { RegisteredConnector } from './platform.ts'
@@ -38,9 +38,6 @@ const READS_SHOWN = 20
 /** The most documents a source's page lists. */
 const DOCUMENTS_SHOWN = 20
 
-/** A read's warnings that say the source's key was refused, or is missing: it needs a new one. */
-const KEY_REFUSED = new Set(['unauthorized', 'secret_missing'])
-
 interface SourceRowData {
   id: string
   kind: 'definition_source' | 'context_source'
@@ -50,8 +47,10 @@ interface SourceRowData {
   enabled: boolean
   own_seconds: number | null
   stale_seconds: number
-  next_read_at: Date | null
-  due: boolean
+  next_read_at: Date
+  reading_since: Date | null
+  /** The database's clock, which the times stored beside it are read against. */
+  now: Date
   failures: number
   created_at: Date
 }
@@ -122,17 +121,6 @@ function entryOf(row: ReadRow, kind: Manifested['kind']): SourceReadEntry {
   }
 }
 
-/** How a source is: paused, asked to read now, its key refused, its last read failed, or fine. */
-function healthOf(
-  row: Pick<SourceRowData, 'enabled' | 'due'>,
-  last: SourceReadEntry | null,
-): SourceHealth {
-  if (!row.enabled) return 'paused'
-  if (row.due) return 'reading'
-  if (last?.status !== 'failed') return 'healthy'
-  return last.warnings.some((warning) => KEY_REFUSED.has(warning.code)) ? 'reauth' : 'failed'
-}
-
 /** The groups of a definitions source's copy (a Cube view: its members' names up to the last dot). */
 interface GroupRow {
   connector_id: string
@@ -181,8 +169,8 @@ export function createSourceOverview({
     const [row] = await tx.query<SourceRowData>(
       `select id, kind::text as kind, type, name, origin, enabled,
               extract(epoch from schedule)::int as own_seconds,
-              extract(epoch from stale_after)::int as stale_seconds, next_read_at,
-              (next_read_at is not null and next_read_at <= now()) as due, failures, created_at
+              extract(epoch from stale_after)::int as stale_seconds, next_read_at, reading_since,
+              now() as now, failures, created_at
          from connectors where id = $1 and removed_at is null`,
       [id],
     )
@@ -195,8 +183,8 @@ export function createSourceOverview({
       const rows = await tx.query<SourceRowData>(
         `select id, kind::text as kind, type, name, origin, enabled,
                 extract(epoch from schedule)::int as own_seconds,
-              extract(epoch from stale_after)::int as stale_seconds, next_read_at,
-                (next_read_at is not null and next_read_at <= now()) as due, failures, created_at
+              extract(epoch from stale_after)::int as stale_seconds, next_read_at, reading_since,
+                now() as now, failures, created_at
            from connectors where removed_at is null order by origin = 'workspace', created_at, id`,
       )
       if (!rows.length) return []
@@ -266,6 +254,18 @@ export function createSourceOverview({
           defaultSeconds: durationSeconds(manifest.schedule.default),
           minimumSeconds: durationSeconds(manifest.schedule.minimum),
         })
+        const state = sourceState(
+          {
+            enabled: row.enabled,
+            nextReadAt: row.next_read_at,
+            readingSince: row.reading_since,
+            lastRead: last && {
+              status: last.status,
+              keyRefused: last.warnings.some((warning) => KEY_REFUSED_CODES.has(warning.code)),
+            },
+          },
+          row.now,
+        )
         const own = groups.filter((group) => group.connector_id === row.id)
         const named = own.filter((group) => group.name !== '')
         const content = documentsOf.get(row.id)
@@ -276,10 +276,11 @@ export function createSourceOverview({
           kind: manifest.kind,
           name: row.name,
           origin: row.origin,
-          health: healthOf(row, last),
+          health: state.health,
+          read: state.read,
           schedule: durationText(period),
           staleAfter: durationText(row.stale_seconds),
-          nextReadAt: row.enabled ? (row.next_read_at?.toISOString() ?? null) : null,
+          nextReadAt: row.enabled ? row.next_read_at.toISOString() : null,
           lastRead: last,
           lastGoodAt: goodOf.get(row.id)?.toISOString() ?? null,
           failures: row.failures,
@@ -390,8 +391,9 @@ export function createSourceOverview({
 
     /**
      * Pauses reading a source, or lets it go on: the job leaves a paused source out, and Read
-     * again refuses it. Kept in the history log, with why, when it changes anything. A source
-     * resumed past its next read is read at the job's next turn.
+     * again refuses it. A definitions source's figures in Ask are switched off while it is paused
+     * (they read only the sources that are on); what is published stays. Kept in the history log,
+     * with why, when it changes anything. A source resumed is queued: the job's next turn reads it.
      */
     async pause(tx: Queryable, input: PauseSourceInput): Promise<{ id: string; paused: boolean }> {
       plainReason(input.reason)
@@ -401,10 +403,13 @@ export function createSourceOverview({
       )
       if (!row) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this source." })
       if (row.enabled === input.paused) {
-        await tx.query('update connectors set enabled = $2 where id = $1', [
-          input.id,
-          !input.paused,
-        ])
+        // Resumed, a source is queued; paused, its schedule is left as it was.
+        await tx.query(
+          `update connectors set enabled = $2,
+             next_read_at = case when $2 then now() else next_read_at end
+           where id = $1`,
+          [input.id, !input.paused],
+        )
         await recordAudit(tx, {
           action: input.paused ? 'source.paused' : 'source.resumed',
           subjectType: 'source',

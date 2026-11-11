@@ -15,7 +15,7 @@ import {
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation } from './fixtures.ts'
-import { apiDatabase, testDatabase } from './support.ts'
+import { apiDatabase, queueReads, testDatabase } from './support.ts'
 
 /*
   The views a Cube model on the server is read for (`CUBE_VIEWS_FILE`), an allow list, on the real
@@ -51,7 +51,7 @@ const headers: Record<string, string> = {}
 /** Lists these views in the server's file, then reads the source once. */
 const readListing = async (views: string[]) => {
   await writeFile(viewsFile, JSON.stringify(views))
-  await client.query("update connectors set next_read_at = null where id = 'cube'")
+  await queueReads(client, ['cube'])
   const result = (await connectorSyncJob(registry, { clock }).run({
     database,
     logger,

@@ -17,7 +17,7 @@ import { createLogger } from '../../src/server/observability/logger.ts'
 import { driveHost, type DriveHost } from '../server/connectors/drive-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, queueReads, testDatabase, transaction } from './support.ts'
 
 /*
   Google Drive end to end (CON-601 to CON-611), on the real service and PostgreSQL 18, with a fake
@@ -84,7 +84,7 @@ const ok = async <T>(
 
 /** One run of the sources' job, with every source due, as Read again makes one. */
 async function read() {
-  await client.query('update connectors set next_read_at = null')
+  await queueReads(client)
   return connectorSyncJob(registry, { clock }).run({
     database,
     logger,

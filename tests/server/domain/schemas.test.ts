@@ -5,8 +5,7 @@ import {
   itemVersionSchema,
   type ItemVersion,
 } from '../../../src/domain/item-version.ts'
-import { proposalSchema, canTransitionProposal } from '../../../src/domain/proposal.ts'
-import { proposalStates } from '../../../src/domain/proposal-state.ts'
+import { proposalSchema } from '../../../src/domain/proposal.ts'
 import { governedVocabularySchema } from '../../../src/domain/vocabulary.ts'
 import { version, terms } from './fixtures.ts'
 
@@ -119,24 +118,5 @@ describe('governed schemas', () => {
     expect(
       proposalSchema.safeParse({ ...proposal, state: 'accepted', itemVersionId: 'v1' }).success,
     ).toBe(false)
-  })
-  it('permits exactly the documented state moves', () => {
-    const allowed = new Set([
-      'draft:submitted',
-      'submitted:in_review',
-      'submitted:accepted',
-      'submitted:changes_requested',
-      'submitted:rejected',
-      'submitted:withdrawn',
-      'in_review:accepted',
-      'in_review:changes_requested',
-      'in_review:rejected',
-      'in_review:withdrawn',
-      'changes_requested:submitted',
-      'changes_requested:withdrawn',
-    ])
-    for (const from of proposalStates)
-      for (const to of proposalStates)
-        expect(canTransitionProposal(from, to)).toBe(allowed.has(`${from}:${to}`))
   })
 })

@@ -232,13 +232,18 @@ option or a range, a folder that leaves the repository, a domain name that is no
 and a secret pasted into another field. Changes are kept in the history log (`source.added`,
 `source.changed`, `source.paused`, `source.resumed`, `source.removed`) with the settings and, for
 each secret, only `set`, `replaced` or `removed`. A source added or changed is read at once: the
-change makes it due, and the job runs once it commits.
+change queues it (`next_read_at` is now), and the job runs once it commits.
 
-Settings › Integrations in the web app reads `sources.list` for its rows: a source is
-**Paused** when an admin paused it, **Reading** while a read it was asked for (Read again, or a
-change to its settings) waits for the job, **Needs a new key** when its last read failed because
-its key was refused or is missing, **Failed** when its last read failed for another reason, and
-**Healthy** otherwise. A definitions source counts its metrics, dimensions and groups (a Cube
+Settings › Integrations in the web app reads `sources.list` for its rows. A source has two
+facts beside each other. Its `health` is **Paused** when an admin paused it, **Needs a new key**
+when its last read failed because its key was refused or is missing, **Failed** when its last read
+failed for another reason, and **Healthy** otherwise (also before its first read). Its `read` is
+the read that is pending, null while paused: **Scheduled** while it waits for its time, **Queued**
+once its time has come (it was just added or changed, an admin asked for a read, or the period is
+up) and the job has not taken it, and **Reading** while the job has it. A failure stays shown
+while its retry is queued or running. Pausing a definitions source also switches off its figures
+in Ask, as the switch does: an answer links into the tool, and nothing is asked of it. What is
+published stays. A definitions source counts its metrics, dimensions and groups (a Cube
 view: a member's name up to its last dot) and the groups that map to no domain, and the live
 items a change to one of its definitions flagged; a content source counts the documents it
 holds, its suggestions waiting for owners, and its suggestions over the last 24 hours against
@@ -246,8 +251,7 @@ its daily cap. A source's page reads `sources.activity`: each read with what it 
 new, changed and gone; documents suggested, replaced, withdrawn, waiting and skipped), its
 warnings by code with how many times each and never their targets, what it reads, and a content
 source's last 20 documents, never their text (CON-605). A paused source is left out by the job
-and refused by Read again (409); resuming one past its next read reads it at the job's next
-turn.
+and refused by Read again (409); resuming one queues it, and the job's next turn reads it.
 
 **Connect** is five steps on a full page, drawn from the connector's manifest (CON-112): **Pick**
 says what the tool will hold and never hold; **Connect** is the manifest's form, its secrets as
@@ -838,6 +842,10 @@ requests) it is tried again sooner: one minute, then two, four and so on, never 
 `staleAfter` and never sooner than the tool asked (`Retry-After`). The job `connectors.sync` runs
 every five minutes and reads the sources that are due. **Read again** reads one source at the job's
 next turn (`POST /sources/{id}/read`), and a change to a source's settings makes it due at once.
+`next_read_at` is never NULL: a source is queued when it has passed, and the job marks the source it
+is reading (`connectors.reading_since`, cleared when the read ends) so its page can tell a read that
+is running from one that waits. Read again queues the source only once the job runner answers; with
+the runner down it answers 503 and leaves the schedule as it was.
 
 ## Validation
 

@@ -73,6 +73,8 @@ interface Row {
   type: string
   name: string
   capabilities: { figures?: FiguresSettings }
+  /** False while an admin has paused reading it. */
+  enabled: boolean
   contact_id: string | null
   contact_name: string | null
   /** It reads every group (a view), or only those listed. */
@@ -80,7 +82,7 @@ interface Row {
   listed: string[]
 }
 
-const columns = `c.id, c.type, c.name, c.capabilities, c.data_contact_id::text as contact_id,
+const columns = `c.id, c.type, c.name, c.capabilities, c.enabled, c.data_contact_id::text as contact_id,
   p.display_name as contact_name, c.all_groups,
   array(select s->>'id' from jsonb_array_elements(c.scopes) s) as listed`
 
@@ -180,10 +182,14 @@ export function createFigureSources({
   const contactOf = (row: Row): DataContact | null =>
     row.contact_id ? { personId: row.contact_id, name: row.contact_name ?? 'Someone' } : null
 
-  async function rows(tx: Queryable, id?: string, lock = false): Promise<Row[]> {
+  /**
+   * The sources that can answer figures. Those an admin paused are left out unless asked for: a
+   * paused source's figures are off in Ask, whatever its switch says.
+   */
+  async function rows(tx: Queryable, id?: string, lock = false, paused = false): Promise<Row[]> {
     const found = await tx.query<Row>(
       `select ${columns} from connectors c left join people p on p.id = c.data_contact_id
-        where c.kind = 'definition_source' and c.enabled ${id === undefined ? '' : 'and c.id = $1'}
+        where c.kind = 'definition_source' and c.removed_at is null ${paused ? '' : 'and c.enabled'} ${id === undefined ? '' : 'and c.id = $1'}
         order by c.id collate "C"${lock ? ' for update of c' : ''}`,
       id === undefined ? [] : [id],
     )
@@ -476,7 +482,7 @@ export function createFigureSources({
             and d.visible_groups is null`,
         [metric.refs],
       )
-      const all = await rows(tx)
+      const all = await rows(tx, undefined, false, true)
       const sources = all.filter((row) => defined.some((d) => d.source === row.id))
       const owners = new Set(defined.map((d) => d.source))
       if (!sources.length) {
@@ -507,7 +513,7 @@ export function createFigureSources({
       // Its view is not one the source reads, from its next read if not already.
       if (!reads(row, definition.name)) return { state: 'none', reason: 'not_read', source }
       const settings = row.capabilities.figures ?? {}
-      if (!settings.enabled)
+      if (!row.enabled || !settings.enabled)
         return {
           state: 'off',
           source,

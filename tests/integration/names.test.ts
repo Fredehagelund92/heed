@@ -20,7 +20,7 @@ import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { waitingMembers } from '../../src/server/modules/review/index.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase } from './support.ts'
+import { apiDatabase, queueReads, testDatabase } from './support.ts'
 
 /*
   The names a read makes (FR-141), on the real service and PostgreSQL 18, from an empty install:
@@ -100,7 +100,7 @@ const commit = (file: unknown) =>
 
 /** One run of the sources' job, with the source made due. */
 async function read() {
-  await client.query('update connectors set next_read_at = null')
+  await queueReads(client)
   await connectorSyncJob(registry, { clock }).run({
     database,
     logger,
