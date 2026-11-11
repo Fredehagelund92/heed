@@ -58,7 +58,15 @@ const app = buildApp({
   database,
   jobs: idleJobs(),
   sources: registry,
-  workspaceSources: createWorkspaceSources({ secrets: store, registry }),
+  workspaceSources: createWorkspaceSources({
+    secrets: store,
+    registry,
+    // Whoever runs the service names the date Orders is read by, for when its view has several.
+    // And that Marketing spend is a snapshot here, read on the last day, to test how one reads.
+    figureOverrides: {
+      cube: { orders: { date: 'order_day' }, 'marketing.marketing_spend': { additive: false } },
+    },
+  }),
   logger,
   clock: systemClock('2026-10-23'),
   devPeople: Object.keys(people).map((name) => ({
@@ -124,12 +132,14 @@ beforeAll(async () => {
       ('cube:orders.market', 'cube', 'dimension', 'orders.market', 'string', 'a'),
       ('cube:orders.order_day', 'cube', 'dimension', 'orders.order_day', 'time', 'a'),
       ('cube:marketing.discount_cost', 'cube', 'metric', 'marketing.discount_cost', 'sum', 'a'),
+      ('cube:marketing.marketing_spend', 'cube', 'metric', 'marketing.marketing_spend', 'sum', 'a'),
       ('cube:marketing.market', 'cube', 'dimension', 'marketing.market', 'string', 'a'),
       ('cube:marketing.marketing_day', 'cube', 'dimension', 'marketing.marketing_day', 'time', 'a'),
       ('cube:revenue.net_revenue', 'cube', 'metric', 'revenue.net_revenue', 'sum', 'a'),
       ('demo:returns', 'demo', 'metric', 'Returns', null, 'a')`)
     await client.query(`insert into vocab_terms (key, kind, parent_key) values
       ('metric:returns', 'metric', null), ('metric:discount_cost', 'metric', null),
+      ('metric:marketing_spend', 'metric', null),
       ('metric:net_revenue', 'metric', null), ('metric:support_contacts', 'metric', null),
       ('val:market/spain', 'dimension_value', 'dim:market'), ('dim:product', 'dimension', null),
       ('val:product/footwear', 'dimension_value', 'dim:product')`)
@@ -141,6 +151,7 @@ beforeAll(async () => {
       // Returns is defined twice, by two tools: no figure is picked.
       ['metric:returns', 'Returns', [], ['cube:orders.returns', 'demo:returns']],
       ['metric:discount_cost', 'Discount cost', [], ['cube:marketing.discount_cost']],
+      ['metric:marketing_spend', 'Marketing spend', [], ['cube:marketing.marketing_spend']],
       ['metric:net_revenue', 'Net revenue', [], ['cube:revenue.net_revenue']],
       ['metric:support_contacts', 'Support contacts', [], []],
       ['dim:market', 'Market', [], ['cube:marketing.market', 'cube:orders.market']],
@@ -383,6 +394,129 @@ describe('reading a figure (FR-716)', () => {
     expect(days.statusCode).toBe(422)
   })
 
+  it("reads a view of several dates by the one the server's settings name, and lists them when none is named", async () => {
+    // A second date for Orders and for Marketing, that the demo model does not name a default for.
+    await client.query(`insert into definitions (ref, connector_id, kind, name, value_type, change_mark) values
+      ('cube:orders.ship_day', 'cube', 'dimension', 'orders.ship_day', 'time', 'a'),
+      ('cube:marketing.campaign_day', 'cube', 'dimension', 'marketing.campaign_day', 'time', 'a')`)
+    try {
+      const asked = cube.requests.length
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-01', to: '2026-08-30' }),
+      ).toMatchObject({
+        state: 'figure',
+        queryInWords:
+          'Orders, added up for Norway from 1 to 30 Aug 2026 by order day, and the same for 1 to 30 Jul 2026 to compare.',
+      })
+      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
+      expect(loads.map((r) => (r.query as { timeDimensions: unknown[] }).timeDimensions)).toEqual([
+        [{ dimension: 'orders.order_day', dateRange: ['2026-08-01', '2026-08-30'] }],
+        [{ dimension: 'orders.order_day', dateRange: ['2026-07-01', '2026-07-30'] }],
+      ])
+      // Nothing names Marketing's: no figure, and no date picked for it.
+      const before = cube.requests.length
+      expect(
+        await readFigure('author', { metric: 'metric:discount_cost', values: [], ...august }),
+      ).toEqual({
+        state: 'none',
+        reason: 'no_date',
+        source: { id: 'cube', type: 'cube', tool: 'Cube', name: 'Cube' },
+        dates: ['Campaign day', 'Marketing day'],
+      })
+      expect(cube.requests.slice(before).filter((r) => r.path === '/cubejs-api/v1/load')).toEqual(
+        [],
+      )
+    } finally {
+      await client.query(
+        "delete from definitions where ref in ('cube:orders.ship_day', 'cube:marketing.campaign_day')",
+      )
+    }
+  })
+
+  it('reads a measure that does not add up over days on the last day, and says why', async () => {
+    const warehouse = async (sql: string) => {
+      const db = new pg.Client({ connectionString: warehouseUrl.href })
+      await db.connect()
+      try {
+        await db.query(sql)
+      } finally {
+        await db.end()
+      }
+    }
+    // Spend on three days of Norway: added up over August it would be 5,700, not the 700 of its last day.
+    await warehouse(`insert into demo.marketing_daily (marketing_day, market_code, spend_eur) values
+      ('2026-07-31', 'Norway', 650), ('2026-08-15', 'Norway', 5000), ('2026-08-31', 'Norway', 700)`)
+    try {
+      const asked = cube.requests.length
+      expect(
+        await readFigure('author', {
+          metric: 'metric:marketing_spend',
+          values: ['val:market/norway'],
+          ...august,
+        }),
+      ).toMatchObject({
+        state: 'figure',
+        value: 700,
+        from: '2026-08-01',
+        to: '2026-08-31',
+        comparison: { value: 650, from: '2026-07-01', to: '2026-07-31' },
+        snapshot: true,
+        queryInWords:
+          "Marketing spend for Norway as of 31 Aug 2026. It can't be added up over a period, so this is its value on the last day, and the same as of 31 Jul 2026 to compare.",
+      })
+      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
+      expect(
+        loads
+          .map((r) => (r.query as { timeDimensions: { dateRange: string[] }[] }).timeDimensions)
+          .map((t) => t[0]!.dateRange)
+          .sort(),
+      ).toEqual([
+        ['2026-07-31', '2026-07-31'],
+        ['2026-08-31', '2026-08-31'],
+      ])
+    } finally {
+      await warehouse(`delete from demo.marketing_daily where spend_eur > 0`)
+    }
+  })
+
+  it("refuses a metric whose view the integration doesn't read, before its next read and after", async () => {
+    const discount = { metric: 'metric:discount_cost', values: [], ...august }
+    const notRead = { state: 'none', reason: 'not_read', source: { id: 'cube', tool: 'Cube' } }
+    // Only orders is listed: marketing is read no more from the next read.
+    await client.query(
+      `update connectors set all_groups = false,
+         scopes = '[{"id":"orders","title":"orders","domain":null}]' where id = 'cube'`,
+    )
+    try {
+      expect(await readFigure('author', discount)).toMatchObject(notRead)
+      // A view it lists still reads its figure.
+      expect(await readFigure('author', { ...orders, ...august })).toMatchObject({
+        state: 'figure',
+      })
+      // The read then marks marketing's definitions missing: still refused, and said why.
+      await transaction(client, async () => {
+        const [{ id }] = (
+          await client.query<{ id: string }>(
+            `insert into connector_snapshots (connector_id, status, definitions_seen)
+             values ('cube', 'ok', 5) returning id`,
+          )
+        ).rows as [{ id: string }]
+        await client.query(
+          `update definitions set missing_since_snapshot = $1
+            where connector_id = 'cube' and name like 'marketing.%'`,
+          [id],
+        )
+      })
+      expect(await readFigure('author', discount)).toMatchObject(notRead)
+    } finally {
+      await client.query(
+        `update connectors set all_groups = true, scopes = '[]' where id = 'cube';
+         update definitions set missing_since_snapshot = null where connector_id = 'cube'`,
+      )
+    }
+    expect(await readFigure('author', discount)).not.toMatchObject({ reason: 'not_read' })
+  })
+
   it('waits while Cube says Continue wait, and fails within 4 seconds, saying why', async () => {
     cube.continueWait(2)
     expect(
@@ -397,6 +531,15 @@ describe('reading a figure (FR-716)', () => {
         failure: 'unauthorized',
       },
     )
+    // A measure the model's access policy hides from the token is not allowed, not unreachable.
+    cube.hide('orders.orders')
+    try {
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-05', to: '2026-08-31' }),
+      ).toMatchObject({ state: 'none', reason: 'failed', failure: 'not_allowed' })
+    } finally {
+      cube.hide()
+    }
     cube.slow(FIGURE_TIMEOUT_MS + 1_000)
     const started = Date.now()
     expect(
@@ -558,6 +701,12 @@ describe('trying a figure', () => {
     })
     cube.fail(404)
     expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ failure: 'not_found' })
+    cube.hide('marketing.discount_cost')
+    try {
+      expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ failure: 'not_allowed' })
+    } finally {
+      cube.hide()
+    }
     // No view keeps exactly one date someone may read: there is no measure to try.
     await client.query(
       "update definitions set visible_groups = '{data_team}' where kind = 'dimension' and value_type = 'time'",

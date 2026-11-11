@@ -98,6 +98,7 @@ const adminOperations = [
   'figures.try',
   'sources.update',
   'sources.test',
+  'sources.leftOut',
   'sources.read',
   'sources.remove',
   // Settings › Integrations: every source with how it is, its activity, and Pause reading.

@@ -2,6 +2,8 @@ import { ORPCError } from '@orpc/client'
 import type {
   AddSourceInput,
   ConnectorListing,
+  LeftOut,
+  LeftOutInput,
   PauseSourceInput,
   RemoveSourceInput,
   SourceCheck,
@@ -10,6 +12,7 @@ import type {
   TestSourceInput,
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
+import { CHOSEN_SCOPES_MAX } from '../../../contract/sources.ts'
 import { builtInManifests } from '../../../connectors/manifests.ts'
 import { noSecretStoreWords, secretsInUse } from '../../../domain/connector-config.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
@@ -20,7 +23,7 @@ import { plainReason, recordAudit } from '../admin/index.ts'
 import { createSourceOverview } from './overview.ts'
 import { groupOf, type RegisteredConnector, type StoredScope } from './platform.ts'
 import type { ConnectorRegistry } from './registry.ts'
-import { createFigureSources } from './figures.ts'
+import { createFigureSources, type FigureOverrides } from './figures.ts'
 import { SecretStoreError, type SecretStore } from './secrets.ts'
 import {
   snapshotSchema,
@@ -58,12 +61,13 @@ interface Row {
   changed_at: Date | null
   changed_by: string | null
   scopes: StoredScope[]
+  all_groups: boolean
   schedule_seconds: number | null
   next_read_at: Date | null
 }
 
 const columns = `id, type, name, config, secret_ref, revision, changed_at, changed_by::text, scopes,
-  extract(epoch from schedule)::int as schedule_seconds, next_read_at`
+  all_groups, extract(epoch from schedule)::int as schedule_seconds, next_read_at`
 
 const invalid = (problems: readonly FieldProblem[]): never => {
   throw new ORPCError('UNPROCESSABLE_CONTENT', {
@@ -128,7 +132,8 @@ function summary(
     metrics: snapshot.definitions.filter((definition) => definition.kind === 'metric').length,
     dimensions: snapshot.definitions.filter((definition) => definition.kind === 'dimension').length,
     warnings: warnings.slice(0, 200),
-    scopes: scopes.slice(0, 200),
+    // Each group a model holds may be chosen, up to as many as a source may list.
+    scopes: scopes.slice(0, CHOSEN_SCOPES_MAX),
   }
 }
 
@@ -153,13 +158,20 @@ const failed = (warnings: SourceWarning[], steps: SourceCheck['steps'] = []): So
 export function createWorkspaceSources({
   secrets,
   registry,
+  figureOverrides,
 }: {
   secrets: SecretStore
   /** The connectors, and the sources the server's own configuration selects (their ids). */
   registry: Pick<ConnectorRegistry, 'connectors' | 'list'>
+  /** The server's figure settings (`HEED_FIGURE_OVERRIDES`), by source. */
+  figureOverrides?: FigureOverrides
 }) {
   /** Figures in Ask, on the sources whose connector reads them (figures.ts). */
-  const figures = createFigureSources({ secrets, connectors: () => registry.connectors() })
+  const figures = createFigureSources({
+    secrets,
+    connectors: () => registry.connectors(),
+    ...(figureOverrides ? { overrides: figureOverrides } : {}),
+  })
   // An admin adds a source of any connector: definitions, or content with its pipeline.
   const addable = () => registry.connectors()
   const typeOf = (type: string) => addable().find((candidate) => candidate.manifest.id === type)
@@ -191,6 +203,7 @@ export function createWorkspaceSources({
         set: held !== null && typeof held[key] === 'string',
       })),
       scopes: row.scopes,
+      allGroups: row.all_groups,
       schedule: row.schedule_seconds === null ? null : durationText(row.schedule_seconds),
       nextReadAt: row.next_read_at?.toISOString() ?? null,
       changedAt: row.changed_at?.toISOString() ?? null,
@@ -367,6 +380,50 @@ export function createWorkspaceSources({
     return row ?? null
   }
 
+  /**
+   * What a definitions source would stop reading with these groups: the groups of its current
+   * definitions the change leaves out (null for definitions in no group, which an allow list never
+   * reads), and the live items whose live version relies on one of their definitions. Its next
+   * complete read marks those definitions missing, which flags the items for their owners.
+   */
+  async function leftOutOf(
+    tx: Queryable,
+    id: string,
+    allGroups: boolean,
+    groups: readonly string[],
+  ): Promise<LeftOut> {
+    if (allGroups) return { groups: [], items: { count: 0, named: [] } }
+    const gone = `select d.ref, d.kind, g.name from definitions d
+        cross join lateral (select substring(d.name from '^(.+)\\.[^.]*$') as name) g
+       where d.connector_id = $1 and d.missing_since_snapshot is null
+         and (g.name is null or not g.name = any($2::text[]))`
+    const left = await tx.query<{ name: string | null; metrics: number; dimensions: number }>(
+      `select name, count(*) filter (where kind = 'metric')::int as metrics,
+              count(*) filter (where kind = 'dimension')::int as dimensions
+         from (${gone}) gone group by name order by name collate "C" nulls last`,
+      [id, groups],
+    )
+    if (!left.length) return { groups: [], items: { count: 0, named: [] } }
+    const items = await tx.query<{ id: string; title: string; domain: string; total: number }>(
+      `with gone as (${gone}),
+       live as (select s.item_id, s.version_id from item_version_service s
+                 where s.editions @> (select seq from live_edition))
+       select v.item_id as id, v.title, v.area_id as domain, count(*) over ()::int as total
+         from live l join item_versions v on v.id = l.version_id
+        where exists (select 1 from item_version_refs r join gone on gone.ref = r.definition_ref
+                       where r.version_id = l.version_id)
+        order by v.title collate "C", v.item_id limit 50`,
+      [id, groups],
+    )
+    return {
+      groups: left,
+      items: {
+        count: items[0]?.total ?? 0,
+        named: items.map(({ id, title, domain }) => ({ id, title, domain })),
+      },
+    }
+  }
+
   /** One read of a source with these settings, kept nowhere; with the members others read. */
   async function testRead(
     tx: Queryable,
@@ -442,6 +499,8 @@ export function createWorkspaceSources({
       if (!connector) invalid([{ field: 'type', message: "We can't add a source of this type." }])
       const config = await checkInput(tx, connector!, input, () => null)
       const plan = await checkPlan(tx, connector!, input.scopes ?? [], input.schedule ?? null)
+      const allGroups = input.allGroups ?? !plan.scopes.length
+      const definitions = connector!.manifest.kind === 'definitions'
       await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.sources.add', 0))")
       const existing = await tx.query<{ id: string }>('select id from connectors')
       const id = sourceIdFrom(
@@ -463,13 +522,13 @@ export function createWorkspaceSources({
       }
       const [row] = await tx.query<Row>(
         `insert into connectors (id, kind, type, name, config, secret_ref, interface_version, origin, revision,
-           changed_at, changed_by, scopes, schedule, stale_after)
-         values ($1, $2, $3, $4, $5, $6, $7, 'workspace', 1, now(), cl_person(), $8,
+           changed_at, changed_by, scopes, all_groups, schedule, stale_after)
+         values ($1, $2, $3, $4, $5, $6, $7, 'workspace', 1, now(), cl_person(), $8, $11,
            make_interval(secs => $9), make_interval(secs => $10))
          returning ${columns}`,
         [
           id,
-          connector!.manifest.kind === 'definitions' ? 'definition_source' : 'context_source',
+          definitions ? 'definition_source' : 'context_source',
           connector!.manifest.id,
           input.name.trim(),
           JSON.stringify(config),
@@ -478,6 +537,7 @@ export function createWorkspaceSources({
           JSON.stringify(plan.scopes),
           plan.scheduleSeconds,
           durationSeconds(connector!.manifest.staleAfter),
+          allGroups,
         ],
       )
       await recordAudit(tx, {
@@ -490,6 +550,7 @@ export function createWorkspaceSources({
           name: input.name.trim(),
           config,
           ...(plan.scopes.length ? { scopes: plan.scopes } : {}),
+          ...(definitions ? { allGroups } : {}),
           ...(plan.scheduleSeconds === null
             ? {}
             : { schedule: durationText(plan.scheduleSeconds) }),
@@ -532,6 +593,28 @@ export function createWorkspaceSources({
           message:
             'Someone changed this source after you opened it. Look at the latest version, then try again.',
         })
+      // Scopes given without it keep what they always meant: every group when none is chosen.
+      const regrouped = input.scopes !== undefined || input.allGroups !== undefined
+      const allGroups =
+        input.allGroups ?? (input.scopes === undefined ? row.all_groups : !input.scopes.length)
+      // A group it stops reading takes its definitions out of the next read, and the live items
+      // that rely on one are flagged for their owners: whoever changes it says they saw them.
+      const left =
+        regrouped && connector!.manifest.kind === 'definitions'
+          ? await leftOutOf(
+              tx,
+              row.id,
+              allGroups,
+              plan.scopes.map((scope) => scope.id),
+            )
+          : null
+      if (left?.items.count && !input.acceptLeftOut)
+        invalid([
+          {
+            field: 'scopes',
+            message: `This stops reading definitions that ${left.items.count === 1 ? '1 live item relies' : `${left.items.count} live items rely`} on. Look at what it leaves out, then save again.`,
+          },
+        ])
       let ref = row.secret_ref
       // A stored secret goes only where it was given for: a new address forgets it, so an
       // administrator cannot send a token they never saw to a host of their choosing.
@@ -553,7 +636,7 @@ export function createWorkspaceSources({
       }
       const [saved] = await tx.query<Row>(
         `update connectors set name = $2, config = $3, secret_ref = $4, revision = revision + 1,
-           changed_at = now(), changed_by = cl_person(), scopes = $5,
+           changed_at = now(), changed_by = cl_person(), scopes = $5, all_groups = $7,
            schedule = make_interval(secs => $6),
            -- A change applies from the next read, which the job's next turn makes.
            next_read_at = null
@@ -565,6 +648,7 @@ export function createWorkspaceSources({
           ref,
           JSON.stringify(plan.scopes),
           plan.scheduleSeconds,
+          allGroups,
         ],
       )
       await recordAudit(tx, {
@@ -577,6 +661,8 @@ export function createWorkspaceSources({
           name: input.name.trim(),
           config,
           ...(input.scopes === undefined ? {} : { scopes: plan.scopes }),
+          ...(left ? { allGroups } : {}),
+          ...(left?.items.count ? { leftOutItems: left.items.count } : {}),
           ...(input.schedule === undefined
             ? {}
             : {
@@ -645,6 +731,16 @@ export function createWorkspaceSources({
         },
       })
       return { id: row.id, kind: before?.kind === 'context_source' ? 'content' : 'definitions' }
+    },
+
+    /** What a change of the groups it reads would stop reading; changes nothing. */
+    async leftOut(tx: Queryable, input: LeftOutInput): Promise<LeftOut> {
+      const row = await workspaceRow(tx, input.id)
+      if (!row || typeOf(row.type)?.manifest.kind !== 'definitions')
+        throw new ORPCError('NOT_FOUND', {
+          message: "We couldn't find this source among the ones an admin added.",
+        })
+      return leftOutOf(tx, row.id, input.allGroups, input.groups)
     },
 
     /**

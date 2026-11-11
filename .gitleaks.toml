@@ -1,7 +1,21 @@
-# Secret scanning (.github/workflows/security.yml): gitleaks' default rules over the whole history.
+# Secret scanning (.github/workflows/security.yml): gitleaks' default rules over the whole history,
+# and the private-profile marker (docs/security.md#private-profiles).
 
 [extend]
 useDefault = true
+
+# A file from a private profile: real company data kept outside every checkout, each file marked.
+# The bracket keeps this file from carrying the marker itself; the security workflow proves the rule
+# on a file it writes with the marker and one without.
+[[rules]]
+id = "heed-private-profile"
+description = "A file from a private profile, which never belongs in this repository"
+regex = '''HEED-PRIVATE-PROFIL[E]'''
+keywords = ["heed-private-profil"]
+
+[[rules.allowlists]]
+description = "The page that explains the marker names it"
+paths = ['''^docs/security\.md$''']
 
 [[allowlists]]
 description = "The made-up AWS key the content-safety tests must recognise (FR-117)"

@@ -27,20 +27,43 @@ project: `npx vitest run --project server tests/server/domain`.
   not take, by `readDates` (`dates.ts`); the result says how (`dates`: the words and a reads-as
   phrase). Unreadable dates and explicitly unknown dimension values require more detail; the dates
   issue says which words and what Heed reads. A question that gives no dates at all is read at the
-  supplied `today`, and the result says so (`assumed`, worded by `assumedDate`). A word after a dimension name is not a candidate value when
-  it is a preposition or stop word or part of a date (so `market in August 2026` and `market last 7
-days` stay resolvable). A dimension named without a value becomes a filter with no values
-  (`{ 'dim:market': [] }`), and a named dimension alone is scope. `spans` gives where each name and
-  the dates sit in the words as written. This is a conservative vocabulary parser, not general
-  language understanding; callers should supply structured scope, especially for multiword unknown
-  values. A word after a name and "in" that names nothing Heed knows is read as a value it does
-  not know, never dropped, only when it looks like one: one typo from a value ("Norwy"), or one
-  word the person wrote in Title case ("Jordan", not "GBP") that ends what the question says
-  ("orders in Jordan?") and is no plural nor a tool's or the product's name. This is Ask's rule
-  only (`loose`); agents read as before. Ordinary words ("in local currency", "in gbp") read as
-  before, and a lowercase "jordan" is knowingly not caught yet. This heuristic is a stop-gap that
-  the value-linking V1 slice replaces with rules by place, so it is kept small on purpose. The
-  issue names the dimensions it could be a value of and, for a typo, the value it is close to.
+  supplied `today`, and the result says so (`assumed`, worded by `assumedDate`). A word after a
+  dimension name is not a candidate value when it is a preposition, an everyday word
+  (`everyday-words.ts`: "how is the mobile team doing") or part of a date (so `market in August
+2026` and `market last 7 days` stay resolvable). A dimension named without a value becomes a
+  filter with no values (`{ 'dim:market': [] }`), and a named dimension alone is scope. `spans`
+  gives where each name and the dates sit in the words as written. This is a conservative
+  vocabulary parser, not general language understanding; callers should supply structured scope,
+  especially for multiword unknown values.
+
+  Value words (value linking, slice V1) are read by fixed rules, never guessed. A value name that
+  several dimensions share ("Alder": Aisle, Brand, Audience) is narrowed first: a dimension's name
+  beside it keeps that dimension's value ("the Alder brand", "brand: Alder"), and is then no split
+  by that dimension; else the metrics the question names keep the values of the dimensions their
+  views can be split by (Orders is not split by Audience). One left is read; more are asked about,
+  every one kept (Ask's question names eight and counts the rest: "Alder is a value of Aisle and
+  Brand. Which do you mean?"), and a person may answer with the dimension ("the brand one"). A
+  short code, a value's name of three letters or fewer its owner wrote in capitals ("NO", "UK"),
+  is read in Ask only when written in capitals or beside its dimension's name, so "no" and "it"
+  stay everyday words; agents read it in any case, as before. In Ask only (`loose`), a word that
+  names nothing Heed knows and sits where a value goes is a value Heed does not have, said and
+  never dropped, so the answer is Not found: after in, for, from, to, at or across, with or
+  without "the" ("orders from jordan", "orders in the Nordics"), right before a metric when it
+  starts what is asked ("jordan orders", "the jordan orders", never "who owns orders") or right
+  before a dimension's name ("the jordan market", which then says the dimension). It is one word,
+  or a run of Title-case words ("New York"), and never an everyday word ("in total", "in gbp",
+  "at the moment", "pending orders"), a lowercase word ending in -ed right before a metric ("cancelled orders"), a verb
+  after "to" that follows an everyday word ("going to recover"), a number, a word in capitals
+  ("YTD"), a plural right after the place word ("in stores"), another form of a known name, a word
+  before a day's name ("black friday week") nor a tool's or the product's name; a question that
+  names nothing to look up leaves its words to the word search. The issue names the dimensions it
+  could be a value of and, for a typo or a lowercase short code, the value it is close to. Agents
+  read such a word as before (dropped); the narrowing and everyday words read alike for every
+  caller. These rules by place are deliberately small: this is their fourth narrowing, and each
+  trades a missed word for fewer false alarms. The principled fix is value linking V2, one index
+  of every value name with near-miss asking, so a value word is known by the list rather than
+  guessed from where it sits. The golden questions are `tests/server/domain/value-linking.test.ts`.
+
 - `dates.ts`: `readDates`, the period the words of a question name, counted from `today` in one
   time zone (UTC: Heed has no company time zone, NFR-048), with a reads-as phrase such as "1 Jan to
   7 Oct 2026 (this year so far; UTC)". It reads an ISO day, a day, month or quarter with or

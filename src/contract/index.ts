@@ -170,6 +170,8 @@ import { gapDetailSchema, gapIdInputSchema } from './gaps.ts'
 import {
   addSourceSchema,
   connectorListingSchema,
+  leftOutInputSchema,
+  leftOutSchema,
   pausedSourceSchema,
   pauseSourceSchema,
   removedSourceSchema,
@@ -292,6 +294,8 @@ export type { Gap, GapDetail, GapHistoryEntry, GapTest, TopicCounts } from './ga
 export type {
   AddSourceInput,
   ConnectorListing,
+  LeftOut,
+  LeftOutInput,
   PauseSourceInput,
   SourceActivity,
   SourceCheck,
@@ -678,7 +682,7 @@ export const contract = {
         path: '/auth/methods',
         tags: ['session'],
         summary:
-          "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos",
+          "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos; and whether this install is the demo, and the label naming it (HEED_PROFILE_LABEL)",
       })
       .output(signInMethodSchema),
     people: publicRoute
@@ -1325,6 +1329,21 @@ export const contract = {
       })
       .input(testSourceSchema)
       .output(sourceCheckSchema),
+    // What a change of the groups a definitions source reads would stop reading, and the live
+    // items that rely on it: shown before the change is saved, which then needs acceptLeftOut.
+    leftOut: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this source among the ones an admin added." },
+      })
+      .route({
+        method: 'POST',
+        path: '/sources/{id}/left-out',
+        tags: ['sources'],
+        summary:
+          'What a definitions source would stop reading with these groups, and the live items that rely on it; changes nothing',
+      })
+      .input(leftOutInputSchema)
+      .output(leftOutSchema),
     // Read again (CON-115): one source read now, at the job's next turn, whatever its schedule.
     read: admin
       .errors({

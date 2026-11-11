@@ -28764,7 +28764,7 @@
     "/auth/methods": {
       "get": {
         "operationId": "auth.methods",
-        "summary": "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos",
+        "summary": "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos; and whether this install is the demo, and the label naming it (HEED_PROFILE_LABEL)",
         "tags": [
           "session"
         ],
@@ -28803,12 +28803,27 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "demo": {
+                      "type": "boolean"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "method",
                     "name",
-                    "start"
+                    "start",
+                    "demo",
+                    "profileLabel"
                   ]
                 }
               }
@@ -29492,11 +29507,22 @@
                     },
                     "csrfToken": {
                       "type": "string"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "person",
-                    "csrfToken"
+                    "csrfToken",
+                    "profileLabel"
                   ]
                 }
               }
@@ -30090,11 +30116,22 @@
                     },
                     "csrfToken": {
                       "type": "string"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "person",
-                    "csrfToken"
+                    "csrfToken",
+                    "profileLabel"
                   ]
                 }
               }
@@ -56242,7 +56279,7 @@
                   },
                   "scopes": {
                     "type": "array",
-                    "maxItems": 200,
+                    "maxItems": 2000,
                     "items": {
                       "type": "object",
                       "properties": {
@@ -56275,6 +56312,9 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "allGroups": {
+                    "type": "boolean"
                   },
                   "schedule": {
                     "anyOf": [
@@ -56386,7 +56426,7 @@
                     },
                     "scopes": {
                       "type": "array",
-                      "maxItems": 200,
+                      "maxItems": 2000,
                       "items": {
                         "type": "object",
                         "properties": {
@@ -56419,6 +56459,9 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "allGroups": {
+                      "type": "boolean"
                     },
                     "schedule": {
                       "anyOf": [
@@ -56470,6 +56513,7 @@
                     "config",
                     "secrets",
                     "scopes",
+                    "allGroups",
                     "schedule",
                     "nextReadAt",
                     "changedAt",
@@ -58732,7 +58776,7 @@
                     },
                     "scopes": {
                       "type": "array",
-                      "maxItems": 200,
+                      "maxItems": 2000,
                       "items": {
                         "type": "object",
                         "properties": {
@@ -58765,6 +58809,9 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "allGroups": {
+                      "type": "boolean"
                     },
                     "schedule": {
                       "anyOf": [
@@ -58816,6 +58863,7 @@
                     "config",
                     "secrets",
                     "scopes",
+                    "allGroups",
                     "schedule",
                     "nextReadAt",
                     "changedAt",
@@ -59156,7 +59204,7 @@
                   },
                   "scopes": {
                     "type": "array",
-                    "maxItems": 200,
+                    "maxItems": 2000,
                     "items": {
                       "type": "object",
                       "properties": {
@@ -59190,6 +59238,9 @@
                       "additionalProperties": false
                     }
                   },
+                  "allGroups": {
+                    "type": "boolean"
+                  },
                   "schedule": {
                     "anyOf": [
                       {
@@ -59200,6 +59251,9 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "acceptLeftOut": {
+                    "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
@@ -59300,7 +59354,7 @@
                     },
                     "scopes": {
                       "type": "array",
-                      "maxItems": 200,
+                      "maxItems": 2000,
                       "items": {
                         "type": "object",
                         "properties": {
@@ -59333,6 +59387,9 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "allGroups": {
+                      "type": "boolean"
                     },
                     "schedule": {
                       "anyOf": [
@@ -59384,6 +59441,7 @@
                     "config",
                     "secrets",
                     "scopes",
+                    "allGroups",
                     "schedule",
                     "nextReadAt",
                     "changedAt",
@@ -60265,6 +60323,382 @@
                             "findings"
                           ]
                         }
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sources/{id}/left-out": {
+      "post": {
+        "operationId": "sources.leftOut",
+        "summary": "What a definitions source would stop reading with these groups, and the live items that rely on it; changes nothing",
+        "tags": [
+          "sources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{1,39}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allGroups": {
+                    "type": "boolean"
+                  },
+                  "groups": {
+                    "type": "array",
+                    "maxItems": 2000,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    }
+                  }
+                },
+                "required": [
+                  "allGroups",
+                  "groups"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "metrics": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "dimensions": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "metrics",
+                          "dimensions"
+                        ]
+                      }
+                    },
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "named": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "domain": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "domain"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "named"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "groups",
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find this source among the ones an admin added."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Someone changed this after you opened it. Look at the latest version, then try again."
+                        },
+                        "data": {}
                       },
                       "required": [
                         "defined",
@@ -84269,7 +84703,8 @@
                                           "enum": [
                                             "model_folder",
                                             "domain_overrides",
-                                            "renames"
+                                            "renames",
+                                            "views"
                                           ],
                                           "type": "string"
                                         },
@@ -89944,7 +90379,8 @@
                             "no_date",
                             "no_split",
                             "no_value",
-                            "failed"
+                            "failed",
+                            "not_read"
                           ],
                           "type": "string"
                         },
@@ -89987,9 +90423,16 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up"
                           ],
                           "type": "string"
+                        },
+                        "dates": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
@@ -90113,6 +90556,9 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "snapshot": {
+                          "type": "boolean"
                         },
                         "asOf": {
                           "type": "string"
@@ -90705,6 +91151,7 @@
                             "timed_out",
                             "private_address",
                             "invalid_output",
+                            "not_allowed",
                             "not_set_up",
                             "no_measure"
                           ],
@@ -91899,7 +92346,7 @@
                             "meanings": {
                               "type": "array",
                               "minItems": 2,
-                              "maxItems": 8,
+                              "maxItems": 100,
                               "items": {
                                 "type": "object",
                                 "properties": {
@@ -91985,7 +92432,7 @@
                                   "meanings": {
                                     "type": "array",
                                     "minItems": 2,
-                                    "maxItems": 8,
+                                    "maxItems": 100,
                                     "items": {
                                       "type": "object",
                                       "properties": {
@@ -93686,7 +94133,7 @@
                                         "meanings": {
                                           "type": "array",
                                           "minItems": 2,
-                                          "maxItems": 8,
+                                          "maxItems": 100,
                                           "items": {
                                             "type": "object",
                                             "properties": {
@@ -93772,7 +94219,7 @@
                                               "meanings": {
                                                 "type": "array",
                                                 "minItems": 2,
-                                                "maxItems": 8,
+                                                "maxItems": 100,
                                                 "items": {
                                                   "type": "object",
                                                   "properties": {
@@ -99789,6 +100236,9 @@
                           "values": {
                             "type": "number"
                           },
+                          "valuesAsked": {
+                            "type": "number"
+                          },
                           "asked": {
                             "anyOf": [
                               {
@@ -99827,6 +100277,7 @@
                           "key",
                           "name",
                           "values",
+                          "valuesAsked",
                           "asked"
                         ]
                       }

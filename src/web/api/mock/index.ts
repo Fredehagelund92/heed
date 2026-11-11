@@ -11,7 +11,7 @@ import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
 import { connectorById } from '@/model/catalogue'
-import { DEMO_DEFINITIONS, demoTool } from './data/integrations'
+import { DEMO_DEFINITIONS, demoTool, demoTools } from './data/integrations'
 import { answerLinks, linksOf } from '@/lib/links'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
@@ -51,6 +51,7 @@ import {
   checkConnect,
   connectFormFor,
   createIntegrations,
+  leftOutOf,
   MOCK_TEST_MS,
   testFor,
   type Kept,
@@ -120,6 +121,15 @@ export function createMockApi() {
   readDefinitionsFrom(definitions.list)
   let state: State = start
   const me = () => state.user ?? 'Jon Abara'
+  /** What a definitions tool would stop reading with these views: its views read now, left out. */
+  const leftOutNow = (id: string, input: { readsAll: boolean; views: readonly string[] }) => {
+    const set = kept.get(id)
+    const all =
+      demoTools[id]?.scopes ?? testFor(id, { config: set?.config ?? {}, secrets: {} }).scopes
+    const reading =
+      set && !set.readsAll ? all.filter((s) => set.chosen.some((c) => c.id === s.id)) : all
+    return leftOutOf(reading, input, { metrics, facts: factsOf(state) })
+  }
   const dispatch = (action: Action) => {
     state = reduce(state, action)
   }
@@ -374,9 +384,16 @@ export function createMockApi() {
 
   const api: HeedApi = {
     // Session and workspace
-    getSession: () => now(() => ({ user: state.user, install: state.install, fresh: state.fresh })),
-    // The demo signs in with the person picker; an invite link opens the invite it names.
-    getSignInMethod: () => now(() => ({ kind: 'picker' as const })),
+    getSession: () =>
+      now(() => ({
+        user: state.user,
+        install: state.install,
+        fresh: state.fresh,
+        profileLabel: null,
+      })),
+    // The demo signs in with the person picker, with no label; an invite link opens the invite it
+    // names.
+    getSignInMethod: () => now(() => ({ kind: 'picker' as const, demo: true, profileLabel: null })),
     readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
     signIn: ({ name }) => {
@@ -384,7 +401,7 @@ export function createMockApi() {
         return Promise.reject(new ApiError('not-found', `${name} can't sign in here.`))
       return now(() => {
         dispatch({ type: 'signIn', name })
-        return { user: state.user, install: state.install, fresh: state.fresh }
+        return { user: state.user, install: state.install, fresh: state.fresh, profileLabel: null }
       })
     },
     signOut: () => now(() => dispatch({ type: 'signOut' })),
@@ -900,7 +917,10 @@ export function createMockApi() {
           throw new ApiError('forbidden', 'Only an admin pins dimensions for the workspace.')
         pins = { keys: [...pinned], changed: { who: me(), when: 'Today', why: reason } }
       }),
-    obsValues: (input) => now(() => valuesOf(definitions.list(), obsPageFor(input), input)),
+    obsValues: (input) =>
+      read('obsValues', JSON.stringify(input), () =>
+        valuesOf(definitions.list(), obsPageFor(input), input),
+      ),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {
@@ -979,13 +999,13 @@ export function createMockApi() {
     // The checks take a moment, as a tool's do.
     testIntegration: ({ connector, config, secrets }) =>
       new Promise((resolve) => setTimeout(resolve, MOCK_TEST_MS)).then(() =>
-        copy(testFor(connector, { config, secrets })),
+        copy(testFor(connector, { config, secrets }, scenario.address().query.views === 'many')),
       ),
-    connectIntegration: ({ connector, config, chosen, reason }) =>
+    connectIntegration: ({ connector, config, chosen, readsAll, reason }) =>
       now(() => {
         checkConnect(connector, { chosen, reason })
         settings.connect(connector)
-        kept.set(connector, { config, chosen, revision: 1 })
+        kept.set(connector, { config, chosen, readsAll, revision: 1 })
         // A definitions tool's read makes names, and the owner accepts them.
         if (connectorById(connector)?.kind === 'definitions') names.load()
         // A content tool's first read is at its next morning read; a definitions tool's now.
@@ -994,7 +1014,7 @@ export function createMockApi() {
           firstRead: connectorById(connector)?.kind === 'definitions' ? null : '07:00',
         }
       }),
-    changeIntegration: ({ id, revision, config, chosen, reason }) =>
+    changeIntegration: ({ id, revision, config, chosen, readsAll, acceptLeftOut, reason }) =>
       now(() => {
         const tool = connectorById(id)
         if (!tool || !settings.read(scenario.address()).connected.includes(tool.id))
@@ -1006,7 +1026,20 @@ export function createMockApi() {
             'conflict',
             'Someone changed this source after you opened it. Look at the latest version, then try again.',
           )
-        kept.set(tool.id, { config, chosen, revision: current + 1 })
+        const left = leftOutNow(tool.id, { readsAll, views: chosen.map((c) => c.id) })
+        if (left.items.count && !acceptLeftOut)
+          throw new ApiError(
+            'invalid',
+            `This stops reading definitions that ${left.items.count === 1 ? '1 live item relies' : `${left.items.count} live items rely`} on. Look at what it leaves out, then save again.`,
+          )
+        kept.set(tool.id, { config, chosen, readsAll, revision: current + 1 })
+      }),
+    integrationLeftOut: ({ id, readsAll, views }) =>
+      read('integrationLeftOut', id, () => {
+        const tool = connectorById(id)
+        if (!tool || !settings.read(scenario.address()).connected.includes(tool.id))
+          throw new ApiError('not-found', "We couldn't find this source.")
+        return leftOutNow(tool.id, { readsAll, views })
       }),
     disconnectIntegration: ({ id }) =>
       now(() => {

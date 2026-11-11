@@ -56,6 +56,8 @@ export default defineConfig({
         HEED_WEB_ORIGINS: `http://localhost:${webPort}`,
         MCP_RESOURCE_URL: `http://localhost:${apiPort}/mcp`,
         HEED_DEV_PEOPLE_FILE: 'db/seed/people.local.yml',
+        // Named, as a person who runs this beside the demo would name it.
+        HEED_PROFILE_LABEL: 'Own data trial',
         HEED_SECRETS_DIR: join(mkdtempSync(join(tmpdir(), 'heed-own-data-')), 'secrets'),
       },
     },

@@ -2,6 +2,7 @@ import { stateOfStatus, stateWords } from './answer-state.ts'
 import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import { DEFAULT_PRODUCT_NAME } from './brand.ts'
+import { SAID_MEANINGS } from './ask-chat.ts'
 import type { CannotReason } from './records-answer.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
 import type { DateWindow } from './validity.ts'
@@ -335,30 +336,59 @@ const meaningKinds = {
 const kindOfKey = (key: string) =>
   meaningKinds[key.slice(0, key.indexOf(':')) as keyof typeof meaningKinds]
 
+/** The dimension a value meaning is of, by its name: "Brand" for `val:brand/alder`. */
+const dimensionOf = (bundle: Names | undefined, key: string) =>
+  key.startsWith('val:') && bundle ? nameOf(bundle, `dim:${key.slice(4).split('/')[0]}`) : null
+
 /** A meaning in the sentence: a term says so, and two with one name say what each is. */
-function meaningWords(meaning: WordMeaning, all: readonly WordMeaning[]) {
+function meaningWords(meaning: WordMeaning, all: readonly WordMeaning[], bundle?: Names) {
   const twice = all.filter((m) => m.name === meaning.name).length > 1
+  const dimension = twice ? dimensionOf(bundle, meaning.key) : null
+  if (dimension) return `${meaning.name} (${dimension})`
   return meaning.key.startsWith('term:') || twice
     ? `the ${kindOfKey(meaning.key)} ${meaning.name}`
     : meaning.name
 }
-const meaningsWords = (meanings: readonly WordMeaning[]) =>
-  list(
-    meanings.map((m) => meaningWords(m, meanings)),
-    'or',
-  )
+const meaningsWords = (meanings: readonly WordMeaning[], bundle?: Names) => {
+  const named = meanings.slice(0, SAID_MEANINGS).map((m) => meaningWords(m, meanings, bundle))
+  const more = meanings.length - named.length
+  return more ? `${named.join(', ')} or ${count(more, 'more', 'more')}` : list(named, 'or')
+}
 const capitalWord = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /**
- * The one question for a word with more than one meaning, from the fixed rules: never from a
- * model, which could just choose, and with nothing else to say. It names every meaning.
+ * The dimensions of a word whose meanings are all values of one name ("Alder": Aisle and Brand),
+ * or null. The first `SAID_MEANINGS` are named and the rest counted, never left out unsaid.
  */
-export const contestedQuestion = ({ word, meanings }: ContestedAsk) =>
-  `${capitalWord(word)} can mean ${meaningsWords(meanings)}. Which do you mean?`
+function valueOf(meanings: readonly WordMeaning[], bundle?: Names) {
+  const dimensions = meanings.map((m) => dimensionOf(bundle, m.key))
+  if (dimensions.some((d) => d === null) || new Set(meanings.map((m) => m.name)).size > 1)
+    return null
+  const named = dimensions.slice(0, SAID_MEANINGS) as string[]
+  const more = dimensions.length - named.length
+  return more ? `${named.join(', ')} and ${count(more, 'more', 'more')}` : list(named)
+}
+
+/**
+ * The one question for a word with more than one meaning, from the fixed rules: never from a
+ * model, which could just choose, and with nothing else to say. It names every meaning; a value
+ * of several dimensions, by its dimensions: "Alder is a value of Aisle and Brand."
+ */
+export const contestedQuestion = ({ word, meanings }: ContestedAsk, bundle?: Names) => {
+  const of = valueOf(meanings, bundle)
+  return of
+    ? `${capitalWord(word)} is a value of ${of}. Which do you mean?`
+    : `${capitalWord(word)} can mean ${meaningsWords(meanings, bundle)}. Which do you mean?`
+}
 
 /** The rest of a word's meanings, beside an answer that took one: "Sales can also mean Gross sales." */
-export const contestedAlso = (word: string, others: readonly WordMeaning[]) =>
-  others.length ? `${capitalWord(word)} can also mean ${meaningsWords(others)}.` : null
+export const contestedAlso = (word: string, others: readonly WordMeaning[], bundle?: Names) => {
+  if (!others.length) return null
+  const of = valueOf(others, bundle)
+  return of
+    ? `${capitalWord(word)} is also a value of ${of}.`
+    : `${capitalWord(word)} can also mean ${meaningsWords(others, bundle)}.`
+}
 
 /** What a person who chose a term's meaning hears when nothing else was asked. */
 export const termChosenSaid = (word: string) =>
@@ -378,7 +408,7 @@ export function unreadSaid(bundle: Names, issues: readonly ScopeIssue[], questio
   const contested = issues.find((issue) => issue.meanings)
   if (contested) {
     const ask = { word: contested.word ?? contested.input, meanings: contested.meanings! }
-    return { say: `${notLookedUp} ${contestedQuestion(ask)}`, next: contestedNext(ask) }
+    return { say: `${notLookedUp} ${contestedQuestion(ask, bundle)}`, next: contestedNext(ask) }
   }
   return {
     say: `${notLookedUp} ${issueSay(bundle, issues, question)}`,

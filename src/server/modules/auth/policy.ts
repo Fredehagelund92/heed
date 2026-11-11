@@ -79,6 +79,7 @@ export const policies = {
   'sources.add': 'admin',
   'sources.update': 'admin',
   'sources.test': 'admin',
+  'sources.leftOut': 'admin',
   'sources.read': 'admin',
   'sources.remove': 'admin',
   'vocabulary.get': 'read',

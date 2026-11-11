@@ -9,6 +9,7 @@ import {
 } from '../../../connectors/static-definitions/entries'
 import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import { connectorById, connectors } from '@/model/catalogue'
+import { servedToAgents, type Fact, type Metric } from '@/model/items'
 import {
   type ConnectChoice,
   type ConnectForm,
@@ -16,6 +17,7 @@ import {
   type ConnectTest,
   type ConnectValues,
   type IntegrationsView,
+  type LeftOutView,
   type Source,
   type SourcePage,
 } from '@/model/integrations'
@@ -36,8 +38,78 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const manifestOf = (id: string): ConnectorManifest | undefined =>
   builtInManifests.find((m) => m.id === id)
 
-/** What the flow set for a tool this visit: its settings, its choices, its revision. */
-export type Kept = { config: Record<string, string>; chosen: ConnectChoice[]; revision: number }
+/**
+ * What the flow set for a tool this visit: its settings, its choices, whether a definitions tool
+ * reads every view or only those chosen, and its revision.
+ */
+export type Kept = {
+  config: Record<string, string>
+  chosen: ConnectChoice[]
+  readsAll: boolean
+  revision: number
+}
+
+/**
+ * A model of hundreds of views, for the connect flow at that size (`?views=many`): each region of
+ * an invented chain by each subject and each channel, after the demo's own views.
+ */
+export function manyViews(): ConnectScope[] {
+  const regions = ['north', 'south', 'east', 'west', 'central', 'coast', 'alpine', 'lakes']
+  const subjects = ['orders', 'revenue', 'returns', 'stock', 'traffic', 'basket', 'region', 'store']
+  const channels = ['store', 'web', 'app', 'marketplace', 'wholesale', 'outlet', 'kiosk']
+  return regions.flatMap((region, r) =>
+    subjects.flatMap((subject, s) =>
+      channels.map((channel, c) => {
+        const metrics = (r + s + c) % 6
+        const dimensions = 1 + ((r * 3 + c) % 4)
+        return {
+          id: `${region}_${subject}_${channel}`,
+          title: `${region}_${subject}_${channel}`,
+          detail: [metrics && plural(metrics, 'metric'), plural(dimensions, 'dimension')]
+            .filter(Boolean)
+            .join(', '),
+          metrics,
+          dimensions,
+        }
+      }),
+    ),
+  )
+}
+
+/** The demo model's view of a metric, by its group: Payments are in `orders`. */
+const viewOfGroup = (group: string) => (group === 'Payments' ? 'orders' : group.toLowerCase())
+
+/**
+ * What reading only these views would stop reading, on the mock: each view read now and left
+ * out, and the live items that apply to one of its metrics, by name.
+ */
+export function leftOutOf(
+  reading: readonly ConnectScope[],
+  input: { readsAll: boolean; views: readonly string[] },
+  world: { metrics: readonly Metric[]; facts: readonly Fact[] },
+): LeftOutView {
+  if (input.readsAll) return { views: [], items: { count: 0, named: [] } }
+  const kept = new Set(input.views)
+  const left = reading.filter((scope) => !kept.has(scope.id))
+  const gone = new Set(left.map((scope) => scope.id))
+  const names = new Set(
+    world.metrics.filter((m) => gone.has(viewOfGroup(m.group))).map((m) => m.name),
+  )
+  const items = world.facts.filter(
+    (f) => servedToAgents(f) && f.where.some((name) => names.has(name)),
+  )
+  return {
+    views: left.map((scope) => ({
+      view: scope.id,
+      metrics: scope.metrics ?? 0,
+      dimensions: scope.dimensions ?? 0,
+    })),
+    items: {
+      count: items.length,
+      named: items.slice(0, 50).map((f) => ({ id: f.id, title: f.title, domain: f.domain })),
+    },
+  }
+}
 
 /** The domain names a source's settings map, as the form keeps them: none, on the mock. */
 const NO_NAMES: Readonly<Record<string, string>> = {}
@@ -158,6 +230,7 @@ export function connectFormFor(
     config,
     secrets: manifest.secrets.map((secret) => ({ key: secret.key, set: live })),
     scopes: live ? (kept?.chosen ?? demo?.chosen ?? []) : [],
+    allGroups: live ? (kept?.readsAll ?? true) : true,
     schedule: null,
     nextReadAt: null,
     changedAt: null,
@@ -178,8 +251,11 @@ export function connectFormFor(
   }
 }
 
-/** Test connection on the mock: the demo world's checks, then what the tool may read. */
-export function testFor(connector: string, values: ConnectValues): ConnectTest {
+/**
+ * Test connection on the mock: the demo world's checks, then what the tool may read; with `many`,
+ * a definitions tool's model of hundreds of views.
+ */
+export function testFor(connector: string, values: ConnectValues, many = false): ConnectTest {
   const tool = connectorById(connector)
   const manifest = manifestOf(connector)
   if (!tool || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
@@ -207,7 +283,7 @@ export function testFor(connector: string, values: ConnectValues): ConnectTest {
   return {
     ok: true,
     steps: demo.steps.map((title) => ({ title, status: 'ok' as const })),
-    scopes: demo.scopes,
+    scopes: many && tool.kind === 'definitions' ? [...demo.scopes, ...manyViews()] : demo.scopes,
   }
 }
 
@@ -221,6 +297,42 @@ export function checkConnect(
     throw new ApiError('invalid', 'Choose at least one folder to read.')
   if (connectorById(connector)?.kind !== 'definitions' && input.chosen.some((c) => !c.domain))
     throw new ApiError('invalid', 'Choose a domain for each folder.')
+}
+
+/**
+ * A demo tool's page once the flow chose the views it reads this visit: only those views, and
+ * what they hold.
+ */
+function readingOnly(page: SourcePage, kept: Kept | undefined): SourcePage {
+  if (!kept || kept.readsAll || !page.source.definitions) return page
+  const chosen = new Map(kept.chosen.map((c) => [c.id, c.domain]))
+  // A view of the model of hundreds is read as the demo's own are.
+  const many = manyViews().map((v) => ({
+    view: v.id,
+    metrics: v.metrics ?? 0,
+    dimensions: v.dimensions ?? 0,
+  }))
+  const views = [...page.views, ...many].flatMap((v) => {
+    if (!chosen.has(v.view)) return []
+    const domain = chosen.get(v.view) ?? null
+    return [
+      { view: v.view, metrics: v.metrics, dimensions: v.dimensions, ...(domain ? { domain } : {}) },
+    ]
+  })
+  return {
+    ...page,
+    views,
+    source: {
+      ...page.source,
+      definitions: {
+        ...page.source.definitions,
+        metrics: views.reduce((n, v) => n + v.metrics, 0),
+        dimensions: views.reduce((n, v) => n + v.dimensions, 0),
+        views: views.length,
+        noDomain: views.filter((v) => !v.domain).length,
+      },
+    },
+  }
 }
 
 /** A read a schedule's length after a time of today ("09:41"): the next one it plans. */
@@ -242,13 +354,14 @@ function keptPage(id: string, kept: Kept | undefined, connectedAt: string): Sour
   if (!tool || !manifest) return null
   const definitions = tool.kind === 'definitions'
   const chosen = kept?.chosen ?? []
-  // Nothing chosen reads every view, each with the domain the tool names for it.
+  const readsAll = kept?.readsAll ?? true
+  // Every view, or only those chosen; each with its domain chosen, or the one the tool names.
   const views = (
     definitions ? checkOf(manifest, { config: kept?.config ?? {}, secrets: {} }).scopes : []
   ).flatMap((scope) => {
     const choice = chosen.find((c) => c.id === scope.id)
-    if (chosen.length && !choice) return []
-    const domain = chosen.length ? choice?.domain : scope.domain
+    if (!readsAll && !choice) return []
+    const domain = choice ? choice.domain : scope.domain
     return [
       {
         view: scope.title,
@@ -311,6 +424,7 @@ function keptPage(id: string, kept: Kept | undefined, connectedAt: string): Sour
     config: kept?.config ?? {},
     secrets: manifest.secrets.map((secret) => ({ key: secret.key, set: true })),
     scopes: [],
+    allGroups: true,
     schedule: null,
     nextReadAt: null,
     changedAt: null,
@@ -380,7 +494,7 @@ export function createIntegrations(
       return null
     }
     const demo = demoTools[id]
-    return demo ? demoPageOf(stateAt(address), demo) : keptAt(id)
+    return demo ? readingOnly(demoPageOf(stateAt(address), demo), kept(id)) : keptAt(id)
   }
 
   /** A tool as it is now: paused, reading, or as the address's state has it. */

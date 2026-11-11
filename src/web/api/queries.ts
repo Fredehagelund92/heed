@@ -69,6 +69,8 @@ export const queryKeys = {
   integrationPage: (id: string) => ['integrationPage', id] as const,
   integrationPages: ['integrationPage'] as const,
   connectForm: (id: string) => ['connectForm', id] as const,
+  integrationLeftOut: (id: string, readsAll: boolean, views: readonly string[]) =>
+    ['integrationLeftOut', id, readsAll, [...views].sort()] as const,
   connectForms: ['connectForm'] as const,
   figure: (asked: FigureAsk) => ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
@@ -258,6 +260,13 @@ export const integrationPageQuery = (id: string) =>
 export const connectFormQuery = (id: string) =>
   queryOptions({ queryKey: queryKeys.connectForm(id), queryFn: () => api.connectForm({ id }) })
 
+/** What a change of the views a definitions tool reads would stop reading; it changes nothing. */
+export const integrationLeftOutQuery = (id: string, readsAll: boolean, views: readonly string[]) =>
+  queryOptions({
+    queryKey: queryKeys.integrationLeftOut(id, readsAll, views),
+    queryFn: () => api.integrationLeftOut({ id, readsAll, views: [...views] }),
+  })
+
 export const figureQuery = (asked: FigureAsk) =>
   queryOptions({ queryKey: queryKeys.figure(asked), queryFn: () => api.readFigure(asked) })
 
@@ -350,6 +359,24 @@ export const obsValuesQuery = (input: ObsValuesInput) =>
   queryOptions({
     queryKey: queryKeys.obsValues(input),
     queryFn: () => api.obsValues(input),
+  })
+
+/**
+ * A dimension's first page of values, counted without its own filter (so a tick reads nothing
+ * again): one read for its facet and the picker's step, so whichever opens second has them at once.
+ */
+export const dimensionValuesQuery = (
+  view: ObsFilterView,
+  dimension: string,
+  q = '',
+  sort: ObsValuesInput['sort'] = 'asked',
+) =>
+  obsValuesQuery({
+    ...view,
+    filters: view.filters.filter((f) => f.key !== dimension),
+    dimension,
+    q,
+    sort,
   })
 
 export const replayQuery = (topic: string, when: 'now' | 'before') =>
@@ -478,6 +505,7 @@ type Read =
   | 'integrationPage'
   | 'connectForm'
   | 'testIntegration'
+  | 'integrationLeftOut'
   | 'readFigure'
   | 'tryFigure'
   | 'listAgentConnections'

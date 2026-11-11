@@ -31,6 +31,7 @@ import type { Alerts, RuleId } from '@/model/alerts'
 import type { FigureAsk, FigureReport, FigureTry, FigureView } from '@/model/figures'
 import type {
   ConnectChoice,
+  LeftOutView,
   ConnectedSource,
   ConnectForm,
   ConnectTest,
@@ -60,6 +61,8 @@ export type Session = {
   install: 'new' | 'normal'
   /** The mock's new install (`?demo=setup`): no demo context or cards, only what this visit adds. */
   fresh: boolean
+  /** The label naming this install (HEED_PROFILE_LABEL) for the header; null when none is set. */
+  profileLabel: string | null
 }
 
 export type Workspace = {
@@ -100,7 +103,14 @@ export type ObsFilterView = Omit<ObsPageInput, 'section'> & { filters: ObsFilter
 /** A count as a reader may have it: null when hidden, what its shown parts add up to, and its topics. */
 export type ObsSum = TopicSum
 /** A dimension, with how many values it has and what was asked about it in the range. */
-export type ObsDimension = { key: string; name: string; values: number; asked: ObsSum | null }
+export type ObsDimension = {
+  key: string
+  name: string
+  values: number
+  /** How many of its values were asked about in the range: its values' first step lists them. */
+  valuesAsked: number
+  asked: ObsSum | null
+}
 /** The filter's first step: every dimension, the most asked about first, and the pinned ones. */
 export type ObsDimensionList = {
   state: ObsData['state']
@@ -286,9 +296,13 @@ export type BulkChange = {
 
 /**
  * How this workspace signs people in: the person picker (a demo, or development), or the company's
- * OpenID Connect provider, by its name, with the address that starts a sign-in.
+ * OpenID Connect provider, by its name, with the address that starts a sign-in. With it, what the
+ * sign-in page says of the install: whether it is the invented demo, and the label naming it
+ * (HEED_PROFILE_LABEL), null when none is set.
  */
-export type SignInMethod = { kind: 'picker' } | { kind: 'oidc'; name: string; start: string }
+export type SignInMethod = { demo: boolean; profileLabel: string | null } & (
+  { kind: 'picker' } | { kind: 'oidc'; name: string; start: string }
+)
 
 /** What an open invite's link says on the sign-in screen: the domains by name, read signed out. */
 export type InviteNote = { email: string; admin: boolean; domains: string[] }
@@ -639,18 +653,35 @@ export interface HeedApi {
     input: {
       connector: string
       chosen: ConnectChoice[]
+      /** A definitions tool reads every view; false, only those chosen. */
+      readsAll: boolean
       reason: string
     } & ConnectValues,
   ) => Promise<ConnectedSource>
-  /** Change settings of a connected tool, on the revision its form read; a secret left empty stays. */
+  /**
+   * Change settings of a connected tool, on the revision its form read; a secret left empty stays.
+   * A change that stops reading views live items rely on needs `acceptLeftOut`, once whoever
+   * changes it has seen them (`integrationLeftOut`).
+   */
   changeIntegration: (
     input: {
       id: string
       revision: number
       chosen: ConnectChoice[]
+      readsAll: boolean
+      acceptLeftOut?: boolean
       reason: string
     } & ConnectValues,
   ) => Promise<void>
+  /**
+   * What a connected definitions tool would stop reading with these views, and the live items
+   * that rely on it. It changes nothing.
+   */
+  integrationLeftOut: (input: {
+    id: string
+    readsAll: boolean
+    views: string[]
+  }) => Promise<LeftOutView>
   /**
    * Disconnects a tool, by its page's id: it is read no more and its secrets are forgotten; a
    * content tool's open suggestions are withdrawn. What it read, and what owners published, stays.
@@ -864,6 +895,7 @@ export const heedApiMethods = [
   'testIntegration',
   'connectIntegration',
   'changeIntegration',
+  'integrationLeftOut',
   'disconnectIntegration',
   'getIntegrations',
   'integrationsPage',
@@ -900,9 +932,10 @@ void complete
 export type HeedApiMethod = (typeof heedApiMethods)[number]
 
 /**
- * The reads a screen's loading state shows (Loadable). Only these wait or fail for a page in the
- * mock's scenarios; the shared reads every screen needs (the session, the workspace, the library)
- * load once, before the app is drawn.
+ * The reads a screen's loading state shows (Loadable, or the skeleton of Overview's filter and its
+ * facets for a dimension's values). Only these wait or fail for a page in the mock's scenarios;
+ * the shared reads every screen needs (the session, the workspace, the library) load once, before
+ * the app is drawn.
  */
 export const pageReads = [
   'contextPage',
@@ -914,6 +947,7 @@ export const pageReads = [
   'getDefinitionHistory',
   'inboxPage',
   'observabilityPage',
+  'obsValues',
   'advancedPage',
   'integrationsPage',
   'integrationPage',

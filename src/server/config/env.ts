@@ -16,6 +16,9 @@ import { modelProviders } from '../modules/models/index.ts'
 
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
 
+/** The longest profile label (HEED_PROFILE_LABEL) the header and the sign-in page show. */
+const PROFILE_LABEL_MAX = 40
+
 const serverFoldersSchema = z.record(z.string(), z.string().min(1))
 
 /** The value of a variable that holds JSON; undefined when it is not JSON. */
@@ -165,6 +168,12 @@ const envSchema = z
     HEED_DOMAIN_OVERRIDES: z.string().optional(),
     // A JSON file of renamed Cube members, old id to new id (CON-512).
     CUBE_RENAMES_FILE: z.string().optional(),
+    // A JSON file of figure settings, by source and then by view or measure, for what a tool's
+    // model leaves unsaid (FR-716): the date a view's figures are read by, whether a measure adds
+    // up over days, and how its value is written.
+    HEED_FIGURE_OVERRIDES: z.string().optional(),
+    // A JSON file of the Cube views the model folder is read for, an allow list; unset, every view.
+    CUBE_VIEWS_FILE: z.string().optional(),
     // How long Cube's compiler may take on the model, and the memory it may use; a large model
     // needs more than the defaults (120 seconds, 1,024 MB).
     CUBE_COMPILE_TIMEOUT_SECONDS: z.coerce.number().int().min(5).max(1800).optional(),
@@ -189,6 +198,17 @@ const envSchema = z
         const problem = productNameProblem(value)
         if (problem) context.addIssue({ code: 'custom', message: problem })
       })
+      .optional(),
+    // A name for this install that the header and the sign-in page show, so a person who runs
+    // more than one (the demo and a private profile) always sees which one they are in. Unset
+    // shows none.
+    HEED_PROFILE_LABEL: z
+      .string()
+      .trim()
+      .min(1)
+      .max(PROFILE_LABEL_MAX, `Keep the label to ${PROFILE_LABEL_MAX} characters`)
+      // eslint-disable-next-line no-control-regex -- the point is to refuse control characters
+      .regex(/^[^\u0000-\u001f\u007f]*$/, 'Expected one line, without control characters')
       .optional(),
   })
   .superRefine((env, context) => {
@@ -335,6 +355,10 @@ export interface Config {
   serverFolders: Readonly<Record<string, string>>
   domainOverridesFile: string | undefined
   renamesFile: string | undefined
+  /** The figure settings file (`HEED_FIGURE_OVERRIDES`), read when the service starts. */
+  figureOverridesFile: string | undefined
+  /** The Cube views the model folder is read for (`CUBE_VIEWS_FILE`); unset, every view. */
+  cubeViewsFile: string | undefined
   /** Cube's compile limits, when the server sets them. */
   cubeCompile: { timeoutMs?: number; memoryMb?: number }
   /** The local secret store's folder; unset keeps no secret. */
@@ -342,6 +366,8 @@ export interface Config {
   metricsToken: string | undefined
   /** read_source may open http pages on this machine too (tests only). */
   webReadLoopback: boolean
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show; unset shows none. */
+  profileLabel: string | undefined
 }
 
 /** What a refusal adds when production has no sign-in configured. */
@@ -419,6 +445,8 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     serverFolders: env.HEED_SERVER_FOLDERS ?? {},
     domainOverridesFile: env.HEED_DOMAIN_OVERRIDES,
     renamesFile: env.CUBE_RENAMES_FILE,
+    figureOverridesFile: env.HEED_FIGURE_OVERRIDES,
+    cubeViewsFile: env.CUBE_VIEWS_FILE,
     cubeCompile: {
       ...(env.CUBE_COMPILE_TIMEOUT_SECONDS === undefined
         ? {}
@@ -428,6 +456,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     secretsDir: env.HEED_SECRETS_DIR,
     metricsToken: env.HEED_METRICS_TOKEN,
     webReadLoopback: env.HEED_WEB_READ_LOOPBACK === 'on',
+    profileLabel: env.HEED_PROFILE_LABEL,
   }
 }
 

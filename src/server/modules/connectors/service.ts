@@ -206,6 +206,16 @@ export class ConnectorService {
           }
         }
       }
+      // The server's own source keeps the groups its configuration lists where an added source
+      // keeps those an administrator chose, so figures and its page see what it reads.
+      if (origin === 'server' && snapshot)
+        await tx.query('update connectors set all_groups = $2, scopes = $3 where id = $1', [
+          source.id,
+          snapshot.groups === undefined,
+          JSON.stringify(
+            (snapshot.groups ?? []).map((group) => ({ id: group, title: group, domain: null })),
+          ),
+        ])
       const status = snapshot ? (snapshot.complete ? 'ok' : 'partial') : 'failed'
       const [saved] = await tx.query<{ id: string }>(
         `insert into connector_snapshots

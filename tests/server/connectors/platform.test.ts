@@ -26,7 +26,10 @@ import {
   type DefinitionSource,
 } from '../../../src/server/modules/connectors/index.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
-import { withChosenGroups } from '../../../src/server/modules/connectors/platform.ts'
+import {
+  withChosenGroups,
+  withListedGroups,
+} from '../../../src/server/modules/connectors/platform.ts'
 
 /*
   Interface 3.0 in the core (docs/contributing/connector-contract.md): the registry checks every
@@ -429,6 +432,83 @@ describe('the groups an admin chose for a definitions source (CON-118)', () => {
       { code: 'domain_override', target: 'cube:orders.count' },
       { code: 'domain_override', target: 'cube:orders.revenue' },
     ])
+  })
+
+  it('reads every group with some mapped: the rest as the tool gives them', () => {
+    const read = withChosenGroups(
+      snapshot,
+      [{ id: 'orders', title: 'orders', domain: 'finance' }],
+      true,
+    )
+    expect(read.definitions.map((d) => [d.name, d.areaHint, d.domainSource])).toEqual([
+      ['orders.count', 'finance', 'override'],
+      ['orders.revenue', 'finance', 'override'],
+      ['segments.size', null, 'none'],
+      ['growth.rate', 'marketing', 'source'],
+    ])
+    expect(read.groups).toBeUndefined()
+    expect(read.warnings.map((w) => w.code)).not.toContain('group_not_found')
+  })
+
+  it('reads only the groups listed, and names each one the read did not find', () => {
+    const read = withChosenGroups(
+      snapshot,
+      [
+        { id: 'growth', title: 'growth', domain: 'marketing' },
+        { id: 'stock', title: 'stock', domain: null },
+      ],
+      false,
+    )
+    expect(read.complete).toBe(true)
+    expect(read.definitions.map((d) => d.name)).toEqual(['growth.rate'])
+    expect(read.groups).toEqual(['growth', 'stock'])
+    expect(read.warnings).toEqual([
+      { code: 'unsupported_file', target: 'model/old.yml' },
+      { code: 'invalid_domain', target: 'growth.rate' },
+      { code: 'group_not_found', target: 'stock' },
+      { code: 'domain_override', target: 'cube:growth.rate' },
+    ])
+  })
+
+  it('names a listed group the read lacks even when it is mapped to a domain', () => {
+    const read = withChosenGroups(
+      snapshot,
+      [{ id: 'stock', title: 'stock', domain: 'finance' }],
+      false,
+    )
+    expect(read.warnings).toContainEqual({ code: 'group_not_found', target: 'stock' })
+  })
+
+  it('reads nothing from a list of none, and says so, never every group', () => {
+    const read = withChosenGroups(snapshot, [], false)
+    expect(read.definitions).toEqual([])
+    expect(read.complete).toBe(true)
+    expect(read.groups).toEqual([])
+    expect(read.warnings).toEqual([
+      { code: 'unsupported_file', target: 'model/old.yml' },
+      { code: 'no_groups_chosen', target: 'groups' },
+    ])
+  })
+
+  it('keeps the domains the read gave when it only narrows to a list', () => {
+    const read = withListedGroups(snapshot, ['orders'])
+    expect(read.definitions.map((d) => [d.name, d.areaHint, d.domainSource])).toEqual([
+      ['orders.count', 'sales', 'source'],
+      ['orders.revenue', null, 'none'],
+    ])
+    expect(read.warnings).toEqual([
+      { code: 'missing_domain', target: 'orders' },
+      { code: 'unsupported_file', target: 'model/old.yml' },
+    ])
+  })
+
+  it('never reads a member in no group once a list is kept', () => {
+    const loose = { ...snapshot, definitions: [...snapshot.definitions, definition('total', null)] }
+    expect(withListedGroups(loose, ['orders']).definitions.map((d) => d.name)).toEqual([
+      'orders.count',
+      'orders.revenue',
+    ])
+    expect(withChosenGroups(loose, [], true).definitions).toHaveLength(5)
   })
 })
 

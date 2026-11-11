@@ -3,7 +3,7 @@ title: Service settings
 line: The settings the service reads from its environment when it starts, with their defaults.
 group: Run the service
 order: 4
-reviewed: 2026-11-05
+reviewed: 2026-11-10
 ---
 
 The service reads its settings from the environment, once, when it starts. If one is wrong, it refuses to start and names each bad setting.
@@ -59,16 +59,18 @@ With `live`, each role's provider and model come from the `models.*` settings, a
 
 ## Connectors
 
-| Setting                        | Default | What it does                                                                                                                        |
-| ------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `CUBE_MODEL_DIR`               | None    | A folder of Cube model files. Unset, the service reads two invented definitions, or in the image outside production, the demo model |
-| `HEED_DOMAIN_OVERRIDES`        | None    | A JSON file: view to domain, for what the model leaves unnamed                                                                      |
-| `CUBE_RENAMES_FILE`            | None    | A JSON file of renamed members, old id to new id                                                                                    |
-| `CUBE_COMPILE_TIMEOUT_SECONDS` | `120`   | How long Cube's compiler may take                                                                                                   |
-| `CUBE_COMPILE_MEMORY_MB`       | `1024`  | The memory Cube's compiler may use                                                                                                  |
-| `HEED_SERVER_FOLDERS`          | None    | A JSON object of connector ids to folders on the server                                                                             |
-| `HEED_EGRESS_PRIVATE_HOSTS`    | None    | Hosts on a private network connectors may reach over https, comma-separated                                                         |
-| `HEED_SECRETS_DIR`             | None    | The folder that keeps the tokens of sources added in Integrations                                                                   |
+| Setting                        | Default | What it does                                                                                                                                                   |
+| ------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CUBE_MODEL_DIR`               | None    | A folder of Cube model files. Unset, the service reads two invented definitions, or in the image outside production, the demo model                            |
+| `HEED_DOMAIN_OVERRIDES`        | None    | A JSON file: view to domain, for what the model leaves unnamed                                                                                                 |
+| `CUBE_RENAMES_FILE`            | None    | A JSON file of renamed members, old id to new id                                                                                                               |
+| `CUBE_VIEWS_FILE`              | None    | A JSON list of the Cube views to read, such as `["orders", "revenue"]`. Unset, every view; empty, none ([views](connectors/cube.md#choose-the-views-it-reads)) |
+| `HEED_FIGURE_OVERRIDES`        | None    | A JSON file of [figure settings](connectors/cube.md#figure-settings-on-the-server), for what the model leaves unsaid                                           |
+| `CUBE_COMPILE_TIMEOUT_SECONDS` | `120`   | How long Cube's compiler may take                                                                                                                              |
+| `CUBE_COMPILE_MEMORY_MB`       | `1024`  | The memory Cube's compiler may use                                                                                                                             |
+| `HEED_SERVER_FOLDERS`          | None    | A JSON object of connector ids to folders on the server                                                                                                        |
+| `HEED_EGRESS_PRIVATE_HOSTS`    | None    | Hosts on a private network connectors may reach over https, comma-separated                                                                                    |
+| `HEED_SECRETS_DIR`             | None    | The folder that keeps the tokens of sources added in Integrations                                                                                              |
 
 `HEED_SERVER_FOLDERS` looks like `{"dbt-metricflow":"/srv/dbt/target"}`. Each folder is read by that connector as one of the server's own sources, and the demo definitions stop. In Docker, share the folder into the container and name its path there.
 
@@ -85,6 +87,7 @@ A connector that cannot read a folder stops the service at start. A folder that 
 | Setting              | Default | What it does                                                                                                                                               |
 | -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HEED_PRODUCT_NAME`  | `Heed`  | The name the app and the help pages say                                                                                                                    |
+| `HEED_PROFILE_LABEL` | None    | A name for this install, at most 40 characters, in the header and on the sign-in page: see [Private profiles](security.md#private-profiles)                |
 | `HEED_SUPPORT_EMAIL` | None    | Where Contact support and Report a problem write to. Unset, they open the project's GitHub issues. Read when the app and the docs are built                |
 | `HEED_METRICS_TOKEN` | None    | Turns on [`/metrics`](operations.md#metrics). At least 32 characters                                                                                       |
 | `HEED_FIXED_TODAY`   | None    | Pins the service's day for demos and tests. A day in the past is kept whole: Ask's records read it as ending at the end of that day. Refused in production |

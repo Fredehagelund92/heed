@@ -85,7 +85,7 @@ The old names: `CL_AUTH`, `CL_DEV_PEOPLE_FILE`, `CL_DOMAIN_OVERRIDES`, `CL_FIXED
 
 ## Scanning and the restore drill
 
-- `.github/workflows/security.yml` runs from the CI workflow, and the CI gate needs it. It covers `package-lock.json` and `apps/docs/package-lock.json`, with exceptions in `osv-scanner.toml`, and `.gitleaks.toml` (the default rules plus one made-up key the content checks must recognise).
+- `.github/workflows/security.yml` runs from the CI workflow, and the CI gate needs it. It covers `package-lock.json` and `apps/docs/package-lock.json`, with exceptions in `osv-scanner.toml`, and `.gitleaks.toml` (the default rules, the private-profile marker and the made-up keys the tests must recognise). The marker rule is proved on two files the workflow writes, one with the marker and one without, since no file in the repository may carry it.
 - Run the scans locally:
 
   ```sh

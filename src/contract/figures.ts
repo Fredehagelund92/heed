@@ -94,7 +94,7 @@ export const noFigureReasons = [
   'undefined',
   /** More than one integration defines it, so none is picked. */
   'ambiguous',
-  /** The integration has no single date for it. */
+  /** The integration has no date for it, or several and none named. */
   'no_date',
   /** The integration can't split it by a value the question names. */
   'no_split',
@@ -102,6 +102,8 @@ export const noFigureReasons = [
   'no_value',
   /** The integration could not be read just now. */
   'failed',
+  /** The metric's view is not one of those Heed reads from the integration. */
+  'not_read',
 ] as const
 export type NoFigureReason = (typeof noFigureReasons)[number]
 
@@ -114,6 +116,8 @@ export const figureFailures = [
   'timed_out',
   'private_address',
   'invalid_output',
+  /** The tool does not let the token read the measure. */
+  'not_allowed',
   'not_set_up',
 ] as const
 
@@ -147,6 +151,11 @@ export const figureReadSchema = z.discriminatedUnion('state', [
     reason: z.enum(noFigureReasons),
     source: z.nullable(figureSourceRefSchema),
     failure: z.optional(z.enum(figureFailures)),
+    /**
+     * For `no_date` when the view has several dates and neither the model nor the server's
+     * settings name one: the dates as people read them, so someone can say which it is.
+     */
+    dates: z.optional(z.array(z.string())),
   }),
   z.object({
     state: z.literal('figure'),
@@ -157,6 +166,11 @@ export const figureReadSchema = z.discriminatedUnion('state', [
     to: day,
     /** The same measure for the days just before, to compare; its value null when there is none. */
     comparison: z.nullable(z.object({ value: z.nullable(z.number()), from: day, to: day })),
+    /**
+     * The measure does not add up over days, a snapshot such as a balance: the value, and the one
+     * compared, are the value on the last of the days.
+     */
+    snapshot: z.optional(z.boolean()),
     /** When the tool last refreshed its data, or when the figure was read if it doesn't say. */
     asOf: z.string(),
     /** The query, in words first. */

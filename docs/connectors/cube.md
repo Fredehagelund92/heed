@@ -47,11 +47,12 @@ A domain name applies before a domain is checked. With the line `paid_media → 
 
 Whoever runs the service sets these, and Integrations shows them read only:
 
-| Setting                 | What it does                                                                                  |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `CUBE_MODEL_DIR`        | The folder to read. Unset, the service reads two invented definitions                         |
-| `HEED_DOMAIN_OVERRIDES` | A JSON file outside the model folder: view to domain, for views the model names no domain for |
-| `CUBE_RENAMES_FILE`     | A JSON file of renamed members, old id to new id                                              |
+| Setting                 | What it does                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `CUBE_MODEL_DIR`        | The folder to read. Unset, the service reads two invented definitions                                             |
+| `HEED_DOMAIN_OVERRIDES` | A JSON file outside the model folder: view to domain, for views the model names no domain for                     |
+| `CUBE_RENAMES_FILE`     | A JSON file of renamed members, old id to new id                                                                  |
+| `CUBE_VIEWS_FILE`       | A JSON file of the views to read. Unset, every view is read. See [the views it reads](#choose-the-views-it-reads) |
 
 To read a folder now, without changing it:
 
@@ -77,6 +78,31 @@ Keys are exact public view or cube names. A valid `meta.domain` in the model win
 
 A rename is used only when the old member is gone and the new one is there. Any other entry is reported. Items that rely on the old member are flagged, with the new id named.
 
+## Choose the views it reads
+
+Every public view and public cube is read until you keep a list of the views to read. A model with many views can be narrowed to the few your team uses.
+
+- **In the app.** On Cube's page in Integrations, press **Change settings**, then at **Choose what to read** pick **Only the views you choose**. Search the views the model has, each with its metrics and dimensions, and tick the ones to read.
+- **On the server.** Set `CUBE_VIEWS_FILE` to a JSON file that lists them:
+
+```json
+["orders", "revenue"]
+```
+
+| The list            | What is read                                                     |
+| ------------------- | ---------------------------------------------------------------- |
+| None, or Every view | Every public view and cube, and a view the model adds later      |
+| Some views          | Those views only. A view the model adds later waits to be listed |
+| Empty, `[]`         | Nothing, and the read says so                                    |
+
+Name a view as the model names it. A public cube is read only when it is listed by its own name. Cube still compiles the whole model, since a view needs the cubes it includes, but only the members of the listed views become definitions: a cube that two listed views include is read through each of them, so taking one of the views out keeps the other's members.
+
+The list applies everywhere the definitions do: the names waiting in the Inbox, Definitions, and figures in Ask, where a metric of a view that is not read gets no figure and says why. A listed view the model does not have is named in the read (`group_not_found`), and the other views are read.
+
+Taking a view out of the list marks its definitions missing at the next read. Each item that relies on one is marked **Needs checking** for its owners, and nothing is unpublished or deleted. Before you save, the app names the views left out and those items, and Save waits until you say you have seen them. Listing the view again clears the marks.
+
+The server's file is read at each read. A file that is not a JSON list of names, each once, fails the read rather than reading every view.
+
 ## Links to model files
 
 Set the model folder's address to link each view to its file. On the Cube source's page, set **Model folder address**, for example:
@@ -101,15 +127,17 @@ A model of 10,000 members takes about 45 seconds. An empty or unreadable model f
 
 ## Warnings
 
-| Code               | What it means                             |
-| ------------------ | ----------------------------------------- |
-| `missing_domain`   | A public view or cube names no domain     |
-| `invalid_domain`   | A domain is not a domain id               |
-| `invalid_rename`   | A rename does not apply                   |
-| `unsupported_file` | A file is not YAML                        |
-| `unreadable_file`  | A link, a file over the limit or not text |
-| `folder_missing`   | The model folder is not there             |
-| `too_many_records` | The folder holds too many files           |
+| Code               | What it means                               |
+| ------------------ | ------------------------------------------- |
+| `missing_domain`   | A public view or cube names no domain       |
+| `invalid_domain`   | A domain is not a domain id                 |
+| `invalid_rename`   | A rename does not apply                     |
+| `unsupported_file` | A file is not YAML                          |
+| `unreadable_file`  | A link, a file over the limit or not text   |
+| `folder_missing`   | The model folder is not there               |
+| `too_many_records` | The folder holds too many files             |
+| `group_not_found`  | A listed view is not in the model           |
+| `no_groups_chosen` | The list of views is empty: nothing is read |
 
 ## Figures in Ask
 
@@ -120,8 +148,80 @@ Off by default. With it on, Ask shows one figure read from Cube, and keeps it no
 3. Name a **Data contact**.
 4. Switch on **Show figures in Ask**.
 
-The figure comes from the integration that defines the metric, and the query is a fixed template, never words a person or a model wrote. There is no figure when more than one integration defines the metric, or when its view does not have exactly one time dimension.
+The figure comes from the integration that defines the metric, and the query is a fixed template, never words a person or a model wrote. There is no figure when more than one integration defines the metric, or when its view has no time dimension.
 
-The value is written as the model says: `format: currency` with `meta.currency` for money, and `format: percent` for a share. "Data as of" is Cube's `lastRefreshTime`.
+"Data as of" is Cube's `lastRefreshTime`.
 
 No person's identity is passed to Cube. A refused token, a host that cannot be reached and a slow query each say so in Ask, within 4 seconds.
+
+The token reads what Cube's access policies let it read. A measure an `access_policy` hides from the token's groups says so in Ask and in **Try a figure**: Cube answers it with an error, which reads as "not allowed", not "unreachable". Rows are filtered by Cube itself, as its row-level rules say.
+
+### Which date
+
+A view with one time dimension reads its figures by it. A view with several reads them by the one the model names, in this order:
+
+1. `meta.default_time_dimension` on the measure.
+2. `meta.default_time_dimension` on its view.
+3. The server's figure settings, below.
+
+The name is the view's own (`invoice_day`) or in full (`sales.invoice_day`). A name the view does not have is skipped. When nothing names one, Ask shows no figure, lists the view's dates and asks which one figures use: the date is never guessed. The query in words says the date used, such as "by invoice day".
+
+```yaml
+views:
+  - name: sales
+    meta:
+      default_time_dimension: invoice_day
+```
+
+### Measures that do not add up over days
+
+A snapshot, such as a balance or stock on hand, is a value on a day: added up over a month it means nothing. Mark it with `meta.non_additive_dimension` on the measure, the date it is taken on, as dbt's semantic models name it:
+
+```yaml
+measures:
+  - name: units_on_hand
+    type: sum
+    sql: units
+    meta:
+      non_additive_dimension: stock_day
+```
+
+Its figure is then read on the last of the days only, and so is the one it is compared with. Ask says it is the value as of that day, and that it can't be added up over a period. It is still added up across the values the question names, such as two markets on that day.
+
+When Cube cannot say whether a measure adds up (its model could not be read) and the server's figure settings do not say either, the figure is not read, rather than risk adding up a snapshot.
+
+### How the value is written
+
+The value is written as the model says:
+
+| In the model                                   | Written as              |
+| ---------------------------------------------- | ----------------------- |
+| `format: currency` and `currency: EUR`         | Money, €43,600          |
+| `currency: EUR` alone, or `meta.currency: EUR` | Money too               |
+| `format: percent`                              | A share, 0.175 as 17.5% |
+| Nothing, or `format: number`                   | A number, 43,600        |
+
+Named formats such as `currency_0` and `percent_1` count as `currency` and `percent`. A percent is the share Cube gives, as Cube's own format writes it. Money with no currency anywhere is written as a number: the currency is never guessed.
+
+### Figure settings on the server
+
+For a model you cannot change, whoever runs the service sets `HEED_FIGURE_OVERRIDES` to a JSON file. It is by integration id, then by view or measure. A measure's own setting wins over its view's, and the model wins over both:
+
+```json
+{
+  "cube": {
+    "sales": { "date": "invoice_day" },
+    "stock.units_on_hand": { "additive": false },
+    "sales.revenue": { "currency": "EUR" }
+  }
+}
+```
+
+| Setting    | What it does                                                    |
+| ---------- | --------------------------------------------------------------- |
+| `date`     | The date the days apply to, by its name                         |
+| `additive` | `false` for a measure that does not add up over days            |
+| `format`   | `currency`, `percent` or `number`, when the model has no format |
+| `currency` | The currency of money, such as `EUR`, when the model names none |
+
+The file is read when the service starts. A file that is not JSON, or holds a setting not in this table, stops the start.

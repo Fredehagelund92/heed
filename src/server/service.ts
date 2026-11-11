@@ -21,6 +21,8 @@ import {
   createWorkspaceSources,
   noSecretStore,
   openLocalSecretStore,
+  readFigureOverrides,
+  type FigureOverrides,
   type SecretStore,
 } from './modules/connectors/index.ts'
 import { evalJobs } from './modules/evals/index.ts'
@@ -218,7 +220,19 @@ async function compose(
     secrets,
     worker: config.cubeCompile,
   })
-  const workspaceSources = createWorkspaceSources({ secrets, registry: sources })
+  let figureOverrides: FigureOverrides | undefined
+  if (config.figureOverridesFile !== undefined) {
+    try {
+      figureOverrides = await readFigureOverrides(config.figureOverridesFile)
+    } catch (error) {
+      throw new ServiceError(error instanceof Error ? error.message : 'HEED_FIGURE_OVERRIDES')
+    }
+  }
+  const workspaceSources = createWorkspaceSources({
+    secrets,
+    registry: sources,
+    ...(figureOverrides ? { figureOverrides } : {}),
+  })
   const jobs = createJobRunner({
     connectionString: config.databaseUrl,
     database,
@@ -251,6 +265,7 @@ async function compose(
     nodeEnv: config.nodeEnv,
     metricsToken: config.metricsToken,
     askLoop: config.askLoop,
+    profileLabel: config.profileLabel,
     // The end-to-end tests serve their web pages on this machine; elsewhere, the public web only.
     ...(config.webReadLoopback ? { readPage: createPageReader({ loopback: true }) } : {}),
     login,

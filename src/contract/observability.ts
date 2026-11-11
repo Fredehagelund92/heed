@@ -235,14 +235,16 @@ export const obsDimensionsSchema = z.object({
   /**
    * Every dimension of the definitions and any other a topic of the range names, the most asked
    * about in the range first, then A to Z: how many values it has, the definitions' and any other
-   * a topic names (none: "any value" alone), and the topics that name it and pass every
-   * filter but its own, with what was asked about them; null unless the range is counted.
+   * a topic names (none: "any value" alone), how many of them were asked about (as many as its
+   * values' first step lists: `matched`), and the topics that name it and pass every filter but
+   * its own, with what was asked about them; null unless the range is counted.
    */
   dimensions: z.array(
     z.object({
       key: z.string(),
       name: z.string(),
       values: z.number(),
+      valuesAsked: z.number(),
       asked: z.nullable(topicSum),
     }),
   ),

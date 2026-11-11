@@ -297,6 +297,11 @@ export type ConnectForm = {
   perDay: number | null
   /** What it reads now, with each one's domain: Change settings starts from these. */
   chosen: ConnectChoice[]
+  /**
+   * A definitions tool reads every view, `chosen` then only mapping domains; false, only the views
+   * chosen, an allow list. A new connection reads every view until views are left out.
+   */
+  readsAll: boolean
   /** Whether the server can keep a secret; without a store, a form that needs one says so first. */
   secretStore: boolean
 }
@@ -358,6 +363,16 @@ export type ConnectRead = {
 
 /** A view or folder chosen to read, and the domain it maps to (none: a view left shared). */
 export type ConnectChoice = { id: string; title: string; domain: DomainId | null }
+
+/**
+ * What a definitions tool would stop reading with the views chosen: each view it reads now that is
+ * left out, with what it holds (`view` null for members in no view), and the live context items
+ * relying on one of them, which its next read marks Definition missing for their owners.
+ */
+export type LeftOutView = {
+  views: { view: string | null; metrics: number; dimensions: number }[]
+  items: { count: number; named: { id: string; title: string; domain: DomainId }[] }
+}
 
 /** A tool connected: its page's id, and the time of its first read ("07:00"), or null for now. */
 export type ConnectedSource = { id: string; firstRead: string | null }

@@ -280,7 +280,9 @@ and pause them in Settings › Integrations (`GET /api/v1/sources`,
 also adds a source, such as a Cube model in a Git
 repository read with a read-only token, tests it before saving and changes its settings
 (`POST /api/v1/sources/test`, `POST /api/v1/sources`, `PUT /api/v1/sources/{id}`), choosing the
-views it reads and the domain of each, and disconnects it (`POST /api/v1/sources/{id}/disconnect`). See
+views it reads and the domain of each (every view, or only those listed, with
+`POST /api/v1/sources/{id}/left-out` naming what a shorter list stops reading), and disconnects it
+(`POST /api/v1/sources/{id}/disconnect`). See
 [the connector contract](connector-contract.md) for what a connector declares and reports, the
 invariants, sources an administrator adds and snapshot behavior;
 [Security and egress](connector-security.md) for the secret store and the hosts a connector
@@ -914,7 +916,8 @@ over its months) found nothing at least the minimum times.
 - `GET /observability/dimensions` (the filter's first step): `range`, `areaId`, `agent` and
   `filters`, as above. Every dimension of the definitions, and any other a topic of the range
   names, with `values`, how many values it has, the definitions' and any other a topic of the range
-  names (none: it is filtered by "any value" alone), and `asked`: the topics of the range that name it and pass every filter but its
+  names (none: it is filtered by "any value" alone), `valuesAsked`, how many of them were asked
+  about (as many as its values' first step lists as `matched`), and `asked`: the topics of the range that name it and pass every filter but its
   own, so its other values stay in sight, with what was asked about them. The most asked first,
   then A to Z; `asked` is null unless the range is counted (`state` `normal`). `pinned` lists the
   dimensions an admin pinned on Overview, in their order, as far as the definitions still have

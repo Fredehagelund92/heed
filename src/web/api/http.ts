@@ -221,6 +221,7 @@ export const wiredMethods = [
   'testIntegration',
   'connectIntegration',
   'changeIntegration',
+  'integrationLeftOut',
   'disconnectIntegration',
   'setLinks',
   'setTool',
@@ -526,7 +527,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  const asSession = (name: string): Session => ({ user: name, install: 'normal', fresh: false })
+  const asSession = (name: string, profileLabel: string | null): Session => ({
+    user: name,
+    install: 'normal',
+    fresh: false,
+    profileLabel,
+  })
 
   /** Everyone the comments may name, both ways: by id, and by name for a mention. */
   async function readPeople(): Promise<People> {
@@ -1203,13 +1209,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // checklist until it is done (docs/product.md, FR-816).
     getSession: async () => {
       try {
-        const { me: who } = await session()
+        const { me: who, profileLabel } = await session()
         const setup = await read(() => client.setup.state())
-        return { ...asSession(who.name), install: setup.done ? 'normal' : 'new' }
+        return { ...asSession(who.name, profileLabel), install: setup.done ? 'normal' : 'new' }
       } catch (error) {
         if (toApiError(error).kind === 'signed-out') {
           me = undefined
-          return { user: null, install: 'normal', fresh: false }
+          return { user: null, install: 'normal', fresh: false, profileLabel: null }
         }
         throw error
       }
@@ -1237,17 +1243,19 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       sent = []
       published = {}
       words = undefined
-      return asSession(signed.person.name)
+      return asSession(signed.person.name, signed.profileLabel)
     },
     getSignInMethod: async () => {
       const method = await read(() => client.auth.methods())
+      const install = { demo: method.demo, profileLabel: method.profileLabel }
       return method.method === 'oidc' && method.start
         ? {
             kind: 'oidc' as const,
             name: method.name ?? 'your company account',
             start: method.start,
+            ...install,
           }
-        : { kind: 'picker' as const }
+        : { kind: 'picker' as const, ...install }
     },
     readInvite: async ({ token }) => {
       try {
@@ -1898,7 +1906,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       }
     },
     // The source is named after its tool; the service reads it at once (CON-115).
-    connectIntegration: async ({ connector, config, secrets, chosen, reason }) => {
+    connectIntegration: async ({ connector, config, secrets, chosen, readsAll, reason }) => {
       const { configOf, scopesOf, secretsOf } = await integrationWords()
       const type = connector
       const manifest = (await read(() => client.sources.types())).find(
@@ -1911,6 +1919,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         config: configOf(config),
         secrets: secretsOf(secrets),
         scopes: scopesOf(chosen),
+        ...(manifest.kind === 'definitions' ? { allGroups: readsAll } : {}),
         reason,
       }
       // The retry key names the secrets, never their values.
@@ -1918,7 +1927,16 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const added = await write('sources.add', keyed, (o) => client.sources.add(input, o))
       return { id: added.id, firstRead: null }
     },
-    changeIntegration: async ({ id, revision, config, secrets, chosen, reason }) => {
+    changeIntegration: async ({
+      id,
+      revision,
+      config,
+      secrets,
+      chosen,
+      readsAll,
+      acceptLeftOut,
+      reason,
+    }) => {
       const { changedConfigOf, scopesOf, secretsOf } = await integrationWords()
       const before = await read(() => client.sources.get({ id }))
       const input = {
@@ -1928,10 +1946,26 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         config: changedConfigOf(before.config, config),
         secrets: secretsOf(secrets),
         scopes: scopesOf(chosen),
+        allGroups: readsAll,
+        ...(acceptLeftOut ? { acceptLeftOut } : {}),
         reason,
       }
       const keyed = { ...input, secrets: Object.keys(input.secrets).sort() }
       await write('sources.update', keyed, (o) => client.sources.update(input, o))
+    },
+    // Changes nothing: a POST only because the views it would read may be many.
+    integrationLeftOut: async ({ id, readsAll, views }) => {
+      const left = await readPosted((o) =>
+        client.sources.leftOut({ id, allGroups: readsAll, groups: views }, o),
+      )
+      return {
+        views: left.groups.map((g) => ({
+          view: g.name,
+          metrics: g.metrics,
+          dimensions: g.dimensions,
+        })),
+        items: left.items,
+      }
     },
     disconnectIntegration: async ({ id }) => {
       const input = { id, reason: 'Disconnected, in Settings, Integrations.' }

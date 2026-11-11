@@ -6,7 +6,7 @@
  * and how fresh.
  */
 import type { FigureRead, FigureTry as FigureTried } from '@contract/figures'
-import { comparisonWords, daysWords, type Days } from '@domain/figures'
+import { comparisonWords, daysWords, listed, type Days } from '@domain/figures'
 import type { Figure, FigureTry, FigureView } from '@/model/figures'
 
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
@@ -67,8 +67,9 @@ export function figureValue(
       // A currency code the browser doesn't know is written after the number.
       return `${value.toLocaleString('en-GB')} ${format.currency}`
     }
+  // A share, as the tool writes a percent: 0.175 is 17.5%.
   if (format.kind === 'percent')
-    return `${value.toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`
+    return value.toLocaleString('en-GB', { style: 'percent', maximumFractionDigits: 1 })
   return value.toLocaleString('en-GB', { maximumFractionDigits: 2 })
 }
 
@@ -103,15 +104,21 @@ function whyNot(read: Extract<FigureRead, { state: 'none' }>, metric: string, sc
     case 'ambiguous':
       return `More than one integration defines ${what}, so none is picked to read it.`
     case 'no_date':
-      return `${tool} has no single date for ${what}, so no figure is read for these days.`
+      return read.dates && read.dates.length > 1
+        ? `${tool} has ${read.dates.length} dates for ${what}: ${listed(read.dates)}. Which one should figures use? The data team names it in the model.`
+        : `${tool} has no date for ${what}, so no figure is read for these days.`
     case 'no_split':
       return `${tool} can't split ${what} the way the question does, so no figure is read for it.`
     case 'no_value':
       return `${tool} returned no figure for ${scope}.`
+    case 'not_read':
+      return `${tool} defines ${what} in a view that isn't read, so no figure is read for it. An admin chooses the views to read in Integrations.`
     case 'failed':
-      return read.failure === 'not_set_up'
-        ? `Figures from ${tool} aren't set up yet: an admin sets the data endpoint and its token.`
-        : `Couldn't read the figure from ${tool} just now. Ask again in a minute.`
+      if (read.failure === 'not_set_up')
+        return `Figures from ${tool} aren't set up yet: an admin sets the data endpoint and its token.`
+      if (read.failure === 'not_allowed')
+        return `${tool} doesn't let the integration's token read ${what}, so no figure is read for it.`
+      return `Couldn't read the figure from ${tool} just now. Ask again in a minute.`
   }
 }
 
@@ -148,12 +155,16 @@ export function figureViewOf(
   const days = { from: read.from, to: read.to }
   const value = figureValue(read.value, read.format)
   const before = read.comparison?.value
+  // A snapshot is its value on the last day, compared with the last of the days before.
+  const on = (day: string) => daysWords({ from: day, to: day })
+  const when = read.snapshot ? `as of ${on(days.to)}` : daysWords(days)
+  const since = read.snapshot && read.comparison ? on(read.comparison.to) : comparisonWords(days)
   const figure: Figure = {
-    label: `${scope}, ${daysWords(days)}`,
+    label: `${scope}, ${when}`,
     value,
     ...(before !== null && before !== undefined && before !== 0
       ? {
-          change: `${moved(read.value, before)} from ${comparisonWords(days)} (${figureValue(before, read.format)})`,
+          change: `${moved(read.value, before)} from ${since} (${figureValue(before, read.format)})`,
         }
       : {}),
     words: read.queryInWords,
@@ -161,7 +172,9 @@ export function figureViewOf(
       ? {
           against: {
             contextId: read.against.itemId,
-            figureSays: `${scope} from ${daysWords(days)} was ${value}.`,
+            figureSays: read.snapshot
+              ? `${scope} ${when} was ${value}.`
+              : `${scope} from ${daysWords(days)} was ${value}.`,
           },
         }
       : {}),
