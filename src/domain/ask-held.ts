@@ -98,8 +98,13 @@ export function chosenMeanings(
   const own = readQuestion(message, terms, today)
   if (own.issues.some((issue) => issue.meanings)) return null
   const keys = new Set(own.terms.map((term) => term.key))
-  const named = held.meanings.filter((m) => keys.has(m.key))
-  const others = own.terms.filter((term) => !named.some((m) => m.key === term.key))
+  // A value's dimension names it among the meanings: "brand" is Alder the brand.
+  const dimensionOf = (key: string) =>
+    key.startsWith('val:') ? `dim:${key.slice(4).split('/')[0]}` : ''
+  const named = held.meanings.filter((m) => keys.has(m.key) || keys.has(dimensionOf(m.key)))
+  const others = own.terms.filter(
+    (term) => !named.some((m) => m.key === term.key || dimensionOf(m.key) === term.key),
+  )
   const another = ['metric', 'metric_group', 'dimension']
   if (others.some((t) => another.includes(t.kind))) return null
   // Only the words nothing else read: names and dates are taken out where they stand.
