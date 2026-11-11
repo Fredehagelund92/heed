@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 const LIST_LEAD = ['h-[41px] @max-md/main:h-[89px]']
 export const DEFINITIONS_LEAD = [
   ...LIST_LEAD,
-  'h-[57px] @max-md/main:h-[117px]',
+  'h-[57px] @max-md/main:h-[97px]',
   'h-[49px] @max-md/main:h-[81px]',
 ]
 
