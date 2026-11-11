@@ -354,6 +354,25 @@ describe('loadConfig', () => {
     )
   })
 
+  it('shows no profile label unless HEED_PROFILE_LABEL names one, of one short line', () => {
+    expect(loadConfig({ DATABASE_URL: databaseUrl }).profileLabel).toBeUndefined()
+    expect(loadConfig({ DATABASE_URL: databaseUrl, HEED_PROFILE_LABEL: '' }).profileLabel).toBe(
+      undefined,
+    )
+    expect(
+      loadConfig({ DATABASE_URL: databaseUrl, HEED_PROFILE_LABEL: '  Local trial  ' }).profileLabel,
+    ).toBe('Local trial')
+    expect(() =>
+      loadConfig({ DATABASE_URL: databaseUrl, HEED_PROFILE_LABEL: 'x'.repeat(41) }),
+    ).toThrow(/HEED_PROFILE_LABEL: Keep the label to 40 characters/)
+    expect(() =>
+      loadConfig({ DATABASE_URL: databaseUrl, HEED_PROFILE_LABEL: 'Two\nlines' }),
+    ).toThrow(/HEED_PROFILE_LABEL: Expected one line/)
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, HEED_PROFILE_LABEL: '   ' })).toThrow(
+      /HEED_PROFILE_LABEL/,
+    )
+  })
+
   it('refuses the replaced MODEL_PROVIDER and says what replaces it', () => {
     for (const value of ['mock', 'anthropic'])
       expect(() => loadConfig({ DATABASE_URL: databaseUrl, MODEL_PROVIDER: value })).toThrow(

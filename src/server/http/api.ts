@@ -173,6 +173,8 @@ export interface ApiServices {
   workspaceSources?: WorkspaceSources
   /** Opens a web page a link in a draft points at; the public web only by default. */
   readPage?: PageReader
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show; none by default. */
+  profileLabel?: string | null
 }
 type RequestContext = { request: FastifyRequest; reply: FastifyReply }
 const idempotencyKey = (context: RequestContext) =>
@@ -289,6 +291,7 @@ export function createRouter({
   readPage,
   askTrace,
   askLoop = false,
+  profileLabel = null,
 }: ApiServices) {
   const limitGapReports = createLimiter(() => clock.now())
   // The editions the answer engine reads, kept a short while: one for every person.
@@ -570,15 +573,22 @@ export function createRouter({
       ),
     },
     auth: {
-      methods: authorized.auth.methods.handler(() =>
-        signIn.method === 'oidc'
+      methods: authorized.auth.methods.handler(async ({ context }) => {
+        // The demo: its own sign-in, or the demo loaded, whose sandbox domain only the demo's
+        // seed makes (db/seed). An install with its own data on the dev picker is not the demo.
+        const [loaded] = await context.tx.query<{ demo: boolean }>(
+          'select exists (select 1 from areas where is_demo) as demo',
+        )
+        const install = { demo: signIn.method === 'demo' || loaded!.demo, profileLabel }
+        return signIn.method === 'oidc'
           ? {
               method: 'oidc' as const,
               name: (signIn as OidcSignIn).label,
               start: `${API_PREFIX}/auth/oidc/start`,
+              ...install,
             }
-          : { method: signIn.method, name: null, start: null },
-      ),
+          : { method: signIn.method, name: null, start: null, ...install }
+      }),
       people: authorized.auth.people.handler(({ context }) => signIn.choices(context.tx)),
       signIn: authorized.auth.signIn.handler(async ({ context, input }) => {
         const login = await signIn.signIn(
@@ -595,7 +605,7 @@ export function createRouter({
             cookieAge(signIn.lifetime),
           ),
         )
-        return login.session
+        return { ...login.session, profileLabel }
       }),
       signOut: authorized.auth.signOut.handler(async ({ context }) => {
         await signIn.signOut(context.tx, context.request.headers.cookie)
@@ -605,7 +615,10 @@ export function createRouter({
         )
         return { signedOut: true }
       }),
-      session: authorized.auth.session.handler(({ context }) => context.session!),
+      session: authorized.auth.session.handler(({ context }) => ({
+        ...context.session!,
+        profileLabel,
+      })),
     },
     connections: {
       // A sign-in another browser started, or one that ended, answers like one that never was.

@@ -48,3 +48,19 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           ./gitleaks git --config .gitleaks.toml --redact --no-banner --exit-code 1 .
+      # No file in the repository carries the marker, so the rule is proved on two files written
+      # here: one with the marker must be found by that rule, one without must pass.
+      - name: gitleaks finds the private-profile marker, and passes a file without it
+        run: |
+          probe="$RUNNER_TEMP/profile-probe"
+          mkdir -p "$probe/marked" "$probe/plain"
+          printf 'HEED-PRIVATE-%s demo\nSEED_DEMO=off\n' PROFILE > "$probe/marked/profile.env"
+          printf 'An ordinary file about a private profile.\n' > "$probe/plain/notes.md"
+          status=0
+          ./gitleaks dir --config .gitleaks.toml --redact --no-banner --exit-code 3 \
+            --report-format json --report-path "$probe/found.json" "$probe/marked" || status=$?
+          if [ "$status" -ne 3 ] || ! grep -q '"RuleID": "heed-private-profile"' "$probe/found.json"; then
+            echo "::error::gitleaks did not find the private-profile marker (exit $status)"
+            exit 1
+          fi
+          ./gitleaks dir --config .gitleaks.toml --redact --no-banner --exit-code 3 "$probe/plain"

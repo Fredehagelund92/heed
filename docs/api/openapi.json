@@ -28764,7 +28764,7 @@
     "/auth/methods": {
       "get": {
         "operationId": "auth.methods",
-        "summary": "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos",
+        "summary": "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos; and whether this install is the demo, and the label naming it (HEED_PROFILE_LABEL)",
         "tags": [
           "session"
         ],
@@ -28803,12 +28803,27 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "demo": {
+                      "type": "boolean"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "method",
                     "name",
-                    "start"
+                    "start",
+                    "demo",
+                    "profileLabel"
                   ]
                 }
               }
@@ -29492,11 +29507,22 @@
                     },
                     "csrfToken": {
                       "type": "string"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "person",
-                    "csrfToken"
+                    "csrfToken",
+                    "profileLabel"
                   ]
                 }
               }
@@ -30090,11 +30116,22 @@
                     },
                     "csrfToken": {
                       "type": "string"
+                    },
+                    "profileLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "person",
-                    "csrfToken"
+                    "csrfToken",
+                    "profileLabel"
                   ]
                 }
               }

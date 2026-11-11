@@ -16,6 +16,9 @@ import { modelProviders } from '../modules/models/index.ts'
 
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
 
+/** The longest profile label (HEED_PROFILE_LABEL) the header and the sign-in page show. */
+const PROFILE_LABEL_MAX = 40
+
 const serverFoldersSchema = z.record(z.string(), z.string().min(1))
 
 /** The value of a variable that holds JSON; undefined when it is not JSON. */
@@ -196,6 +199,17 @@ const envSchema = z
         if (problem) context.addIssue({ code: 'custom', message: problem })
       })
       .optional(),
+    // A name for this install that the header and the sign-in page show, so a person who runs
+    // more than one (the demo and a private profile) always sees which one they are in. Unset
+    // shows none.
+    HEED_PROFILE_LABEL: z
+      .string()
+      .trim()
+      .min(1)
+      .max(PROFILE_LABEL_MAX, `Keep the label to ${PROFILE_LABEL_MAX} characters`)
+      // eslint-disable-next-line no-control-regex -- the point is to refuse control characters
+      .regex(/^[^\u0000-\u001f\u007f]*$/, 'Expected one line, without control characters')
+      .optional(),
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV === 'production' && (env.HEED_AUTH === 'dev' || env.HEED_AUTH === 'demo')) {
@@ -352,6 +366,8 @@ export interface Config {
   metricsToken: string | undefined
   /** read_source may open http pages on this machine too (tests only). */
   webReadLoopback: boolean
+  /** HEED_PROFILE_LABEL: the name the header and the sign-in page show; unset shows none. */
+  profileLabel: string | undefined
 }
 
 /** What a refusal adds when production has no sign-in configured. */
@@ -440,6 +456,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     secretsDir: env.HEED_SECRETS_DIR,
     metricsToken: env.HEED_METRICS_TOKEN,
     webReadLoopback: env.HEED_WEB_READ_LOOPBACK === 'on',
+    profileLabel: env.HEED_PROFILE_LABEL,
   }
 }
 

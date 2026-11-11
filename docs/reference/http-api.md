@@ -20,7 +20,7 @@ The API uses the web app's session. Sign in as a person, then send with each cha
 
 To script against it with the dev or demo sign-in, use the [`heed` command](../administration.md#the-heed-command), which handles all three. It cannot sign in through company sign-in.
 
-`GET /api/v1/auth/methods` says how this install signs people in.
+`GET /api/v1/auth/methods` says how this install signs people in, whether it is the demo, and the label naming it (`HEED_PROFILE_LABEL`).
 
 ## Safe retries
 

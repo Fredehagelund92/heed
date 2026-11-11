@@ -68,8 +68,16 @@ test('from an own semantic manifest to a Checked answer', async ({ page }) => {
   const shot = (name: string) =>
     process.env.SHOTS ? page.screenshot({ path: `${process.env.SHOTS}/${name}.png` }) : null
   await page.goto('/')
+  // Not the demo, though people pick who they are: nothing says the company is invented, and the
+  // install's label says which install this is, there and in the header after.
+  const label = page.locator('[data-profile-label]')
+  await expect(page.getByText('Pick who you are.', { exact: true })).toBeVisible()
+  await expect(page.getByText(/invented company|This is a demo/)).toHaveCount(0)
+  await expect(label).toContainText('Own data trial')
+  await shot('05-sign-in')
   await page.getByRole('button', { name: /Ravi Kapoor/ }).click()
   await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page.locator('header').locator(label)).toContainText('Own data trial')
 
   // The checklist, in the order it can be done: a domain, then the names, then writing.
   await expect(page.getByText('0 of 6 done')).toBeVisible()

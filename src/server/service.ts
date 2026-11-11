@@ -265,6 +265,7 @@ async function compose(
     nodeEnv: config.nodeEnv,
     metricsToken: config.metricsToken,
     askLoop: config.askLoop,
+    profileLabel: config.profileLabel,
     // The end-to-end tests serve their web pages on this machine; elsewhere, the public web only.
     ...(config.webReadLoopback ? { readPage: createPageReader({ loopback: true }) } : {}),
     login,

@@ -682,7 +682,7 @@ export const contract = {
         path: '/auth/methods',
         tags: ['session'],
         summary:
-          "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos",
+          "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos; and whether this install is the demo, and the label naming it (HEED_PROFILE_LABEL)",
       })
       .output(signInMethodSchema),
     people: publicRoute
