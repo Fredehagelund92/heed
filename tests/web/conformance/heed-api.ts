@@ -1496,6 +1496,7 @@ export function describeHeedApi(
             config,
             secrets,
             chosen,
+            readsAll: false,
             reason: '',
           }),
         ).rejects.toMatchObject({ kind: 'invalid' })
@@ -1504,6 +1505,7 @@ export function describeHeedApi(
           config,
           secrets,
           chosen,
+          readsAll: false,
           reason: 'Our handbook lives in Git',
         })
         const row = (await live.integrationsPage()).sources.find((s) => s.id === added.id)
@@ -1524,6 +1526,7 @@ export function describeHeedApi(
           config: { ...config, ref: 'main' },
           secrets: { token: '' },
           chosen: changed,
+          readsAll: false,
           reason: 'The handbook moved to another domain',
         })
         const after = (await live.connectForm({ id: added.id }))!

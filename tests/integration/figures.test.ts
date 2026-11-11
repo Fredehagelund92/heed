@@ -479,6 +479,44 @@ describe('reading a figure (FR-716)', () => {
     }
   })
 
+  it("refuses a metric whose view the integration doesn't read, before its next read and after", async () => {
+    const discount = { metric: 'metric:discount_cost', values: [], ...august }
+    const notRead = { state: 'none', reason: 'not_read', source: { id: 'cube', tool: 'Cube' } }
+    // Only orders is listed: marketing is read no more from the next read.
+    await client.query(
+      `update connectors set all_groups = false,
+         scopes = '[{"id":"orders","title":"orders","domain":null}]' where id = 'cube'`,
+    )
+    try {
+      expect(await readFigure('author', discount)).toMatchObject(notRead)
+      // A view it lists still reads its figure.
+      expect(await readFigure('author', { ...orders, ...august })).toMatchObject({
+        state: 'figure',
+      })
+      // The read then marks marketing's definitions missing: still refused, and said why.
+      await transaction(client, async () => {
+        const [{ id }] = (
+          await client.query<{ id: string }>(
+            `insert into connector_snapshots (connector_id, status, definitions_seen)
+             values ('cube', 'ok', 5) returning id`,
+          )
+        ).rows as [{ id: string }]
+        await client.query(
+          `update definitions set missing_since_snapshot = $1
+            where connector_id = 'cube' and name like 'marketing.%'`,
+          [id],
+        )
+      })
+      expect(await readFigure('author', discount)).toMatchObject(notRead)
+    } finally {
+      await client.query(
+        `update connectors set all_groups = true, scopes = '[]' where id = 'cube';
+         update definitions set missing_since_snapshot = null where connector_id = 'cube'`,
+      )
+    }
+    expect(await readFigure('author', discount)).not.toMatchObject({ reason: 'not_read' })
+  })
+
   it('waits while Cube says Continue wait, and fails within 4 seconds, saying why', async () => {
     cube.continueWait(2)
     expect(

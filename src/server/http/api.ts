@@ -916,6 +916,9 @@ export function createRouter({
       test: authorized.sources.test.handler(({ context, input }) =>
         workspaceSources.test(context.tx, input),
       ),
+      leftOut: authorized.sources.leftOut.handler(({ context, input }) =>
+        workspaceSources.leftOut(context.tx, input),
+      ),
       read: authorized.sources.read.handler(async ({ context, input }) => {
         const [row] = await context.tx.query<{ enabled: boolean }>(
           'select enabled from connectors where id = $1 and removed_at is null',

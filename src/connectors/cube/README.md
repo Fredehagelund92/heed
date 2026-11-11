@@ -25,6 +25,10 @@ An admin adds a Cube model in a Git repository with:
 Whoever runs the server may also point it at a model folder on the server (`CUBE_MODEL_DIR`), which
 the same runtime reads as `ctx.folder` ([a model on the server](../../../docs/connectors/cube.md#read-a-model-on-the-server)).
 
+Which views are read is the core's, as for every definitions source: every view, or only those an
+admin lists in Integrations or the server lists in `CUBE_VIEWS_FILE`. The runtime always reads the
+whole model, and the core keeps the members of the listed views ([the views it reads](../../../docs/connectors/cube.md#choose-the-views-it-reads)).
+
 ## What a read does
 
 1. Fetches the one commit the ref names, read only, through `ctx.git`

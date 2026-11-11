@@ -74,6 +74,8 @@ export const snapshotSchema = z.object({
   cursor: z.string().min(1).max(500).optional(),
   /** What the cursor names is as it was: the core keeps what the last read found. */
   unchanged: z.literal(true).optional(),
+  /** The groups the read was narrowed to, an allow list; absent when it read every group. */
+  groups: z.array(z.string().min(1).max(500)).max(2_000).optional(),
 })
 export type SourceSnapshot = z.infer<typeof snapshotSchema>
 

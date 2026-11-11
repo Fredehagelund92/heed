@@ -16,8 +16,8 @@ import { readConnectors } from '../../src/server/modules/jobs/operations.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
-import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase } from './support.ts'
+import { accept, foundation, people, publish, version } from './fixtures.ts'
+import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
   Cube on connector interface 3.0, end to end on the real service and PostgreSQL 18, with a Git
@@ -393,6 +393,142 @@ describe('the views an admin chooses, and Disconnect (CON-118)', () => {
     // Choosing never publishes, decides or suggests.
     expect(await published()).toEqual(before)
   }, 240_000)
+
+  /** Changes the views it reads: every view, or only those listed (an allow list). */
+  const list = async (allGroups: boolean, views: string[], acceptLeftOut?: boolean) => {
+    const now = await settings()
+    return call('PUT', `/sources/${sourceId}`, 'admin', {
+      id: sourceId,
+      revision: now.revision,
+      name: now.name,
+      config: now.config,
+      secrets: {},
+      scopes: views.map((view) => ({ id: view, title: view, domain: null })),
+      allGroups,
+      ...(acceptLeftOut === undefined ? {} : { acceptLeftOut }),
+      reason: 'Read only the views we use',
+    })
+  }
+  /** The newest read's warnings. */
+  const warned = async () =>
+    (
+      await client.query<{ warnings: { code: string; target: string }[] }>(
+        `select warnings from connector_snapshots where connector_id = $1
+          order by fetched_at desc limit 1`,
+        [sourceId],
+      )
+    ).rows[0]!.warnings
+  const audited = async () =>
+    (
+      await client.query<{ details: Record<string, unknown> }>(
+        `select details from audit_log where action = 'source.changed' and subject_id = $1
+          order by seq desc limit 1`,
+        [sourceId],
+      )
+    ).rows[0]!.details
+
+  it('keeps an allow list: a view the model lacks is named, and a list of none reads nothing', async () => {
+    const before = await published()
+    const listed = await list(false, ['sales', 'warehouse'])
+    expect(listed.statusCode, listed.body).toBe(200)
+    expect(listed.json<SourceSettings>().allGroups).toBe(false)
+    expect(await audited()).toMatchObject({
+      allGroups: false,
+      scopes: [
+        { id: 'sales', title: 'sales', domain: null },
+        { id: 'warehouse', title: 'warehouse', domain: null },
+      ],
+      reason: 'Read only the views we use',
+    })
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 3 })
+    expect((await stored()).filter((d) => !d.missing).map((d) => d.ref)).toEqual([
+      'cube:sales.count',
+      'cube:sales.country',
+      'cube:sales.revenue',
+    ])
+    expect(await warned()).toContainEqual({ code: 'group_not_found', target: 'warehouse' })
+    // A list of none reads nothing, says so, and never falls back to every view.
+    expect((await list(false, [])).statusCode).toBe(200)
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 0 })
+    expect((await stored()).every((d) => d.missing)).toBe(true)
+    expect(await warned()).toContainEqual({ code: 'no_groups_chosen', target: 'groups' })
+    // Every view again: each is read, in the domain the model names.
+    expect((await list(true, [])).statusCode).toBe(200)
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 7 })
+    expect((await stored()).every((d) => !d.missing)).toBe(true)
+    expect(await published()).toEqual(before)
+  }, 240_000)
+
+  it('shows what a narrower list stops reading, and flags a live item only once that is seen', async () => {
+    // A live Finance note that relies on the marketing view's income, at its current mark.
+    const [{ mark }] = (
+      await client.query<{ mark: string }>(
+        "select change_mark as mark from definitions where ref = 'cube:marketing.orders_income'",
+      )
+    ).rows as [{ mark: string }]
+    const note = await transaction(client, async () => {
+      const v = await version(client, {
+        area: 'finance',
+        owner: people.owner,
+        title: 'Income counts marketplace orders',
+      })
+      await client.query(
+        "insert into item_version_refs values ($1, 'cube:marketing.orders_income', $2)",
+        [v.id, mark],
+      )
+      await accept(client, v.id)
+      await publish(client, v.id)
+      return v
+    })
+    const leftOut = (groups: string[], who: Who = 'admin') =>
+      call('POST', `/sources/${sourceId}/left-out`, who, { allGroups: false, groups })
+    // Taking out views no live item relies on leaves nothing behind but their definitions.
+    expect(await ok(leftOut(['sales', 'marketing']))).toEqual({
+      groups: [
+        { name: 'growth', metrics: 1, dimensions: 0 },
+        { name: 'operations', metrics: 1, dimensions: 0 },
+      ],
+      items: { count: 0, named: [] },
+    })
+    // Taking out marketing too: the note relies on it.
+    expect(await ok(leftOut(['sales']))).toEqual({
+      groups: [
+        { name: 'growth', metrics: 1, dimensions: 0 },
+        { name: 'marketing', metrics: 1, dimensions: 1 },
+        { name: 'operations', metrics: 1, dimensions: 0 },
+      ],
+      items: {
+        count: 1,
+        named: [{ id: note.item, title: 'Income counts marketplace orders', domain: 'finance' }],
+      },
+    })
+    // Asking is an admin's, as changing the source is.
+    expect((await leftOut(['sales'], 'owner')).statusCode).toBe(403)
+    const unseen = await list(false, ['sales'])
+    expect(unseen.statusCode).toBe(422)
+    expect(unseen.body).toContain('This stops reading definitions that 1 live item relies on')
+    const seen = await list(false, ['sales'], true)
+    expect(seen.statusCode, seen.body).toBe(200)
+    expect(await audited()).toMatchObject({ allGroups: false, leftOutItems: 1 })
+    // Its next read marks the note Definition missing for its owners to check; it stays published.
+    const before = await published()
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 3 })
+    const flags = async () =>
+      (
+        await client.query<{ flag: string }>(
+          "select flag::text from v_overlay_on where item_id = $1 and kind = 'flag_on'",
+          [note.item],
+        )
+      ).rows.map((row) => row.flag)
+    expect(await flags()).toEqual(['source_missing'])
+    expect(await published()).toEqual(before)
+    // Listed again, the definition is back and the flag clears.
+    expect((await list(false, ['sales', 'marketing'])).statusCode).toBe(200)
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 5 })
+    expect(await flags()).toEqual([])
+    expect((await list(true, [], true)).statusCode).toBe(200)
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 7 })
+  }, 300_000)
 
   it('keeps what a disconnected source read, which the next source of the model takes over', async () => {
     const [{ ref }] = (

@@ -281,6 +281,58 @@ describe('offline Cube source', () => {
     expect(snapshot.complete).toBe(true)
   }, 15_000)
 
+  it('reads only the views its file lists, a cube two of them include through each', async () => {
+    const dir = await model()
+    const configDir = await mkdtemp(join(tmpdir(), 'heed-views-'))
+    temporary.push(configDir)
+    const viewsFile = join(configDir, 'views.json')
+    const listing = async (views: unknown) => {
+      await writeFile(viewsFile, JSON.stringify(views))
+      return createCubeSource({ modelDir: dir, viewsFile }).read()
+    }
+    const views = (snapshot: { definitions: { name: string }[] }) => [
+      ...new Set(snapshot.definitions.map((d) => d.name.split('.')[0])),
+    ]
+    // Every view includes the cube orders: each listed view reads its members, and only those.
+    const two = await listing(['sales', 'marketing', 'warehouse'])
+    expect(views(two)).toEqual(['marketing', 'sales'])
+    expect(two.definitions.map((d) => d.ref)).toEqual([
+      'cube:marketing.orders_country',
+      'cube:marketing.orders_income',
+      'cube:sales.count',
+      'cube:sales.country',
+      'cube:sales.revenue',
+    ])
+    expect(two.complete).toBe(true)
+    expect(two.groups).toEqual(['sales', 'marketing', 'warehouse'])
+    expect(two.warnings).toContainEqual({ code: 'group_not_found', target: 'warehouse' })
+    // What the read said of a view left out says nothing now: operations has no domain.
+    expect(two.warnings).not.toContainEqual({ code: 'missing_domain', target: 'operations' })
+    // One view taken out of the list: the cube it shared stays read through the other.
+    const one = await listing(['sales'])
+    expect(views(one)).toEqual(['sales'])
+    expect(one.definitions.find((d) => d.ref === 'cube:sales.revenue')?.changeMark).toBe(
+      two.definitions.find((d) => d.ref === 'cube:sales.revenue')?.changeMark,
+    )
+    expect(one.sourceVersion).not.toBe(two.sourceVersion)
+    // A list of none reads nothing and says so; it never falls back to every view.
+    const none = await listing([])
+    expect(none.definitions).toEqual([])
+    expect(none.complete).toBe(true)
+    expect(none.warnings).toContainEqual({ code: 'no_groups_chosen', target: 'groups' })
+    // A file that is not a list of names, each once, fails the read rather than reading all.
+    await expect(listing({ sales: true })).rejects.toThrow()
+    await expect(listing(['sales', 'sales'])).rejects.toThrow()
+    await expect(
+      createCubeSource({ modelDir: dir, viewsFile: '/does/not/exist' }).read(),
+    ).rejects.toThrow()
+    // Without the setting, every view is read, as before.
+    expect(views(await read(dir))).toEqual(['growth', 'marketing', 'operations', 'sales'])
+    expect(
+      createCubeSource({ modelDir: dir, viewsFile }).serverSettings.find((s) => s.key === 'views'),
+    ).toEqual({ key: 'views', variable: 'CUBE_VIEWS_FILE', value: viewsFile })
+  }, 60_000)
+
   it('warns without executing JS, Python, Jinja, symlinks or malformed YAML', async () => {
     const dir = await model()
     const sentinel = join(dir, 'should-not-exist')

@@ -48,6 +48,9 @@ export default defineConfig({
     /\/j46-names\.spec\.ts$/,
     // J47 holds and fails the item's read by the mock's ?state=, which the service has not.
     /\/j47-peek-check\.spec\.ts$/,
+    // J48 asks the mock for a model of hundreds of views (?views=); the service's Cube is the
+    // server's own there, whose views are its file's (tests/integration/cube-view-list.test.ts).
+    /\/j48-view-allowlist\.spec\.ts$/,
     // J3 states asks the mock for each of the six answer states by its example question; the
     // service's demo week has no check that fails to run.
     /\/j3-ask-states\.spec\.ts$/,

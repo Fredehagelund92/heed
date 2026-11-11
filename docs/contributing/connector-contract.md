@@ -658,10 +658,17 @@ Where the build differs from the decided text above:
   `invalid_output`, since its message could hold what was read.
 - **The definitions pipeline** is interface 2's: a read is gathered into its snapshot and stored
   by `ConnectorService.syncSource`, with every rule of [what the core does with a
-  read](#what-the-core-does-with-a-read). A source with groups chosen (its scopes, each a group
-  with a domain or none) keeps only those: each definition of a chosen group takes the domain an
-  admin mapped it to (`domain_override`) or none, and a group left out is not read, so a complete
-  read marks its definitions missing. With none chosen it keeps every group, as the tool gives it.
+  read](#what-the-core-does-with-a-read). A source reads every group, or only the groups listed
+  for it, an allow list (`connectors.all_groups`, `allGroups` in the API). Its scopes, each a group
+  with a domain or none, map domains: each definition of a chosen group takes the domain an admin
+  mapped it to (`domain_override`) or none. With an allow list a group left out is not read, so a
+  complete read marks its definitions missing and flags the live items that rely on them; each
+  listed group the read did not find is named (`group_not_found`), and a list of none reads
+  nothing and says so (`no_groups_chosen`), never every group. Before a change stops reading a
+  definition a live item relies on, `POST /api/v1/sources/{id}/left-out` names what it leaves
+  behind, and the change needs `acceptLeftOut` (`withChosenGroups` and `withListedGroups` in
+  `platform.ts`). The server's own Cube folder reads the views `CUBE_VIEWS_FILE` lists the same
+  way, and its row keeps that list.
   A domain from the tool is `source` in the core and the API (`domainSource`, and the coverage
   it counts), whatever the tool; it was never stored, so no migration moved it.
 - **Cube** is one connector, `cube`, for a model in a Git repository an administrator adds and
