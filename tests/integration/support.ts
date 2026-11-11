@@ -6,6 +6,7 @@ import { contract } from '../../src/contract/index.ts'
 import type { Clock } from '../../src/server/clock.ts'
 import { calendarDateTypes, databaseFromPool, type Database } from '../../src/server/db/database.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
+import { readNow } from '../../src/server/modules/connectors/read-now.ts'
 import { askToolsOf, requestServices } from '../../src/server/http/api.ts'
 import { createBundleCache, type AskTools } from '../../src/server/modules/answer/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
@@ -106,6 +107,21 @@ export function testDatabase({
     await admin.end()
   })
   return { client, url: url.href }
+}
+
+/**
+ * Queues the reads of sources through Read again's own write (`readNow`): their next read is now.
+ * The one way tests make a source due; `ids` omitted queues them all.
+ */
+export async function queueReads(client: pg.Client, ids?: readonly string[]): Promise<void> {
+  await readNow(
+    {
+      query: <Row extends pg.QueryResultRow>(text: string, values?: unknown[]) =>
+        client.query<Row>(text, values).then((result) => result.rows),
+    },
+    ids ?? null,
+    () => Promise.resolve({ result: undefined, ran: true }),
+  )
 }
 
 export async function transaction<T>(client: pg.Client, work: () => Promise<T>): Promise<T> {

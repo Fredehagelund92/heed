@@ -13,20 +13,21 @@ import type {
   SourceRow,
   SourceSettings,
 } from '@contract/sources'
-import type {
-  Activity,
-  ConnectChoice,
-  ConnectField,
-  ConnectForm,
-  ConnectRead,
-  ConnectTest,
-  DocState,
-  DriveDocument,
-  DriveFolder,
-  IntegrationsView,
-  Source,
-  SourcePage,
-  When,
+import {
+  firstReadWords,
+  type Activity,
+  type ConnectChoice,
+  type ConnectField,
+  type ConnectForm,
+  type ConnectRead,
+  type ConnectTest,
+  type DocState,
+  type DriveDocument,
+  type DriveFolder,
+  type IntegrationsView,
+  type Source,
+  type SourcePage,
+  type When,
 } from '@/model/integrations'
 import { connectorById, connectors } from '@/model/catalogue'
 
@@ -158,6 +159,7 @@ export function sourceOf(row: SourceRow, now: Date): Source | null {
     id: row.id,
     connector,
     health: row.health,
+    read: row.read,
     every: everyWords(row.schedule),
     staleAfter: durationWords(row.staleAfter),
     last: last
@@ -400,7 +402,7 @@ export function sourcePageOf(
   if (!source) return null
   const changed = activity.reads.find((r) => !r.first && (r.definitions?.changed ?? 0) > 0)
   const reads = activity.reads.map((read) => activityOf(read, row.tool, now))
-  const firstAt = source.next ? `at ${source.next.time}` : 'soon'
+  const firstAt = firstReadWords(source)
   const connected =
     !reads.length && source.added
       ? [

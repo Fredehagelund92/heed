@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   CircleAlertIcon,
   CircleCheckIcon,
+  ClockIcon,
   EllipsisIcon,
   EyeOffIcon,
   GitPullRequestArrowIcon,
@@ -83,6 +84,7 @@ import {
   type ConnectStep,
   type ConnectTest,
   type ConnectValues,
+  firstReadWords,
   type DocState,
   type Health,
   type IntegrationsView,
@@ -132,11 +134,6 @@ const crumbs = (...rest: { label: string; href?: string }[]) => (
 
 const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: string }> = {
   healthy: { label: 'Healthy', icon: <CircleCheckIcon />, cls: 'border-good/35 text-good-ink' },
-  reading: {
-    label: 'Reading',
-    icon: <LoaderCircleIcon className="animate-spin" />,
-    cls: 'border-primary/35 text-primary',
-  },
   failed: {
     label: 'Failed',
     icon: <CircleAlertIcon />,
@@ -156,6 +153,29 @@ function HealthBadge({ health }: { health: Health }) {
     <Badge variant="outline" className={cn('gap-1 font-normal [&>svg]:size-3', h.cls)}>
       {h.icon}
       {h.label}
+    </Badge>
+  )
+}
+
+/** A read that is pending: waiting for the job's next turn, or running now. */
+const readLook = {
+  queued: { label: 'Queued', icon: <ClockIcon />, cls: 'text-muted-foreground' },
+  reading: {
+    label: 'Reading',
+    icon: <LoaderCircleIcon className="animate-spin" />,
+    cls: 'border-primary/35 text-primary',
+  },
+}
+
+/** Whether a source's read is queued or running, the two a page waits on. */
+const pending = (source: Source) => source.read === 'queued' || source.read === 'reading'
+
+function ReadBadge({ read }: { read: 'queued' | 'reading' }) {
+  const look = readLook[read]
+  return (
+    <Badge variant="outline" className={cn('gap-1 font-normal [&>svg]:size-3', look.cls)}>
+      {look.icon}
+      {look.label}
     </Badge>
   )
 }
@@ -495,7 +515,7 @@ function TryFigureDialog({
  * about a figure, Try a figure, and the switch for Show figures in Ask, off by default (Ask then
  * links into the tool). The definition decides which integration answers a metric.
  */
-function FiguresSection({ c }: { c: Connector }) {
+function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
   const f = useFigures()
   const { setFigures, setDataContact } = useFigureActions()
   const people = usePeople()
@@ -520,7 +540,7 @@ function FiguresSection({ c }: { c: Connector }) {
   return (
     <PanelSection
       title="Figures connection"
-      description={`The second of ${c.name}'s two connections, with its own endpoint and token: ${c.name}'s data API. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.`}
+      description={`The second of ${c.name}'s two connections, with its own endpoint and token: ${c.name}'s data API. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
       action={
         <span className="flex items-center gap-2">
           <label htmlFor={switchId} className="text-sm">
@@ -718,10 +738,7 @@ function RowDetail({ source }: { source: Source }) {
     )
   if (!source.last)
     return (
-      <>
-        First read {source.next ? `at ${source.next.time}` : 'soon'}. Suggestions go to the owners
-        of each folder's domain
-      </>
+      <>First read {firstReadWords(source)}. Suggestions go to the owners of each folder's domain</>
     )
   return (
     <>
@@ -748,7 +765,8 @@ const markedHealth = (s: Source) => s.health === 'failed' || s.health === 'reaut
 
 /**
  * A row's state when it is not healthy. A failed read and a refused key are the exceptions, marked
- * (unless `plain`: every row has one); reading and paused are a badge.
+ * (unless `plain`: every row has one); paused is a badge. A read that is queued or running is a
+ * badge of its own, beside this.
  */
 function RowHealth({ source, plain }: { source: Source; plain: boolean }) {
   const h = source.health
@@ -796,7 +814,20 @@ function ConnectedRow({
         </p>
       </div>
       <div className="col-span-3 col-start-2 row-start-2 text-xs @3xl/main:col-span-1 @3xl/main:col-start-auto @3xl/main:row-start-auto">
-        {h === 'healthy' ? (
+        {pending(source) ? (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <ReadBadge read={source.read as 'queued' | 'reading'} />
+            {h === 'healthy' ? (
+              <span className="text-muted-foreground">
+                {source.last
+                  ? `Last read ${inSentence(source.last.at.day)}, ${source.last.at.time}`
+                  : 'Not read yet'}
+              </span>
+            ) : (
+              <RowHealth source={source} plain={plain} />
+            )}
+          </span>
+        ) : h === 'healthy' ? (
           <span className="flex items-center gap-1.5">
             <span aria-hidden className={cn('size-2 rounded-full', dotCls.ok)} />
             <span>
@@ -1072,9 +1103,26 @@ const docLabel: Record<DocState, string> = {
   gone: 'Gone from the tool',
 }
 
+/**
+ * What pausing a definitions tool does to its figures in Ask: a paused tool answers none, whatever
+ * its Show figures in Ask switch says, because Ask reads figures only from the tools that are on.
+ * What is published stays.
+ */
+function useFiguresOff(c: Connector) {
+  const f = useFigures()
+  const on = c.figures === true && f.enabled(c.id)
+  return {
+    on,
+    pausing: on
+      ? `Figures from ${c.name} are off in Ask while it is paused. What's published stays.`
+      : "Agents keep getting what's published.",
+  }
+}
+
 /** Pauses reading a tool, or lets it go on, and says so. */
 function usePauseReading(source: Source, c: Connector) {
   const write = useWrite()
+  const figures = useFiguresOff(c)
   return (paused: boolean) =>
     void write('pauseIntegration', { id: source.id, paused }).then(
       () =>
@@ -1082,8 +1130,8 @@ function usePauseReading(source: Source, c: Connector) {
           description: paused
             ? c.kind === 'context'
               ? 'Open suggestions stay in the Inbox. Resume from this menu.'
-              : "Agents keep getting what's published. Resume from this menu."
-            : 'It is read again on its schedule.',
+              : `${figures.pausing} Resume from this menu.`
+            : `It is queued to be read${figures.on ? ', and its figures are back in Ask' : ''}.`,
         }),
       (e: unknown) =>
         toast(paused ? `Couldn't pause ${c.name}` : `Couldn't resume ${c.name}`, {
@@ -1102,6 +1150,7 @@ function ConnectorMenu({
   onDisconnect: () => void
 }) {
   const pause = usePauseReading(source, c)
+  const figures = useFiguresOff(c)
   const paused = source.health === 'paused'
   // Whoever runs the server set its own tools up: their settings are theirs to change.
   const own = source.added === null
@@ -1112,10 +1161,17 @@ function ConnectorMenu({
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => pause(!paused)}>
-          {paused ? <PlayIcon /> : <PauseIcon />}
-          {paused ? 'Resume reading' : 'Pause reading'}
+      <DropdownMenuContent align="end" className={figures.on && !paused ? 'w-64' : 'w-48'}>
+        <DropdownMenuItem className="items-start" onClick={() => pause(!paused)}>
+          {paused ? <PlayIcon className="mt-0.5" /> : <PauseIcon className="mt-0.5" />}
+          <span className="flex flex-col">
+            {paused ? 'Resume reading' : 'Pause reading'}
+            {!paused && figures.on && (
+              <span className="text-xs text-muted-foreground">
+                Also switches off its figures in Ask.
+              </span>
+            )}
+          </span>
         </DropdownMenuItem>
         {!own && (
           <>
@@ -1140,9 +1196,15 @@ function ConnectorMenu({
 /** Pause reading, or Resume reading while paused, as a button of the Connection section. */
 function PauseButton({ source, c }: { source: Source; c: Connector }) {
   const pause = usePauseReading(source, c)
+  const figures = useFiguresOff(c)
   const paused = source.health === 'paused'
   return (
-    <Button variant="outline" size="sm" onClick={() => pause(!paused)}>
+    <Button
+      variant="outline"
+      size="sm"
+      title={!paused && figures.on ? `Also switches off figures from ${c.name} in Ask` : undefined}
+      onClick={() => pause(!paused)}
+    >
       {paused ? <PlayIcon data-icon="inline-start" /> : <PauseIcon data-icon="inline-start" />}
       {paused ? 'Resume reading' : 'Pause reading'}
     </Button>
@@ -1207,7 +1269,7 @@ function ReadAgain({ source, c }: { source: Source; c: Connector }) {
     <Button
       variant="outline"
       size="sm"
-      loading={asking || source.health === 'reading'}
+      loading={asking || source.read === 'reading'}
       loadingLabel="Reading…"
       disabled={source.health === 'paused'}
       onClick={() => {
@@ -1227,15 +1289,15 @@ function ReadAgain({ source, c }: { source: Source; c: Connector }) {
 
 /** The read Read again asked for has ended: says what it found, once. */
 function useReadDone(page: SourcePage | null | undefined, name: string) {
-  const health = page?.source.health
-  const was = React.useRef(health)
+  const read = page?.source.read
+  const was = React.useRef(read)
   React.useEffect(() => {
-    if (was.current === 'reading' && health && health !== 'reading' && page) {
+    if ((was.current === 'reading' || was.current === 'queued') && read === 'scheduled' && page) {
       const latest = page.activity[0]
       toast(`Read ${name}`, latest ? { description: `${latest.detail}.` } : undefined)
     }
-    was.current = health
-  }, [health, page, name])
+    was.current = read
+  }, [read, page, name])
 }
 
 /** "Read 1 Oct", "3 s": how a read went, under its number. */
@@ -1244,23 +1306,23 @@ const readSub = (source: Source) =>
     ? source.definitions
       ? `${source.last.complete ? 'complete' : 'in part'}${source.last.seconds === null ? '' : `, ${source.last.seconds} s`}`
       : `${plural(source.last.seen, 'document')} looked at`
-    : source.next
-      ? `first read at ${source.next.time}`
-      : 'first read soon'
+    : `first read ${firstReadWords(source)}`
 
-/** When it reads next, as a number of the page: "07:00", "every hour"; "Tomorrow", "06:00, every day". */
-const nextNumber = (source: Source, label = 'Next read') =>
-  source.next
+/**
+ * When it reads next, as a number of the page: "07:00", "every hour"; "Tomorrow", "06:00, every
+ * day"; "Queued" once its time is up; "Now" while it is read.
+ */
+const nextNumber = (source: Source, label = 'Next read') => {
+  if (source.read === 'reading') return { label, value: 'Now', sub: 'being read' }
+  if (source.read === 'queued') return { label, value: 'Queued', sub: 'waiting for the job' }
+  return source.next
     ? {
         label,
         value: source.next.day === 'Today' ? source.next.time : source.next.day,
         sub: source.next.day === 'Today' ? source.every : `${source.next.time}, ${source.every}`,
       }
-    : {
-        label,
-        value: source.health === 'paused' ? 'Paused' : 'Soon',
-        sub: source.every,
-      }
+    : { label, value: 'Paused', sub: source.every }
+}
 
 function NotConnected({ id }: { id: string }) {
   const c = connectorById(id)
@@ -1316,6 +1378,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const { figureConnections } = useIntegrations()
   const { source, views, folders, documents, activity, connection } = page
   const h = source.health
+  const figures = useFiguresOff(c)
   const isDefinitions = c.kind === 'definitions'
   // A tool read with a key file someone uploads shares folders with an account of its own: its
   // page says who connected it, and changes its folders and its key apart.
@@ -1374,6 +1437,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                 {kindName[c.kind]}
               </Badge>
               <HealthBadge health={h} />
+              {pending(source) && <ReadBadge read={source.read as 'queued' | 'reading'} />}
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {c.lead ??
@@ -1388,7 +1452,19 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           </div>
         </header>
 
-        {h === 'reading' && (
+        {source.read === 'queued' && (
+          <div className="border-t px-4 py-4 md:px-5" role="status">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <ClockIcon aria-hidden className="size-4 text-muted-foreground" />
+              Queued to be read
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The job reads it at its next turn, within five minutes. Agents keep getting the same
+              context until then.
+            </p>
+          </div>
+        )}
+        {source.read === 'reading' && (
           <div className="border-t px-4 py-4 md:px-5" role="status">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">
@@ -1451,8 +1527,10 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             <p className="flex items-start gap-2">
               <PauseIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <span>
-                <span className="font-medium">Reading is paused.</span> Agents keep getting what's
-                published, and nothing is read until an admin resumes it.
+                <span className="font-medium">Reading is paused.</span>{' '}
+                {figures.on
+                  ? `Figures from ${c.name} are off in Ask, and nothing is read until an admin resumes it. What's published stays.`
+                  : "Agents keep getting what's published, and nothing is read until an admin resumes it."}
               </span>
             </p>
           </div>
@@ -1500,7 +1578,10 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                         : 'not read yet',
                       tone: 'bad',
                     },
-                    { ...nextNumber(source, 'Next try'), sub: 'backing off' },
+                    {
+                      ...nextNumber(source, 'Next try'),
+                      ...(source.read === 'scheduled' ? { sub: 'backing off' } : {}),
+                    },
                     {
                       label: 'Definitions',
                       value: String(d.metrics + d.dimensions),
@@ -1514,7 +1595,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                   ]
                 : [
                     {
-                      label: h === 'reading' ? 'Last good read' : 'Last read',
+                      label: 'Last read',
                       value: source.last
                         ? `${source.last.at.day}, ${source.last.at.time}`
                         : 'Not yet',
@@ -1795,7 +1876,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
         )}
 
         {/* Figures show where the integration says how it is reached for one. */}
-        {c.figures && figureConnections[c.id] && <FiguresSection c={c} />}
+        {c.figures && figureConnections[c.id] && <FiguresSection c={c} paused={h === 'paused'} />}
       </Panel>
       <DisconnectDialog source={source} c={c} open={leaving} onOpenChange={setLeaving} />
     </FramePage>

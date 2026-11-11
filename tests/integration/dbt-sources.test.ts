@@ -25,7 +25,7 @@ import {
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, queueReads, testDatabase, transaction } from './support.ts'
 
 /*
   dbt MetricFlow end to end on the real service and PostgreSQL 18, with a Git host on this machine
@@ -78,7 +78,7 @@ const ok = async <T>(
 
 /** One run of the sources' job, with the source made due. */
 async function read(id: string) {
-  await client.query('update connectors set next_read_at = null where id = $1', [id])
+  await queueReads(client, [id])
   const result = (await connectorSyncJob(registry, { clock }).run({
     database,
     logger,

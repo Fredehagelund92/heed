@@ -55631,12 +55631,26 @@
                       "health": {
                         "enum": [
                           "healthy",
-                          "reading",
                           "failed",
                           "reauth",
                           "paused"
                         ],
                         "type": "string"
+                      },
+                      "read": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "scheduled",
+                              "queued",
+                              "reading"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "schedule": {
                         "type": "string"
@@ -55943,6 +55957,7 @@
                       "name",
                       "origin",
                       "health",
+                      "read",
                       "schedule",
                       "staleAfter",
                       "nextReadAt",
@@ -56475,14 +56490,7 @@
                       ]
                     },
                     "nextReadAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "type": "string"
                     },
                     "changedAt": {
                       "anyOf": [
@@ -58825,14 +58833,7 @@
                       ]
                     },
                     "nextReadAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "type": "string"
                     },
                     "changedAt": {
                       "anyOf": [
@@ -59403,14 +59404,7 @@
                       ]
                     },
                     "nextReadAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "type": "string"
                     },
                     "changedAt": {
                       "anyOf": [
