@@ -3114,7 +3114,7 @@ function ChoiceSteps({
             )}
             {stops.isError && !stops.data && (
               <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
-                Couldn't check what it stops reading.
+                Not checked: what it stops reading.
                 <Button variant="outline" size="sm" onClick={() => void stops.refetch()}>
                   Retry
                 </Button>
