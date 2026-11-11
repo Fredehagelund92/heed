@@ -350,6 +350,14 @@ describe('the filter by dimension (obs.dimensions, obs.values)', () => {
       ['Channel', 2, 2],
       ['Campaign', 0, 1],
     ])
+    // How many values each lists in its values step, before that step reads them.
+    for (const d of read.dimensions) {
+      const values = await ok<ObsValues>('admin', '/observability/values', {
+        range: '7',
+        dimension: d.key,
+      })
+      expect(d.valuesAsked, d.name).toBe(values.groups[0]!.matched)
+    }
     const narrowed = await ok<ObsDimensions>('admin', '/observability/dimensions', { range: '7' }, [
       webshop,
     ])

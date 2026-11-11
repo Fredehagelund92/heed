@@ -256,7 +256,7 @@ export function Loadable({
       <LoadError what={what} className={errorClassName} onRetry={() => void query.refetch()} />
     )
   return (
-    <ViewTransition key="content" enter="vt-arrive">
+    <ViewTransition key="content" enter="vt-arrive" update="none">
       <ArrivedAfterWait.Provider value={waited}>{children}</ArrivedAfterWait.Provider>
     </ViewTransition>
   )

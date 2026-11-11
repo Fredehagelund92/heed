@@ -991,6 +991,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
             key: d.key,
             name: d.name,
             values: terms.valuesOf.get(d.key)?.length ?? 0,
+            valuesAsked: 0,
             asked: null,
           })),
         }
