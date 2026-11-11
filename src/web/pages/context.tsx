@@ -77,7 +77,7 @@ import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
 import { allLoaded, Loadable } from '@/components/heed/load-state'
-import { TableBodySkeleton, TableSkeleton } from '@/components/heed/list-skeleton'
+import { TableSkeleton } from '@/components/heed/list-skeleton'
 import { heldRows, useRowsAfterFirstFrame } from '@/lib/loading'
 import { useLeavingRows } from '@/lib/presence'
 import { WhereChip } from '@/components/heed/tag-chip'
@@ -661,7 +661,7 @@ export function ContextPage() {
                       <Th className="hidden w-10 @max-xl/main:table-cell @max-xl/main:pr-4">
                         <span className="sr-only">Checked</span>
                       </Th>
-                      <Th className="w-10 min-w-10 pr-2 md:pr-4 @max-xl/main:hidden">
+                      <Th className="w-10 pr-2 md:pr-4 @max-xl/main:hidden">
                         <span className="sr-only">Actions</span>
                       </Th>
                     </tr>
@@ -672,7 +672,6 @@ export function ContextPage() {
                       rowKeys(e)
                     }}
                   >
-                    {!showRows && <TableBodySkeleton colSpan={COLS} />}
                     {noConflicts ? (
                       <tr>
                         <td colSpan={COLS} className="px-6 py-10 text-center text-sm">

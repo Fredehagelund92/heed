@@ -1,12 +1,6 @@
 import * as React from 'react'
 import { Outlet } from '@tanstack/react-router'
-import {
-  QueryClientProvider,
-  useQueries,
-  useQuery,
-  useQueryClient,
-  useQueryErrorResetBoundary,
-} from '@tanstack/react-query'
+import { QueryClientProvider, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { mockControls } from '@/api'
 import { createQueryClient } from '@/api/query-client'
 import { InDock, isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
@@ -32,8 +26,6 @@ import { ThemeProvider } from '@/lib/theme'
 import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
 import { SignInPage } from '@/pages/signin'
-import { PRODUCT } from '@/lib/brand'
-import { LoadError } from '@/components/heed/load-state'
 import type { Shape } from '@/components/heed/app-skeleton'
 
 // The skeletons' shapes come with their own code (components/heed/app-skeleton.tsx), fetched as
@@ -45,8 +37,8 @@ const ShellShape = React.lazy(() => skeletons.then((m) => ({ default: m.ShellSha
 /**
  * A lazy page's fallback, in the page's own shape: nothing for 150ms, so a chunk already fetched never
  * flashes a skeleton. The review: its list, the document and the side panel. An editor: the
- * toolbar row and the sheet on its canvas. Definitions and Context: the header, the list's bars at
- * their own heights and its rows. Any other page (Observability, Settings, Help): its header and a
+ * toolbar row and the sheet on its canvas. Definitions: the header, the list's bars at their own
+ * heights and its rows. Any other page (Observability, Settings, Help): its header and a
  * frame of rows. The documentation, outside the app's shell: its header, then its home or a page.
  */
 export function Loading({ shape }: { shape: Shape }) {
@@ -115,15 +107,11 @@ function ConnectAgentOnOpen() {
   ) : null
 }
 
-/**
- * A screen behind its own error boundary, reset on every navigation, so one failure never blanks the
- * app. A shared read that failed says so there, and Retry reads it again.
- */
+/** A screen behind its own error boundary, reset on every navigation, so one failure never blanks the app. */
 function SafeScreen() {
   const { path } = useRoute()
-  const { reset } = useQueryErrorResetBoundary()
   return (
-    <ErrorBoundary key={path} onRetry={reset}>
+    <ErrorBoundary key={path}>
       <Outlet />
     </ErrorBoundary>
   )
@@ -131,9 +119,8 @@ function SafeScreen() {
 
 function SafeDock() {
   const dock = useDock()
-  const { reset } = useQueryErrorResetBoundary()
   return (
-    <ErrorBoundary key={`${dock?.kind}.${dock?.id}`} onRetry={reset}>
+    <ErrorBoundary key={`${dock?.kind}.${dock?.id}`}>
       <InDock.Provider value>
         <div className="h-full dock-swap">
           <DockContent />
@@ -344,7 +331,7 @@ function Gate() {
  * the app is drawn, so a screen reads them from the cache and never waits. Until then the app shows
  * its own skeleton (ShellSkeleton), never a blank window. Signed out, only the session: the sign-in
  * page and the documentation need nothing else. A read that failed does not hold the app back: a
- * screen that needs it says it couldn't load, with Retry (SafeScreen).
+ * screen that needs it shows the failure in its own frame.
  */
 function Loaded({ children }: { children: React.ReactNode }) {
   const session = useQuery(sessionQuery())
@@ -356,15 +343,7 @@ function Loaded({ children }: { children: React.ReactNode }) {
   // The sign-in page and an agent's consent page wait for the session alone; anything else waits
   // in the shape it will have.
   const waiting = ['signin', 'connect'].includes(parts[0] ?? '') ? null : <ShellSkeleton />
-  if (!session.data) {
-    if (session.isError && !session.isFetching)
-      return (
-        <div className="flex h-svh items-center justify-center p-4">
-          <LoadError what={PRODUCT} className="max-w-lg" onRetry={() => void session.refetch()} />
-        </div>
-      )
-    return waiting
-  }
+  if (!session.data) return waiting
   if (signedIn && rest.some((q) => q.data === undefined && !q.isError)) return waiting
   return children
 }

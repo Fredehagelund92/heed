@@ -3,14 +3,12 @@ import * as React from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '@/api/errors'
-import { ErrorBoundary } from '@/components/error-boundary'
 import { Loadable, type LoadState } from '@/components/heed/load-state'
 import { DEFINITIONS_LEAD, TableBodySkeleton, TableSkeleton } from '@/components/heed/list-skeleton'
 
 // The loading states a list shares: the table's skeleton at the table's own heights, the same rows
 // inside a table body, Loadable's timing (nothing under 150ms, then the skeleton, then the content,
-// a failure with Retry) and a screen whose read failed, which says so with Retry rather than as empty.
+// a failure with Retry).
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
@@ -165,37 +163,5 @@ describe('Loadable', () => {
     expect(el.querySelector('[data-testid=rows]')).toBeNull()
     act(() => alert.querySelector('button')!.click())
     expect(refetch).toHaveBeenCalledOnce()
-  })
-})
-
-describe('ErrorBoundary', () => {
-  let failing = true
-  function Reads() {
-    if (failing) throw new ApiError('failed', "Couldn't load this.", { status: 500 })
-    return h('p', { 'data-testid': 'page' }, 'page')
-  }
-
-  it('a read the service failed says so with Retry, which resets the reads and draws the page again', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    failing = true
-    const onRetry = vi.fn(() => {
-      failing = false
-    })
-    const el = render(h(ErrorBoundary, { onRetry, children: h(Reads) }))
-    expect(el.textContent).toContain("Couldn't load this page")
-    expect(el.textContent).not.toContain('This page hit an error')
-    const retry = [...el.querySelectorAll('button')].find((b) => b.textContent === 'Retry')!
-    act(() => retry.click())
-    expect(onRetry).toHaveBeenCalledOnce()
-    expect(el.querySelector('[data-testid=page]')).not.toBeNull()
-  })
-
-  it('a screen that breaks for another reason still says it hit an error', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    function Breaks(): React.ReactNode {
-      throw new Error('boom')
-    }
-    const el = render(h(ErrorBoundary, { onRetry: () => undefined, children: h(Breaks) }))
-    expect(el.textContent).toContain('This page hit an error')
   })
 })

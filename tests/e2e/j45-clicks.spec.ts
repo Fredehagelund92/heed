@@ -2,9 +2,8 @@ import { expect, go, mode, onServiceOnly, test } from './go.ts'
 import type { Page } from '@playwright/test'
 
 // J45: a click answers at once. Pointing at a link fetches its page's code first, the click's
-// first frame shows where it went, with skeleton rows in place, before the rows mount, and a first
-// visit draws the rows the shell already holds. A quick view reads its own item, never the lists
-// the shell holds again.
+// first frame shows where it went before the rows mount, and a first visit draws the rows the shell
+// already holds. A quick view reads its own item, never the lists the shell holds again.
 
 const nav = (page: Page, name: string) =>
   page.locator('[data-sidebar="menu-button"]').filter({ hasText: name })
@@ -39,7 +38,7 @@ test('the first frame after a click shows the page, and the rows follow', async 
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 })
 
   await page.evaluate(() => {
-    const seen: { at: number; rows: number; skeleton: number }[] = []
+    const seen: { at: number; rows: number }[] = []
     const watch = { clicked: 0, seen }
     Object.assign(window, { watch })
     document.addEventListener('click', (e) => (watch.clicked = e.timeStamp), { capture: true })
@@ -47,8 +46,7 @@ test('the first frame after a click shows the page, and the rows follow', async 
       if (document.querySelector('a[href="/context"][data-active]'))
         seen.push({
           at: performance.now(),
-          rows: document.querySelectorAll('main tbody tr:not([data-skeleton-row])').length,
-          skeleton: document.querySelectorAll('main tbody tr[data-skeleton-row]').length,
+          rows: document.querySelectorAll('main tbody tr').length,
         })
       requestAnimationFrame(look)
     }
@@ -59,16 +57,12 @@ test('the first frame after a click shows the page, and the rows follow', async 
 
   const { first, wait } = await page.evaluate(() => {
     const { clicked, seen } = (
-      window as unknown as {
-        watch: { clicked: number; seen: { at: number; rows: number; skeleton: number }[] }
-      }
+      window as unknown as { watch: { clicked: number; seen: { at: number; rows: number }[] } }
     ).watch
     return { first: seen[0]!, wait: seen[0]!.at - clicked }
   })
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
-  // The first frame holds the rows' place with their skeleton; the rows come in the next render.
   expect(first.rows).toBe(0)
-  expect(first.skeleton).toBeGreaterThan(0)
   // At six times slower: before the rows moved out of this frame it took several times as long.
   expect(wait).toBeLessThan(1500)
 })

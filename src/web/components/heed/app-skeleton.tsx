@@ -24,9 +24,8 @@ import { cn } from '@/lib/utils'
 // fetched as the app starts, so the first load stays small; App.tsx waits 150ms before it shows
 // one, by which time this code is in.
 
-/** The shapes: a review, an editor, Definitions' and Context's lists, any other page, the documentation's home or a page. */
-export type Shape =
-  'review' | 'editor' | 'page' | 'definitions' | 'context' | 'docs-home' | 'docs-page'
+/** The shapes: a review, an editor, Definitions' list, any other page, the documentation's home or a page. */
+export type Shape = 'review' | 'editor' | 'page' | 'definitions' | 'docs-home' | 'docs-page'
 
 /** The header every page in the shell starts with: the sidebar's toggle, its rule, the title, on a phone search, and the theme. */
 function HeaderShape() {
@@ -58,16 +57,13 @@ export function PageShape({ shape }: { shape: Shape }) {
         </FramePage>
       </>
     )
-  if (shape === 'definitions' || shape === 'context')
+  if (shape === 'definitions')
     return (
       <>
         <HeaderShape />
         {/* The list's own scroller and its 80rem frame, so the bars and rows land where the list's do. */}
         <div className="@container/main flex min-h-0 flex-1 flex-col overflow-clip *:mx-auto *:w-full *:max-w-wide @min-[80rem]/main:*:border-x">
-          <TableSkeleton
-            lead={shape === 'definitions' ? DEFINITIONS_LEAD : undefined}
-            announce={false}
-          />
+          <TableSkeleton lead={DEFINITIONS_LEAD} announce={false} />
         </div>
       </>
     )
@@ -197,7 +193,6 @@ function shapeOf(parts: string[]): Shape {
   )
     return 'editor'
   if (place === 'definitions' && !id) return 'definitions'
-  if (place === 'context' && !id) return 'context'
   return 'page'
 }
 

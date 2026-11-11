@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { CircleAlertIcon } from '@/components/icons'
-import { ApiError } from '@/api/errors'
 import { Button } from '@/components/ui/button'
-import { LoadError } from '@/components/heed/load-state'
 import {
   Empty,
   EmptyContent,
@@ -13,11 +11,9 @@ import {
 } from '@/components/ui/empty'
 
 // Catches a screen that fails to render or to load (a lazy chunk the server no longer serves), so
-// one broken page shows what happened and a way back instead of blanking the whole app. A read the
-// service failed or never answered is said as that, with Retry, which reads it again (`onRetry`
-// resets the failed reads, then the screen draws again and waits for them in its skeleton).
+// one broken page shows what happened and a way back instead of blanking the whole app.
 export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; onRetry?: () => void },
+  { children: React.ReactNode },
   { error: Error | null }
 > {
   override state = { error: null as Error | null }
@@ -33,24 +29,6 @@ export class ErrorBoundary extends React.Component<
   override render() {
     const { error } = this.state
     if (!error) return this.props.children
-    const { onRetry } = this.props
-    if (
-      onRetry &&
-      error instanceof ApiError &&
-      (error.kind === 'failed' || error.kind === 'unanswered')
-    )
-      return (
-        <div className="flex h-full items-center justify-center p-4">
-          <LoadError
-            what="this page"
-            className="max-w-lg"
-            onRetry={() => {
-              onRetry()
-              this.setState({ error: null })
-            }}
-          />
-        </div>
-      )
     const load =
       /dynamically imported module|Importing a module script failed|Failed to fetch/i.test(
         error.message,

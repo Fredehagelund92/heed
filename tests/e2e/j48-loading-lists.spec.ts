@@ -3,8 +3,7 @@ import { go, mode, test } from './go.ts'
 
 // J48, a list while it loads on a slow network: Definitions opened cold shows the app's skeleton
 // (the sidebar and the list's bars, header and rows) instead of a blank window, never says there
-// is nothing while it waits, and the page lands where the skeleton stood. A read that fails says
-// so with Retry, and a workspace with no definitions says that, once it has finished loading.
+// is nothing while it waits, and the page lands where the skeleton stood.
 // The mock answers the shared reads at once, so these run on the service (http mode), where the
 // network can be slowed.
 
@@ -111,38 +110,3 @@ for (const [width, scheme] of [
     expect([...labels]).toHaveLength(1)
     await page.unrouteAll({ behavior: 'ignoreErrors' })
   })
-
-test('a read that fails says it could not load, with Retry, never that there is nothing', async ({
-  page,
-}) => {
-  const catalogue = '**/api/v1/catalogue*'
-  await page.route(catalogue, (route) =>
-    route.fulfill({ status: 500, json: { code: 'failed', message: 'The catalogue is down.' } }),
-  )
-  await page.goto('/definitions')
-  await expect(page.getByText("Couldn't load this page")).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText(/No definitions/)).toHaveCount(0)
-  await expect(page.getByText('This page hit an error')).toHaveCount(0)
-
-  // The service is back: Retry reads again and the definitions show.
-  await page.unroute(catalogue)
-  await page.getByRole('button', { name: 'Retry' }).click()
-  await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText("Couldn't load this page")).toHaveCount(0)
-})
-
-test('a workspace with no definitions says so once it has loaded, and how to get some', async ({
-  page,
-}) => {
-  await recordFrames(page)
-  await slowNetwork(page, 800)
-  await go(page, '/definitions?demo=setup')
-  const empty = page.getByText('No definitions yet')
-  await expect(empty).toBeVisible({ timeout: 60_000 })
-  await expect(page.getByRole('button', { name: 'Connect a definitions tool' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Write a term' })).toBeVisible()
-  // Never while it was still loading.
-  const seen = await frames(page)
-  expect(seen.some((f) => f.empty && f.skeleton)).toBe(false)
-  await page.unrouteAll({ behavior: 'ignoreErrors' })
-})
