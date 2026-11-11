@@ -115,9 +115,12 @@ export function testDatabase({
  */
 export async function queueReads(client: pg.Client, ids?: readonly string[]): Promise<void> {
   await readNow(
-    { query: async (text, values) => (await client.query(text, values)).rows },
+    {
+      query: <Row extends pg.QueryResultRow>(text: string, values?: unknown[]) =>
+        client.query<Row>(text, values).then((result) => result.rows),
+    },
     ids ?? null,
-    async () => ({ result: undefined, ran: true }),
+    () => Promise.resolve({ result: undefined, ran: true }),
   )
 }
 
