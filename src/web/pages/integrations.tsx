@@ -2685,7 +2685,9 @@ function LeftOutNotice({
   const domains = useDomains()
   const metrics = left.views.reduce((n, v) => n + v.metrics, 0)
   const dimensions = left.views.reduce((n, v) => n + v.dimensions, 0)
-  const names = left.views.map((v) => v.view ?? 'members in no view')
+  const named = left.views.filter((v) => v.view !== null)
+  const names = named.map((v) => v.view as string)
+  const loose = left.views.some((v) => v.view === null)
   const holds = [
     metrics && plural(metrics, 'metric'),
     dimensions && plural(dimensions, 'dimension'),
@@ -2700,11 +2702,14 @@ function LeftOutNotice({
     >
       <h3 id="left-out" className="flex items-start gap-2 font-medium">
         <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
-        {`It stops reading ${plural(left.views.length, 'view')} of ${tool}`}
+        {named.length
+          ? `It stops reading ${plural(named.length, 'view')} of ${tool}`
+          : `It stops reading members of ${tool} that are in no view`}
       </h3>
       <p>
         <span className="font-mono text-dense">{names.slice(0, 5).join(', ')}</span>
         {names.length > 5 && ` and ${names.length - 5} more`}
+        {loose && named.length > 0 && ', and members in no view'}
         {`. ${holds ? `Their ${holds} leave` : 'They leave'} Definitions from its next read. Nothing is unpublished or deleted.`}
       </p>
       {items.count > 0 && (
@@ -2719,9 +2724,12 @@ function LeftOutNotice({
               <li key={item.id} className="flex min-w-0 items-baseline gap-2">
                 <a
                   href={`/context/${item.id}`}
+                  target="_blank"
+                  rel="noopener"
                   className="min-w-0 truncate underline-offset-2 hover:underline"
                 >
                   {item.title}
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
                 <span className="shrink-0 text-muted-foreground">
                   {domains[item.domain]?.name ?? item.domain}
@@ -2853,9 +2861,19 @@ function ChoiceSteps({
     enabled: at === 5 && isDefinitions && !!form.source && !every,
   })
   const left = !every && stops.data ? stops.data : null
-  const [seen, setSeen] = React.useState(false)
+  const leftKey = left
+    ? JSON.stringify([
+        left.views.map((v) => v.view),
+        left.items.count,
+        left.items.named.map((i) => i.id),
+      ])
+    : null
+  const [seenKey, setSeenKey] = React.useState<string | null>(null)
+  const seen = leftKey !== null && seenKey === leftKey
+  const setSeen = (on: boolean) => setSeenKey(on ? leftKey : null)
   const mustSee = !!left?.items.count
-  const checking = at === 5 && isDefinitions && !!form.source && !every && !stops.data
+  const checking =
+    at === 5 && isDefinitions && !!form.source && !every && !stops.data && !stops.isError
 
   const finish = async () => {
     const choices = chosen.map((s) => ({ id: s.id, title: s.title, domain: map[s.id] ?? null }))
@@ -2895,6 +2913,7 @@ function ChoiceSteps({
       if (setup) navigate('/inbox')
       else navigate(`/settings/integrations/${done.id}`)
     } catch (e: unknown) {
+      if (form.source && !every) void stops.refetch()
       toast(form.source ? `Couldn't save ${c.name}` : `Couldn't connect ${c.name}`, {
         description: toApiError(e).message,
       })
@@ -3091,6 +3110,14 @@ function ChoiceSteps({
             {checking && (
               <p role="status" className="text-sm text-muted-foreground">
                 Checking what it stops reading…
+              </p>
+            )}
+            {stops.isError && !stops.data && (
+              <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+                Couldn't check what it stops reading.
+                <Button variant="outline" size="sm" onClick={() => void stops.refetch()}>
+                  Retry
+                </Button>
               </p>
             )}
             {left && left.views.length > 0 && (
