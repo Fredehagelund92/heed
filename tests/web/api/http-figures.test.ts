@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FigureRead, FigureTry } from '@contract/figures'
-import { figureTryOf, figureViewOf } from '@/api/http-figures'
+import { figureTryOf, figureValue, figureViewOf } from '@/api/http-figures'
 
 // Try a figure on the service, as Cube's page says it: what was read and for which days, the value
 // as the tool writes it, and how fresh the data is; or the failure's code, never the tool's words.
@@ -111,5 +111,17 @@ describe('a snapshot read on the service', () => {
         change: 'up 20% from 31 Jul 2026 (1,000)',
       },
     })
+  })
+})
+
+describe('a value as the tool writes it', () => {
+  it('writes a percent as the share the tool gives: 0.175 is 17.5%', () => {
+    expect(figureValue(0.175, { kind: 'percent' })).toBe('17.5%')
+    expect(figureValue(0.2, { kind: 'percent' })).toBe('20%')
+  })
+
+  it('writes money in its currency, and a number as a number', () => {
+    expect(figureValue(43600, { kind: 'currency', currency: 'EUR' })).toBe('€43,600')
+    expect(figureValue(1204.5, { kind: 'number' })).toBe('1,204.5')
   })
 })

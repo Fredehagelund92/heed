@@ -275,12 +275,16 @@ export interface FigureQuery {
 
 /**
  * The server's figure settings for one measure (`HEED_FIGURE_OVERRIDES`), set by whoever runs
- * the service for a model that does not say: the date its days apply to, by name, and whether it
- * adds up over days (`false` for a snapshot such as a balance or stock on hand).
+ * the service for a model that does not say: the date its days apply to, by name; whether it
+ * adds up over days (`false` for a snapshot such as a balance or stock on hand); and how its
+ * value is written.
  */
 export interface FigureSettings {
   readonly date?: string
   readonly additive?: boolean
+  /** How the value is written, and the currency of money (`EUR`). */
+  readonly format?: 'currency' | 'percent' | 'number'
+  readonly currency?: string
 }
 
 /** How the tool says a figure is written: an amount of money, a share, or a number. */

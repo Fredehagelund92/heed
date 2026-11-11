@@ -166,7 +166,8 @@ const envSchema = z
     // A JSON file of renamed Cube members, old id to new id (CON-512).
     CUBE_RENAMES_FILE: z.string().optional(),
     // A JSON file of figure settings, by source and then by view or measure, for what a tool's
-    // model leaves unsaid (FR-716): the date a view's figures are read by.
+    // model leaves unsaid (FR-716): the date a view's figures are read by, whether a measure adds
+    // up over days, and how its value is written.
     HEED_FIGURE_OVERRIDES: z.string().optional(),
     // How long Cube's compiler may take on the model, and the memory it may use; a large model
     // needs more than the defaults (120 seconds, 1,024 MB).

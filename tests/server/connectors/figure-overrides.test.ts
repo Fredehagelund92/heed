@@ -18,7 +18,14 @@ const file = async (name: string, text: string) => {
 
 describe('the figure settings file', () => {
   it('is by source, then by view or measure', async () => {
-    const settings = { cube: { orders: { date: 'order_day' }, 'orders.revenue': {} } }
+    const settings = {
+      cube: {
+        orders: { date: 'order_day' },
+        'orders.revenue': { currency: 'EUR' },
+        'orders.conversion': { format: 'percent' },
+        'stock.units_on_hand': { additive: false },
+      },
+    }
     expect(await readFigureOverrides(await file('ok.json', JSON.stringify(settings)))).toEqual(
       settings,
     )
@@ -30,6 +37,8 @@ describe('the figure settings file', () => {
       await file('text.json', 'orders: order_day'),
       await file('flat.json', JSON.stringify({ orders: 'order_day' })),
       await file('unknown.json', JSON.stringify({ cube: { orders: { day: 'order_day' } } })),
+      await file('currency.json', JSON.stringify({ cube: { orders: { currency: 'euro' } } })),
+      await file('format.json', JSON.stringify({ cube: { orders: { format: 'money' } } })),
     ])
       await expect(readFigureOverrides(path)).rejects.toThrow(/^HEED_FIGURE_OVERRIDES: /)
   })

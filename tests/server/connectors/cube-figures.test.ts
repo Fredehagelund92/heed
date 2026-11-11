@@ -18,7 +18,13 @@ type Meta = {
   cubes: {
     name: string
     meta?: Record<string, unknown>
-    measures: { name: string; aggType?: string; meta?: Record<string, unknown> }[]
+    measures: {
+      name: string
+      aggType?: string
+      format?: unknown
+      currency?: string
+      meta?: Record<string, unknown>
+    }[]
   }[]
 }
 
@@ -28,12 +34,15 @@ function cube({
   metaStatus = 200,
   value = '1200',
   loadAnswer,
+  annotation,
 }: {
   meta?: Meta
   metaStatus?: number
   value?: string
   /** What every load answers instead of the row. */
   loadAnswer?: { status: number; body: unknown }
+  /** What the load's annotation says of the measure: its format, currency and meta. */
+  annotation?: Record<string, unknown>
 }) {
   tests += 1
   const endpoint = `https://cube-${tests}.example.test/cubejs-api/v1/load`
@@ -55,7 +64,13 @@ function cube({
       const query = JSON.parse(address.searchParams.get('query')!) as { measures: string[] }
       loads.push(query)
       if (loadAnswer) return Promise.resolve(json(loadAnswer.status, loadAnswer.body))
-      return Promise.resolve(json(200, { data: [{ [query.measures[0]!]: value }] }))
+      const measure = query.measures[0]!
+      return Promise.resolve(
+        json(200, {
+          data: [{ [measure]: value }],
+          ...(annotation ? { annotation: { measures: { [measure]: annotation } } } : {}),
+        }),
+      )
     },
   }
   return { context, loads }
@@ -229,5 +244,81 @@ describe('a measure that does not add up over days', () => {
     const read = await readCubeFigure(plain.context, onHand())
     expect(read.snapshot).toBeUndefined()
     expect(plain.loads.map(rangeOf)).toEqual([['2026-08-01', '2026-08-31']])
+  })
+})
+
+describe('how a value is written', () => {
+  const one = { dates: ['sales.order_day'] }
+  const formatOf = async (
+    annotation: Record<string, unknown> | undefined,
+    more: Partial<FigureQuery> = {},
+    meta?: Meta,
+  ) => (await readCubeFigure(cube({ annotation, meta }).context, query({ ...one, ...more }))).format
+  const euros = { kind: 'currency', currency: 'EUR' }
+
+  it("is money in the currency Cube's own currency property names", async () => {
+    expect(await formatOf({ format: 'currency', currency: 'EUR' })).toEqual(euros)
+    // A named format, as Cube answers it, and a currency with no format at all.
+    expect(
+      await formatOf({
+        format: { type: 'custom-numeric', value: '$,.0f', alias: 'currency_0' },
+        currency: 'NOK',
+      }),
+    ).toEqual({ kind: 'currency', currency: 'NOK' })
+    expect(await formatOf({ currency: 'eur' })).toEqual(euros)
+  })
+
+  it('is money in the currency meta.currency names, with or without a format', async () => {
+    expect(await formatOf({ format: 'currency', meta: { currency: 'EUR' } })).toEqual(euros)
+    expect(await formatOf({ meta: { currency: 'EUR' } })).toEqual(euros)
+  })
+
+  it('is a share for a percent format, plain or named', async () => {
+    expect(await formatOf({ format: 'percent' })).toEqual({ kind: 'percent' })
+    expect(
+      await formatOf({ format: { type: 'custom-numeric', value: '.1~%', alias: 'percent_1' } }),
+    ).toEqual({ kind: 'percent' })
+  })
+
+  it("is what /v1/meta says when the load's answer doesn't", async () => {
+    const meta = {
+      cubes: [
+        {
+          name: 'sales',
+          measures: [{ name: 'sales.revenue', format: 'currency', currency: 'EUR' }],
+        },
+      ],
+    }
+    expect(await formatOf(undefined, {}, meta)).toEqual(euros)
+  })
+
+  it("fills in what the model leaves unsaid from the server's settings, and never more", async () => {
+    expect(await formatOf(undefined, { settings: { format: 'percent' } })).toEqual({
+      kind: 'percent',
+    })
+    expect(await formatOf(undefined, { settings: { currency: 'SEK' } })).toEqual({
+      kind: 'currency',
+      currency: 'SEK',
+    })
+    // Money with no code takes the settings' currency.
+    expect(await formatOf({ format: 'currency' }, { settings: { currency: 'SEK' } })).toEqual({
+      kind: 'currency',
+      currency: 'SEK',
+    })
+    // The model's own word wins: a number stays a number, euros stay euros.
+    expect(await formatOf({ format: 'number' }, { settings: { currency: 'SEK' } })).toEqual({
+      kind: 'number',
+    })
+    expect(
+      await formatOf({ format: 'currency', currency: 'EUR' }, { settings: { format: 'percent' } }),
+    ).toEqual(euros)
+  })
+
+  it('is a number when nothing says, or money with no currency anywhere', async () => {
+    expect(await formatOf(undefined)).toEqual({ kind: 'number' })
+    expect(await formatOf({ format: 'currency' })).toEqual({ kind: 'number' })
+    expect(await formatOf({ format: 'accounting', currency: 'not money' })).toEqual({
+      kind: 'number',
+    })
   })
 })

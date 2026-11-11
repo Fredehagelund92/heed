@@ -101,6 +101,13 @@ const figureSettingsSchema = z.strictObject({
   date: z.string().min(1).max(500).optional(),
   /** False for a measure that does not add up over days: it is read on the last day only. */
   additive: z.boolean().optional(),
+  /** How the value is written: money, a share (0.25 for 25%), or a number. */
+  format: z.enum(['currency', 'percent', 'number']).optional(),
+  /** The currency of money, as ISO 4217 writes it: `EUR`. */
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
 })
 
 /**

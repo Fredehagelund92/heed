@@ -122,7 +122,7 @@ Off by default. With it on, Ask shows one figure read from Cube, and keeps it no
 
 The figure comes from the integration that defines the metric, and the query is a fixed template, never words a person or a model wrote. There is no figure when more than one integration defines the metric, or when its view has no time dimension.
 
-The value is written as the model says: `format: currency` with `meta.currency` for money, and `format: percent` for a share. "Data as of" is Cube's `lastRefreshTime`.
+"Data as of" is Cube's `lastRefreshTime`.
 
 No person's identity is passed to Cube. A refused token, a host that cannot be reached and a slow query each say so in Ask, within 4 seconds.
 
@@ -160,6 +160,19 @@ measures:
 
 Its figure is then read on the last of the days only, and so is the one it is compared with. Ask says it is the value as of that day, and that it can't be added up over a period. It is still added up across the values the question names, such as two markets on that day.
 
+### How the value is written
+
+The value is written as the model says:
+
+| In the model                                   | Written as              |
+| ---------------------------------------------- | ----------------------- |
+| `format: currency` and `currency: EUR`         | Money, €43,600          |
+| `currency: EUR` alone, or `meta.currency: EUR` | Money too               |
+| `format: percent`                              | A share, 0.175 as 17.5% |
+| Nothing, or `format: number`                   | A number, 43,600        |
+
+Named formats such as `currency_0` and `percent_1` count as `currency` and `percent`. A percent is the share Cube gives, as Cube's own format writes it. Money with no currency anywhere is written as a number: the currency is never guessed.
+
 ### Figure settings on the server
 
 For a model you cannot change, whoever runs the service sets `HEED_FIGURE_OVERRIDES` to a JSON file. It is by integration id, then by view or measure. A measure's own setting wins over its view's, and the model wins over both:
@@ -168,14 +181,17 @@ For a model you cannot change, whoever runs the service sets `HEED_FIGURE_OVERRI
 {
   "cube": {
     "sales": { "date": "invoice_day" },
-    "stock.units_on_hand": { "additive": false }
+    "stock.units_on_hand": { "additive": false },
+    "sales.revenue": { "currency": "EUR" }
   }
 }
 ```
 
-| Setting    | What it does                                         |
-| ---------- | ---------------------------------------------------- |
-| `date`     | The date the days apply to, by its name              |
-| `additive` | `false` for a measure that does not add up over days |
+| Setting    | What it does                                                    |
+| ---------- | --------------------------------------------------------------- |
+| `date`     | The date the days apply to, by its name                         |
+| `additive` | `false` for a measure that does not add up over days            |
+| `format`   | `currency`, `percent` or `number`, when the model has no format |
+| `currency` | The currency of money, such as `EUR`, when the model names none |
 
 The file is read when the service starts. A file that is not JSON, or holds a setting not in this table, stops the start.

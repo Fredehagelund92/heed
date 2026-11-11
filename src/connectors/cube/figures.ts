@@ -41,6 +41,7 @@ const answerSchema = z.object({
           z.string(),
           z.object({
             format: z.optional(z.unknown()),
+            currency: z.optional(z.unknown()),
             meta: z.optional(z.nullable(z.record(z.string(), z.unknown()))),
           }),
         ),
@@ -62,19 +63,49 @@ export function cubeQuery(query: FigureQuery, date: string) {
   }
 }
 
-/** How the model says the measure is written: `format: currency` with `meta.currency`, or percent. */
-function formatOf(
-  annotation: { format?: unknown; meta?: Record<string, unknown> | null } | undefined,
-) {
-  const currency = annotation?.meta?.currency
-  if (
-    annotation?.format === 'currency' &&
-    typeof currency === 'string' &&
-    /^[A-Z]{3}$/.test(currency)
-  )
-    return { kind: 'currency', currency } satisfies FigureFormat
-  if (annotation?.format === 'percent') return { kind: 'percent' } satisfies FigureFormat
-  return { kind: 'number' } satisfies FigureFormat
+/** What Cube says of how a measure is written: its `format`, its `currency` and its `meta`. */
+interface Written {
+  format?: unknown
+  currency?: unknown
+  meta?: Record<string, unknown> | null
+}
+
+/** A three-letter currency code, as ISO 4217 writes it; null for anything else. */
+const currencyCode = (value: unknown) =>
+  typeof value === 'string' && /^[A-Za-z]{3}$/.test(value) ? value.toUpperCase() : null
+
+/**
+ * The kind a Cube format names: `currency`, `percent` or `number`, or one of their named forms,
+ * such as `percent_1`, that Cube answers as an object with its alias. Null for none, or another.
+ */
+function kindOf(format: unknown): 'currency' | 'percent' | 'number' | null {
+  const name = typeof format === 'string' ? format : (format as { alias?: unknown } | null)?.alias
+  if (typeof name !== 'string') return null
+  return (/^(currency|percent|number)(?:_\d)?$/.exec(name)?.[1] ?? null) as ReturnType<
+    typeof kindOf
+  >
+}
+
+/**
+ * How the measure is written. The model says first: its `format`, then its `currency` (Cube's own
+ * property, or `meta.currency`), from the answer or else from `/v1/meta`; a measure with a
+ * currency and no format is money. Where the model says nothing, the server's settings do. A
+ * currency with no code is written as a number: which money it is is never guessed.
+ */
+function formatOf(written: Written[], settings: FigureQuery['settings']): FigureFormat {
+  const first = <T>(read: (w: Written) => T | null) =>
+    written.map(read).find((found) => found !== null) ?? null
+  const named = first((w) => kindOf(w.format))
+  const code = first((w) => currencyCode(w.currency) ?? currencyCode(w.meta?.currency))
+  const kind =
+    named ??
+    (code ? 'currency' : null) ??
+    settings?.format ??
+    (settings?.currency ? 'currency' : 'number')
+  const money = code ?? currencyCode(settings?.currency)
+  if (kind === 'currency' && money) return { kind: 'currency', currency: money }
+  if (kind === 'percent') return { kind: 'percent' }
+  return { kind: 'number' }
 }
 
 const failed = (code: string, errorClass: 'config' | 'transient' | 'source', retryAfter?: number) =>
@@ -128,15 +159,27 @@ const metaSchema = z.object({
     z.object({
       meta: memberMeta,
       measures: z.optional(
-        z.array(z.object({ name: z.string(), aggType: z.optional(z.string()), meta: memberMeta })),
+        z.array(
+          z.object({
+            name: z.string(),
+            aggType: z.optional(z.string()),
+            format: z.optional(z.unknown()),
+            currency: z.optional(z.unknown()),
+            meta: memberMeta,
+          }),
+        ),
       ),
     }),
   ),
 })
 
-/** What `/v1/meta` says of one measure: how it is worked out, and its own and its view's `meta`. */
+/**
+ * What `/v1/meta` says of one measure: how it is worked out, how it is written, and its own and
+ * its view's `meta`.
+ */
 interface Measure {
   aggType: string | null
+  written: Written
   meta: Record<string, unknown>
   viewMeta: Record<string, unknown>
 }
@@ -165,7 +208,12 @@ async function measuresOf(context: FigureContext): Promise<Map<string, Measure>>
         (m) =>
           [
             m.name,
-            { aggType: m.aggType ?? null, meta: m.meta ?? {}, viewMeta: cube.meta ?? {} },
+            {
+              aggType: m.aggType ?? null,
+              written: { format: m.format, currency: m.currency, meta: m.meta ?? null },
+              meta: m.meta ?? {},
+              viewMeta: cube.meta ?? {},
+            },
           ] as const,
       ),
     ),
@@ -200,7 +248,9 @@ async function measureOf(context: FigureContext, metric: string): Promise<Measur
     }, forget)
   }
   try {
-    return (await kept.byMeasure).get(metric) ?? { aggType: null, meta: {}, viewMeta: {} }
+    return (
+      (await kept.byMeasure).get(metric) ?? { aggType: null, written: {}, meta: {}, viewMeta: {} }
+    )
   } catch (error) {
     return error instanceof SourceError ? error : failed('invalid_output', 'source')
   }
@@ -253,10 +303,16 @@ export async function readCubeFigure(
   const date = dateOf(query, measure)
   const snapshot = snapshotOf(query, measure)
   // A snapshot added up over days is no figure at all: it is read on the last day.
-  const result = await loadFigure(context, snapshot ? { ...query, from: query.to } : query, date)
-  const type = measure instanceof SourceError ? null : measure.aggType
+  const { written, ...result } = await loadFigure(
+    context,
+    snapshot ? { ...query, from: query.to } : query,
+    date,
+  )
+  const described = measure instanceof SourceError ? null : measure
+  const type = described?.aggType
   return {
     ...result,
+    format: formatOf(described ? [written, described.written] : [written], query.settings),
     aggregation: type && /^[A-Za-z]{1,40}$/.test(type) ? type : null,
     date,
     ...(snapshot ? { snapshot } : {}),
@@ -314,7 +370,7 @@ async function loadFigure(
   context: FigureContext,
   query: FigureQuery,
   date: string,
-): Promise<Omit<FigureResult, 'aggregation' | 'date' | 'snapshot'>> {
+): Promise<Pick<FigureResult, 'value' | 'asOf'> & { written: Written }> {
   const address = new URL(context.endpoint)
   address.searchParams.set('query', JSON.stringify(cubeQuery(query, date)))
   for (;;) {
@@ -337,7 +393,7 @@ async function loadFigure(
     return {
       value,
       asOf: refreshed && !Number.isNaN(refreshed.getTime()) ? refreshed.toISOString() : null,
-      format: formatOf(answer.annotation?.measures?.[query.metric]),
+      written: answer.annotation?.measures?.[query.metric] ?? {},
     }
   }
 }

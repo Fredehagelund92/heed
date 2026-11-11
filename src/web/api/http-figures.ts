@@ -67,8 +67,9 @@ export function figureValue(
       // A currency code the browser doesn't know is written after the number.
       return `${value.toLocaleString('en-GB')} ${format.currency}`
     }
+  // A share, as the tool writes a percent: 0.175 is 17.5%.
   if (format.kind === 'percent')
-    return `${value.toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`
+    return value.toLocaleString('en-GB', { style: 'percent', maximumFractionDigits: 1 })
   return value.toLocaleString('en-GB', { maximumFractionDigits: 2 })
 }
 
