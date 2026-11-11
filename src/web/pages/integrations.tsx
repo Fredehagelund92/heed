@@ -2778,17 +2778,18 @@ function ChoiceSteps({
   // A view it reads that the model no longer has stays in the list, ticked, so it is seen.
   const rows = React.useMemo(() => {
     const found = new Set(scopes.map((s) => s.id))
-    const gone = form.readsAll
-      ? []
-      : form.chosen
-          .filter((choice) => !found.has(choice.id))
-          .map((choice): ConnectScope => ({
-            id: choice.id,
-            title: choice.title,
-            detail: 'Not in the model',
-          }))
+    const gone =
+      !isDefinitions || form.readsAll
+        ? []
+        : form.chosen
+            .filter((choice) => !found.has(choice.id))
+            .map((choice): ConnectScope => ({
+              id: choice.id,
+              title: choice.title,
+              detail: 'Not in the model',
+            }))
     return [...gone, ...scopes]
-  }, [scopes, form])
+  }, [scopes, form, isDefinitions])
   const ids = rows.map((s) => s.id)
   // A tool connected starts from what it reads; a new one from everything found, but what is left
   // out at first.
@@ -2817,7 +2818,7 @@ function ChoiceSteps({
   const domainIds = new Set(useDomainList().map((d) => d.id))
   const [map, setMap] = React.useState<Record<string, DomainId | null>>(() =>
     Object.fromEntries(
-      scopes.map((s) => {
+      rows.map((s) => {
         const domain = before.has(s.id) ? (before.get(s.id) ?? null) : (s.domain ?? null)
         return [s.id, domain && domainIds.has(domain) ? domain : null]
       }),

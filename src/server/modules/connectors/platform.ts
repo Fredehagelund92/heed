@@ -549,7 +549,10 @@ export function withChosenGroups(
   })
   // What it said of a group mapped to a domain says nothing now.
   const warnings = read.warnings.filter(
-    (warning) => !chosen.has(warning.target) || chosen.get(warning.target) === null,
+    (warning) =>
+      !chosen.has(warning.target) ||
+      chosen.get(warning.target) === null ||
+      (warning.code !== 'missing_domain' && warning.code !== 'invalid_domain'),
   )
   return { ...read, definitions, warnings: [...warnings, ...mapped] }
 }

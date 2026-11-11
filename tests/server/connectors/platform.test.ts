@@ -470,6 +470,15 @@ describe('the groups an admin chose for a definitions source (CON-118)', () => {
     ])
   })
 
+  it('names a listed group the read lacks even when it is mapped to a domain', () => {
+    const read = withChosenGroups(
+      snapshot,
+      [{ id: 'stock', title: 'stock', domain: 'finance' }],
+      false,
+    )
+    expect(read.warnings).toContainEqual({ code: 'group_not_found', target: 'stock' })
+  })
+
   it('reads nothing from a list of none, and says so, never every group', () => {
     const read = withChosenGroups(snapshot, [], false)
     expect(read.definitions).toEqual([])
