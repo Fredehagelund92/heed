@@ -236,7 +236,9 @@ seconds, and keeps it nowhere:
    just before, after, once in ten minutes, `/v1/meta` for what the model says of the measure: how
    it is worked out (`aggType`), so the query in words can say "added up", and its `meta`.
 3. A measure marked with `meta.non_additive_dimension`, or `additive: false` in the settings, is a
-   snapshot: both reads take the last of their days only, and Ask says so.
+   snapshot: both reads take the last of their days only, and Ask says so. When `/v1/meta` fails
+   and the settings do not set `additive`, the read fails with that error: whether the measure adds
+   up is unknown, so no figure is loaded.
 4. The value is written as the model says: its `format` (`currency`, `percent`, `number`, or a
    named form such as `percent_1`) and its currency (Cube's `currency`, or `meta.currency`), from
    the answer or `/v1/meta`, else the settings' `format` and `currency`. A percent is the share
