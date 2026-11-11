@@ -11,6 +11,3 @@ export const DEFAULT_WEB_ORIGINS = ['http://localhost:5173', 'http://localhost:4
 
 /** The most suggestions one read of many sheets names; the Inbox reads more in turns. */
 export const REVIEW_SHEETS_MAX = 100
-
-/** The longest profile label (HEED_PROFILE_LABEL) the header and the sign-in page show. */
-export const PROFILE_LABEL_MAX = 40

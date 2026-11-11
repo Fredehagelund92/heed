@@ -1,6 +1,6 @@
 import { isIP } from 'node:net'
 import * as z from 'zod'
-import { DEFAULT_WEB_ORIGINS, PROFILE_LABEL_MAX } from '../../contract/limits.ts'
+import { DEFAULT_WEB_ORIGINS } from '../../contract/limits.ts'
 import { productNameProblem } from '../../domain/brand.ts'
 import {
   renamedSettingsWarning,
@@ -15,6 +15,9 @@ import { modelProviders } from '../modules/models/index.ts'
  */
 
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
+
+/** The longest profile label (HEED_PROFILE_LABEL) the header and the sign-in page show. */
+const PROFILE_LABEL_MAX = 40
 
 const serverFoldersSchema = z.record(z.string(), z.string().min(1))
 

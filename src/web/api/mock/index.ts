@@ -374,11 +374,16 @@ export function createMockApi() {
 
   const api: HeedApi = {
     // Session and workspace
-    getSession: () => now(() => ({ user: state.user, install: state.install, fresh: state.fresh })),
-    // The demo signs in with the person picker; an invite link opens the invite it names.
-    getSignInMethod: () => now(() => ({ kind: 'picker' as const })),
-    // The mock is the demo, with no label.
-    getInstall: () => now(() => ({ demo: true, profileLabel: null })),
+    getSession: () =>
+      now(() => ({
+        user: state.user,
+        install: state.install,
+        fresh: state.fresh,
+        profileLabel: null,
+      })),
+    // The demo signs in with the person picker, with no label; an invite link opens the invite it
+    // names.
+    getSignInMethod: () => now(() => ({ kind: 'picker' as const, demo: true, profileLabel: null })),
     readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
     signIn: ({ name }) => {
@@ -386,7 +391,7 @@ export function createMockApi() {
         return Promise.reject(new ApiError('not-found', `${name} can't sign in here.`))
       return now(() => {
         dispatch({ type: 'signIn', name })
-        return { user: state.user, install: state.install, fresh: state.fresh }
+        return { user: state.user, install: state.install, fresh: state.fresh, profileLabel: null }
       })
     },
     signOut: () => now(() => dispatch({ type: 'signOut' })),

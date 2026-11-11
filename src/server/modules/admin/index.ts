@@ -2,4 +2,4 @@ export { exportAudit, plainReason, recordAudit, searchAudit, verifyAudit } from 
 export { exportEdition } from './edition-export.ts'
 export { importItems, type ImportServices } from './imports.ts'
 export { knownTools, listClients, saveClient, setTool } from './serving.ts'
-export { listSettings, readInstall, readWorkspace, setSetting } from './settings.ts'
+export { listSettings, readWorkspace, setSetting } from './settings.ts'

@@ -38,7 +38,6 @@ import {
   listClients,
   listSettings,
   plainReason,
-  readInstall,
   readWorkspace,
   saveClient,
   searchAudit,
@@ -574,15 +573,22 @@ export function createRouter({
       ),
     },
     auth: {
-      methods: authorized.auth.methods.handler(() =>
-        signIn.method === 'oidc'
+      methods: authorized.auth.methods.handler(async ({ context }) => {
+        // The demo: its own sign-in, or the demo loaded, whose sandbox domain only the demo's
+        // seed makes (db/seed). An install with its own data on the dev picker is not the demo.
+        const [loaded] = await context.tx.query<{ demo: boolean }>(
+          'select exists (select 1 from areas where is_demo) as demo',
+        )
+        const install = { demo: signIn.method === 'demo' || loaded!.demo, profileLabel }
+        return signIn.method === 'oidc'
           ? {
               method: 'oidc' as const,
               name: (signIn as OidcSignIn).label,
               start: `${API_PREFIX}/auth/oidc/start`,
+              ...install,
             }
-          : { method: signIn.method, name: null, start: null },
-      ),
+          : { method: signIn.method, name: null, start: null, ...install }
+      }),
       people: authorized.auth.people.handler(({ context }) => signIn.choices(context.tx)),
       signIn: authorized.auth.signIn.handler(async ({ context, input }) => {
         const login = await signIn.signIn(
@@ -599,7 +605,7 @@ export function createRouter({
             cookieAge(signIn.lifetime),
           ),
         )
-        return login.session
+        return { ...login.session, profileLabel }
       }),
       signOut: authorized.auth.signOut.handler(async ({ context }) => {
         await signIn.signOut(context.tx, context.request.headers.cookie)
@@ -609,7 +615,10 @@ export function createRouter({
         )
         return { signedOut: true }
       }),
-      session: authorized.auth.session.handler(({ context }) => context.session!),
+      session: authorized.auth.session.handler(({ context }) => ({
+        ...context.session!,
+        profileLabel,
+      })),
     },
     connections: {
       // A sign-in another browser started, or one that ended, answers like one that never was.
@@ -1113,11 +1122,6 @@ export function createRouter({
     me: { get: authorized.me.get.handler(({ context }) => context.session!.person) },
     workspace: {
       get: authorized.workspace.get.handler(({ context }) => readWorkspace(context.tx)),
-    },
-    install: {
-      get: authorized.install.get.handler(({ context }) =>
-        readInstall(context.tx, { method: signIn.method, profileLabel }),
-      ),
     },
     settings: {
       list: authorized.settings.list.handler(({ context }) => listSettings(context.tx)),

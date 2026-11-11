@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
-import { installQuery } from '@/api/queries'
 import { Badge } from '@/components/ui/badge'
 import { TruncatedText } from '@/components/heed/truncated'
 import { cn } from '@/lib/utils'
@@ -9,8 +7,7 @@ import { cn } from '@/lib/utils'
  * header, so a person who runs more than one install, the demo and a private profile say, always
  * sees which one they are in. Nothing when none is set.
  */
-export function ProfileLabel({ className }: { className?: string }) {
-  const label = useQuery(installQuery()).data?.profileLabel
+export function ProfileLabel({ label, className }: { label: string | null; className?: string }) {
   if (!label) return null
   return (
     <Badge

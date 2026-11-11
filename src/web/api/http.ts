@@ -137,7 +137,6 @@ type CallContext = {
 export const wiredMethods = [
   'getSession',
   'getSignInMethod',
-  'getInstall',
   'readInvite',
   'listSignInPeople',
   'signIn',
@@ -527,7 +526,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  const asSession = (name: string): Session => ({ user: name, install: 'normal', fresh: false })
+  const asSession = (name: string, profileLabel: string | null): Session => ({
+    user: name,
+    install: 'normal',
+    fresh: false,
+    profileLabel,
+  })
 
   /** Everyone the comments may name, both ways: by id, and by name for a mention. */
   async function readPeople(): Promise<People> {
@@ -1204,13 +1208,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // checklist until it is done (docs/product.md, FR-816).
     getSession: async () => {
       try {
-        const { me: who } = await session()
+        const { me: who, profileLabel } = await session()
         const setup = await read(() => client.setup.state())
-        return { ...asSession(who.name), install: setup.done ? 'normal' : 'new' }
+        return { ...asSession(who.name, profileLabel), install: setup.done ? 'normal' : 'new' }
       } catch (error) {
         if (toApiError(error).kind === 'signed-out') {
           me = undefined
-          return { user: null, install: 'normal', fresh: false }
+          return { user: null, install: 'normal', fresh: false, profileLabel: null }
         }
         throw error
       }
@@ -1238,19 +1242,20 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       sent = []
       published = {}
       words = undefined
-      return asSession(signed.person.name)
+      return asSession(signed.person.name, signed.profileLabel)
     },
     getSignInMethod: async () => {
       const method = await read(() => client.auth.methods())
+      const install = { demo: method.demo, profileLabel: method.profileLabel }
       return method.method === 'oidc' && method.start
         ? {
             kind: 'oidc' as const,
             name: method.name ?? 'your company account',
             start: method.start,
+            ...install,
           }
-        : { kind: 'picker' as const }
+        : { kind: 'picker' as const, ...install }
     },
-    getInstall: () => read(() => client.install.get()),
     readInvite: async ({ token }) => {
       try {
         const invite = await read(() => client.invites.lookup({ token }))

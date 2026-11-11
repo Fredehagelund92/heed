@@ -20,6 +20,7 @@ import { TruncatedText } from '@/components/heed/truncated'
 import { OfflineBanner } from '@/components/heed/load-state'
 import { ProfileLabel } from '@/components/heed/profile-label'
 import { pageTitle } from '@/lib/page-title'
+import { useSession } from '@/api/queries'
 
 /** The nav's toggle, always in the same spot, saying what it will do and its shortcut. */
 function NavToggle() {
@@ -137,6 +138,7 @@ export function SiteHeader({
   bare?: boolean
 }) {
   const { isMobile } = useSidebar()
+  const { profileLabel } = useSession()
   // The tab says the page's heading: the header's, or the page's own under it (an item's title).
   const ref = React.useRef<HTMLElement>(null)
   // An item's heading arrives with its data, after this header has rendered, so the title also
@@ -215,7 +217,7 @@ export function SiteHeader({
           )}
           {children}
           {/* Which install this is, when it is named: last but the theme, so it never moves. */}
-          <ProfileLabel className="max-sm:max-w-28" />
+          <ProfileLabel label={profileLabel} className="max-sm:max-w-28" />
           {!bare && <ThemeMenu />}
         </div>
       </header>

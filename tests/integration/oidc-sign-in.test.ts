@@ -448,6 +448,9 @@ describe('the sign-in screen', () => {
       method: 'oidc',
       name: 'Test provider',
       start: '/api/v1/auth/oidc/start',
+      // A company install with its own data, and no label set.
+      demo: false,
+      profileLabel: null,
     })
     expect((await app.inject({ url: '/api/v1/auth/people' })).json()).toEqual([])
     const picked = await app.inject({

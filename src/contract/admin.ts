@@ -162,13 +162,6 @@ export type Setting = z.infer<typeof settingSchema>
 /** What everyone in the workspace reads of it (FR-818): its name, empty until an admin names it. */
 export const workspaceSchema = z.object({ name: z.string() })
 export type WorkspaceInfo = z.infer<typeof workspaceSchema>
-/**
- * What this install is, for every page and before anyone signs in: whether it holds the invented
- * demo (HEED_AUTH=demo, or the demo loaded), and the label naming it (HEED_PROFILE_LABEL), null
- * when none is set.
- */
-export const installSchema = z.object({ demo: z.boolean(), profileLabel: z.nullable(z.string()) })
-export type InstallInfo = z.infer<typeof installSchema>
 export const setSettingSchema = z.strictObject({
   key: settingKey,
   /** The version you read; a newer one is a conflict. */

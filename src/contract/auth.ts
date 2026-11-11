@@ -9,7 +9,15 @@ export const permissionsSchema = z.object({
   assignments: z.array(assignmentSchema),
 })
 export const meSchema = z.extend(personSchema, { permissions: permissionsSchema })
-export const sessionSchema = z.object({ person: meSchema, csrfToken: z.string() })
+/**
+ * The signed-in person's session, with the label naming this install (HEED_PROFILE_LABEL) for
+ * the header, null when none is set.
+ */
+export const sessionSchema = z.object({
+  person: meSchema,
+  csrfToken: z.string(),
+  profileLabel: z.nullable(z.string()),
+})
 /**
  * Someone the local sign-in offers (the dev identity connector), with the roles they hold now and
  * the domains those roles are in, so a person chooses whom to be by what they may do.
@@ -84,10 +92,15 @@ export type GrantsApplied = z.infer<typeof grantsAppliedSchema>
  * How this workspace signs people in (HEED_AUTH, FR-416): with the company's OpenID Connect
  * provider, or the picker (`dev` locally, `demo` for demos). For `oidc`, the provider's name for
  * the button and the address that starts a sign-in (add `returnTo` with a path of the web app).
+ * The sign-in page reads it first, so it also says whether this install is the invented demo
+ * (`demo` sign-in, or the demo loaded) and the label naming it (HEED_PROFILE_LABEL), null when none
+ * is set.
  */
 export const signInMethodSchema = z.object({
   method: z.enum(['dev', 'demo', 'oidc']),
   name: z.nullable(z.string()),
   start: z.nullable(z.string()),
+  demo: z.boolean(),
+  profileLabel: z.nullable(z.string()),
 })
 export type SignInMethod = z.infer<typeof signInMethodSchema>

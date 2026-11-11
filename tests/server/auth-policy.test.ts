@@ -12,7 +12,6 @@ function operations(router: object, prefix = ''): string[] {
 }
 const publicOperations = [
   'auth.methods',
-  'install.get',
   'auth.people',
   'auth.signIn',
   'invites.lookup',

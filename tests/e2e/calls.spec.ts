@@ -47,9 +47,9 @@ test('the Inbox loads with each read once, and every review in one call', async 
   expect(calls.filter((c) => /\/review\/[^/]+\/sheet/.test(c))).toEqual([])
   expect(calls.filter((c) => c === 'POST /api/v1/review/sheets')).toHaveLength(1)
   // The shell's shared reads, the reviews, the first card opened (read) and the Inbox read again
-  // after it: 32 on the demo week, whatever the number of suggestions. A budget, so a new read is a
+  // after it: 31 on the demo week, whatever the number of suggestions. A budget, so a new read is a
   // choice.
-  expect(calls.length, calls.join('\n')).toBeLessThanOrEqual(32)
+  expect(calls.length, calls.join('\n')).toBeLessThanOrEqual(31)
 })
 
 test('a question in Ask is one look-up: the chat does not read it again or look anything up for later', async ({

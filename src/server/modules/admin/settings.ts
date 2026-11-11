@@ -4,7 +4,6 @@ import {
   type SettingKey,
   settingSchemas,
   unknownToolsMessage,
-  type InstallInfo,
   type WorkspaceInfo,
 } from '../../../contract/admin.ts'
 import { canonicalJson } from '../../../domain/canonical.ts'
@@ -104,19 +103,4 @@ export async function readWorkspace(tx: Queryable): Promise<WorkspaceInfo> {
     `select value from settings_versions where key = 'workspace.name' order by version desc limit 1`,
   )
   return { name: typeof row?.value === 'string' ? row.value : '' }
-}
-
-/**
- * What this install is: the demo when people sign in with the demo's picker, or when the demo is
- * loaded, whose sandbox domain only the demo seed makes (db/seed). A profile on the dev picker
- * with its own data is not the demo.
- */
-export async function readInstall(
-  tx: Queryable,
-  { method, profileLabel }: { method: 'dev' | 'demo' | 'oidc'; profileLabel: string | null },
-): Promise<InstallInfo> {
-  const [row] = await tx.query<{ loaded: boolean }>(
-    'select exists (select 1 from areas where is_demo) as loaded',
-  )
-  return { demo: method === 'demo' || row!.loaded, profileLabel }
 }
