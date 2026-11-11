@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import { go, mode, test } from './go.ts'
+import { mode, test } from './go.ts'
 
 // J48, a list while it loads on a slow network: Definitions opened cold shows the app's skeleton
 // (the sidebar and the list's bars, header and rows) instead of a blank window, never says there
