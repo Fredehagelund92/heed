@@ -74,7 +74,8 @@ import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { TextSwitch } from '@/components/heed/switches'
 import { plainText } from '@/lib/mentions'
-import { Loadable, TableSkeleton } from '@/components/heed/load-state'
+import { Loadable } from '@/components/heed/load-state'
+import { DEFINITIONS_LEAD, TableBodySkeleton, TableSkeleton } from '@/components/heed/list-skeleton'
 import { heldRows, useRowsAfterFirstFrame } from '@/lib/loading'
 import { useFigures } from '@/lib/figures'
 import { useLeavingRows } from '@/lib/presence'
@@ -454,7 +455,7 @@ export function DefinitionsPage() {
       <div className="@container/main flex min-h-0 flex-1 flex-col overflow-y-auto *:mx-auto *:w-full *:max-w-wide @min-[80rem]/main:*:border-x">
         <Loadable
           what="the definitions"
-          skeleton={<TableSkeleton lead={[41, 57, 49]} />}
+          skeleton={<TableSkeleton lead={DEFINITIONS_LEAD} />}
           errorClassName="border-b"
           query={load}
         >
@@ -721,15 +722,15 @@ export function DefinitionsPage() {
                     sorting={sorting}
                     by="context"
                     onSort={onSort}
-                    className="hidden w-20 px-2 text-right @xl/main:table-cell"
+                    className="hidden w-20 min-w-20 px-2 text-right @xl/main:table-cell"
                   />
-                  <Th className="w-8 px-1">
+                  <Th className="w-8 min-w-6 px-1">
                     <span className="sr-only">Needs a look</span>
                   </Th>
-                  <Th className="w-8 px-1">
+                  <Th className="w-8 min-w-7 px-1">
                     <span className="sr-only">Source</span>
                   </Th>
-                  <Th className="w-10 pr-2 md:pr-4">
+                  <Th className="w-10 min-w-8 pr-2 md:min-w-10 md:pr-4">
                     <span className="sr-only">Actions</span>
                   </Th>
                 </tr>
@@ -740,7 +741,9 @@ export function DefinitionsPage() {
                   rowKeys(e)
                 }}
               >
-                {shown.length === 0 && (
+                {/* Hundreds of rows draw in a render of their own: their skeleton holds the place. */}
+                {!showRows && <TableBodySkeleton colSpan={COLS} />}
+                {showRows && shown.length === 0 && (
                   <tr>
                     <td colSpan={COLS} className="px-6 py-10 text-center text-sm">
                       <p className="font-medium">No definitions match</p>

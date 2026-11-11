@@ -35,49 +35,6 @@ export function ListSkeleton({ rows = 8, className }: { rows?: number; className
   )
 }
 
-/** A table while it loads: the header band and rows at the table's own height, the title column widest. */
-export function TableSkeleton({
-  rows = 14,
-  lead = [41],
-  className,
-}: {
-  rows?: number
-  lead?: number[]
-  className?: string
-}) {
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      aria-label="Loading"
-      className={cn('flex flex-col', className)}
-    >
-      {/* The bars above the table (filters, views, a coverage line) at their own heights. */}
-      {lead.map((h, i) => (
-        <div key={i} className="flex items-center gap-3 border-b px-4" style={{ height: h }}>
-          <Skeleton className="h-3.5 w-20" />
-          <Skeleton className="h-3.5 w-24" />
-          {i === 0 && <Skeleton className="ml-auto h-7 w-56 max-w-2/5" />}
-        </div>
-      ))}
-      <div className="flex h-9 items-center gap-3 border-b bg-band px-4">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="ml-auto h-3 w-12 max-sm:hidden" />
-        <Skeleton className="h-3 w-16" />
-      </div>
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex h-9 items-center gap-3 border-b px-4">
-          <Skeleton className="size-4 shrink-0 rounded-sm" />
-          <Skeleton className="h-3.5" style={{ width: `${30 + ((i * 13) % 26)}%` }} />
-          <Skeleton className="ml-auto h-5 w-32 rounded-md max-md:hidden" />
-          <Skeleton className="size-4 shrink-0 rounded-full max-sm:hidden" />
-          <Skeleton className="h-3.5 w-16" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
 /** A document while it loads: the title, a few lines of text, the owner line. */
 export function PageSkeleton() {
   return (
