@@ -16,12 +16,18 @@ FALLBACK_MIRRORS=(http://mirrors.edge.kernel.org/ubuntu http://mirror.us.leasewe
 
 mkdir -p "$DEBS"
 
-# The exact apt-get command Playwright would run for this version, so the package set never drifts.
-install_cmd=$(npx playwright install-deps --dry-run chromium | grep -m1 'apt-get install') || {
-  echo "::error::playwright install-deps --dry-run printed no apt-get install command"
+# The packages Playwright reports as missing for this version, so the package set never drifts.
+# --dry-run exits 1 when something is missing, so the status is read from the output instead.
+report=$(npx playwright install-deps --dry-run chromium || true)
+if grep -q "All system dependencies are installed" <<<"$report"; then
+  echo "Playwright's system packages are already installed"
+  exit 0
+fi
+packages=$(sed -n 's/^  \([a-z0-9][a-z0-9.+-]*\)$/\1/p' <<<"$report" | tr '\n' ' ')
+if [ -z "$packages" ]; then
+  echo "::error::playwright install-deps --dry-run listed no missing packages: $report"
   exit 1
-}
-packages=${install_cmd#*--no-install-recommends }
+fi
 echo "Playwright system packages: $packages"
 
 if ls "$DEBS"/*.deb >/dev/null 2>&1; then
