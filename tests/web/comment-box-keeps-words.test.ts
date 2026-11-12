@@ -86,7 +86,7 @@ async function mount() {
   root = createRoot(host)
   await step(() =>
     root!.render(
-      React.createElement(CommentBox, { subject: 'item:itm_1', me: 'Jon Abara', owners: [] }),
+      React.createElement(CommentBox, { subject: 'context:itm_1', me: 'Jon Abara', owners: [] }),
     ),
   )
 }
