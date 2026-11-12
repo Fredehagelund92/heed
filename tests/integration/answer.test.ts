@@ -5,6 +5,7 @@ import { seedPersonId } from '../../db/seed/bulk.ts'
 import type { AnswerResult, Asked, LookupEvent, Replay } from '../../src/contract/answer.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewSheet } from '../../src/contract/review-path.ts'
+import { stateOfStatus } from '../../src/domain/answer-state.ts'
 import { answer, startersOf, topicScope } from '../../src/domain/answer.ts'
 import { followedFrom } from '../../src/domain/links.ts'
 import { ownCaveat } from '../../src/domain/proposal-rules.ts'
@@ -13,6 +14,7 @@ import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadServingBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { deliver } from '../../src/server/modules/evals/index.ts'
+import { deliverContext } from '../../src/server/modules/evals/retrieval.ts'
 import {
   fixedWordsModel,
   scriptedWordsModel,
@@ -308,6 +310,21 @@ describe('Ask: a look-up', () => {
       filters: { 'dim:market': ['val:market/norway'] },
     })
     expect(asAnswered(result)).toEqual(asGiven(await deliver(live, systemClock(today), asked)))
+  })
+
+  it('is as strict as get_context: a metric asked that nobody wrote down is Partial', async () => {
+    const asked = {
+      question: 'How did orders and units sold do?',
+      metrics: ['Orders', 'Units sold'],
+      window: { from: '2026-10-01', to: '2026-10-05' },
+    }
+    const sent = events((await call('POST', '/ask/lookup', 'maria', asked)).body)
+    const result = (sent.at(-1) as Extract<LookupEvent, { type: 'answer' }>).answer
+    const given = await deliverContext(live, systemClock(today), asked)
+    expect(result.uncovered.metrics).toContain('metric:units_sold')
+    expect(result.state).toBe('partial')
+    expect(given.status).toBe('partial')
+    expect(stateOfStatus(String(given.status))).toBe(result.state)
   })
 
   it("carries each item's copied source line and what not to conclude, for Where", async () => {

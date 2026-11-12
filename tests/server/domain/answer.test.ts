@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { peopleVoice } from '../../../src/domain/say.ts'
 import {
   answer,
-  answerState,
   lookUp,
   NEAR_MISSES_SHOWN,
   reach,
@@ -201,32 +200,6 @@ describe('what is left out, and why', () => {
 })
 
 describe('the answer state', () => {
-  const none = { metrics: [], values: [] }
-  it.each([
-    ['check_failed', [], none, false, 'failed'],
-    ['need_more_detail', [], none, false, 'missing'],
-    ['no_match', [], none, false, 'missing'],
-    [
-      'conflict',
-      [{ unverified: true }],
-      { metrics: ['metric:orders'], values: [] },
-      true,
-      'conflict',
-    ],
-    [
-      'matched',
-      [{ unverified: true }],
-      { metrics: [], values: ['val:market/spain'] },
-      false,
-      'partial',
-    ],
-    ['matched', [{ unverified: false }], none, true, 'partial'],
-    ['matched', [{ unverified: false }, { unverified: true }], none, false, 'stale'],
-    ['matched', [{ unverified: false }], none, false, 'grounded'],
-  ] as const)('%s with %j, %j, assumed %s, is %s', (status, given, uncovered, assumed, state) => {
-    expect(answerState({ status, given, uncovered, assumed })).toBe(state)
-  })
-
   it('is Partial when an asked market has nothing, and says which', () => {
     const result = answer(
       bundleOf([orders('itm_00000001')]),

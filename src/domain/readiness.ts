@@ -78,16 +78,49 @@ function unsourcedValues(diff: DocDiff): string[] {
     .map((v) => (/^\d{4}-\d{2}-\d{2}$/.test(v.after!) ? longDayWords(v.after!) : v.after!))
 }
 
-/** What can be said of a suggestion before it is published, and what publishing it may do. */
-export function readiness(input: ReadinessInput): Readiness {
+/**
+ * What the Ready line is decided from, apart from the document it came from: the web's mock builds
+ * these from a review it has no diff for, and `readiness` builds them from a diff. One rule chain
+ * reads them both.
+ */
+export type ReadinessFacts = {
+  drafted: boolean
+  /** How many claims the copied sentence does not plainly say; 0 when none, or no sentence. */
+  claimsToCheck: number
+  clash: { relation: ClashRelation | null } | null
+  mode: DocDiff['mode']
+  withdrawn: boolean
+  /** An edit's new numbers and dates that came without a new source, in their words. */
+  unsourced: string[]
+  newLink: boolean
+  only: DocDiff['only']
+  synced: boolean
+}
+
+/** The facts of one suggestion, read from its difference and the rest of its input. */
+export function readinessFacts(input: ReadinessInput): ReadinessFacts {
   const { diff } = input
-  const toCheck = input.claims ? claimsToCheck(input.claims) : 0
-  const relation = input.clash?.relation ?? null
+  return {
+    drafted: input.drafted,
+    claimsToCheck: input.claims ? claimsToCheck(input.claims) : 0,
+    clash: input.clash ? { relation: input.clash.relation } : null,
+    mode: diff.mode,
+    withdrawn: input.withdrawn,
+    unsourced: unsourcedValues(diff),
+    newLink: newLink(diff),
+    only: diff.only,
+    synced: input.synced,
+  }
+}
+
+/** What can be said of a suggestion from its facts, and what publishing it may do. */
+export function readinessFrom(facts: ReadinessFacts): Readiness {
+  const relation = facts.clash?.relation ?? null
   const base = {
-    claimsToCheck: toCheck,
+    claimsToCheck: facts.claimsToCheck,
     unsourced: [] as string[],
     relation,
-    publishable: !input.clash || relation !== null,
+    publishable: !facts.clash || relation !== null,
   }
   const out = (state: ReadinessState, ok: boolean, bulk = false): Readiness => ({
     ...base,
@@ -95,19 +128,21 @@ export function readiness(input: ReadinessInput): Readiness {
     ok,
     bulk,
   })
-  if (input.drafted) return out('draft', false)
-  if (toCheck) return out('claims', false)
-  if (input.clash) return relation ? out('related', true) : out('clash', false)
-  if (diff.mode === 'retire')
-    return input.withdrawn ? out('withdrawn', false) : out('archive', true)
-  const unsourced = unsourcedValues(diff)
-  if (unsourced.length) return { ...out('unsourced', false), unsourced }
-  if (newLink(diff)) return out('link', true)
-  if (diff.only === 'formatting') return out('layout', true, true)
-  if (diff.only === 'order') return out('order', true, true)
-  if (input.synced) return out('synced', true, true)
+  if (facts.drafted) return out('draft', false)
+  if (facts.claimsToCheck) return out('claims', false)
+  if (facts.clash) return relation ? out('related', true) : out('clash', false)
+  if (facts.mode === 'retire')
+    return facts.withdrawn ? out('withdrawn', false) : out('archive', true)
+  if (facts.unsourced.length) return { ...out('unsourced', false), unsourced: facts.unsourced }
+  if (facts.newLink) return out('link', true)
+  if (facts.only === 'formatting') return out('layout', true, true)
+  if (facts.only === 'order') return out('order', true, true)
+  if (facts.synced) return out('synced', true, true)
   return out('ready', true, true)
 }
+
+/** What can be said of a suggestion before it is published, and what publishing it may do. */
+export const readiness = (input: ReadinessInput): Readiness => readinessFrom(readinessFacts(input))
 
 /** Whether it needs care before publishing: a claim to check, or a clash with live context. */
 export const needsCare = (r: Pick<Readiness, 'claimsToCheck' | 'state' | 'relation'>) =>

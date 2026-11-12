@@ -210,6 +210,7 @@ export const demoTools: Record<string, DemoTool> = {
       id: DEMO_DEFINITIONS,
       connector: DEMO_DEFINITIONS,
       health: 'healthy',
+      read: 'scheduled',
       every: 'every hour',
       staleAfter: '6 hours',
       last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 3, seen: 27 },
@@ -264,7 +265,7 @@ export const demoTools: Record<string, DemoTool> = {
     states: {
       syncing: (page) => ({
         ...page,
-        source: { ...page.source, health: 'reading', progress: { done: 19, total: 27 } },
+        source: { ...page.source, read: 'reading', progress: { done: 19, total: 27 } },
       }),
       failed: (page) => ({
         ...page,
@@ -285,6 +286,7 @@ export const demoTools: Record<string, DemoTool> = {
       id: DEMO_CONTEXT,
       connector: DEMO_CONTEXT,
       health: 'healthy',
+      read: 'scheduled',
       every: 'every day',
       staleAfter: '2 days',
       last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 4, seen: 14 },
@@ -364,6 +366,8 @@ export const demoTools: Record<string, DemoTool> = {
       id: DEMO_HANDBOOK,
       connector: DEMO_HANDBOOK,
       health: 'healthy',
+      // Connected this visit and not read yet: queued for the job's first read.
+      read: 'queued',
       every: 'every day',
       staleAfter: '2 days',
       last: null,

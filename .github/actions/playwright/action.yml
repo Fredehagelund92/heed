@@ -1,0 +1,29 @@
+name: Playwright's browser and system packages
+description: >-
+  Chromium cached by the lockfile, and its apt packages cached as .deb files so a run with a warm
+  cache never needs the Ubuntu mirror. A cold run retries the mirror and then tries fallbacks.
+runs:
+  using: composite
+  steps:
+    - name: Playwright's browser, cached by the lockfile
+      id: browsers
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+    - name: The runner image, which the cached packages must match
+      id: image
+      shell: bash
+      run: echo "version=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+    - name: Playwright's system packages, cached by the lockfile and the runner image
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/playwright-debs
+        key: playwright-debs-${{ runner.os }}-${{ steps.image.outputs.version }}-${{ hashFiles('package-lock.json') }}
+    - name: Chromium
+      if: steps.browsers.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install chromium
+    - name: Chromium's system packages (cached, retried, with fallback mirrors)
+      shell: bash
+      run: .github/scripts/playwright-deps.sh

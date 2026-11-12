@@ -535,7 +535,7 @@ async function failedCheck(checked: number) {
 async function failFirstTry(page: Page) {
   const tried = new Set<string>()
   await page.route(
-    /\/api\/v1\/(review\/[^/]+\/(publish|return)|terms(\/delete)?)$/,
+    /\/api\/v1\/(review\/[^/]+\/(publish|return|close)|terms(\/delete)?)$/,
     async (route) => {
       const path = new URL(route.request().url()).pathname
       if (route.request().method() !== 'POST' || tried.has(path)) return route.fallback()

@@ -17,7 +17,7 @@ import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { accept, foundation, people, publish, version } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, queueReads, testDatabase, transaction } from './support.ts'
 
 /*
   Cube on connector interface 3.0, end to end on the real service and PostgreSQL 18, with a Git
@@ -190,7 +190,9 @@ describe('a Cube model in Git, on interface 3', () => {
       201,
     )
     sourceId = added.id
-    expect(added).toMatchObject({ type: 'cube', schedule: 'PT30M', nextReadAt: null })
+    // A source just added is queued: its first read is due now, not at some unwritten time.
+    expect(added).toMatchObject({ type: 'cube', schedule: 'PT30M' })
+    expect(new Date(added.nextReadAt).getTime()).toBeLessThanOrEqual(Date.now())
     const [row] = (
       await client.query<{ interface_version: number; kind: string }>(
         'select interface_version, kind::text from connectors where id = $1',
@@ -264,7 +266,7 @@ describe('a Cube model in Git, on interface 3', () => {
     // A host that could not be reached is tried again after a minute, then two.
     expect(await schedule(sourceId)).toMatchObject({ failures: 1 })
     expect((await schedule(sourceId)).wait).toBeLessThanOrEqual(60)
-    await client.query('update connectors set next_read_at = now() where id = $1', [sourceId])
+    await queueReads(client, [sourceId])
     expect((await run()).connectors[sourceId]).toMatchObject({ status: 'failed' })
     expect(await schedule(sourceId)).toMatchObject({ failures: 2 })
     expect((await schedule(sourceId)).wait).toBeGreaterThan(60)
@@ -305,7 +307,7 @@ describe('a Cube model in Git, on interface 3', () => {
     await host.commit('analytics', {
       'cube/model/model.yml': model.replace('sql: amount', 'sql: amount * 2'),
     })
-    await client.query('update connectors set next_read_at = null where id = $1', [sourceId])
+    await queueReads(client, [sourceId])
     expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok' })
     const second = await marks()
     const changed = second.filter(

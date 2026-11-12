@@ -3,6 +3,7 @@ import type { FieldSide, Review } from '@/model/review'
 import { spainDraft } from './drafts'
 import { LARS_REPLY } from './comments'
 import { DEMO_CONTEXT, demoTool } from './integrations'
+import { readyOf } from '../ready'
 import { domains, facts } from './world'
 
 // What the full-screen review shows for each waiting suggestion: a one-sentence summary, the
@@ -20,7 +21,7 @@ function sameText(title: string) {
 }
 
 /** A review before its fields are added: the Fields table's two sides come from the demo world below. */
-type Fixture = Omit<Review, 'fields' | 'versions'>
+type Fixture = Omit<Review, 'fields' | 'versions' | 'ready'>
 
 const fixtures: Fixture[] = [
   // A Not found card's draft: reviewed, edited and published like any suggestion, never a blank page.
@@ -737,6 +738,8 @@ const sides: Record<string, (r: Fixture) => Review['fields']> = {
 
 export const reviews: Review[] = fixtures.map((r) => ({
   ...r,
+  // The Ready line, from the same rules as the service's (../ready.ts).
+  ready: readyOf(r),
   // A change that leaves every field as it is: the live item on both sides.
   fields: sides[r.id]?.(r) ?? { before: live(r.title), after: live(r.title) },
   // The demo's versions, by name: what agents get now, and what the suggestion would make it.
