@@ -135,7 +135,7 @@ Under All: **Waiting on others** and **Done**. Never "Gap" or "Flag" as a card n
 
 ### Review
 
-Change kinds: **Wording**, **Formatting**, **Link**, **Order**, **Added**, **Removed**, **Dates**. Decisions: **Publish**, **Edit**, **Return with a note**, **Archive**, **Close the suggestion**. Group actions: **Publish the N you've read**, **Mark as read**. Outcomes stay on the page: "Published. Agents now say ...", with Undo. A failed try says "Couldn't publish." with the server's reason when it gave one, then "Nothing changed.", and Try again repeats the same action; offline the button says "Publish is off until you're back".
+Change kinds: **Wording**, **Formatting**, **Link**, **Order**, **Added**, **Removed**, **Dates**. Decisions: **Publish**, **Edit**, **Return with a note**, **Archive**, **Close the suggestion**. Group actions: **Publish the N you've read**, **Mark as read**. Outcomes stay on the page: "Published. Agents now say ...", with Undo. A failed try says "Couldn't publish." with the server's reason when it gave one, then "Nothing changed.", and Try again repeats the same action (a returned note is sent as it reads now, not as it was); offline the button says "Publish is off until you're back".
 
 ### The quick view's answers
 
