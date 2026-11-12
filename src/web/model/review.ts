@@ -158,11 +158,8 @@ export type Review = {
   versions: { before: string | null; after: string | null }
   /** The stored markdown of each version, mentions as the app's tokens, for the Text diff. */
   source: { before: string; after: string }
-  /**
-   * The Ready line as the service says it, where the service decides the publish rules: it holds
-   * over the one worked out here from the fields above.
-   */
-  ready?: Readiness
+  /** The Ready line as the service says it: the service decides the publish rules. */
+  ready: Readiness
   /** How long the change must be on screen to count as read, as the service says it. */
   readMs?: number
   /**
@@ -176,7 +173,7 @@ export type Review = {
 export type Relation = 'replaces' | 'disagree' | 'unrelated'
 
 /** The claims an agent or a draft makes that the copied sentence doesn't plainly say. */
-export const claimsToCheck = (r: Review) =>
+export const claimsToCheck = (r: Pick<Review, 'claims'>) =>
   r.claims?.rows.filter((x) => x.same !== 'same').length ?? 0
 
 /** What needs care, in a few words, for the quick view and the Inbox row: "2 claims to check". */
@@ -188,102 +185,17 @@ export function careLine(r: Review) {
   return undefined
 }
 
-/** An edit's new numbers and dates that come without a source: no new source page came with them. */
-function unsourced(r: Review) {
-  if (r.mode !== 'edit') return []
-  const newSource = r.blocks.some((b) => b.kind === 'Link' && 'after' in b)
-  return newSource ? [] : r.moved.filter((m) => /number|date/i.test(m.label)).map((m) => m.after)
-}
-
-/** A changed link: someone should open the new page before it goes out. */
-const changesALink = (r: Review) => r.blocks.some((b) => b.kind === 'Link' && 'after' in b)
-
-const list = (xs: string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
-
 /** `bulk` says whether it may go out with "Publish the ones you've read": not while something still needs a look. */
 export type Readiness = { ok: boolean; title: string; text: string; bulk: boolean }
 
 /**
- * The Ready line: what can honestly be said before publishing. Claims are checked only against a
- * copied sentence; a new number or date with no source says so, and only then. `relation` is what
- * the answers to a clash do, once every live item it overlaps has one (clashOutcome).
+ * The Ready line: what can honestly be said before publishing, as the service says it
+ * (src/domain/readiness.ts decides it; the web has no second copy of the rules). The one thing
+ * decided here is an answer the owner has just given to a clash: once every live item it overlaps
+ * has one (`relation`, from clashOutcome), Publish sends them, and a suggestion with nothing else
+ * to check reads as Ready with what publishing will do. A draft or a claim still comes first.
  */
 export function readiness(r: Review, relation?: { hint: string } | null): Readiness {
-  // The service's line, unless the owner has just answered a clash here: Publish then sends it.
-  if (r.ready && !(r.clash && relation)) return r.ready
-  const n = claimsToCheck(r)
-  const no = (x: Omit<Readiness, 'bulk'>): Readiness => ({ ...x, bulk: false })
-  if (r.drafted)
-    return no({
-      ok: false,
-      title: 'A draft to check',
-      text: 'Nobody has checked it yet. Read each claim against the source, edit what is off, then publish.',
-    })
-  if (r.claims)
-    return no({
-      ok: false,
-      title: `Ready, with ${n === 1 ? 'a claim' : `${n} claims`} to check`,
-      text: `${n === 1 ? "One claim isn't" : `${n} claims aren't`} plainly in the copied sentence. Return it with a note, or publish anyway if you know it's right.`,
-    })
-  if (r.clash)
-    return relation
-      ? no({ ok: true, title: 'Ready', text: relation.hint })
-      : no({
-          ok: false,
-          title: 'Not ready: choose how they relate',
-          text:
-            r.clash.items.length === 1
-              ? 'Publish waits until you say how this relates to the live item.'
-              : `Publish waits until you say how this relates to each of the ${r.clash.items.length} live items.`,
-        })
-  if (r.retire?.withdrawn)
-    return no({
-      ok: false,
-      title: `Withdrawn by ${r.retire.withdrawn.by}`,
-      text: 'In the comments they chose to suggest new dates instead. Close the suggestion, or archive anyway if you disagree.',
-    })
-  if (r.retire)
-    return no({
-      ok: true,
-      title: 'Ready to archive',
-      text: 'Nothing else depends on it. Questions it answered get Not found.',
-    })
-  const values = unsourced(r)
-  if (values.length)
-    return no({
-      ok: false,
-      title: 'Ready, not checked against a source',
-      text: `Nothing compares ${list(values)} with a source. Check it, or return it with a note.`,
-    })
-  if (changesALink(r))
-    return no({
-      ok: true,
-      title: 'Ready',
-      text: r.counts.every((c) => c.kind === 'Link')
-        ? 'The words are the same. Open the new page to check it says the same thing.'
-        : 'The new values come with a new source page. Open it to check them.',
-    })
-  if (r.formattingOnly)
-    return {
-      ok: true,
-      title: 'Ready',
-      text: 'The words are the same; only the layout changes.',
-      bulk: true,
-    }
-  if (r.counts.every((c) => c.kind === 'Order'))
-    return {
-      ok: true,
-      title: 'Ready',
-      text: 'The words are the same; only the order changes.',
-      bulk: true,
-    }
-  if (r.synced)
-    return {
-      ok: true,
-      title: 'Ready',
-      text: 'It says what the quoted document says. Who owns it is yours to decide.',
-      bulk: true,
-    }
-  return { ok: true, title: 'Ready', text: 'It reaches the questions it is meant for.', bulk: true }
+  if (!r.clash || !relation || r.drafted || claimsToCheck(r)) return r.ready
+  return { ok: true, title: 'Ready', text: relation.hint, bulk: false }
 }

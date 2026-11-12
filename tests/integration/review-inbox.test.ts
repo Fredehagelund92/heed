@@ -5,6 +5,7 @@ import type { MyReports, SentReport } from '../../src/contract/reports.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import type { Draft } from '../../src/domain/draft.ts'
+import { mayDo, reviewActions } from '../../src/domain/review-actions.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -130,6 +131,9 @@ const markets = [
   'romania',
   'slovakia',
   'croatia',
+  'slovenia',
+  'bulgaria',
+  'luxembourg',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -557,6 +561,62 @@ describe('a suggestion to archive', () => {
     expect(after.mode).toBe('retire')
     expect(after.proposal.state).toBe('accepted')
     expect(after.canPublish).toBe(false)
+  })
+})
+
+describe('what the review offers is what the service allows', () => {
+  /** What the review page offers for a sheet: the domain's answer, from the sheet's own facts. */
+  const offered = (s: ReviewSheet) =>
+    reviewActions({
+      mode: s.mode,
+      withdrawn: s.withdrawn !== null,
+      clashes: s.clashes.filter((c) => c.relation === null).length,
+      claimsToCheck: s.readiness.claimsToCheck,
+      drafted: s.gapId !== null && s.writtenBy !== null,
+    })
+
+  it('offers no Return on a suggestion to archive, and the service refuses it', async () => {
+    const itemId = await live({ title: 'Slovenia orders lag a day', ...inMarket('slovenia') })
+    const proposal = await ok<ProposalRecord>(
+      call('POST', `/items/${itemId}/retire-proposals`, 'author', {
+        reason: 'The provider sends the files on time again.',
+      }),
+    )
+    const s = await sheet(proposal.id)
+    expect(offered(s).can).toEqual(['archive'])
+    const refused = await call('POST', `/review/${proposal.id}/return`, 'owner', {
+      revision: proposal.revision,
+      note: 'Why now?',
+    })
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json<{ message: string }>().message).toMatch(/archived or closed, not returned/)
+  })
+
+  it('holds Publish for a clash with no answer exactly where the service refuses it', async () => {
+    await live({
+      title: 'Bulgaria orders count store credit',
+      summary: 'Orders in Bulgaria include orders paid with store credit.',
+      ...inMarket('bulgaria'),
+    })
+    const mine = await submitted({
+      title: 'Bulgaria orders leave out store credit',
+      summary: 'Orders in Bulgaria leave out store credit from 1 November 2026.',
+      ...inMarket('bulgaria'),
+    })
+    const held = await sheet(mine.id)
+    expect(mayDo(offered(held), 'publish')).toBe(false)
+    expect(offered(held).blockedBy).toEqual({ publish: 'clash' })
+    expect(held.canPublish).toBe(false)
+    expect((await publish(mine.id, mine.revision)).statusCode).toBe(422)
+    // A change with no clash is offered both, and goes out.
+    const plain = await submitted({
+      title: 'Luxembourg orders count gift cards',
+      ...inMarket('luxembourg'),
+    })
+    const open = await sheet(plain.id)
+    expect(offered(open).can).toEqual(['publish', 'return'])
+    expect(mayDo(offered(open), 'publish')).toBe(open.canPublish)
+    await ok<Published>(publish(plain.id, plain.revision))
   })
 })
 

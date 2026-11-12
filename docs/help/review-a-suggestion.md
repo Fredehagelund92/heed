@@ -36,7 +36,7 @@ The words beside it say what follows. The other buttons say what they do, such a
 
   Type @ to mention someone, or : for an emoji. Anyone who reads the suggestion can resolve it, or reopen it, and the thread says who did and when. The side panel counts the open ones and goes to each. Open threads never hold Publish.
 
-- Publish, or Return with a note: the note is the first comment, and the sender answers there.
+- Publish, or Return with a note: the note is the first comment, and the sender answers there. A suggestion to archive is archived or closed, not returned.
 - A suggestion to archive that its sender took back in the comments shows their words. Close the suggestion and nothing changes, or archive anyway, which asks first.
 
 ## Taking back a suggestion to archive

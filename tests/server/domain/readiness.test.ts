@@ -4,6 +4,8 @@ import { docDiff, type DocSide } from '../../../src/domain/doc-diff.ts'
 import {
   needsCare,
   readiness,
+  readinessFacts,
+  readinessFrom,
   readinessWords,
   readTimeMs,
   relationWords,
@@ -186,6 +188,60 @@ describe('the Ready line', () => {
   it('takes a suggestion from a document read as ready, as the document says it', () => {
     const synced = input({ diff: docDiff(null, side()), synced: true })
     expect(readiness(synced)).toMatchObject({ state: 'synced', ok: true, bulk: true })
+  })
+})
+
+describe('the Ready line from its facts', () => {
+  // The web's mock has no diff to read; it hands the same rules the facts it has.
+  const facts = readinessFacts(input({ diff: docDiff(null, side()) }))
+
+  it('reads a diff and its facts to the same line', () => {
+    const edits = [
+      edit({ validUntil: '2026-08-27' }),
+      edit({ title: 'Online sales to Norway stopped' }),
+      edit({
+        summary: 'There are no stores in Norway, so the webshop was **the only way to buy there**.',
+      }),
+      docDiff(side(), null),
+      docDiff(null, side()),
+    ]
+    for (const diff of edits)
+      for (const withdrawn of [false, true]) {
+        const i = input({ diff, withdrawn })
+        expect(readinessFrom(readinessFacts(i))).toEqual(readiness(i))
+      }
+  })
+
+  it('counts claims, never looks at whether there is a list of them', () => {
+    // An agent's suggestion whose claims all check out has nothing to check: Ready, not "0 claims".
+    const allSame = readinessFrom({ ...facts, claimsToCheck: 0 })
+    expect(allSame).toMatchObject({ state: 'ready', claimsToCheck: 0, ok: true })
+    expect(readinessWords(allSame).title).toBe('Ready')
+    const two = readinessFrom({ ...facts, claimsToCheck: 2 })
+    expect(readinessWords(two).title).toBe('Ready, with 2 claims to check')
+  })
+
+  it('reads an answered clash as Ready with what publishing does, unless a draft or a claim comes first', () => {
+    const answered = readinessFrom({ ...facts, clash: { relation: 'replaces' } })
+    expect(readinessWords(answered)).toEqual({
+      title: 'Ready',
+      text: relationWords.replaces.hint,
+    })
+    expect(
+      readinessFrom({ ...facts, clash: { relation: 'replaces' }, claimsToCheck: 1 }).state,
+    ).toBe('claims')
+    expect(readinessFrom({ ...facts, clash: { relation: 'replaces' }, drafted: true }).state).toBe(
+      'draft',
+    )
+  })
+
+  it('says every live item needs its own answer, in the words the web shows', () => {
+    const waiting = readinessFrom({ ...facts, clash: { relation: null } })
+    expect(waiting).toMatchObject({ state: 'clash', ok: false, publishable: false })
+    expect(readinessWords(waiting, { clashes: 3 })).toEqual({
+      title: 'Not ready: choose how they relate',
+      text: 'Publish waits until you say how this relates to each of the 3 live items.',
+    })
   })
 })
 
