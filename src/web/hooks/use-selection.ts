@@ -24,7 +24,6 @@ export function useSelection(
     scope,
     keys = true,
     initial,
-    onDeleteKey,
   }: {
     /** Where Cmd or Ctrl and A works besides an unfocused page: the list, with its header. */
     scope?: React.RefObject<HTMLElement | null>
@@ -32,8 +31,6 @@ export function useSelection(
     keys?: boolean
     /** The rows ticked to begin with. */
     initial?: string[]
-    /** Delete or Backspace on a selection: opens the list's confirmation. */
-    onDeleteKey?: () => void
   } = {},
 ) {
   const [s, set] = React.useState<Selection>(() =>
@@ -56,10 +53,14 @@ export function useSelection(
     set(NONE)
     setPicking(false)
   }, [])
-  const deleteKey = React.useRef(onDeleteKey)
-  React.useLayoutEffect(() => {
-    deleteKey.current = onDeleteKey
-  })
+  // What Delete or Backspace on a selection does: set by the list's bulk bar, which owns the confirmation.
+  const deleteKey = React.useRef<() => void>(undefined)
+  const bindDeleteKey = React.useCallback((ask: () => void) => {
+    deleteKey.current = ask
+    return () => {
+      deleteKey.current = undefined
+    }
+  }, [])
   const selectAll = React.useCallback(() => set(() => all(orderRef.current)), [])
 
   /** A click with Shift, Cmd or Ctrl picks rather than opens. Returns whether it did. */
@@ -118,6 +119,8 @@ export function useSelection(
     allShown,
     clear,
     selectAll,
+    /** The bar's confirmation for the Delete key, which asks the same way its button does. Returns the way to unbind. */
+    bindDeleteKey,
     /** These rows, and only these: "Select all 23 matching", or what failed, kept for a retry. */
     select: (ids: string[]) => set(all(ids)),
     picking,

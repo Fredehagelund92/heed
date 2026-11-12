@@ -32,6 +32,7 @@ import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
 import { conflictPath } from '@/model/conflicts'
+import { holdLine, readinessOf, SUMMARY_LIMIT } from '@/model/editor-readiness'
 import { type Validity } from '@/model/validity'
 import {
   missingDates,
@@ -446,20 +447,23 @@ function Editor({
   }
 
   const unchanged = mode !== 'new' && JSON.stringify(form) === JSON.stringify(initial)
-  // The first paragraph is the summary agents read first; the real schema keeps it to 280 characters.
+  // The first paragraph is the summary agents read first; the service keeps it to SUMMARY_LIMIT characters.
   const summaryLength = plainText(form.body.split('\n\n')[0] ?? '').length
-  const tooLong = summaryLength > 280
+  const tooLong = summaryLength > SUMMARY_LIMIT
   // With no definitions connected there is nothing to say where it applies with yet.
   const noWords = !form.where.length && !vocabulary.metrics.length && !vocabulary.dimensions.length
-  const blocked = missing.length
-    ? `Add ${missing.join(', ')} first.${noWords ? ' Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox.' : ''}`
-    : tooLong
-      ? 'Shorten the first paragraph to 280 characters first.'
-      : unchanged
-        ? 'Nothing has changed yet.'
-        : unanswered
-          ? `Say how this relates to “${unanswered.title}” first.`
-          : ''
+  // One answer for the button, the footer and the side panel.
+  const readiness = readinessOf({
+    missing,
+    tooLong,
+    unchanged,
+    unanswered: unanswered?.title,
+  })
+  const blocked =
+    holdLine(readiness) +
+    (readiness.state === 'missing' && noWords
+      ? ' Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox.'
+      : '')
   // A blocked click goes to the first thing missing instead of answering with a toast.
   const focusField = (name: string) =>
     document.getElementById(fieldId(name))?.nextElementSibling?.querySelector('button')?.focus()
@@ -692,7 +696,7 @@ function Editor({
       </PanelGroup>
     </>
   )
-  const notReady = missing.length ? `Add ${missing.join(', ')}.` : unanswered ? blocked : ''
+  const notReady = holdLine(readiness)
   const ready = (
     <p className="flex items-start gap-2 p-4 text-sm">
       {notReady ? (
@@ -843,29 +847,29 @@ function Editor({
                   Retry
                 </Button>
               </span>
-            ) : missing.length ? (
+            ) : readiness.state === 'ready' ? (
               <>
-                <CircleDashedIcon className="size-3.5" aria-hidden />
-                <span>
-                  Not ready<span className="hidden sm:inline">: add {missing.join(', ')}</span>
-                </span>
+                <CircleCheckIcon className="size-3.5" aria-hidden />
+                Ready
               </>
-            ) : unchanged ? (
+            ) : readiness.state === 'unchanged' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 No changes yet
               </>
-            ) : unanswered ? (
+            ) : (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 <span>
-                  Not ready<span className="hidden sm:inline">: say how it relates</span>
+                  Not ready
+                  <span className="hidden sm:inline">
+                    {readiness.state === 'missing'
+                      ? `: add ${readiness.missing.join(', ')}`
+                      : readiness.state === 'too-long'
+                        ? ': shorten the first paragraph'
+                        : ': say how it relates'}
+                  </span>
                 </span>
-              </>
-            ) : (
-              <>
-                <CircleCheckIcon className="size-3.5" aria-hidden />
-                Ready
               </>
             )
           }
@@ -877,7 +881,7 @@ function Editor({
             )}
             title="The first paragraph is what agents read first"
           >
-            Summary {summaryLength} of 280
+            Summary {summaryLength} of {SUMMARY_LIMIT}
           </span>
           <span className="whitespace-nowrap">
             {words.toLocaleString('en-GB')} {words === 1 ? 'word' : 'words'}
