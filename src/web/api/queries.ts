@@ -17,6 +17,7 @@ import {
   type ObsValuesInput,
   type ScopeSearchInput,
 } from '@/api/client'
+import { reportSignedOut } from '@/api/query-client'
 import type { AskInput } from '@/model/ask'
 import type { FigureAsk } from '@/model/figures'
 
@@ -775,9 +776,13 @@ export function useWrite() {
     operation: K,
     input: WriteInput<K>,
   ): Promise<WriteResult<K>> => {
-    const result = await (api[operation] as (input: WriteInput<K>) => Promise<WriteResult<K>>)(
-      input,
-    )
+    let result: WriteResult<K>
+    try {
+      result = await (api[operation] as (input: WriteInput<K>) => Promise<WriteResult<K>>)(input)
+    } catch (error) {
+      reportSignedOut(queryClient, error)
+      throw error
+    }
     await invalidateAfter(queryClient, operation, input, result)
     return result
   }

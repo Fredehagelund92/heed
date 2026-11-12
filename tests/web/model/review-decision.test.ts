@@ -1,4 +1,6 @@
+import type { JSONContent } from '@tiptap/core'
 import { describe, expect, it } from 'vitest'
+import type { ApiErrorKind } from '@/api/errors'
 import {
   decide,
   idle,
@@ -30,19 +32,29 @@ const clashing = actionsFor({ clashes: 1 })
 const withdrawn = actionsFor({ mode: 'retire', withdrawn: true })
 const retire = actionsFor({ mode: 'retire' })
 
+const note = (text: string): JSONContent => ({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+})
+const written = note('Which page says 340?')
+const clearer = note('Which page says 340? Please link the page.')
+
 const at: S = idle('a')
-const sending = (action: 'publish' | 'archive' | 'return' | 'close'): S => ({
+const sending = (action: 'publish' | 'archive' | 'return' | 'close', words?: JSONContent): S => ({
   kind: 'sending',
   id: 'a',
   action,
+  ...(words ? { note: words } : {}),
 })
 const failed = (
   action: 'publish' | 'archive' | 'return' | 'close',
   reason: string | null = null,
+  failure: ApiErrorKind = 'failed',
 ): S => ({
   kind: 'failed',
   id: 'a',
   action,
+  failure,
   reason,
 })
 const run = (state: S, ...events: E[]) => events.reduce(decide, state)
@@ -72,9 +84,9 @@ describe('the decision', () => {
     )
     const writing = run(at, { type: 'ask', action: 'return', actions: edit })
     expect(writing).toEqual({ kind: 'writingReturn', id: 'a' })
-    expect(run(at, { type: 'press', action: 'return', actions: edit })).toBe(at)
-    expect(run(writing, { type: 'press', action: 'return', actions: edit })).toEqual(
-      sending('return'),
+    expect(run(at, { type: 'press', action: 'return', actions: edit, note: written })).toBe(at)
+    expect(run(writing, { type: 'press', action: 'return', actions: edit, note: written })).toEqual(
+      sending('return', written),
     )
   })
 
@@ -93,15 +105,27 @@ describe('the decision', () => {
       done: 'Published',
     })
     expect(
-      run(sending('close'), { type: 'error', id: 'a', reason: 'Another owner is reviewing it.' }),
-    ).toEqual(failed('close', 'Another owner is reviewing it.'))
+      run(sending('close'), {
+        type: 'error',
+        id: 'a',
+        failure: 'forbidden',
+        reason: 'Another owner is reviewing it.',
+      }),
+    ).toEqual(failed('close', 'Another owner is reviewing it.', 'forbidden'))
+  })
+
+  it('a failure keeps its kind, so a session that ended is told apart from a refusal', () => {
+    for (const failure of ['signed-out', 'unanswered', 'conflict', 'failed'] as const)
+      expect(run(sending('publish'), { type: 'error', id: 'a', failure, reason: null })).toEqual(
+        failed('publish', null, failure),
+      )
   })
 
   it('an answer for a suggestion the person has left is not theirs to see', () => {
     const away = run(sending('publish'), { type: 'open', id: 'b' })
     expect(away).toEqual(idle('b'))
     expect(run(away, { type: 'ok', id: 'a', done: 'Published' })).toBe(away)
-    expect(run(away, { type: 'error', id: 'a', reason: null })).toBe(away)
+    expect(run(away, { type: 'error', id: 'a', failure: 'failed', reason: null })).toBe(away)
     // Opening the same suggestion again changes nothing.
     expect(run(sending('publish'), { type: 'open', id: 'a' })).toEqual(sending('publish'))
   })
@@ -111,7 +135,30 @@ describe('the decision', () => {
       const actions = action === 'close' ? withdrawn : edit
       expect(run(failed(action), { type: 'retry', actions })).toEqual(sending(action))
     }
-    expect(run(failed('return'), { type: 'retry', actions: edit })).toEqual(sending('return'))
+  })
+
+  it('failed return: retry sends the note as the editor holds it now, not the one that failed', () => {
+    const first = run(
+      at,
+      { type: 'ask', action: 'return', actions: edit },
+      {
+        type: 'press',
+        action: 'return',
+        actions: edit,
+        note: written,
+      },
+    )
+    expect(first).toEqual(sending('return', written))
+    const refused = run(first, { type: 'error', id: 'a', failure: 'invalid', reason: 'Too long.' })
+    expect(run(refused, { type: 'retry', actions: edit, note: clearer })).toEqual(
+      sending('return', clearer),
+    )
+  })
+
+  it('failed return: with nothing in the editor there is nothing to send again', () => {
+    const held = failed('return')
+    expect(run(held, { type: 'retry', actions: edit })).toBe(held)
+    expect(run(held, { type: 'press', action: 'return', actions: edit })).toBe(held)
   })
 
   it('failed: retry does not send an action that may no longer be done', () => {
@@ -120,12 +167,12 @@ describe('the decision', () => {
   })
 
   it('failed return: an edited note can be posted again', () => {
-    expect(run(failed('return'), { type: 'press', action: 'return', actions: edit })).toEqual(
-      sending('return'),
-    )
-    expect(run(failed('publish'), { type: 'press', action: 'return', actions: edit })).toEqual(
-      failed('publish'),
-    )
+    expect(
+      run(failed('return'), { type: 'press', action: 'return', actions: edit, note: clearer }),
+    ).toEqual(sending('return', clearer))
+    expect(
+      run(failed('publish'), { type: 'press', action: 'return', actions: edit, note: clearer }),
+    ).toEqual(failed('publish'))
   })
 
   it('failed: a decision can still be returned instead, but not where Return is refused', () => {
