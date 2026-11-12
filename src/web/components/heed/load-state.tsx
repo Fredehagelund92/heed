@@ -153,21 +153,64 @@ export function LoadError({
   )
 }
 
-/** What Loadable needs of a read: TanStack Query's own states. */
+/**
+ * A refresh that failed on a page already on screen: one quiet line above it, with Retry. The page
+ * stays as it was, with what was typed in it.
+ */
+export function RefreshError({
+  what,
+  onRetry,
+  className,
+}: {
+  what: string
+  onRetry: () => void
+  className?: string
+}) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        'flex min-h-9 animate-in items-center gap-2 border-b bg-muted px-4 py-1.5 text-sm duration-(--dur-2) fade-in-0',
+        className,
+      )}
+    >
+      <CloudAlertIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium">Couldn't refresh {what}.</span>{' '}
+        <span className="text-muted-foreground">What you see may be out of date.</span>
+      </span>
+      <Button variant="ghost" size="sm" onClick={onRetry}>
+        <RefreshCwIcon data-icon="inline-start" />
+        Retry
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * What Loadable needs of a read: TanStack Query's own states. `isRefetchError` is a failure of a
+ * read that has already brought its data: the page has something to show.
+ */
 export type LoadState = {
   isPending: boolean
   isError: boolean
+  isRefetchError: boolean
   isFetching: boolean
   refetch: () => unknown
 }
 
-/** One state for several reads of one region: it waits for all, and fails when one does. */
+/**
+ * One state for several reads of one region: it waits for all, and fails when one does. It is a
+ * failed refresh only when every read that failed has data to show.
+ */
 export function allLoaded(...reads: LoadState[]): LoadState {
+  const failed = reads.filter((r) => r.isError)
   return {
     isPending: reads.some((r) => r.isPending && !r.isError),
-    isError: reads.some((r) => r.isError),
+    isError: failed.length > 0,
+    isRefetchError: failed.length > 0 && failed.every((r) => r.isRefetchError),
     isFetching: reads.some((r) => r.isFetching),
-    refetch: () => reads.filter((r) => r.isError).forEach((r) => r.refetch()),
+    refetch: () => failed.forEach((r) => r.refetch()),
   }
 }
 
@@ -175,7 +218,8 @@ export function allLoaded(...reads: LoadState[]): LoadState {
  * Shows its content, or the loading or failed state of `query`, the read it shows. A load that ends
  * within 150ms shows nothing in between; a longer one shows the page-shaped skeleton for at least
  * 300ms, and the content then fades in through a <ViewTransition>. A failed load says so with Retry,
- * which reads again. `quiet` is a second region of the same load (a side panel): it shows its own
+ * which reads again. A refresh that fails on a page already shown keeps the page, and says so in one
+ * line above it. `quiet` is a second region of the same load (a side panel): it shows its own
  * skeleton, and leaves the failure to the main region.
  */
 export function Loadable({
@@ -183,6 +227,7 @@ export function Loadable({
   skeleton,
   children,
   errorClassName,
+  refreshClassName,
   quiet,
   query,
 }: {
@@ -190,12 +235,17 @@ export function Loadable({
   skeleton: React.ReactNode
   children: React.ReactNode
   errorClassName?: string
+  /** Where the line of a failed refresh sits in the page: the page's own padding or margin. */
+  refreshClassName?: string
   quiet?: boolean
   query: LoadState
 }) {
-  const failed = query.isError && !query.isFetching
+  // A read that failed with nothing to show; one that failed on a refresh keeps its page.
+  const loadFailed = query.isError && !query.isRefetchError
+  const failed = loadFailed && !query.isFetching
+  const refreshFailed = query.isRefetchError && !query.isFetching
   // Pending is the first load; a failed one read again is a retry.
-  const busy = (query.isPending && !query.isError) || (query.isError && query.isFetching)
+  const busy = (query.isPending && !query.isError) || (loadFailed && query.isFetching)
   const shown = useDelayedBusy(busy)
   // Whether the person saw the skeleton: what arrives after it may grow in, once.
   const [waited, setWaited] = React.useState(false)
@@ -212,10 +262,20 @@ export function Loadable({
     return quiet ? null : (
       <LoadError what={what} className={errorClassName} onRetry={() => void query.refetch()} />
     )
+  // The line takes its own place beside the content, so the content stays mounted as it comes and goes.
   return (
-    <ViewTransition key="content" enter="vt-arrive" update="none">
-      <ArrivedAfterWait.Provider value={waited}>{children}</ArrivedAfterWait.Provider>
-    </ViewTransition>
+    <>
+      {refreshFailed && !quiet && (
+        <RefreshError
+          what={what}
+          className={refreshClassName}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+      <ViewTransition key="content" enter="vt-arrive" update="none">
+        <ArrivedAfterWait.Provider value={waited}>{children}</ArrivedAfterWait.Provider>
+      </ViewTransition>
+    </>
   )
 }
 

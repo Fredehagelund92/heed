@@ -292,6 +292,7 @@ export function FactPage({ id }: { id: string }) {
             what="this context item"
             skeleton={<PageSkeleton />}
             errorClassName="p-0"
+            refreshClassName="mb-5 rounded-frame border"
             query={page}
           >
             {/* What happened to it, said on the item itself rather than in a toast that leaves. */}

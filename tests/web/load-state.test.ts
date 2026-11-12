@@ -3,12 +3,13 @@ import * as React from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Loadable, type LoadState } from '@/components/heed/load-state'
+import { allLoaded, Loadable, type LoadState } from '@/components/heed/load-state'
 import { DEFINITIONS_LEAD, TableBodySkeleton, TableSkeleton } from '@/components/heed/list-skeleton'
 
 // The loading states a list shares: the table's skeleton at the table's own heights, the same rows
 // inside a table body, Loadable's timing (nothing under 150ms, then the skeleton, then the content,
-// a failure with Retry).
+// a failure with Retry, and a refresh that fails on a page already shown: the page stays, one line
+// says so).
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
@@ -90,10 +91,13 @@ describe('Loadable', () => {
   const state = (s: Partial<LoadState>): LoadState => ({
     isPending: false,
     isError: false,
+    isRefetchError: false,
     isFetching: false,
     refetch: () => undefined,
     ...s,
   })
+  const failedRefresh = (s: Partial<LoadState> = {}) =>
+    state({ isError: true, isRefetchError: true, ...s })
   const view = (query: LoadState) =>
     h(Loadable, {
       what: 'the definitions',
@@ -163,5 +167,88 @@ describe('Loadable', () => {
     expect(el.querySelector('[data-testid=rows]')).toBeNull()
     act(() => alert.querySelector('button')!.click())
     expect(refetch).toHaveBeenCalledOnce()
+  })
+
+  describe('a refresh that fails on a page already shown', () => {
+    it('keeps the page, with what was typed in it, and says the refresh failed', () => {
+      const el = render(view(state({})))
+      const rows = el.querySelector('[data-testid=rows]')!
+      expect(el.querySelector('[role=status]')).toBeNull()
+      rerender(view(failedRefresh()))
+      // The same element: nothing was unmounted, so a half-written comment is still there.
+      expect(el.querySelector('[data-testid=rows]')).toBe(rows)
+      expect(el.querySelector('[role=alert]')).toBeNull()
+      expect(el.querySelector('[role=status]')!.textContent).toContain(
+        "Couldn't refresh the definitions.",
+      )
+    })
+
+    it('Retry reads again, and the line goes once the page is read', () => {
+      const refetch = vi.fn()
+      const el = render(view(failedRefresh({ refetch })))
+      const line = el.querySelector('[role=status]')!
+      act(() => line.querySelector('button')!.click())
+      expect(refetch).toHaveBeenCalledOnce()
+      // Reading again: no skeleton in place of the page, and no line while it reads.
+      rerender(view(failedRefresh({ isFetching: true })))
+      expect(el.querySelector('[data-testid=rows]')).not.toBeNull()
+      expect(el.querySelector('[data-testid=skeleton]')).toBeNull()
+      expect(el.querySelector('[role=status]')).toBeNull()
+      rerender(view(state({})))
+      expect(el.querySelector('[data-testid=rows]')).not.toBeNull()
+      expect(el.querySelector('[role=status]')).toBeNull()
+    })
+
+    it('shows no skeleton, even after the delay, while the page is read again', () => {
+      vi.useFakeTimers()
+      const el = render(view(failedRefresh({ isFetching: true })))
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(el.querySelector('[data-testid=skeleton]')).toBeNull()
+      expect(el.querySelector('[data-testid=rows]')).not.toBeNull()
+    })
+
+    it('a side region stays quiet: the main region says it', () => {
+      const el = render(
+        h(Loadable, {
+          what: 'the side',
+          skeleton: h('div'),
+          quiet: true,
+          query: failedRefresh(),
+          children: h('p', { 'data-testid': 'rows' }, 'rows'),
+        }),
+      )
+      expect(el.querySelector('[data-testid=rows]')).not.toBeNull()
+      expect(el.querySelector('[role=status]')).toBeNull()
+    })
+
+    it('a load that failed with nothing to show is still the error, not the line', () => {
+      const el = render(view(state({ isError: true, isRefetchError: false })))
+      expect(el.querySelector('[role=alert]')).not.toBeNull()
+      expect(el.querySelector('[data-testid=rows]')).toBeNull()
+      expect(el.querySelector('[role=status]')).toBeNull()
+    })
+  })
+
+  describe('allLoaded', () => {
+    it('is a failed refresh only when every read that failed has data to show', () => {
+      const ok = state({})
+      const refresh = failedRefresh()
+      const first = state({ isError: true })
+      expect(allLoaded(ok, refresh).isRefetchError).toBe(true)
+      expect(allLoaded(refresh, first).isRefetchError).toBe(false)
+      expect(allLoaded(ok, first).isRefetchError).toBe(false)
+      expect(allLoaded(ok, ok).isRefetchError).toBe(false)
+      expect(allLoaded(ok, refresh).isError).toBe(true)
+    })
+
+    it('Retry reads again only what failed', () => {
+      const a = vi.fn()
+      const b = vi.fn()
+      allLoaded(state({ refetch: a }), failedRefresh({ refetch: b })).refetch()
+      expect(a).not.toHaveBeenCalled()
+      expect(b).toHaveBeenCalledOnce()
+    })
   })
 })
