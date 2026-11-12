@@ -123,30 +123,45 @@ export type StateInput = {
   status: 'matched' | 'conflict' | 'no_match' | 'need_more_detail' | 'check_failed'
   /** The items the reply gives. */
   items: readonly { match: 'exact' | 'partial'; unverified: boolean }[]
-  /** A value the question asks about, such as one market of two, that no item given applies to. */
-  uncovered?: boolean
+  /** The metrics and values asked that no item given covers in full (`uncoveredParts`). */
+  uncovered: { metrics: readonly string[]; values: readonly string[] }
   /** The question gave no dates and no window, so the server read it at today. */
-  assumed?: boolean
+  assumed: boolean
 }
 
 /**
- * A reply's status, from what the resolver found and the items the reply gives. Nothing found is
- * Not found; two items that disagree are a Conflict; when part of the question has nothing
- * written for it (a market of two asked that no item applies to, or every item applies to only
- * part of the question, or the question gave no dates and was read at today) it is Partial; an item whose check date passed or whose source changed
- * makes it Outdated; otherwise it is Checked. An item that covers part of the question beside one
- * that covers all of it adds to a Checked answer. The order is deliberate, so the
+ * The one rule for the answer state (FR-349), which get_context, Ask, Try it, the replay and
+ * planned answers all use. Not checked when the checks could not run; Not found when nothing was
+ * given, or the question could not be read; Conflict when given items disagree; Partial when an
+ * asked metric or value has no item that covers it in full, every item applies to only part of
+ * the question, or the dates were assumed; Outdated when a given item may be out of date, because
+ * its check date passed or its source changed; otherwise Checked. The order is deliberate, so the
  * label names what an owner must do first.
  */
-export function replyStatus(input: StateInput): ReplyStatus {
-  if (input.status !== 'matched') return input.status
+export function answerStateOf(input: StateInput): AnswerState {
+  if (input.status === 'check_failed') return 'failed'
+  if (input.status !== 'matched' && input.status !== 'conflict') return 'missing'
+  if (!input.items.length) return 'missing'
+  if (input.status === 'conflict') return 'conflict'
   if (
-    input.items.length &&
-    (input.uncovered || input.assumed || input.items.every((item) => item.match === 'partial'))
+    input.uncovered.metrics.length ||
+    input.uncovered.values.length ||
+    input.assumed ||
+    input.items.every((item) => item.match === 'partial')
   )
     return 'partial'
   if (input.items.some((item) => item.unverified)) return 'stale'
-  return 'matched'
+  return 'grounded'
+}
+
+/** A reply's status, from the same facts as the state. Not found keeps the resolver's own word. */
+export function replyStatus(input: StateInput): ReplyStatus {
+  // A size cut that left no item is still a match the reply says it cut (check_report), not Not found.
+  if (input.status === 'matched' && !input.items.length) return 'matched'
+  const state = answerStateOf(input)
+  if (state === 'missing')
+    return input.status === 'need_more_detail' ? 'need_more_detail' : 'no_match'
+  return answerLine(state).status
 }
 
 /**
