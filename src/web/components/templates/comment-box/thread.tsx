@@ -24,6 +24,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Composer } from './composer'
+import { keepWords } from './keep-words'
 import type { CommentItem, CommentReaction, CommentReply, ReactionEmoji } from './types'
 import { EXTENSIONS } from './extensions'
 import { names, REACTIONS, reactionLabel } from './utils'
@@ -36,9 +37,10 @@ import { names, REACTIONS, reactionLabel } from './utils'
 export type ThreadActions = {
   me: string
   owners: string[]
-  post: (content: JSONContent, parentId?: string) => void
+  /** The box that sent it keeps the words until this is answered. */
+  post: (content: JSONContent, parentId?: string) => Promise<unknown>
   react: (id: string, emoji: ReactionEmoji) => void
-  edit: (id: string, content: JSONContent) => void
+  edit: (id: string, content: JSONContent) => Promise<unknown>
   remove: (id: string) => void
   /**
    * The person may take back what the thread hangs on with a comment of theirs (a suggestion to
@@ -263,10 +265,11 @@ function Entry({
             placeholder="Your comment"
             initialContent={comment.content}
             submitLabel="Save"
-            onPost={(content) => {
-              actions.edit(comment.id, content)
-              setEditing(false)
-            }}
+            onPost={(content) =>
+              keepWords(() => actions.edit(comment.id, content), "Your changes weren't saved").then(
+                () => setEditing(false),
+              )
+            }
             onCancel={() => setEditing(false)}
           />
         ) : (
@@ -370,10 +373,11 @@ export function CommentThread({
               placeholder={`Reply to ${first}`}
               submitLabel="Reply"
               onCancel={() => setReplying(false)}
-              onPost={(content) => {
-                actions.post(content, comment.id)
-                setReplying(false)
-              }}
+              onPost={(content) =>
+                keepWords(() => actions.post(content, comment.id), "Your reply wasn't saved").then(
+                  () => setReplying(false),
+                )
+              }
             />
           )}
         </div>
