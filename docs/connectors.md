@@ -77,11 +77,14 @@ Settings, Integrations, lists every source with how it is:
 
 | Status          | What it means                                                  |
 | --------------- | -------------------------------------------------------------- |
-| Healthy         | Its last read worked                                           |
-| Reading         | A read you asked for waits for the job                         |
+| Healthy         | Its last read worked, or it has not been read yet              |
 | Paused          | An admin paused it. The job leaves it out                      |
 | Needs a new key | Its last read failed because its key was refused or is missing |
 | Failed          | Its last read failed for another reason                        |
+
+Beside its status, a source that is waiting to be read says **Queued**: it was just added or changed, you asked for a read, or its time has come, and the job has not taken it yet. The job runs every five minutes. **Reading** means the job is reading it now. A failed read stays shown while its retry is queued.
+
+Pausing a source also switches off its figures in Ask, whatever the Show figures in Ask switch says: an answer links into the tool instead. What is published stays. Resume it and it is queued for a read.
 
 **Read again** reads one source at the job's next turn, and a change to its settings does the same. To read the server's own sources from the command line, the ones its settings name or the demo when they name none, run the command below. It never reads a source an admin added.
 

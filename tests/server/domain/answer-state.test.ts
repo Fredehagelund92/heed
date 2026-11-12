@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ANSWER_LINES,
+  answerStateOf,
   answerStates,
-  replyStatus,
+  replyStatus as replyStatusOf,
   replyStatuses,
   resolverStatusOf,
   stateOfStatus,
@@ -60,6 +61,12 @@ describe('the answer lines', () => {
   })
 })
 
+const none = { metrics: [], values: [] }
+const replyStatus = (
+  input: Partial<Parameters<typeof replyStatusOf>[0]> &
+    Pick<Parameters<typeof replyStatusOf>[0], 'status'>,
+) => replyStatusOf({ items: [], uncovered: none, assumed: false, ...input })
+
 describe('a reply status', () => {
   const exact = { match: 'exact' as const, unverified: false }
   const part = { match: 'partial' as const, unverified: false }
@@ -67,12 +74,18 @@ describe('a reply status', () => {
 
   it('keeps what the resolver found when it found no match', () => {
     for (const status of ['no_match', 'conflict', 'need_more_detail', 'check_failed'] as const)
-      expect(replyStatus({ status, items: [old] })).toBe(status)
+      expect(replyStatusOf({ status, items: [old], uncovered: none, assumed: false })).toBe(status)
   })
 
   it('is Partial when part of the question has nothing written for it', () => {
     expect(replyStatus({ status: 'matched', items: [part, part] })).toBe('partial')
-    expect(replyStatus({ status: 'matched', items: [exact], uncovered: true })).toBe('partial')
+    expect(
+      replyStatus({
+        status: 'matched',
+        items: [exact],
+        uncovered: { metrics: [], values: ['val:market/spain'] },
+      }),
+    ).toBe('partial')
     // An item that covers part of it beside one that covers all of it is Checked.
     expect(replyStatus({ status: 'matched', items: [exact, part] })).toBe('matched')
   })
@@ -96,5 +109,30 @@ describe('a reply status', () => {
     expect(resolverStatusOf('partial')).toBe('matched')
     expect(resolverStatusOf('stale')).toBe('matched')
     expect(resolverStatusOf('no_match')).toBe('no_match')
+  })
+})
+
+describe('the answer state', () => {
+  const item = (over = {}) => ({ match: 'exact' as const, unverified: false, ...over })
+  const metric = { metrics: ['metric:revenue'], values: [] }
+  const value = { metrics: [], values: ['val:market/spain'] }
+  it.each([
+    ['check_failed', [item()], none, false, 'failed'],
+    ['need_more_detail', [], none, false, 'missing'],
+    ['no_match', [], none, false, 'missing'],
+    ['matched', [], none, false, 'missing'],
+    ['conflict', [item({ unverified: true })], metric, true, 'conflict'],
+    ['matched', [item()], metric, false, 'partial'],
+    ['matched', [item({ unverified: true })], value, false, 'partial'],
+    ['matched', [item()], none, true, 'partial'],
+    ['matched', [item({ match: 'partial' })], none, false, 'partial'],
+    ['matched', [item(), item({ unverified: true })], none, false, 'stale'],
+    ['matched', [item()], none, false, 'grounded'],
+  ] as const)('%s with %j, %j, assumed %s, is %s', (status, items, uncovered, assumed, state) => {
+    expect(answerStateOf({ status, items, uncovered, assumed })).toBe(state)
+    // The reply status is the same state in the status's words (a lookup in ANSWER_LINES).
+    if (!items.length && status === 'matched') return
+    const reply = replyStatusOf({ status, items, uncovered, assumed })
+    expect(stateOfStatus(reply) ?? 'missing').toBe(state)
   })
 })

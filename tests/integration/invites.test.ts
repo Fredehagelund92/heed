@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Invite, InviteResent, InvitesCreated } from '../../src/contract/members.ts'
+import { operatorInvite } from '../../src/cli/invite.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { acceptInvite, inviteTokenHash } from '../../src/server/modules/auth/index.ts'
@@ -450,5 +451,26 @@ describe('what is kept', () => {
       "select 1 from audit_log where action like 'invite.%' and details::text like '%@%'",
     )
     expect(addresses.rowCount).toBe(0)
+  })
+})
+
+describe('an invite made at the command line', () => {
+  it('has no sender, and the open invites still list', async () => {
+    const made = await operatorInvite({
+      databaseUrl: url,
+      webOrigin: web,
+      email: 'first@larchwood.example',
+      admin: true,
+      domains: [],
+    })
+    expect(made.outcome).toBe('invited')
+    const response = await call(author, 'GET', '/invites')
+    expect(response.statusCode, response.body).toBe(200)
+    expect(
+      response.json<Invite[]>().find((i) => i.email === 'first@larchwood.example'),
+    ).toMatchObject({
+      role: 'admin',
+      invitedBy: null,
+    })
   })
 })

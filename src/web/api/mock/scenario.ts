@@ -12,6 +12,7 @@ import type { ObsState } from '@/model/observability'
 // - ?state=offline takes the app offline: nothing is sent. The browser going offline counts too.
 // - ?slow=1, or the Slow network switch in Help, makes each page's first load wait 900ms and every
 //   send take 1.5s instead of 0.6s.
+// - ?loop=1 answers a typed question in Ask as Ask's loop does, so the chat is kept with its answers.
 // - ?decide=fail fails each Inbox card's first save, ?bulk=fail the first change to many rows.
 //
 // Integrations keep their own ?state for a sync, and Observability its own for its data, so only
@@ -94,7 +95,7 @@ export function createScenario() {
      */
     dataFlags() {
       const q = address.query
-      return JSON.stringify([this.obsState(), q.quality, q.links, q.figures, q.connect])
+      return JSON.stringify([this.obsState(), q.quality, q.links, q.figures, q.connect, q.loop])
     },
     /** Observability's own review flag: ?state=empty (nothing connected), quiet (under 5), busy. */
     obsState(): ObsState {

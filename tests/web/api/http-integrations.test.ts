@@ -52,6 +52,7 @@ const row = (over: Partial<SourceRow> = {}): SourceRow => ({
   name: 'Cube model',
   origin: 'server',
   health: 'healthy',
+  read: 'scheduled',
   schedule: 'PT1H',
   staleAfter: 'PT6H',
   nextReadAt: at(23, 11),
@@ -114,6 +115,7 @@ describe('a source on its row', () => {
       id: 'cube',
       connector: 'cube',
       health: 'healthy',
+      read: 'scheduled',
       every: 'every hour',
       staleAfter: '6 hours',
       last: {
@@ -131,6 +133,28 @@ describe('a source on its row', () => {
       created: null,
       inbox: null,
       added: null,
+    })
+  })
+
+  it('carries a pending read beside its health, so a failure stays shown while a retry waits', () => {
+    expect(sourceOf(row({ read: 'queued' }), now)).toMatchObject({
+      health: 'healthy',
+      read: 'queued',
+    })
+    expect(
+      sourceOf(
+        row({
+          health: 'failed',
+          read: 'reading',
+          lastRead: read({ status: 'failed', warnings: [{ code: 'unreachable', count: 1 }] }),
+        }),
+        now,
+      ),
+    ).toMatchObject({ health: 'failed', read: 'reading', failure: "it couldn't be reached" })
+    expect(sourceOf(row({ health: 'paused', read: null, nextReadAt: null }), now)).toMatchObject({
+      health: 'paused',
+      read: null,
+      next: null,
     })
   })
 
@@ -366,7 +390,7 @@ describe('how a source is connected', () => {
     scopes: [],
     allGroups: true,
     schedule: null,
-    nextReadAt: null,
+    nextReadAt: at(23, 11),
     changedAt: null,
     changedBy: null,
   })
@@ -407,7 +431,7 @@ describe('how a source is connected', () => {
 
   it('says a source just connected reads first soon, with nothing published', () => {
     const page = sourcePageOf(
-      drive({ lastRead: null, nextReadAt: null, addedAt: at(23, 9) }),
+      drive({ lastRead: null, read: 'queued', nextReadAt: now.toISOString(), addedAt: at(23, 9) }),
       { reads: [], groups: [], scopes: [], documents: [] },
       null,
       undefined,
@@ -418,7 +442,7 @@ describe('how a source is connected', () => {
         when: 'Today',
         tone: 'ok',
         what: 'Connected',
-        detail: 'First read soon. Nothing is published by a read.',
+        detail: 'First read queued. Nothing is published by a read.',
       },
     ])
   })
@@ -457,7 +481,7 @@ describe('the connect flow, on the manifests', () => {
     scopes: [{ id: 'docs/sales', title: 'docs/sales', domain: 'sales' }],
     allGroups: false,
     schedule: 'PT6H',
-    nextReadAt: null,
+    nextReadAt: at(23, 11),
     changedAt: null,
     changedBy: null,
   }
@@ -614,7 +638,7 @@ describe('a tool whose file lives in a place you choose', () => {
     scopes: [],
     allGroups: true,
     schedule: null,
-    nextReadAt: null,
+    nextReadAt: at(23, 11),
     changedAt: null,
     changedBy: null,
   })

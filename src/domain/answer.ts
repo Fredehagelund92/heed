@@ -28,6 +28,7 @@ import {
   type ResolverItem,
   type Resolution,
 } from './resolver.ts'
+import { answerStateOf } from './answer-state.ts'
 import { askedGroups, askedMetrics, contextSaid, scopeWords, type Voice } from './say.ts'
 import {
   assumedDate,
@@ -275,7 +276,7 @@ export function answerItemOf(
 }
 
 /** The metric keys an item is about, with a group opened into its metrics. */
-const itemMetrics = (bundle: AnswerBundle, item: AnswerSource) =>
+const itemMetrics = (bundle: Pick<EditionBundle, 'groupsOfMetric'>, item: ResolverItem) =>
   new Set(item.scope.metrics.flatMap((key) => metricsOf(bundle, key)))
 
 /**
@@ -285,9 +286,9 @@ const itemMetrics = (bundle: AnswerBundle, item: AnswerSource) =>
  * that applies to only part of what was asked (`partial`) covers nothing in full.
  */
 export function uncoveredParts(
-  bundle: AnswerBundle,
+  bundle: Parameters<typeof askedMetrics>[0],
   scope: ResolvedScope,
-  given: readonly { item: AnswerSource; match: Match['match'] }[],
+  given: readonly { item: ResolverItem; match: Match['match'] }[],
 ): Uncovered {
   const full = given.filter((g) => g.match === 'exact').map((g) => g.item)
   const metrics = askedMetrics(bundle, scope).filter(
@@ -308,27 +309,6 @@ export function uncoveredParts(
     )
     .sort(compareIds)
   return { metrics, values }
-}
-
-/**
- * The answer's state (FR-349) from what the resolver found: Not checked when the checks could not
- * run; Not found when nothing was given, or the question could not be read; Conflict when given
- * items disagree; Partial when an asked part has no item that covers it in full, or the dates were
- * assumed; Outdated when a given item may be out of date; else Checked.
- */
-export function answerState(c: {
-  status: Resolution['status']
-  given: readonly { unverified: boolean }[]
-  uncovered: Readonly<Record<keyof Uncovered, readonly string[]>>
-  assumed: boolean
-}): AnswerState {
-  if (c.status === 'check_failed') return 'failed'
-  if (c.status === 'need_more_detail' || c.status === 'no_match' || !c.given.length)
-    return 'missing'
-  if (c.status === 'conflict') return 'conflict'
-  if (c.uncovered.metrics.length || c.uncovered.values.length || c.assumed) return 'partial'
-  if (c.given.some((item) => item.unverified)) return 'stale'
-  return 'grounded'
 }
 
 /**
@@ -447,9 +427,9 @@ export function* lookUp(
         given.map((g) => ({ item: g.item, match: g.match.match })),
       )
     : { metrics: [], values: [] }
-  const state = answerState({
+  const state = answerStateOf({
     status: resolution.status,
-    given: items,
+    items,
     uncovered,
     assumed: assumed !== null,
   })
