@@ -91,7 +91,7 @@ Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`,
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.5 0.2 27); /* red */
   --good: oklch(0.5 0.14 150); /* green */
-  --caution: oklch(0.5 0.14 55); /* amber */
+  --caution: oklch(0.501 0.133 49.7); /* amber */
   --border: oklch(0.922 0 0);
   --input: #8f8f8f; /* 3:1 for field borders */
   --ring: #2c5dbd;

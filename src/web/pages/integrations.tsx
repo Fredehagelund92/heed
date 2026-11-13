@@ -1490,7 +1490,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           </div>
         )}
         {h === 'failed' && (
-          <div role="alert" className="border-t bg-destructive/5 px-4 py-4 text-sm md:px-5">
+          <div role="alert" className="border-t bg-destructive/8 px-4 py-4 text-sm md:px-5">
             <p className="flex items-start gap-2">
               <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
               <span>

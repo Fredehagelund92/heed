@@ -90,5 +90,5 @@ const stateTone: Record<AnswerState, string> = {
   missing: 'border border-dashed border-input [&>svg]:text-muted-foreground',
   conflict: 'bg-caution/8 ring-1 ring-caution/45 ring-inset [&>svg]:text-caution',
   stale: 'bg-caution/8 [&>svg]:text-caution',
-  failed: 'bg-destructive/10 [&>svg]:text-destructive',
+  failed: 'bg-destructive/8 [&>svg]:text-destructive',
 }
