@@ -128,13 +128,13 @@ export function CommandPalette() {
   }
   React.useLayoutEffect(() => {
     moved.current = false
-  }, [q, results])
+  }, [open, q, results])
   React.useEffect(() => {
     const frame = requestAnimationFrame(() => {
       if (!moved.current) setSelected(firstRow(list.current))
     })
     return () => cancelAnimationFrame(frame)
-  }, [q, results])
+  }, [open, q, results])
   const onOpenChange = (o: boolean) => {
     setOpen(o)
     if (!o) setQ('')

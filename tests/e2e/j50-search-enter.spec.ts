@@ -95,6 +95,19 @@ test('an arrow key pressed as new results draw is not undone', async ({ page }) 
   await expect(selected(page)).toHaveAttribute('data-value', moved!)
 })
 
+test('Enter on a reopened empty search takes the first row', async ({ page }) => {
+  await go(page, '/context')
+  await page.getByRole('button', { name: /^Search/ }).click()
+  await expect(input(page)).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(input(page)).toBeHidden()
+  await page.getByRole('button', { name: /^Search/ }).click()
+  await expect(input(page)).toBeFocused()
+  await expectFirstRowSelected(page)
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/inbox/)
+})
+
 test('an example answer never takes Enter, and still opens from the arrow keys', async ({
   page,
 }) => {
