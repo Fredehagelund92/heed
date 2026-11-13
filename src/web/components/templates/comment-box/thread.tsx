@@ -83,7 +83,7 @@ export function ReactionChips({
                 />
               }
             >
-              <span aria-hidden className="text-dense leading-none">
+              <span aria-hidden className="text-sm leading-none">
                 {r.emoji}
               </span>
               {r.by.length > 1 && <span aria-hidden>{r.by.length}</span>}
@@ -271,7 +271,7 @@ function Entry({
           />
         ) : (
           <StaticRenderer
-            className="text-sm leading-relaxed text-foreground/90 [&_code]:text-code"
+            className="text-sm leading-relaxed text-foreground [&_code]:text-xs"
             content={comment.content}
             extensions={EXTENSIONS}
             options={{

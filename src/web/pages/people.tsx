@@ -328,7 +328,7 @@ function PersonSheet({
                           toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`),
                         )
                       }
-                      className="h-7 rounded-tile px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
+                      className="h-7 rounded-sm px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
                     >
                       {r}
                     </button>

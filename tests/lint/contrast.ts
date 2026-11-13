@@ -7,9 +7,9 @@
 export type Rgb = [number, number, number]
 
 export function oklchToOklab(value: string): [number, number, number] {
-  const match = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/.exec(value)
+  const match = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*\)$/.exec(value)
   if (!match) throw new Error(`Not an opaque oklch() value: ${value}`)
-  const [l, c, h] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  const [l, c, h] = [Number(match[1]) / (match[2] ? 100 : 1), Number(match[3]), Number(match[4])]
   const rad = (h * Math.PI) / 180
   return [l, c * Math.cos(rad), c * Math.sin(rad)]
 }
@@ -50,4 +50,25 @@ export function contrast(one: Rgb, two: Rgb): number {
   const high = Math.max(luminance(one), luminance(two))
   const low = Math.min(luminance(one), luminance(two))
   return Math.floor(((high + 0.05) / (low + 0.05)) * 10) / 10
+}
+
+/** 8 bit sRGB as OKLab, the inverse of oklabToRgb. */
+export function rgbToOklab(rgb: Rgb): [number, number, number] {
+  const [r, g, b] = rgb.map((channel) => {
+    const c = channel / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }) as Rgb
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+/** `one` at `alpha` laid over `two`, composited as a browser paints it: in 8 bit sRGB. */
+export function over(one: Rgb, alpha: number, two: Rgb): Rgb {
+  return [0, 1, 2].map((i) => Math.round(one[i]! * alpha + two[i]! * (1 - alpha))) as Rgb
 }

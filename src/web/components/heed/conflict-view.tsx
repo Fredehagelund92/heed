@@ -266,10 +266,7 @@ function SettleDialog({
           </DialogHeader>
           {failed && (
             <div role="alert" className="flex items-start gap-2 rounded-frame border p-3 text-sm">
-              <TriangleAlertIcon
-                aria-hidden
-                className="mt-0.5 size-4 shrink-0 text-destructive-ink"
-              />
+              <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
               <span>
                 <span className="font-medium">{failed}</span>{' '}
                 <span className="text-muted-foreground">
@@ -1099,7 +1096,7 @@ function ConflictBody({
           role="alert"
           className="flex flex-wrap items-start gap-3 rounded-frame border p-4 text-sm"
         >
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
           <div className="min-w-0 flex-1">
             <p className="font-medium">One of the two changed while you read.</p>
             <p className="text-muted-foreground">

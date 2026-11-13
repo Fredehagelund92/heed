@@ -27,19 +27,19 @@ export const markRoles: Record<
   { text: string; icon?: typeof CheckIcon; iconCls?: string }
 > = {
   needs: {
-    text: 'font-semibold text-caution-text',
+    text: 'font-semibold text-caution',
     icon: TriangleAlertIcon,
-    iconCls: 'text-caution-icon',
+    iconCls: 'text-caution',
   },
   differs: {
-    text: 'font-semibold underline decoration-caution-icon decoration-2 underline-offset-3',
+    text: 'font-semibold underline decoration-caution decoration-2 underline-offset-3',
   },
   wrong: {
-    text: 'font-semibold text-destructive-ink',
+    text: 'font-semibold text-destructive',
     icon: CircleAlertIcon,
-    iconCls: 'text-destructive-ink',
+    iconCls: 'text-destructive',
   },
-  good: { text: 'font-medium text-good-ink', icon: CheckIcon, iconCls: 'text-good-ink' },
+  good: { text: 'font-medium text-good', icon: CheckIcon, iconCls: 'text-good' },
 }
 
 /** The classes of a role's words, for text that is already its own element (a sentence you can select). */

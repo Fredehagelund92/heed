@@ -330,7 +330,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
               type="button"
               {...ahead(item.id)}
               onClick={() => P.openDock('context', item.id)}
-              className="flex flex-col gap-1.5 rounded-lg border bg-background px-3 py-2.5 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex flex-col gap-1.5 rounded-md border bg-background px-3 py-2.5 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="text-muted-foreground tabular-nums">{item.n}</span>
@@ -490,7 +490,7 @@ function WhatAskRead({ loop, footer }: { loop: LoopTurn; footer: string[] }) {
                 className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
               />
               <P.CollapsibleContent>
-                <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+                <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground">
                   {JSON.stringify({ reads: loop.reads, checks: loop.checks }, null, 2)}
                 </pre>
               </P.CollapsibleContent>
@@ -605,7 +605,7 @@ function Marked({ words, mark }: { words: string; mark: string }) {
   return (
     <>
       {words.slice(0, at)}
-      <mark className="rounded-sm bg-warn/14 px-0.5 text-foreground">
+      <mark className="rounded-sm bg-caution/8 px-0.5 text-foreground">
         {words.slice(at, at + mark.length)}
       </mark>
       {words.slice(at + mark.length)}

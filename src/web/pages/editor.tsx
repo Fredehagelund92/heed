@@ -671,7 +671,7 @@ function Editor({
               never boxed, so the panel keeps one scroll bar at most. */}
           <div
             className={cn(
-              'mt-2.5 flex flex-col gap-2 leading-relaxed text-foreground/85',
+              'mt-2.5 flex flex-col gap-2 leading-relaxed text-foreground',
               long && !previewAll && 'max-h-44 overflow-hidden fade-out-bottom',
             )}
           >
@@ -983,14 +983,14 @@ function Editor({
           ref={titleRef}
           aria-label="Title"
           rows={1}
-          className="mb-4 field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 sm:mb-5 sm:text-3xl"
+          className="mb-4 field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground sm:mb-5 sm:text-3xl"
           placeholder="What should agents know?"
           value={form.title}
           onChange={(e) => set('title', e.target.value.replace(/\n/g, ' '))}
           onPaste={(e) => noteEmoji(e.clipboardData.getData('text/plain'))}
         />
         {problemAt('title') && (
-          <p data-problem className="-mt-3 mb-4 text-sm text-destructive-ink">
+          <p data-problem className="-mt-3 mb-4 text-sm text-destructive">
             {problemAt('title')}
           </p>
         )}
@@ -1197,7 +1197,7 @@ function Editor({
                       className="h-9"
                     />
                     {problemAt('source') && (
-                      <p className="text-xs text-destructive-ink">{problemAt('source')}</p>
+                      <p className="text-xs text-destructive">{problemAt('source')}</p>
                     )}
                   </Field>
                   <Field>
@@ -1249,7 +1249,7 @@ function Editor({
         </PropertyList>
         <RichTextEditor.Content className="text-base [&_.ProseMirror]:min-h-48! [&_.ProseMirror]:max-w-reading [&_.ProseMirror]:p-0!" />
         {problemAt('text') && (
-          <p data-problem className="mt-2 text-sm text-destructive-ink">
+          <p data-problem className="mt-2 text-sm text-destructive">
             {problemAt('text')}
           </p>
         )}

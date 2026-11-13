@@ -36,7 +36,7 @@
 }
 
 .rte-static-renderer h4 {
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.35;
   margin: var(--em-0-5) 0 var(--em-0-25);
@@ -122,10 +122,10 @@
 
 /* ── Inline code ── */
 .rte-static-renderer code {
-  font-size: var(--rte-text-code);
+  font-size: var(--text-xs);
   font-weight: 500;
   font-family: var(--font-mono, monospace);
   background: var(--rte-code-inline-bg);
   padding: var(--space-0-5) var(--space-1-5);
-  border-radius: var(--rte-radius-item);
+  border-radius: var(--radius-sm);
 }

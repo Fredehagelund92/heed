@@ -75,7 +75,7 @@ export function Marked({
               key={i}
               data-change={change}
               className={cn(
-                'rounded-mark bg-[var(--mark-add)] px-0.5 text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3',
+                'rounded-xs bg-[var(--mark-add)] px-0.5 text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3',
                 on && 'ring-2 ring-ring',
               )}
             >
@@ -90,7 +90,7 @@ export function Marked({
               key={i}
               data-change={change}
               className={cn(
-                'rounded-mark bg-[var(--mark-del)] px-0.5 text-foreground/80 decoration-[var(--mark-del-line)] decoration-2',
+                'rounded-xs bg-[var(--mark-del)] px-0.5 text-foreground decoration-[var(--mark-del-line)] decoration-2',
                 on && 'ring-2 ring-ring',
               )}
             >
@@ -103,7 +103,7 @@ export function Marked({
           <span
             key={i}
             data-change={change}
-            className="rounded-mark bg-[var(--mark-fmt)] px-0.5 underline decoration-[var(--mark-fmt-line)] decoration-dotted decoration-2 underline-offset-3"
+            className="rounded-xs bg-[var(--mark-fmt)] px-0.5 underline decoration-[var(--mark-fmt-line)] decoration-dotted decoration-2 underline-offset-3"
           >
             <span
               className={cn(s.note === 'Bold' && 'font-semibold', s.note === 'Italic' && 'italic')}
@@ -111,7 +111,7 @@ export function Marked({
               {s.text}
             </span>
             {s.note && (
-              <span className="ml-1 rounded-sm bg-[var(--mark-fmt-line)] px-1 align-(--nudge) text-3xs font-medium text-mark-fmt-ink">
+              <span className="ml-1 rounded-sm bg-[var(--mark-fmt-line)] px-1 align-(--nudge) text-xs font-medium text-mark-fmt-ink">
                 {s.note}
               </span>
             )}
@@ -149,13 +149,13 @@ export function ChangeBlock({
 function BlockBody({ block }: { block: Block }) {
   switch (block.kind) {
     case 'Wording':
-      return <Marked segs={marks(block.text)} className="text-reading leading-7" />
+      return <Marked segs={marks(block.text)} className="text-base leading-7" />
     case 'Added':
     case 'Removed':
       return (
         <p
           className={cn(
-            'border-l-2 pl-3 text-reading leading-7',
+            'border-l-2 pl-3 text-base leading-7',
             block.kind === 'Added'
               ? 'border-[var(--mark-add-line)]'
               : 'border-[var(--mark-del-line)] line-through',
@@ -171,7 +171,7 @@ function BlockBody({ block }: { block: Block }) {
           <p className="text-xs text-muted-foreground">{block.label}</p>
           {block.list ? (
             <div className="border-l-2 border-dotted border-[var(--mark-fmt-line)] pl-3">
-              <ol className="list-decimal pl-5 text-reading leading-7">
+              <ol className="list-decimal pl-5 text-base leading-7">
                 {block.list.items.map((t) => (
                   <li key={t}>{t}</li>
                 ))}
@@ -181,7 +181,7 @@ function BlockBody({ block }: { block: Block }) {
               </p>
             </div>
           ) : (
-            <Marked segs={marks(block.text)} className="text-reading leading-7" />
+            <Marked segs={marks(block.text)} className="text-base leading-7" />
           )}
         </div>
       )
@@ -189,7 +189,7 @@ function BlockBody({ block }: { block: Block }) {
       if ('mention' in block)
         return (
           <div className="flex flex-col gap-1.5 text-sm">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-reading">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base">
               {block.mention.change === 'added' ? 'Now links to' : 'No longer links to'}
               <MentionChip mention={{ id: block.mention.id, label: block.mention.label }} />
             </p>
@@ -201,7 +201,7 @@ function BlockBody({ block }: { block: Block }) {
         )
       return (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-reading">
+          <p className="text-base">
             <span className="underline decoration-[var(--mark-link-line)] decoration-2 underline-offset-3">
               {block.text}
             </span>
@@ -214,14 +214,14 @@ function BlockBody({ block }: { block: Block }) {
             </dd>
             <dt className="font-sans text-muted-foreground">Now</dt>
             <dd className="break-all">
-              <span className="rounded-mark bg-[var(--mark-link)] px-0.5">{block.after}</span>
+              <span className="rounded-xs bg-[var(--mark-link)] px-0.5">{block.after}</span>
             </dd>
           </dl>
         </div>
       )
     case 'Order':
       return (
-        <ol className="flex flex-col gap-1.5 text-reading leading-7">
+        <ol className="flex flex-col gap-1.5 text-base leading-7">
           {block.steps.map((s, i) => (
             <li
               key={s.text}
@@ -299,7 +299,7 @@ function DatesTimeline({ span }: { span: NonNullable<Extract<Block, { kind: 'Dat
         {[span.from, span.was, span.now].map((d) => (
           <span
             key={d}
-            className="absolute top-6 -translate-x-1/2 text-2xs text-muted-foreground tabular-nums"
+            className="absolute top-6 -translate-x-1/2 text-xs text-muted-foreground tabular-nums"
             style={{ left: at(d) }}
           >
             {d} {span.month}

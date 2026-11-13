@@ -352,7 +352,7 @@ export function DefinitionsPage() {
                 matched={matchedBy(d)}
               />
               {/* On a phone the short facts go on a second line. */}
-              <span className="flex gap-2 text-dense text-muted-foreground @xl/main:hidden">
+              <span className="flex gap-2 text-xs text-muted-foreground @xl/main:hidden">
                 {group !== 'domain' && (
                   <span>{d.domain ? domains[d.domain]?.name : 'All domains'}</span>
                 )}
@@ -383,7 +383,7 @@ export function DefinitionsPage() {
                   ? 'Dimensions apply to every context item'
                   : `Counted on ${d.sameAs}`
               }
-              className="text-[var(--idle)]"
+              className="text-muted-foreground"
             >
               –
             </span>
@@ -392,7 +392,7 @@ export function DefinitionsPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="-mr-2 h-7 px-2 text-dense font-medium text-primary hover:text-primary"
+              className="-mr-2 h-7 px-2 text-sm font-medium text-primary hover:text-primary"
               aria-label={`Write context about ${d.name}`}
               onClick={(e) => {
                 e.stopPropagation()
@@ -407,7 +407,7 @@ export function DefinitionsPage() {
         </td>
         <td className="w-8 px-1 align-middle">
           {flag && (
-            <span title={flag.tip} className="inline-flex text-[var(--warn)]">
+            <span title={flag.tip} className="inline-flex text-caution">
               <flag.icon aria-hidden className="size-4" strokeWidth={1.75} />
               <span className="sr-only">{flag.tip}</span>
             </span>
@@ -491,7 +491,7 @@ export function DefinitionsPage() {
             {/* Views are a filter, not navigation: quiet words with counts, the shared text switch. */}
             <TextSwitch
               label="Definitions to show"
-              className="pl-1 text-dense @max-md/main:hidden"
+              className="pl-1 text-sm @max-md/main:hidden"
               value={view}
               onChange={setView}
               options={(['all', 'metric', 'dimension', 'term'] as View[]).map((v) => ({

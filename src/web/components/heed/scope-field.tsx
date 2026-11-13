@@ -311,7 +311,7 @@ function ScopePicker({
               aria-label={`Stop searching in ${within.name}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={leave}
-              className="relative grid size-5 place-items-center rounded outline-none after:absolute after:-inset-2 hover:bg-chip-hover focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative grid size-5 place-items-center rounded-xs outline-none after:absolute after:-inset-2 hover:bg-chip-hover focus-visible:ring-2 focus-visible:ring-ring"
             >
               <XIcon aria-hidden className="size-3" />
             </button>
@@ -349,7 +349,7 @@ function ScopePicker({
             if (listRef.current) listRef.current.scrollTop = 0
           }}
           onKeyDown={onKeyDown}
-          className="h-full min-w-0 flex-1 bg-transparent text-reading outline-hidden placeholder:text-muted-foreground max-sm:text-base"
+          className="h-full min-w-0 flex-1 bg-transparent text-base outline-hidden placeholder:text-muted-foreground max-sm:text-base"
         />
       </div>
       {within && total > 0 && (

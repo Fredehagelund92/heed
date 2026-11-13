@@ -270,9 +270,7 @@ function Tools({ tools }: { tools: UsageData['tools'] }) {
       .replace(/, (with|after) .*$/, '')
   const cell = (v: number, warn?: boolean) =>
     v ? (
-      <span className={cn(warn && 'font-semibold text-[var(--warn)]')}>
-        {v.toLocaleString('en')}
-      </span>
+      <span className={cn(warn && 'font-semibold text-caution')}>{v.toLocaleString('en')}</span>
     ) : (
       <span className="text-muted-foreground">-</span>
     )
@@ -294,7 +292,7 @@ function Tools({ tools }: { tools: UsageData['tools'] }) {
           <tr key={t.name} className="border-t">
             <td className="px-4 py-2.5 md:pl-5">
               <span className="block font-mono text-xs">{t.name}</span>
-              <span className="block text-dense text-muted-foreground">{what(t.name)}</span>
+              <span className="block text-xs text-muted-foreground">{what(t.name)}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground @2xl/main:hidden">
                 {[
                   t.answered && `${t.answered} answered`,
@@ -368,7 +366,7 @@ function Spend() {
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-dense text-muted-foreground">
+        <p className="mt-3 text-xs text-muted-foreground">
           Answering agents costs nothing. Answer tests ran once, from the command line.
         </p>
       </div>

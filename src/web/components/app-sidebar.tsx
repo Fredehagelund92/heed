@@ -120,7 +120,6 @@ export function AppSidebar({
       className={cn(
         '*:data-[slot=sidebar-inner]:bg-background',
         '*:data-[slot=sidebar-inner]:dark:bg-(image:--glow-top)',
-        '**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75',
       )}
       {...props}
     >
@@ -200,7 +199,7 @@ export function AppSidebar({
                 Settings for admins and owners. */}
             <SidebarGroup className="mt-auto">
               <SidebarGroupContent>
-                <SidebarMenu className="**:data-[slot=sidebar-menu-button]:text-dense **:data-[slot=sidebar-menu-button]:[&>span]:text-muted-foreground">
+                <SidebarMenu className="**:data-[sidebar=menu-button]:[&>span]:text-muted-foreground">
                   {/* One Help row: its menu holds the Help page, the keys, Documentation and the ways to reach a person. */}
                   <HelpMenu place={going} />
                   {/* What agents asked and got, for the same people as Settings. */}

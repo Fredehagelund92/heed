@@ -53,7 +53,7 @@
       background: var(--scrollbar-thumb);
       background-clip: padding-box;
       border: 2px solid transparent;
-      border-radius: var(--radius);
+      border-radius: var(--radius-full);
     }
   }
 }

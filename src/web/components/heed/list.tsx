@@ -50,7 +50,7 @@ export function ListBar({ children }: { children: React.ReactNode }) {
 
 /** A control in the bar. */
 export const barButton =
-  "h-7 gap-1.5 px-2 text-dense font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+  "h-7 gap-1.5 px-2 text-sm font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
 
 export function BarSpacer({ children }: { children?: React.ReactNode }) {
   return (
@@ -109,7 +109,7 @@ export function SearchField({
         }}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-7 pr-8 pl-8 text-dense md:text-dense @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
+        className="h-7 pr-8 pl-8 text-sm md:text-sm @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
       />
       <Kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 max-md:hidden">
         /
