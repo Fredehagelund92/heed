@@ -174,6 +174,34 @@ export function doneLine(verb: string, done: number, failed: number) {
 /** "1 item", "3 items"; "1 draft", "2 drafts". */
 export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
+/* ---------- the delete confirmation ---------- */
+
+/** The rows a delete confirmation was opened with: its ids, or null while it is shut. */
+export type Confirming = { ids: string[] } | null
+
+/**
+ * What pressing Delete does, from the button or the key: open the confirmation with the rows ticked
+ * now, or refuse and say why. Nothing opens for a selection that has nothing to delete.
+ */
+export function askDelete(
+  ids: string[],
+  reason?: string,
+): { confirming: Confirming } | { refused: string } {
+  if (reason) return { refused: reason }
+  if (!ids.length) return { refused: 'Nothing is ticked.' }
+  return { confirming: { ids: [...ids] } }
+}
+
+/**
+ * The rows the confirmation holds, as the list has them now: a row the list refreshed shows its new
+ * words, a row that has gone drops out, and a row ticked since is never added.
+ */
+export function heldRows<T>(rows: T[], confirming: Confirming, idOf: (row: T) => string): T[] {
+  if (!confirming) return []
+  const held = new Set(confirming.ids)
+  return rows.filter((r) => held.has(idOf(r)))
+}
+
 /** Deleting more than this many asks for the number to be typed, so a large delete is never one slip. */
 export const TYPE_ABOVE = 10
 export const needsTyping = (n: number) => n > TYPE_ABOVE
