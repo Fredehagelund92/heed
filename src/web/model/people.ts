@@ -69,11 +69,25 @@ export function describe(p: Person, domains: Domains) {
   return p.admin ? 'Admin' : 'Suggests context, owns no domain'
 }
 
-/** The domains only this person owns: they must hand those over before they can leave. */
-export const soleOwnerOf = (name: string, domains: Domains) =>
-  Object.values(domains)
-    .filter((d) => d.owners.length === 1 && d.owners[0] === name)
+/**
+ * The domains only this person owns among the members: they must hand those over before they can
+ * leave. An invite listed as an owner is nobody here yet, so it never stands in for them, and
+ * taking an invite back never waits on a hand-over.
+ */
+export function soleOwnerOf(
+  name: string,
+  domains: Domains,
+  people: readonly Pick<Person, 'name' | 'invited'>[],
+) {
+  const invited = new Set(people.filter((p) => p.invited).map((p) => p.name))
+  if (invited.has(name)) return []
+  return Object.values(domains)
+    .filter((d) => {
+      const members = d.owners.filter((o) => !invited.has(o))
+      return members.length === 1 && members[0] === name
+    })
     .map((d) => d.id)
+}
 
 /** The first paragraph of a domain's text, plain: what it covers, for pickers, hints and cards. */
 export function excerptOf(text: string) {
