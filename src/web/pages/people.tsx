@@ -29,13 +29,14 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { DomainId } from '@/model/items'
-import { emailOf, soleOwnerOf, type Person } from '@/model/people'
+import { emailOf, listOf, soleOwnerOf, type Person } from '@/model/people'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { domainHue } from '@/lib/tones'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { href, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import type { Invited } from '@/api/client'
+import { toApiError } from '@/api/errors'
 import { activityQuery, useSession, useWrite } from '@/api/queries'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
 import { useMe } from '@/lib/workspace'
@@ -253,12 +254,13 @@ function PersonSheet({
   const me = useMe()
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
+  const people = usePeople()
   const write = useWrite()
   const mobile = useIsMobile()
   const [removing, setRemoving] = React.useState(false)
   const recent = useQuery({ ...activityQuery(p?.name ?? ''), enabled: !!p }).data ?? []
   if (!p) return null
-  const alone = soleOwnerOf(p.name, domains)
+  const alone = soleOwnerOf(p.name, domains, people)
   return (
     <Sheet open={!!p} onOpenChange={onOpenChange}>
       <SheetContent
@@ -459,25 +461,35 @@ function PersonSheet({
                     onClick={() => {
                       setRemoving(false)
                       onOpenChange(false)
-                      // The row goes as it leaves the list; Undo brings it back in.
-                      const removed = new Promise<{ undo?: string }>(
-                        (resolve) =>
-                          void leaveThen(p.name, () =>
-                            write('removePerson', { name: p.name }).then((r) =>
-                              resolve(r.removed ? { undo: r.undo } : {}),
+                      // The row goes as it leaves the list, and comes back if they stay. What
+                      // happened is said once the service has answered; Undo brings them back in.
+                      void leaveThen(p.name, () =>
+                        write('removePerson', { name: p.name }).then(
+                          (r) => {
+                            if (!r.removed) {
+                              const names = r.alone.map((d) => domains[d]?.name ?? d)
+                              toast('Hand over first', {
+                                description: `${p.name} is the only owner of ${listOf(names)}. Add another owner there, then remove them.`,
+                              })
+                              return
+                            }
+                            toast(p.invited ? 'Invite revoked' : 'Removed', {
+                              description: p.name,
+                              action: {
+                                label: 'Undo',
+                                onClick: () => void write('undo', { token: r.undo }),
+                              },
+                            })
+                          },
+                          (e: unknown) =>
+                            toast(
+                              p.invited
+                                ? `Couldn't revoke the invite to ${p.name}`
+                                : `Couldn't remove ${p.name}`,
+                              { description: toApiError(e).message },
                             ),
-                          ),
+                        ),
                       )
-                      toast(p.invited ? 'Invite revoked' : 'Removed', {
-                        description: p.name,
-                        action: {
-                          label: 'Undo',
-                          onClick: () =>
-                            void removed.then(({ undo }) => {
-                              if (undo) void write('undo', { token: undo })
-                            }),
-                        },
-                      })
                     }}
                   >
                     {p.invited ? 'Revoke' : 'Remove'}
