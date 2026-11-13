@@ -573,12 +573,10 @@ function Editor({
   // never scrolls so far that the title is cut.
   const refusalRef = React.useRef<HTMLElement>(null)
   React.useEffect(() => {
-    if (refusal)
-      (
-        refusalRef.current?.parentElement?.querySelector('[data-problem]') ?? refusalRef.current
-      )?.scrollIntoView({
-        block: 'nearest',
-      })
+    if (!refusal) return
+    const field = refusalRef.current?.parentElement?.querySelector('[data-problem]')
+    if (field) field.scrollIntoView({ block: 'nearest' })
+    else refusalRef.current?.scrollIntoView({ block: 'start' })
   }, [refusal])
   const retryable = !sendError || sendError.kind === 'unanswered' || sendError.kind === 'failed'
   const submit = () => {
