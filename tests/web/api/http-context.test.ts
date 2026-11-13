@@ -610,6 +610,20 @@ describe("the editor's item, as the draft the service publishes", () => {
     })
   })
 
+  it('sends an item with no start as starting at the beginning, never on the day it is published', () => {
+    const start = (valid: Fact['valid']) =>
+      draftOf({ ...before, valid }, words, '2026-10-23').validity
+    // Always.
+    expect(start({})).toEqual({ start: '1900-01-01', end: null })
+    // Until a date: a start of today would end before it began.
+    expect(start({ until: '2026-01-19' })).toEqual({ start: '1900-01-01', end: '2026-01-20' })
+    // A date the writer picked is the date sent.
+    expect(start({ from: '2026-10-26', until: '2026-11-01' })).toEqual({
+      start: '2026-10-26',
+      end: '2026-11-02',
+    })
+  })
+
   it('sends the default line when the what-not-to-conclude line is cleared', () => {
     const cautious = { ...before, dontConclude: 'Do not read this as a trend.' }
     expect(draftOf({ ...cautious, dontConclude: '' }, words, '2026-10-23', cautious)).toEqual({

@@ -21,6 +21,12 @@ describe('readinessOf', () => {
     expect(holdLine(r, ' and ')).toBe('Add a title and where it applies first.')
   })
 
+  it('is not ready while the link in Source is not one the service can open', () => {
+    const r = readinessOf({ ...clear, badLink: true, tooLong: true })
+    expect(r).toEqual({ state: 'bad-link' })
+    expect(holdLine(r)).toBe('Fix the link in Source first.')
+  })
+
   it('is not ready when the first paragraph is longer than agents read', () => {
     const r = readinessOf({ ...clear, tooLong: true })
     expect(r).toEqual({ state: 'too-long' })

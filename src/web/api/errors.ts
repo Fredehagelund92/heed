@@ -26,24 +26,30 @@ export type ApiErrorKind =
 /** A live item a publish clashes with and has to say how it relates to first. */
 export type Clash = { itemId: string; title: string }
 
+/** One thing the service found wrong with a draft: the field it is about, and why. */
+export type Finding = { field: string; message: string }
+
 export class ApiError extends Error {
   readonly kind: ApiErrorKind
   readonly status: number | undefined
   /** For a publish refused until it says how it relates to these live items. */
   readonly clashes: Clash[]
+  /** For a publish or a send refused for what is in the draft: each problem, with its field. */
+  readonly findings: Finding[]
   /** For a 409 that is a word's refusal (FR-138): the word is taken. */
   readonly refusal: boolean
 
   constructor(
     kind: ApiErrorKind,
     message: string,
-    details: { status?: number; clashes?: Clash[]; refusal?: boolean } = {},
+    details: { status?: number; clashes?: Clash[]; findings?: Finding[]; refusal?: boolean } = {},
   ) {
     super(message)
     this.name = 'ApiError'
     this.kind = kind
     this.status = details.status
     this.clashes = details.clashes ?? []
+    this.findings = details.findings ?? []
     this.refusal = details.refusal ?? false
   }
 
@@ -80,6 +86,19 @@ const clashesOf = (data: unknown): Clash[] =>
       )
     : []
 
+/** The errors among the checks the service ran on a draft; a warning never stops a publish. */
+const findingsOf = (data: unknown): Finding[] =>
+  isRecord(data) && Array.isArray(data.findings)
+    ? data.findings.flatMap((f: unknown) =>
+        isRecord(f) &&
+        f.severity === 'error' &&
+        typeof f.field === 'string' &&
+        typeof f.message === 'string'
+          ? [{ field: f.field, message: f.message }]
+          : [],
+      )
+    : []
+
 const refusalOf = (data: unknown) => isRecord(data) && isRecord(data.refusal)
 
 /**
@@ -93,6 +112,7 @@ export function toApiError(error: unknown): ApiError {
     return new ApiError(kindOfStatus(error.status), error.message, {
       status: error.status,
       clashes: clashesOf(error.data),
+      findings: findingsOf(error.data),
       refusal: refusalOf(error.data),
     })
   return new ApiError('unanswered', "The service didn't reply.")

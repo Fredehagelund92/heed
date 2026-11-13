@@ -75,7 +75,8 @@ project: `npx vitest run --project server tests/server/domain`.
   cannot read ("since the launch", "the first week of October", a numeric date such as 12/10/2026) or more than one period are never
   replaced: it says which words and what it reads.
 - `scope-search.ts`: the page of terms behind the "Applies to" picker (FR-107): before anything
-  is typed, the person's recent terms; then metrics and, per dimension, "any value", a count and a
+  is typed, the person's recent terms, the busiest metrics and the dimensions with a count but no
+  values; then metrics and, per dimension, "any value", a count and a
   few values, recent and often-used first; a page at a time inside one dimension. The caller passes
   the vocabulary, the person's recent keys and the uses per key.
 - `resolver.ts`: `resolve(bundle, request)` returns deterministic matching metadata, restrictions,
