@@ -62,8 +62,6 @@ export const webSurfaces = [
       'src/web/model/catalogue.ts',
       'src/web/api/mock/data/integrations.ts',
       'src/web/api/mock/data/world.ts',
-      // A connector names its own tool in its own form.
-      'src/connectors/**',
     ],
   },
   // An edition is Advanced vocabulary: Settings and the agent's reply, never success copy.
@@ -301,7 +299,8 @@ const makePlainWords = (form) => ({
     const toChange =
       context.options[0]?.glossary === 'web' || form !== 'plain-words'
         ? (text) => {
-            const places = webPlacesOf(path)
+            // A connector names its own tool in its own form.
+            const places = path.startsWith('src/connectors/') ? ['Integrations'] : webPlacesOf(path)
             return webWordsToChange(text, places).map((c) => ({ ...c, rule: 'webGlossary' }))
           }
         : (text) => wordsToChange(text, [])

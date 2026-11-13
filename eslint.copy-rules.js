@@ -47,12 +47,6 @@ const nameOf = (node) =>
       : null
 const isString = (node) => node?.type === 'Literal' && typeof node.value === 'string'
 
-/** The words in a template, with each `${}` as one word, so a sentence can be counted. */
-const templateText = (template) =>
-  template.quasis
-    .map((quasi, i) => (quasi.value.cooked ?? '') + (i < template.expressions.length ? 'x' : ''))
-    .join('')
-
 /** The helpers that make a plural by adding "s" to a word. */
 const pluralHelpers = new Set(['plural', 'pluralize', 'countWord'])
 
