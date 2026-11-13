@@ -11,6 +11,7 @@ import { answer, topicWords, type Answer, type AnswerBundle } from '../../../dom
 import { CLAIMS_SHOWN, claimCheck } from '../../../domain/claim-check.ts'
 import { docDiff, docMarkdown, plainText, type DocSide } from '../../../domain/doc-diff.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
+import { anyDate, shiftDate } from '../../../domain/validity.ts'
 import { sourceDiff } from '../../../domain/source-diff.ts'
 import {
   readiness,
@@ -186,11 +187,23 @@ export function createReviewPath(
     }
   }
 
-  /** The suggestion's own question: its scope on its first day, as level 2 asks it. */
+  /**
+   * The suggestion's own question: its scope on its first day, as level 2 asks it. An item that
+   * holds from the beginning (the day an editor sends for "always") has no first day worth asking
+   * about: it is asked as of today, or its last day when that has passed, so the live items it
+   * clashes with are found as they are for any other item.
+   */
   function ownScope(bundle: ServingBundle, itemId: string): ResolvedScope | null {
     const own = bundle.items.find((i) => i.id === itemId)
     if (!own) return null
-    return matchingProbes(own, bundle, bundle.terms)[0]?.scope ?? null
+    const scope = matchingProbes(own, bundle, bundle.terms)[0]?.scope ?? null
+    if (!scope || own.validity.start !== anyDate.start) return scope
+    const today = clock.today()
+    const day =
+      own.validity.end !== null && own.validity.end <= today
+        ? shiftDate(own.validity.end, -1)
+        : today
+    return { ...scope, window: { start: day, end: shiftDate(day, 1) } }
   }
 
   /** What one suggestion is, read once: its versions, the bundles with and without it, its clashes. */

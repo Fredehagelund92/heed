@@ -22,7 +22,7 @@ export const scopeHitSchema = z.object({
 })
 
 export const scopeSearchInputSchema = z.object({
-  /** The words typed. Empty finds only the person's recent terms, except inside one dimension. */
+  /** The words typed. Empty finds the recent terms, busiest metrics and dimensions, except inside one dimension. */
   q: z._default(z.string().check(z.maxLength(200)), ''),
   /** Only the values of this dimension, a page at a time. */
   dimension: z.optional(dimensionKey),

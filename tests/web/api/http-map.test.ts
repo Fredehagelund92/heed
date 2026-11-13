@@ -78,6 +78,13 @@ describe('reading the library index', () => {
     })
   })
 
+  it('reads the earliest day as no start at all, which is how the service says always', () => {
+    expect(validityOf(row({ validity: { start: '1900-01-01', end: null } }))).toEqual({})
+    expect(validityOf(row({ validity: { start: '1900-01-01', end: '2026-09-01' } }))).toEqual({
+      until: '2026-08-31',
+    })
+  })
+
   it('reads a row as a context item: its scope by name, who checked it and when', () => {
     expect(factsOf([row()], names)).toEqual([
       {

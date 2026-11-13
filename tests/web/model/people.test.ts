@@ -68,6 +68,45 @@ describe('a refused publish', () => {
   })
 })
 
+describe('a refusal for what is in the draft', () => {
+  // The answer the real service gave for a source that is words, not a link (P04).
+  const body = {
+    status: 422,
+    message: 'Fix the problems shown before you send it for review.',
+    data: {
+      findings: [
+        { code: 'format', field: 'evidence.0.url', message: 'Invalid URL', severity: 'error' },
+        {
+          code: 'format',
+          field: 'evidence.0.url',
+          message: 'Invalid string: must match pattern /^https?:\\/\\//',
+          severity: 'error',
+        },
+        {
+          code: 'domain_mismatch',
+          field: 'areaId',
+          message: 'Cube puts Orders in Sales',
+          severity: 'warning',
+        },
+      ],
+    },
+  }
+
+  it('keeps each problem with its field, and leaves the warnings out', () => {
+    const refused = toApiError(body)
+    expect(refused.kind).toBe('invalid')
+    expect(refused.findings.map((f) => [f.field, f.message])).toEqual([
+      ['evidence.0.url', 'Invalid URL'],
+      ['evidence.0.url', 'Invalid string: must match pattern /^https?:\\/\\//'],
+    ])
+  })
+
+  it('names none when the service gave none', () => {
+    expect(toApiError({ status: 422, message: 'Choose an active domain.' }).findings).toEqual([])
+    expect(new ApiError('failed', 'No answer.').findings).toEqual([])
+  })
+})
+
 describe('a request that got no reply', () => {
   it("says a request that got no reply in a sentence, never the browser's words", () => {
     const failed = toApiError(new TypeError('Failed to fetch'))
