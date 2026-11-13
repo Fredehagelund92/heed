@@ -289,7 +289,7 @@ function PersonSheet({
                   )
                 }
               >
-                Resend
+                Make a new link
               </Button>
             </section>
           )}
@@ -448,7 +448,7 @@ function PersonSheet({
                   </DialogTitle>
                   <DialogDescription>
                     {p.invited
-                      ? 'The link in their email stops working.'
+                      ? 'Their invite link stops working.'
                       : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d]?.name).join(' and ')} carry on` : ''}.`}
                   </DialogDescription>
                 </DialogHeader>

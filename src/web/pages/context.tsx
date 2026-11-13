@@ -203,8 +203,7 @@ export function ContextPage() {
   const order = visible.map((f) => f.id)
   usePublishOrder('context', order)
   const table = React.useRef<HTMLTableElement>(null)
-  const [deleting, setDeleting] = React.useState(false)
-  const sel = useSelection(order, { scope: table, onDeleteKey: () => setDeleting(true) })
+  const sel = useSelection(order, { scope: table })
   const ahead = useReadAhead()
   // On a phone the checkboxes come with Select, or once a row is ticked.
   const boxes = sel.picking || sel.count > 0
@@ -766,13 +765,7 @@ export function ContextPage() {
         </Loadable>
       </div>
       {/* Picked rows get their bar in a band of its own under the list, never over a row. */}
-      <ContextBulk
-        sel={sel}
-        facts={facts}
-        matching={filtered.map((f) => f.id)}
-        deleting={deleting}
-        setDeleting={setDeleting}
-      />
+      <ContextBulk sel={sel} facts={facts} matching={filtered.map((f) => f.id)} />
     </div>
   )
 }
