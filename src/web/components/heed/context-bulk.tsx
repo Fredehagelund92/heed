@@ -289,7 +289,7 @@ export function ContextBulk({
                           'kind',
                           'changed',
                           'kind',
-                          `Now a ${kindLabel[k]}.`,
+                          `Kind changed to ${kindLabel[k]}.`,
                           () => ({ kind: k }),
                           { kind: k },
                         )
