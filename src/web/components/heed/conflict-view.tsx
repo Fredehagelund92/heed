@@ -627,7 +627,7 @@ export function ConflictView({
         try {
           await write('suggestArchiving', { id: goes.id, reason: draft.reason.trim() })
         } catch (error) {
-          setFailed('Could not send the suggestion. Nothing changed.')
+          setFailed(dialogCopy(pending, c).failure)
           throw error
         }
         setDrafts((d) => ({ ...d, [draftKey]: { reason: '', quote: '' } }))
