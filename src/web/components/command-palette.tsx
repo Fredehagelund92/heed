@@ -55,15 +55,26 @@ function KindGlyph({ kind }: { kind: Kind }) {
 
 /** Marks a row search everywhere found, so the palette's own filter keeps it. */
 const FOUND = 'found by search everywhere'
+/** Marks an example answer: it sorts last and never takes the selection on its own. */
+const EXAMPLE = 'example answer'
 /** The tools the app has a logo for, by their connector's id in words, so a search for one finds Integrations. */
 const toolWords = Object.keys(logos).join(' ').replaceAll('-', ' ')
 
 /**
  * The palette's own filter for its places and actions; a row the service found stays, in the
- * service's order, below the places and actions that match.
+ * service's order, below the places and actions that match, and the example answers below those.
  */
-const paletteFilter = (value: string, search: string, keywords?: string[]) =>
-  keywords?.includes(FOUND) ? 0.01 : defaultFilter(value, search, keywords)
+const paletteFilter = (value: string, search: string, keywords?: string[]) => {
+  if (keywords?.includes(FOUND)) return 0.01
+  const score = defaultFilter(value, search, keywords)
+  return keywords?.includes(EXAMPLE) && search ? Math.min(score, 0.005) : score
+}
+
+/** The row Enter takes: the first one, or none when the first is only an example answer. */
+const firstRow = (list: HTMLElement | null) => {
+  const row = list?.querySelector('[cmdk-item]:not([aria-disabled="true"])')
+  return row && !row.hasAttribute('data-example') ? (row.getAttribute('data-value') ?? '') : ''
+}
 
 // Search: shadcn's Command in a dialog, opened with Cmd K or the sidebar's Search. Sized as the
 // Heed app's search: 640 wide in the upper part of the screen, a 48px input row, 40px result rows
@@ -77,6 +88,19 @@ export function CommandPalette() {
   // so the list doesn't jump as people type.
   const found = useQuery({ ...searchQuery(q), placeholderData: keepPreviousData }).data
   const hits = q.trim() ? found : undefined
+  // The row Enter takes. cmdk picks the first row when the words change, but keeps the row it had
+  // when the service's rows arrive, so it is set again whenever the results change, after cmdk
+  // has sorted them.
+  const [selected, setSelected] = React.useState('')
+  const list = React.useRef<HTMLDivElement>(null)
+  const results = hits
+    ? [
+        hits.definitions.map((d) => d.name),
+        hits.items.map((f) => f.id),
+        hits.domains.map((d) => d.id),
+        hits.people.map((p) => p.name),
+      ].join('|')
+    : ''
   const me = useMe()
   const { theme, setTheme } = useTheme()
 
@@ -96,6 +120,10 @@ export function CommandPalette() {
     setOpen(false)
     fn()
   }
+  React.useEffect(() => {
+    const frame = requestAnimationFrame(() => setSelected(firstRow(list.current)))
+    return () => cancelAnimationFrame(frame)
+  }, [q, results])
   const onOpenChange = (o: boolean) => {
     setOpen(o)
     if (!o) setQ('')
@@ -108,13 +136,13 @@ export function CommandPalette() {
       title="Search"
       description="Search context and go anywhere"
     >
-      <Command filter={paletteFilter}>
+      <Command filter={paletteFilter} value={selected} onValueChange={setSelected}>
         <CommandInput
           placeholder="Search context, or type a place…"
           value={q}
           onValueChange={setQ}
         />
-        <CommandList>
+        <CommandList ref={list}>
           <CommandEmpty>Nothing found.</CommandEmpty>
           <CommandGroup heading="Go to">
             <CommandItem onSelect={run(() => navigate('/inbox'))}>
@@ -189,24 +217,6 @@ export function CommandPalette() {
               {theme === 'dark' ? 'Light appearance' : 'Dark appearance'}
             </CommandItem>
           </CommandGroup>
-          {!!hits?.items.length && (
-            <CommandGroup className="border-t" heading="Context">
-              {hits.items.map((f) => (
-                <CommandItem
-                  key={f.id}
-                  value={`context ${f.id} ${f.title}`}
-                  keywords={[FOUND]}
-                  onSelect={run(() => openDock('context', f.id))}
-                >
-                  <KindGlyph kind={f.kind} />
-                  <span className="min-w-0 flex-1 truncate">{f.title}</span>
-                  <CommandShortcut className="tracking-normal max-sm:hidden">
-                    {domains[f.domain]?.name}
-                  </CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
           {!!hits?.definitions.length && (
             <CommandGroup className="border-t" heading="Definitions">
               {hits.definitions.map((d) => (
@@ -220,6 +230,24 @@ export function CommandPalette() {
                   <span className="min-w-0 flex-1 truncate">{d.name}</span>
                   <CommandShortcut className="tracking-normal max-sm:hidden">
                     {d.sameAs ? `Another name for ${d.sameAs}` : kindName(d)}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {!!hits?.items.length && (
+            <CommandGroup className="border-t" heading="Context">
+              {hits.items.map((f) => (
+                <CommandItem
+                  key={f.id}
+                  value={`context ${f.id} ${f.title}`}
+                  keywords={[FOUND]}
+                  onSelect={run(() => openDock('context', f.id))}
+                >
+                  <KindGlyph kind={f.kind} />
+                  <span className="min-w-0 flex-1 truncate">{f.title}</span>
+                  <CommandShortcut className="tracking-normal max-sm:hidden">
+                    {domains[f.domain]?.name}
                   </CommandShortcut>
                 </CommandItem>
               ))}
@@ -260,6 +288,8 @@ export function CommandPalette() {
               <CommandItem
                 key={e.id}
                 value={`example ${e.label}`}
+                keywords={[EXAMPLE]}
+                data-example=""
                 onSelect={run(() => navigate('/ask', { example: e.id }))}
               >
                 <MessageSquareIcon />
