@@ -48,7 +48,7 @@ export const seedComments: Partial<Record<Subject, CommentItem[]>> = {
       author: 'Jon Abara',
       when: 'Yesterday, 17:05',
       content: text(
-        'The source says Polish **card payments**, and the suggestion says all Poland orders. Do bank transfers and BLIK arrive late too, or only cards?',
+        'The source says Polish **card payments**, and the suggestion says all Poland orders. Do bank transfers and wallet payments arrive late too, or only cards?',
       ),
       replies: [
         {
@@ -56,7 +56,7 @@ export const seedComments: Partial<Record<Subject, CommentItem[]>> = {
           author: 'Kofi Mensah',
           when: 'Today, 08:12',
           content: text(
-            'Only cards. Transfers and BLIK come in the next morning as before. The agent wrote orders; it should say card orders.',
+            'Only cards. Transfers and wallet payments come in the next morning as before. The agent wrote orders; it should say card orders.',
           ),
           reactions: [{ emoji: '🙏', by: ['Jon Abara'] }],
         },
