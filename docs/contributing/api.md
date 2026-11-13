@@ -337,8 +337,8 @@ and a concurrent request using the same key returns 409. A rolled-back request c
   stale write returns 409 with the current record.
 - `POST /proposals/{id}/submit` takes `{ revision }`. The proposer submits an immutable version,
   scope, evidence, references, mention rows, digests and format checks in one transaction with
-  the proposal state, audit and outbox records. Resubmit creates another version. Submission
-  does not publish anything.
+  the proposal state, audit and outbox records. Resubmit creates another version, written against the version agents get
+  now. Submission does not publish anything.
 - `POST /proposals/{id}/withdraw` takes `{ revision, reason }`. The reason is plain text, without
   mentions. Only the proposer withdraws.
 
