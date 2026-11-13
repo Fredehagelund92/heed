@@ -13,6 +13,8 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { GuideLink } from '@/components/heed/guide-link'
@@ -359,12 +361,20 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
       >
         <div className="space-y-2 border-t px-4 py-3 text-sm text-muted-foreground md:px-5">
           <p>
-            Each setting is kept in the database, and only an Admin can change one, through the API:{' '}
-            <code className={CODE}>PUT /api/v1/settings/{'{key}'}</code> with the version they read,
-            the new value and a reason. The change applies at once, and the History log keeps who
-            made it and why. About our business can also be changed in General, and the Not found
-            threshold in Observability, Alerts.
+            Each setting is kept in the database, and only an Admin can change one. The change
+            applies at once, and the History log keeps who made it and why. About our business can
+            also be changed in General, and the Not found threshold in Observability, Alerts.
           </p>
+          <Collapsible>
+            <FoldTrigger variant="inline" label="For engineers" className="-ml-1 px-1 text-xs" />
+            <CollapsibleContent>
+              <p className="mt-2">
+                An Admin changes a setting through the API:{' '}
+                <code className={CODE}>PUT /api/v1/settings/{'{key}'}</code> with the version they
+                read, the new value and a reason.
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
           <p>
             Default means the value the app was installed with. Changed names who changed it last:
             an Admin, or, with no person, an update of the app or a script run on the database.
@@ -377,7 +387,7 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
       <FrameSection
         title="History log"
         level={3}
-        description="Who changed what, and when. Hash-chained, so a change after the fact shows."
+        description="Who changed what, and when. A later edit to this log would show (a hash chain)."
         collapsible
         defaultOpen={page.history.length > 4}
         action={
@@ -412,7 +422,14 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
           <FrameTable
             label="Jobs"
             columns={cols('Job', 'Last run', 'Result')}
-            rows={page.jobs.map((j) => [cellLink(j.job, j.href), j.last, j.result])}
+            rows={page.jobs.map((j) => [
+              <span key={j.key} className="block">
+                {cellLink(j.job, j.href)}
+                <code className="block font-mono text-xs text-muted-foreground">{j.key}</code>
+              </span>,
+              j.last,
+              j.result,
+            ])}
           />
         ) : (
           <p className="border-t px-4 py-3 text-sm text-muted-foreground md:px-5">
@@ -421,9 +438,9 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
         )}
       </FrameSection>
       <FrameSection
-        title="Editions"
+        title="Versions of what agents get"
         level={3}
-        description="Agents read a sealed edition. Each publish seals a new one."
+        description="Agents read the latest version. Each publish makes a new one. Engineers call one an edition."
         collapsible
         defaultOpen={false}
       >
@@ -476,9 +493,9 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
         level={3}
         description={
           <>
-            Context as JSON, for a backup or a move. To bring context in, the command line&apos;s{' '}
-            <code className={CODE}>{SLUG} import</code> checks a file, and sends its items as
-            suggestions with <code className={CODE}>--apply</code>.
+            Context as a file (JSON), for a backup or a move. To bring context in, the command
+            line&apos;s <code className={CODE}>{SLUG} import</code> checks a file, and sends its
+            items as suggestions with <code className={CODE}>--apply</code>.
           </>
         }
         action={

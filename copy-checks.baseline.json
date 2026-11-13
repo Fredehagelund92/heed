@@ -1,0 +1,638 @@
+{
+  "heed/plain-words-wide": {},
+  "heed/plain-words-v2": {
+    "db/seed/fixtures/items.ts": {
+      "accept": 1,
+      "cube": 1,
+      "fact": 6
+    },
+    "db/seed/fixtures/reference-data.ts": {
+      "fact": 3
+    },
+    "db/seed/fixtures/story-facts.ts": {
+      "cube": 2
+    },
+    "src/connectors/_template/manifest.ts": {
+      "accept": 1
+    },
+    "src/connectors/cube/manifest.ts": {
+      "accept": 1
+    },
+    "src/connectors/dbt-metricflow/manifest.ts": {
+      "accept": 2
+    },
+    "src/contract/index.ts": {
+      "accept": 2,
+      "administrator": 20,
+      "approver": 1,
+      "client": 5,
+      "edition": 10,
+      "fact": 3,
+      "proposal": 3,
+      "this fact": 1
+    },
+    "src/domain/about-business.ts": {
+      "a fact": 1,
+      "administrator": 1,
+      "fact": 1
+    },
+    "src/domain/agent-draft.ts": {
+      "a fact": 1
+    },
+    "src/domain/answer-state.ts": {
+      "based on checked context": 1,
+      "context disagree": 1,
+      "covers part of it": 1,
+      "may be out of date": 1,
+      "nothing written down": 1
+    },
+    "src/domain/answer-words.ts": {
+      "a fact": 2,
+      "edition": 1
+    },
+    "src/domain/ask-plan.ts": {
+      "administrator": 1,
+      "cube": 1
+    },
+    "src/domain/audit.ts": {
+      "administrator": 1
+    },
+    "src/domain/domain-match.ts": {
+      "administrator": 1
+    },
+    "src/domain/drafting-guide.ts": {
+      "caveat": 1
+    },
+    "src/domain/editions.ts": {
+      "fact": 1
+    },
+    "src/domain/links.ts": {
+      "retired": 1
+    },
+    "src/domain/planned-answer.ts": {
+      "administrator": 1
+    },
+    "src/domain/proposal-attributes.ts": {
+      "a fact": 1,
+      "proposal": 1
+    },
+    "src/domain/proposal.ts": {
+      "proposal": 2
+    },
+    "src/domain/records.ts": {
+      "administrator": 4,
+      "fact": 1,
+      "retired": 1
+    },
+    "src/domain/resolver.ts": {
+      "caveat": 1
+    },
+    "src/domain/say.ts": {
+      "caveat": 1,
+      "fact": 2,
+      "nothing written down": 1
+    },
+    "src/domain/served-review.ts": {
+      "edition": 1
+    },
+    "src/server/modules/admin/edition-export.ts": {
+      "edition": 1
+    },
+    "src/server/modules/agents/service.ts": {
+      "accept": 1,
+      "fact": 1
+    },
+    "src/server/modules/answer/service.ts": {
+      "accept": 1,
+      "fact": 1
+    },
+    "src/server/modules/editions/release.ts": {
+      "a fact": 1,
+      "edition": 4
+    },
+    "src/server/modules/proposals/service.ts": {
+      "a fact": 1,
+      "proposal": 7,
+      "this fact": 1
+    },
+    "src/server/modules/review/names.ts": {
+      "accept": 1
+    },
+    "src/server/modules/review/path.ts": {
+      "fact": 1,
+      "this fact": 2
+    },
+    "src/server/modules/review/service.ts": {
+      "a fact": 2,
+      "accept": 1,
+      "proposal": 6,
+      "this fact": 9
+    }
+  },
+  "copy/whole-sentences": {
+    "src/web/api/http-integrations.ts": {
+      "plural": 15
+    },
+    "src/web/api/mock/data/figures.ts": {
+      "lowercased": 2
+    },
+    "src/web/api/mock/data/integrations.ts": {
+      "plural": 3
+    },
+    "src/web/api/mock/integrations.ts": {
+      "lowercased": 1,
+      "plural": 5
+    },
+    "src/web/components/heed/answer.tsx": {
+      "plural": 1
+    },
+    "src/web/components/heed/conflict-view.tsx": {
+      "lowercased": 1,
+      "plural": 1
+    },
+    "src/web/components/heed/context-bulk.tsx": {
+      "article": 1
+    },
+    "src/web/components/heed/definition-peek.tsx": {
+      "lowercased": 1
+    },
+    "src/web/components/heed/review-parts.tsx": {
+      "plural": 1
+    },
+    "src/web/components/heed/source-review.tsx": {
+      "lowercased": 1
+    },
+    "src/web/components/heed/source-threads.tsx": {
+      "lowercased": 1
+    },
+    "src/web/components/obs/answer-panel.tsx": {
+      "lowercased": 1
+    },
+    "src/web/components/obs/filter-picker.tsx": {
+      "lowercased": 2,
+      "plural": 10
+    },
+    "src/web/components/resizable-aside.tsx": {
+      "lowercased": 1
+    },
+    "src/web/components/templates/comment-box/utils.ts": {
+      "plural": 1
+    },
+    "src/web/lib/bulk.ts": {
+      "article": 2
+    },
+    "src/web/lib/connect.ts": {
+      "lowercased": 1
+    },
+    "src/web/lib/definitions.ts": {
+      "lowercased": 1
+    },
+    "src/web/model/replay.ts": {
+      "lowercased": 1
+    },
+    "src/web/pages/definitions.tsx": {
+      "plural": 5
+    },
+    "src/web/pages/editor.tsx": {
+      "lowercased": 1
+    },
+    "src/web/pages/inbox.tsx": {
+      "plural": 1
+    },
+    "src/web/pages/integrations.tsx": {
+      "plural": 26
+    },
+    "src/web/pages/observability/overview.tsx": {
+      "lowercased": 3
+    },
+    "src/web/pages/people.tsx": {
+      "lowercased": 1
+    },
+    "src/web/pages/review.tsx": {
+      "plural": 1
+    }
+  },
+  "copy/sentence-length": {
+    "src/web/api/mock/data/ask.ts": {
+      "over25": 1
+    },
+    "src/web/api/mock/data/review.ts": {
+      "over25": 5
+    },
+    "src/web/components/heed/logo.tsx": {
+      "over25": 1
+    },
+    "src/web/lib/in-agent.ts": {
+      "over25": 1
+    },
+    "src/web/pages/domain-page.tsx": {
+      "over25": 1
+    },
+    "src/web/pages/integrations.tsx": {
+      "over25": 1
+    }
+  },
+  "copy/one-word-one-thing": {
+    "src/web/api/http-integrations.ts": {
+      "a read": 2
+    },
+    "src/web/api/http-map.ts": {
+      "needs checking": 1
+    },
+    "src/web/api/http-obs.ts": {
+      "gap": 1
+    },
+    "src/web/api/http.ts": {
+      "thread": 1
+    },
+    "src/web/api/mock/comments.ts": {
+      "thread": 3
+    },
+    "src/web/api/mock/data/alerts.ts": {
+      "sync": 1,
+      "synced": 1
+    },
+    "src/web/api/mock/data/integrations.ts": {
+      "a read": 1,
+      "needs checking": 1
+    },
+    "src/web/api/mock/data/observability.ts": {
+      "gap": 3
+    },
+    "src/web/api/mock/data/world.ts": {
+      "flag": 1,
+      "needs checking": 3
+    },
+    "src/web/api/mock/index.ts": {
+      "flag": 1
+    },
+    "src/web/api/mock/integrations.ts": {
+      "a read": 1
+    },
+    "src/web/components/editor/labels.ts": {
+      "url": 1
+    },
+    "src/web/components/error-boundary.tsx": {
+      "dev server": 1
+    },
+    "src/web/components/heed/answer.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/columns.tsx": {
+      "needs checking": 1,
+      "overdue": 1
+    },
+    "src/web/components/heed/conflict-view.tsx": {
+      "flag": 4
+    },
+    "src/web/components/heed/definition-peek.tsx": {
+      "read-only": 1,
+      "synced": 1
+    },
+    "src/web/components/heed/definition.tsx": {
+      "read-only": 3,
+      "synced": 1
+    },
+    "src/web/components/heed/field-controls.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/fold.tsx": {
+      "gap": 2
+    },
+    "src/web/components/heed/frame.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/list.tsx": {
+      "gap": 1,
+      "needs checking": 1
+    },
+    "src/web/components/heed/load-state.tsx": {
+      "retry": 1
+    },
+    "src/web/components/heed/loop-nouns.tsx": {
+      "gap": 1,
+      "needs checking": 1
+    },
+    "src/web/components/heed/mention-chip.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/names-review.tsx": {
+      "a read": 1
+    },
+    "src/web/components/heed/scope-field.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/source-review.tsx": {
+      "gap": 1
+    },
+    "src/web/components/heed/source-threads.tsx": {
+      "thread": 9
+    },
+    "src/web/components/obs/facet-rail.tsx": {
+      "facet": 1
+    },
+    "src/web/components/obs/filter-bar.tsx": {
+      "gap": 1
+    },
+    "src/web/components/obs/filter-picker.tsx": {
+      "facet": 1
+    },
+    "src/web/components/obs/save-question.tsx": {
+      "sync": 1
+    },
+    "src/web/components/obs/topic-table.tsx": {
+      "gap": 1
+    },
+    "src/web/components/templates/comment-box/index.tsx": {
+      "thread": 2
+    },
+    "src/web/lib/agents.ts": {
+      "url": 1
+    },
+    "src/web/lib/bulk.ts": {
+      "read-only": 1,
+      "synced": 2
+    },
+    "src/web/lib/emoji.ts": {
+      "flag": 2
+    },
+    "src/web/lib/obs.ts": {
+      "queue": 1
+    },
+    "src/web/model/history.ts": {
+      "synced": 2
+    },
+    "src/web/model/inbox.ts": {
+      "a read": 1
+    },
+    "src/web/pages/agent-policies.tsx": {
+      "clashe": 1
+    },
+    "src/web/pages/context.tsx": {
+      "needs checking": 2
+    },
+    "src/web/pages/definition-editor.tsx": {
+      "retry": 1
+    },
+    "src/web/pages/definitions.tsx": {
+      "read-only": 1,
+      "synced": 2
+    },
+    "src/web/pages/editor.tsx": {
+      "needs checking": 2,
+      "retry": 1
+    },
+    "src/web/pages/inbox.tsx": {
+      "thread": 2
+    },
+    "src/web/pages/integrations.tsx": {
+      "a read": 10,
+      "flagged": 4,
+      "needs checking": 2,
+      "retry": 1
+    },
+    "src/web/pages/observability/feedback.tsx": {
+      "gap": 2
+    },
+    "src/web/pages/observability/overview.tsx": {
+      "facet": 1
+    },
+    "src/web/pages/observability/quality.tsx": {
+      "gap": 1
+    },
+    "src/web/pages/observability/usage.tsx": {
+      "ledger": 1
+    },
+    "src/web/pages/people.tsx": {
+      "flag": 3
+    },
+    "src/web/pages/review-page.tsx": {
+      "queue": 3,
+      "thread": 1
+    }
+  },
+  "copy/errors-say-three-things": {
+    "src/server/http/api.ts": {
+      "nomessage": 12
+    },
+    "src/server/modules/agents/policies.ts": {
+      "nomessage": 2
+    },
+    "src/server/modules/answer/service.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/auth/invites.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/auth/members.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/comments/service.ts": {
+      "nomessage": 6
+    },
+    "src/server/modules/conflicts/service.ts": {
+      "nomessage": 5
+    },
+    "src/server/modules/context/service.ts": {
+      "nomessage": 4
+    },
+    "src/server/modules/inbox/service.ts": {
+      "nomessage": 2
+    },
+    "src/server/modules/observability/service.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/proposals/preview.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/proposals/service.ts": {
+      "nomessage": 6
+    },
+    "src/server/modules/reports/service.ts": {
+      "nomessage": 2
+    },
+    "src/server/modules/review/path.ts": {
+      "nomessage": 5
+    },
+    "src/server/modules/review/records.ts": {
+      "nomessage": 2
+    },
+    "src/server/modules/review/service.ts": {
+      "nomessage": 1
+    },
+    "src/server/modules/saved-questions/service.ts": {
+      "nomessage": 2
+    },
+    "src/server/modules/terms/service.ts": {
+      "nomessage": 4
+    },
+    "src/web/components/heed/source-threads.tsx": {
+      "nonextstep": 1
+    },
+    "src/web/components/templates/comment-box/index.tsx": {
+      "nonextstep": 1
+    },
+    "src/web/components/view-as.tsx": {
+      "nonextstep": 1
+    }
+  },
+  "copy/no-fixed-locale": {
+    "src/web/api/http-alerts.ts": {
+      "month": 1
+    },
+    "src/web/api/http-conflicts.ts": {
+      "locale": 1
+    },
+    "src/web/api/http-figures.ts": {
+      "locale": 4
+    },
+    "src/web/api/http-inbox.ts": {
+      "month": 1
+    },
+    "src/web/api/http-integrations.ts": {
+      "month": 1
+    },
+    "src/web/api/http-map.ts": {
+      "month": 1
+    },
+    "src/web/api/http-settings.ts": {
+      "month": 1
+    },
+    "src/web/api/mock/data/figures.ts": {
+      "locale": 1
+    },
+    "src/web/api/mock/data/history.ts": {
+      "month": 1
+    },
+    "src/web/api/mock/index.ts": {
+      "locale": 1
+    },
+    "src/web/api/mock/obs-engine.ts": {
+      "locale": 3,
+      "month": 2
+    },
+    "src/web/components/heed/answer.tsx": {
+      "locale": 1
+    },
+    "src/web/components/heed/count-up.tsx": {
+      "locale": 1
+    },
+    "src/web/components/heed/loop-answer.tsx": {
+      "locale": 4
+    },
+    "src/web/components/heed/loop-nouns.tsx": {
+      "month": 1
+    },
+    "src/web/components/heed/scope-field.tsx": {
+      "locale": 1
+    },
+    "src/web/components/heed/share-answer.tsx": {
+      "locale": 1
+    },
+    "src/web/components/obs/charts.tsx": {
+      "locale": 1
+    },
+    "src/web/components/obs/controls.tsx": {
+      "locale": 1
+    },
+    "src/web/components/obs/facet-rail.tsx": {
+      "locale": 1
+    },
+    "src/web/components/obs/filter-picker.tsx": {
+      "locale": 4
+    },
+    "src/web/components/obs/topic-table.tsx": {
+      "locale": 2
+    },
+    "src/web/lib/obs-views.ts": {
+      "locale": 3
+    },
+    "src/web/lib/share.ts": {
+      "month": 1
+    },
+    "src/web/lib/timeframe.ts": {
+      "month": 1
+    },
+    "src/web/model/history.ts": {
+      "locale": 1,
+      "month": 1
+    },
+    "src/web/model/observability.ts": {
+      "locale": 3,
+      "month": 2
+    },
+    "src/web/model/settings.ts": {
+      "locale": 3
+    },
+    "src/web/model/validity.ts": {
+      "month": 1
+    },
+    "src/web/pages/about-editor.tsx": {
+      "locale": 2
+    },
+    "src/web/pages/context.tsx": {
+      "locale": 1
+    },
+    "src/web/pages/definition-editor.tsx": {
+      "locale": 1
+    },
+    "src/web/pages/definitions.tsx": {
+      "locale": 2
+    },
+    "src/web/pages/docs.tsx": {
+      "locale": 1
+    },
+    "src/web/pages/domain-page.tsx": {
+      "locale": 1
+    },
+    "src/web/pages/editor.tsx": {
+      "locale": 2
+    },
+    "src/web/pages/observability/overview.tsx": {
+      "locale": 3
+    },
+    "src/web/pages/observability/usage.tsx": {
+      "locale": 3
+    },
+    "src/web/pages/settings.tsx": {
+      "locale": 1
+    }
+  },
+  "copy/no-demo-in-shared-code": {
+    "src/web/components/error-boundary.tsx": {
+      "demo": 1
+    },
+    "src/web/components/heed/answer.tsx": {
+      "date": 1
+    },
+    "src/web/components/heed/context-bulk.tsx": {
+      "date": 1
+    },
+    "src/web/components/heed/fact-peek.tsx": {
+      "date": 1
+    },
+    "src/web/components/view-as.tsx": {
+      "demo": 1
+    },
+    "src/web/lib/demo-profiles.ts": {
+      "name": 2
+    },
+    "src/web/lib/in-agent.ts": {
+      "date": 3,
+      "name": 2
+    },
+    "src/web/pages/definition-editor.tsx": {
+      "date": 1
+    },
+    "src/web/pages/editor.tsx": {
+      "date": 2
+    },
+    "src/web/pages/fact.tsx": {
+      "date": 2
+    },
+    "src/web/pages/signin.tsx": {
+      "demo": 2,
+      "name": 1
+    }
+  }
+}

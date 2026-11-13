@@ -889,7 +889,6 @@ function Editor({
           <span className="whitespace-nowrap max-sm:hidden">
             {(form.title.length + text.length).toLocaleString('en-GB')} characters
           </span>
-          <span className="hidden sm:inline">Markdown</span>
         </DocFooter>
       }
     >

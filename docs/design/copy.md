@@ -4,6 +4,47 @@ Part of the [design contract](design-contract.md). It says how every word people
 
 It replaces [the earlier voice guide](voice.md) for the web app. The voice guide stays for the service's own sentences until they move. [`src/domain/words.ts`](../../src/domain/words.ts) holds the names of this page in code (glossary v2). The earlier list stays in `src/domain/words-v1.ts` for the service.
 
+## The voice
+
+Five rules sit on top of the rules below. They say how Heed sounds. The 16 rules in section 2 say how a sentence is built, and these five decide the cases those leave open.
+
+1. **Say it as you would to a colleague at the next desk.** Use the everyday word. If a product word is needed, explain it once, in the same line, with an example from the business. The exact technical term comes second and smaller.
+2. **One word for one thing, and one thing for one word.** Take the word from the glossary. Never a second word for variety. Never the same word for a second thing.
+3. **Say what happens.** A button names the result. An error says three things: what went wrong, what is safe, what to do next.
+4. **One idea, one whole sentence.** Under 20 words, active, with a subject. Written whole, never glued from parts in code.
+5. **Calm and kind, and always true.** A normal state is not a failure. No blame, no red for something that passes in a minute. Never promise what the app does not do.
+
+Ten examples from the app, before and after:
+
+| #   | Rule | Before                                                                                                                                                  | After                                                                                              |
+| --- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | 1    | "Any agent that speaks MCP"                                                                                                                             | "Any other agent that can connect by address (MCP)"                                                |
+| 2   | 1    | "Claim check ... Same? Check"                                                                                                                           | "Compared with the source ... Not sure. Compare them."                                             |
+| 3   | 2    | "Scope" (column), "Applies to" (editor)                                                                                                                 | "Applies to" in both                                                                               |
+| 4   | 2    | "Retry" (4 places), "Try again" (20 places)                                                                                                             | "Try again"                                                                                        |
+| 5   | 3    | "Return"                                                                                                                                                | "Send back with a note"                                                                            |
+| 6   | 3    | "Couldn't publish the names"                                                                                                                            | "Couldn't publish them. Nothing changed. Try again."                                               |
+| 7   | 4    | "Could not not a conflict."                                                                                                                             | "Couldn't remove the Conflict mark. Nothing changed. Try again."                                   |
+| 8   | 4    | "hidden: under 5, or it would give one under 5 away"                                                                                                    | "Hidden, to protect small counts."                                                                 |
+| 9   | 5    | "The look-up failed"                                                                                                                                    | "Ask could not look this up just now. Ask again in a minute."                                      |
+| 10  | 5    | "Nobody has written down anything about Orders in Spain in October 2026. That doesn't mean there's no explanation, only that none is written down yet." | "Nothing is written about Orders in Spain in October 2026 yet. There may still be an explanation." |
+
+Three smaller rules follow from them:
+
+- **Ask calls itself Ask.** Never "I", "the model", "the check", "the look-up" or the product's name. An agent says "I", because a person is talking with it. The service says "we" only for an outage it caused.
+- **"Not" in full, and one negative at most.** "That doesn't mean there's no explanation, only that none is written down" has three.
+- **A date has its year, and comes from the reader's locale.**
+
+### Words that must stay for the engineer
+
+An engineer needs the exact term to search a log, match a setting or follow a guide. A sales person must not have to read it. Show **the plain line first, the exact term second and smaller**, in one of three shapes:
+
+1. **Two lines.** The plain line is the label and the exact term sits under it, or beside it, in small mono: "Get the context for a question" with `get_context`.
+2. **Brackets on first use.** "As a spreadsheet (CSV)", "choose OAuth (sign in through the browser)".
+3. **A fold.** "Developer details" in Ask, "Connection details" on a tool's figures, "For engineers" in Advanced.
+
+A word that is only for engineers does not stay on a screen for everyone: dev server, thread, queue, ledger, facet, backing off, allow list, "the service", "Enter URL". Model ids, milliseconds and similar terms may stay on an admin page, with the unit spelled out once.
+
 ## Who we write for
 
 People in finance, marketing, operations and management. Many read English as a second language. They know their business and their numbers. They should never need to know data or AI words.
@@ -159,7 +200,7 @@ The live line: **Not connected yet**, **Waiting for your agent to connect...**, 
 
 ### Integrations
 
-States: Connected, Syncing, Sync failed, Needs a new key, Not connected, Soon. Actions: Connect, Read again, Test connection. The switch **Show figures in Ask** is off by default.
+States: Healthy, Failed, Needs a new key, Paused. Actions: Connect, Read again, Test connection. The switch **Show figures in Ask** is off by default.
 
 ### Alerts
 
@@ -200,6 +241,8 @@ The code keeps its own words (item, area, retire, edition, scope, proposal). Onl
 
 - **Copy test.** `tests/web/lib/copy.test.ts` reads every string a person can read (string literals, template text and JSX text, through the TypeScript syntax tree) and fails on a hand-written product name, a definitions tool named outside its integration, the banned words, any answer label that is not one of the six, any kind label that is not one of the four, a hint over fourteen words, a state sentence over eight, and a contraction in an answer label, its sentence or its long form. The same test checks the connect steps and the live line in every state: the name only inside commands and the address, never an em dash. The same rules are also lint rules on `src/web` (`heed/plain-words` with glossary v2 and `brand/no-product-name`, `tests/lint/web-words.test.ts`) and as checks of the vocabularies in `words.ts` (`tests/server/domain/words.test.ts`). The checks of the connect steps read the app's own data, so they come with it.
 - **Plain-words lint.** `heed/plain-words` with the glossary reports old words. `brand/no-product-name` reports a hand-written name. A baseline ratchet applies to the service's sentences only.
+- **Copy ratchets.** `npm run lint:words` also holds what people read outside the web app (`src/domain`, the contract, the connectors' forms, the demo's fixtures and the message of every service error) to glossary v2, reads the text the lint skips (a `switch` body, a toast's action, a one-word "Publishing…"), and runs six rules for the voice (`eslint.copy-rules.js`): `whole-sentences` (no label lower-cased into a sentence, no "a" before a value, no plural made with "s", no word cut in two), `sentence-length` (over 25 words fails, over 20 is a note), `one-word-one-thing` (Retry, sync, thread, "Needs checking", clash, "a read", lower-case gap and flag, and engineer words off their pages), `errors-say-three-things` (an error with a message, an error toast with a next step), `no-fixed-locale` and `no-demo-in-shared-code`. Each counts against `copy-checks.baseline.json`: a rise fails, a fall is a note, and `npm run lint:words -- --update` lowers it. New text starts clean.
+- **Reading report.** `npm run copy:report` gives, for the files a branch changes, the reading level (LIX), the sentences over 20 words and the glossary terms new to a file. CI writes it to the job summary of a pull request. It is a note and never a gate.
 - **Review.** A reviewer reads the strings of a pull request aloud. If it needs a second reading, it is rewritten.
 
 ## 6. Demo text

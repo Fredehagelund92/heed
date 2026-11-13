@@ -295,6 +295,10 @@ const raw = (value: unknown) =>
  * The settings in groups, each with its value in words and who changed it last. A setting the list
  * does not name still shows, under Other, so nothing the service has is hidden.
  */
+/** What a setting does, in plain words, by its key; undefined for a key this page does not name. */
+export const settingWhat = (key: string): string | undefined =>
+  GROUPS.flatMap((g) => g.settings).find((e) => e.key === key)?.what
+
 export function settingGroups(
   settings: readonly { key: string; value: unknown; changed: SettingChange | null }[],
 ): SettingGroup[] {
