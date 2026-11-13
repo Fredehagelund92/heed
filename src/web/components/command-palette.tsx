@@ -55,6 +55,10 @@ function KindGlyph({ kind }: { kind: Kind }) {
 
 /** Marks a row search everywhere found, so the palette's own filter keeps it. */
 const FOUND = 'found by search everywhere'
+/** Marks a found definition: it scores just above the other found rows, so its group lists first. */
+const DEFINITION = 'found definition'
+/** A value no row has, so nothing is selected; an empty value would make cmdk select the first row. */
+const NONE = 'nothing selected'
 /** Marks an example answer: it sorts last and never takes the selection on its own. */
 const EXAMPLE = 'example answer'
 /** The tools the app has a logo for, by their connector's id in words, so a search for one finds Integrations. */
@@ -65,7 +69,7 @@ const toolWords = Object.keys(logos).join(' ').replaceAll('-', ' ')
  * service's order, below the places and actions that match, and the example answers below those.
  */
 const paletteFilter = (value: string, search: string, keywords?: string[]) => {
-  if (keywords?.includes(FOUND)) return 0.01
+  if (keywords?.includes(FOUND)) return keywords.includes(DEFINITION) ? 0.011 : 0.01
   const score = defaultFilter(value, search, keywords)
   return keywords?.includes(EXAMPLE) && search ? Math.min(score, 0.005) : score
 }
@@ -73,7 +77,7 @@ const paletteFilter = (value: string, search: string, keywords?: string[]) => {
 /** The row Enter takes: the first one, or none when the first is only an example answer. */
 const firstRow = (list: HTMLElement | null) => {
   const row = list?.querySelector('[cmdk-item]:not([aria-disabled="true"])')
-  return row && !row.hasAttribute('data-example') ? (row.getAttribute('data-value') ?? '') : ''
+  return row && !row.hasAttribute('data-example') ? (row.getAttribute('data-value') ?? NONE) : NONE
 }
 
 // Search: shadcn's Command in a dialog, opened with Cmd K or the sidebar's Search. Sized as the
@@ -91,7 +95,7 @@ export function CommandPalette() {
   // The row Enter takes. cmdk picks the first row when the words change, but keeps the row it had
   // when the service's rows arrive, so it is set again whenever the results change, after cmdk
   // has sorted them.
-  const [selected, setSelected] = React.useState('')
+  const [selected, setSelected] = React.useState(NONE)
   const list = React.useRef<HTMLDivElement>(null)
   const results = hits
     ? [
@@ -223,7 +227,7 @@ export function CommandPalette() {
                 <CommandItem
                   key={d.name}
                   value={`definition ${d.name}`}
-                  keywords={[FOUND]}
+                  keywords={[FOUND, DEFINITION]}
                   onSelect={run(() => openDock('def', d.name))}
                 >
                   <TypeGlyph d={d} className="text-current" />
