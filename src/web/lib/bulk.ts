@@ -82,8 +82,8 @@ function whyNot(
     case 'kind':
       if (opts.kind && f.kind === opts.kind)
         return {
-          why: `already a ${kindLabel[opts.kind]}`,
-          reason: `It is a ${kindLabel[opts.kind]} already.`,
+          why: `already ${kindLabel[opts.kind]}`,
+          reason: `Its kind is ${kindLabel[opts.kind]} already.`,
         }
       return
     case 'owner-add':
