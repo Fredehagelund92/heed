@@ -97,6 +97,8 @@ export function CommandPalette() {
   // has sorted them.
   const [selected, setSelected] = React.useState(NONE)
   const list = React.useRef<HTMLDivElement>(null)
+  // Set once the person moves the selection themselves, so the automatic first-row pick yields.
+  const moved = React.useRef(false)
   const results = hits
     ? [
         hits.definitions.map((d) => d.name),
@@ -124,8 +126,13 @@ export function CommandPalette() {
     setOpen(false)
     fn()
   }
+  React.useLayoutEffect(() => {
+    moved.current = false
+  }, [q, results])
   React.useEffect(() => {
-    const frame = requestAnimationFrame(() => setSelected(firstRow(list.current)))
+    const frame = requestAnimationFrame(() => {
+      if (!moved.current) setSelected(firstRow(list.current))
+    })
     return () => cancelAnimationFrame(frame)
   }, [q, results])
   const onOpenChange = (o: boolean) => {
@@ -140,13 +147,20 @@ export function CommandPalette() {
       title="Search"
       description="Search context and go anywhere"
     >
-      <Command filter={paletteFilter} value={selected} onValueChange={setSelected}>
+      <Command
+        filter={paletteFilter}
+        value={selected}
+        onValueChange={setSelected}
+        onKeyDown={(e) => {
+          if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) moved.current = true
+        }}
+      >
         <CommandInput
           placeholder="Search context, or type a place…"
           value={q}
           onValueChange={setQ}
         />
-        <CommandList ref={list}>
+        <CommandList ref={list} onPointerMove={() => (moved.current = true)}>
           <CommandEmpty>Nothing found.</CommandEmpty>
           <CommandGroup heading="Go to">
             <CommandItem onSelect={run(() => navigate('/inbox'))}>

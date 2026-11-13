@@ -79,6 +79,22 @@ test('the arrow keys still move the selection, and Enter takes the row they stop
   await expect(page).toHaveURL(/dock=context\./)
 })
 
+test('an arrow key pressed as new results draw is not undone', async ({ page }) => {
+  await openSearch(page)
+  await input(page).fill('net revenue')
+  await expect(heading(page, 'Context')).toBeVisible()
+  await expectFirstRowSelected(page)
+  await settled(page)
+  await input(page).pressSequentially(' in')
+  await expectFirstRowSelected(page)
+  const first = await rows(page).first().getAttribute('data-value')
+  await page.keyboard.press('ArrowDown')
+  await expect.poll(() => selected(page).getAttribute('data-value')).not.toBe(first)
+  const moved = await selected(page).getAttribute('data-value')
+  await settled(page)
+  await expect(selected(page)).toHaveAttribute('data-value', moved!)
+})
+
 test('an example answer never takes Enter, and still opens from the arrow keys', async ({
   page,
 }) => {
