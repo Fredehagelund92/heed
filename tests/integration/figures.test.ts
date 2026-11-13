@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { Writable } from 'node:stream'
 import { randomBytes, randomUUID } from 'node:crypto'
 import pg from 'pg'
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest'
 import type {
   FigureRead,
   FigureSources,
@@ -538,6 +538,7 @@ describe('reading a figure (FR-716)', () => {
     expect(
       await readFigure('author', { ...orders, from: '2026-08-02', to: '2026-08-31' }),
     ).toMatchObject({ state: 'figure', value: 30400 })
+    const asked = cube.requests.length
     cube.fail(401, 401)
     expect(await readFigure('author', { ...orders, from: '2026-08-03', to: '2026-08-31' })).toEqual(
       {
@@ -547,6 +548,9 @@ describe('reading a figure (FR-716)', () => {
         failure: 'unauthorized',
       },
     )
+    // The read gives up on the first 401; the days before are asked beside it and may land later,
+    // and must not take a failure planned for a later read.
+    await vi.waitFor(() => expect(cube.requests.length - asked).toBeGreaterThanOrEqual(2))
     // A measure the model's access policy hides from the token is not allowed, not unreachable.
     cube.hide('orders.orders')
     try {
