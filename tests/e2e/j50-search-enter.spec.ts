@@ -63,8 +63,23 @@ test('the arrow keys still move the selection, and Enter takes the row they stop
   await openSearch(page)
   await input(page).fill('net revenue')
   await expect(heading(page, 'Context')).toBeVisible()
+  await expectFirstRowSelected(page)
   await page.keyboard.press('ArrowDown')
   await expect(selected(page)).toHaveText(/^Net revenue in Spain/)
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/dock=context\./)
+})
+
+test('an arrow key pressed as the results arrive is not undone by the first row', async ({
+  page,
+}) => {
+  await openSearch(page)
+  await input(page).fill('net revenue')
+  await expect(heading(page, 'Context')).toBeVisible()
+  await page.keyboard.press('ArrowDown')
+  // The selection stays where the person moved it, however long the first row had to settle.
+  await expect(selected(page)).toHaveText(/^Net revenue in Spain/)
+  await expect(selected(page)).toHaveText(/^Net revenue in Spain/, { timeout: 500 })
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/dock=context\./)
 })
