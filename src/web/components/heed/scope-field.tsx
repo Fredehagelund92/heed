@@ -15,9 +15,9 @@ import type { ScopeTerm } from '@/model/items'
 
 // "Applies to" (FR-107, FR-126): the item's metrics, dimensions and values as chips, and one picker
 // that searches the vocabulary on the server. A dimension can hold thousands of values, so nothing
-// lists them all: before anything is typed the picker offers the person's recent terms; typing
-// finds a few metrics and, per dimension, how many values match, the first few and the dimension
-// itself as "any value". "All 2,400 values" searches inside one dimension, in a list that draws
+// lists them all: before anything is typed the picker offers the person's recent terms, the busiest
+// metrics and the dimensions without their values; typing finds a few metrics and, per dimension,
+// how many values match, the first few and the dimension itself as "any value". "All 2,400 values" searches inside one dimension, in a list that draws
 // only the rows in view and reads them a page at a time. Arrows move, Enter adds or takes out,
 // Right arrow opens a dimension, Backspace in the empty box leaves it, Esc closes.
 
