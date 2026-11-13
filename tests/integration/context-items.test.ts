@@ -12,6 +12,7 @@ import type {
 import type { LibraryIndex } from '../../src/contract/index.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { Draft } from '../../src/domain/draft.ts'
+import { anyDate } from '../../src/domain/validity.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -250,6 +251,19 @@ describe('publishing in one step (FR-137)', () => {
       [r.proposalId],
     )
     expect(relations.rows).toEqual([{ item_id: there, relation: 'disagrees' }])
+  })
+
+  it('finds the clash of an item that holds from the beginning, as it does for one that starts today', async () => {
+    // What the editor sends for "always": the service keeps a start for every item.
+    const { scope } = draft()
+    const there = await live({ scope })
+    const waits = await call('POST', '/items/publish', 'owner', {
+      draft: draft({ scope, validity: { start: anyDate.start, end: null } }),
+    })
+    expect(waits.statusCode).toBe(422)
+    expect(
+      waits.json<{ data: { clashes: { itemId: string }[] } }>().data.clashes.map((c) => c.itemId),
+    ).toEqual([there])
   })
 
   it('refuses a draft the checks refuse, and keeps nothing', async () => {

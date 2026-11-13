@@ -604,10 +604,13 @@ export function describeHeedApi(
       'searches what an item applies to without listing every value of a dimension (FR-107)',
       async () => {
         const live = await signedIn()
-        // No words: only the person's recent terms, never a dimension's values.
+        // No words: the person's recent terms, the metrics and each dimension, never a dimension's values.
         const empty = await live.searchScope({ q: '' })
-        expect(empty).toMatchObject({ metrics: [], groups: [], nextCursor: null })
+        expect(empty.nextCursor).toBeNull()
         expect(empty.recent.length).toBeLessThanOrEqual(6)
+        expect(empty.metrics.length).toBeGreaterThan(0)
+        expect(empty.groups.length).toBeGreaterThan(0)
+        expect(empty.groups.every((g) => g.values.length === 0)).toBe(true)
         // Another name finds the value, named with its dimension and the name it matched.
         const norge = await live.searchScope({ q: 'norge' })
         expect(norge.groups.find((g) => g.dimension.key === 'dim:market')?.values[0]).toMatchObject(

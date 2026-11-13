@@ -34,7 +34,7 @@ test('a new item starts in a real domain and names what it still needs', async (
   await expect(domain).not.toContainText('Choose a domain')
   await expect(publish(page)).toHaveAttribute('aria-disabled', 'true')
   await expect(publish(page)).toHaveAccessibleDescription(
-    'Add a title, what agents should know, where it applies, a source first.',
+    'Add a title, what agents should know, where it applies, when it happened, a source first.',
   )
 
   await write(page, 'Orders are counted when they ship')
@@ -42,7 +42,7 @@ test('a new item starts in a real domain and names what it still needs', async (
   // A source needs a sentence copied from it, and the item a place it applies: the service
   // refuses one without either, so Publish says so before it is pressed.
   await expect(publish(page)).toHaveAccessibleDescription(
-    'Add where it applies, a sentence copied from the source first.',
+    'Add where it applies, when it happened, a sentence copied from the source first.',
   )
   await expect(page.getByText('Not ready: add where it applies')).toBeVisible()
   // Pressed anyway, it goes to the first thing missing.
@@ -57,6 +57,10 @@ async function writeComplete(page: Page) {
   await write(page, 'Orders are counted when they ship')
   await page.locator('#fact-quote').fill('An order counts on the day it ships.')
   await page.keyboard.press('Escape')
+  // An event asks when it happened: this rule of thumb holds at any date.
+  await page.getByRole('button', { name: /^When/ }).click()
+  await page.getByRole('radio', { name: 'Always' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: /^Applies to/ }).click()
   await page.getByRole('combobox', { name: 'Search Applies to' }).fill('Orders')
   await page
