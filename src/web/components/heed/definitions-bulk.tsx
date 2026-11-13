@@ -23,8 +23,9 @@ import { TODAY } from '@/model/history'
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
+import { useDeleteConfirmation } from '@/hooks/use-delete-confirmation'
 import { APP_URL } from '@/lib/brand'
-import { count, download, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
+import { count, download, heldRows, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
 import { useWrite } from '@/api/queries'
 import { leaveAllThen } from '@/lib/presence'
 import { kindName, toolOf, useGlossary, type Definition } from '@/lib/definitions'
@@ -39,17 +40,7 @@ import type { LogEntry } from '@/model/items'
 const OFFLINE = "Off while you're offline. Nothing is lost."
 let entries = 0
 
-export function DefinitionsBulk({
-  sel,
-  defs,
-  deleting,
-  setDeleting,
-}: {
-  sel: RowSelection
-  defs: Definition[]
-  deleting: boolean
-  setDeleting: (open: boolean) => void
-}) {
+export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Definition[] }) {
   const write = useWrite()
   const glossary = useGlossary()
   const domains = useDomains()
@@ -76,12 +67,31 @@ export function DefinitionsBulk({
     return done
   }
 
+  // What Delete would act on now: it decides whether the button and the key may open the confirmation.
   const deletePlan = planTerms('delete', picked, who, domains)
-  const others = glossary.goesWith(deletePlan.act.map((d) => d.name))
+  const off = online ? undefined : OFFLINE
+  const deleteReason = off ?? (deletePlan.act.length ? undefined : deletePlan.skipped[0]?.reason)
+  const { confirming, ask, close } = useDeleteConfirmation(sel, deleteReason, (text) =>
+    setNote({ text }),
+  )
+  // What the confirmation holds: the terms it was opened with, not the ticks as they are now.
+  const held = planTerms(
+    'delete',
+    heldRows(defs, confirming, (d) => d.name),
+    who,
+    domains,
+  )
+  const others = glossary.goesWith(held.act.map((d) => d.name))
+  // It shuts, and stays shut, when the terms are gone from under it or the connection is: it never
+  // says "Delete 0 terms?" and never opens by itself when the connection returns.
+  const stale = !!confirming && (!held.act.length || !online)
+  React.useEffect(() => {
+    if (stale) close()
+  })
 
   async function remove() {
-    const names = deletePlan.act.map((d) => d.name)
-    const gone = [...deletePlan.act, ...others]
+    const names = held.act.map((d) => d.name)
+    const gone = [...held.act, ...others]
     const entry: LogEntry = {
       id: `log-term-${++entries}`,
       on: TODAY,
@@ -98,7 +108,7 @@ export function DefinitionsBulk({
         () => write('deleteTerms', { names, entry }).then(done),
       ).catch(fail)
     })
-    settle(deletePlan.act, deletePlan.skipped)
+    settle(held.act, held.skipped)
     toast(`${count(names.length, 'term')} deleted`, {
       description: others.length ? `With ${count(others.length, 'other name')}.` : undefined,
       duration: 10_000,
@@ -116,8 +126,6 @@ export function DefinitionsBulk({
     })
   }
 
-  const off = online ? undefined : OFFLINE
-  const deleteReason = off ?? (deletePlan.act.length ? undefined : deletePlan.skipped[0]?.reason)
   const domainChoices = movableTo(who, domains)
 
   return (
@@ -132,7 +140,7 @@ export function DefinitionsBulk({
             : { text: "You're offline. Changes are off until you're back; nothing is lost." }
         }
       >
-        <BulkButton reason={deleteReason} onClick={() => setDeleting(true)}>
+        <BulkButton reason={deleteReason} onClick={ask}>
           <Trash2Icon />
           <span className="max-sm:sr-only">Delete</span>
         </BulkButton>
@@ -203,17 +211,17 @@ export function DefinitionsBulk({
         </DropdownMenu>
       </BulkBar>
       <DeleteDialog
-        open={deleting && !deleteReason}
-        onOpenChange={setDeleting}
+        open={!!confirming && !stale}
+        onOpenChange={(open) => !open && close()}
         noun="term"
-        titles={deletePlan.act.map((d) => d.name)}
+        titles={held.act.map((d) => d.name)}
         consequence="Agents stop reading these words from the next question. They are removed for good; you can undo it for a few seconds."
         also={
           others.length
             ? `Their other names go too: ${others.map((d) => d.name).join(', ')}.`
             : undefined
         }
-        skipped={deletePlan.skipped}
+        skipped={held.skipped}
         onDelete={() => void remove()}
       />
     </>

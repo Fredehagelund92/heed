@@ -31,11 +31,13 @@ import { APP_URL } from '@/lib/brand'
 import { kindLabel, type DomainId, type Fact, type Kind } from '@/model/items'
 import { ownersOf } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
+import { useDeleteConfirmation } from '@/hooks/use-delete-confirmation'
 import {
   canChange,
   count,
   doneLine,
   download,
+  heldRows,
   movableTo,
   planFacts,
   skippedLine,
@@ -66,15 +68,11 @@ export function ContextBulk({
   sel,
   facts,
   matching,
-  deleting,
-  setDeleting,
 }: {
   sel: RowSelection
   facts: Fact[]
   /** Every row the search and filters match, folded groups too. */
   matching: string[]
-  deleting: boolean
-  setDeleting: (open: boolean) => void
 }) {
   const { viewed } = useLibrary()
   const me = useMe()
@@ -187,8 +185,6 @@ export function ContextBulk({
       {},
       rows,
     )
-  const remove = () =>
-    change('delete', 'deleted', 'deleted', 'Deleted: a draft nobody published.', () => ({}))
 
   // What each button would do now, so one that can't act says why before it is pressed.
   const archivePlan = planFacts('archive', picked, who, domains)
@@ -208,6 +204,34 @@ export function ContextBulk({
   const deleteReason =
     off ??
     (deletePlan.act.length || publishedPlan.act.length ? undefined : deletePlan.skipped[0]?.reason)
+  const { confirming, ask, close } = useDeleteConfirmation(sel, deleteReason, (text) =>
+    setNote({ text }),
+  )
+  // What the confirmation holds: the items it was opened with, not the ticks as they are now.
+  const heldPicked = heldRows(facts, confirming, (f) => f.id)
+  const held = planFacts('delete', heldPicked, who, domains)
+  const heldPublished = planFacts(
+    'archive',
+    heldPicked.filter((f) => f.status !== 'Draft'),
+    who,
+    domains,
+  )
+  const remove = () =>
+    change(
+      'delete',
+      'deleted',
+      'deleted',
+      'Deleted: a draft nobody published.',
+      () => ({}),
+      {},
+      heldPicked,
+    )
+  // It shuts, and stays shut, when the items are gone from under it or the connection is: it never
+  // says "Delete 0 drafts?" and never opens by itself when the connection returns.
+  const stale = !!confirming && (!(held.act.length || heldPublished.act.length) || !online)
+  React.useEffect(() => {
+    if (stale) close()
+  })
 
   const owners = people.filter((p) => !p.invited && (p.admin || p.owns.length))
   const domainChoices = movableTo(who, domains)
@@ -233,7 +257,7 @@ export function ContextBulk({
           <ArchiveIcon />
           <span className="max-sm:sr-only">Archive</span>
         </BulkButton>
-        <BulkButton reason={deleteReason} onClick={() => setDeleting(true)}>
+        <BulkButton reason={deleteReason} onClick={ask}>
           <Trash2Icon />
           <span className="max-sm:sr-only">Delete</span>
         </BulkButton>
@@ -289,7 +313,7 @@ export function ContextBulk({
                           'kind',
                           'changed',
                           'kind',
-                          `Now a ${kindLabel[k]}.`,
+                          `Kind changed to ${kindLabel[k]}.`,
                           () => ({ kind: k }),
                           { kind: k },
                         )
@@ -415,15 +439,15 @@ export function ContextBulk({
         </DropdownMenu>
       </BulkBar>
       <DeleteDialog
-        open={deleting && !deleteReason}
-        onOpenChange={setDeleting}
+        open={!!confirming && !stale}
+        onOpenChange={(open) => !open && close()}
         noun="draft"
-        titles={deletePlan.act.map((f) => f.title)}
+        titles={held.act.map((f) => f.title)}
         consequence="Nobody published them, so agents never got them. They are removed for good; you can undo it for a few seconds."
-        skipped={deletePlan.skipped}
+        skipped={held.skipped}
         archive={
-          publishedPlan.act.length
-            ? { count: publishedPlan.act.length, onArchive: () => archive(publishedPlan.act) }
+          heldPublished.act.length
+            ? { count: heldPublished.act.length, onArchive: () => archive(heldPublished.act) }
             : undefined
         }
         onDelete={remove}

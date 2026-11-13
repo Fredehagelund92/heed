@@ -59,7 +59,11 @@ describe('a change to many rows', () => {
   it('leaves alone what is already so: the same domain, the same kind', () => {
     const rows = [row('a'), row('b', { kind: 'guide' })]
     expect(plan(rows, { action: 'kind', kind: 'guide' }).skipped).toEqual([
-      expect.objectContaining({ id: 'b', code: 'same_kind', message: 'It is a Guide already.' }),
+      expect.objectContaining({
+        id: 'b',
+        code: 'same_kind',
+        message: 'Its kind is Guide already.',
+      }),
     ])
     expect(plan(rows, { action: 'domain', areaId: 'sales' }).skipped[0]).toMatchObject({
       code: 'same_domain',
@@ -97,7 +101,7 @@ describe('what a change says in History', () => {
       changeSummary({ action: 'domain', areaId: 'marketing' }, ['A', 'B', 'C'], domainName),
     ).toBe('Moved “A” and 2 more to Marketing.')
     expect(changeSummary({ action: 'kind', kind: 'issue' }, ['A'], domainName)).toBe(
-      'Made “A” a Warning.',
+      'Changed the kind of “A” to Warning.',
     )
   })
 })

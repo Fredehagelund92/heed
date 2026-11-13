@@ -405,7 +405,10 @@ describe('a change to many items at once (FR-139)', () => {
     })
     expect(page.history.at(-1)).toMatchObject({ version: 1, kind: 'published', restorable: true })
     const same = await bulk('owner', { action: 'kind', rows: [item], kind: 'guide' })
-    expect(same.skipped[0]).toMatchObject({ code: 'same_kind', message: 'It is a Guide already.' })
+    expect(same.skipped[0]).toMatchObject({
+      code: 'same_kind',
+      message: 'Its kind is Guide already.',
+    })
     expect((await undo('owner', r.undo!)).statusCode).toBe(200)
     expect(await served(item)).toMatchObject({ n: 1, kind: 'note' })
   })
