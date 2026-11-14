@@ -103,7 +103,9 @@ test('an admin makes a named access key, shown once, lists it, and revokes it', 
   await expect(naming.getByText('Give it a name, such as what the job does.')).toBeVisible()
   await naming.getByLabel('Name').fill('Weekly sales digest')
   await naming.getByRole('button', { name: 'Create' }).click()
-  await expect(page.getByText('Copy it now: it is shown once.')).toBeVisible()
+  const shown = page.getByRole('dialog', { name: 'Your new access key' })
+  await expect(shown.getByText('Copy it now: it is shown once.')).toBeVisible()
+  await shown.getByRole('button', { name: 'Done' }).click()
   await expect(
     page.getByText(
       "For a bot or a scheduled job that can't sign in. 1 key, in Connected agents above.",

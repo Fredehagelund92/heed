@@ -11,9 +11,15 @@ import {
 } from '@/components/ui/empty'
 
 // Catches a screen that fails to render or to load (a lazy chunk the server no longer serves), so
-// one broken page shows what happened and a way back instead of blanking the whole app.
+// one broken page shows what happened and a way back instead of blanking the whole app. A panel
+// says so inside its own frame (`frame`), so it keeps its title and Close.
 export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  {
+    children: React.ReactNode
+    /** What failed, as the message names it: a page, or a panel. */
+    what?: 'page' | 'panel'
+    frame?: (body: React.ReactNode) => React.ReactNode
+  },
   { error: Error | null }
 > {
   override state = { error: null as Error | null }
@@ -28,28 +34,29 @@ export class ErrorBoundary extends React.Component<
 
   override render() {
     const { error } = this.state
-    if (!error) return this.props.children
+    const { children, what = 'page', frame = (body) => body } = this.props
+    if (!error) return children
     const load =
       /dynamically imported module|Importing a module script failed|Failed to fetch/i.test(
         error.message,
       )
-    return (
+    return frame(
       <Empty className="h-full">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <CircleAlertIcon />
           </EmptyMedia>
-          <EmptyTitle>{load ? "This page didn't load" : 'This page hit an error'}</EmptyTitle>
+          <EmptyTitle>{load ? `This ${what} didn't load` : `This ${what} hit an error`}</EmptyTitle>
           <EmptyDescription>
             {load
-              ? "This page's code couldn't be fetched. If you run the app locally, check that the dev server is still running, then reload."
-              : 'This page stopped working. Reload the page to go on.'}
+              ? `This ${what}'s code couldn't be fetched. If you run the app locally, check that the dev server is still running, then reload.`
+              : `This ${what} stopped working. Reload the page to go on.`}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button onClick={() => window.location.reload()}>Reload</Button>
         </EmptyContent>
-      </Empty>
+      </Empty>,
     )
   }
 }

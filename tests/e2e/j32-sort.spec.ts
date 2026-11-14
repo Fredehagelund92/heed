@@ -25,11 +25,13 @@ test('Context: a second click on a header flips it, and the keyboard does the sa
   await expect(header(page, 'Context')).toHaveAttribute('aria-sort', 'ascending')
   await expect(header(page, 'Checked')).not.toHaveAttribute('aria-sort')
   await expect(page.getByRole('button', { name: 'Sort Title A to Z' })).toBeVisible()
+  await expect(rows.first()).toBeVisible()
   expect(await texts(rows)).toEqual((await texts(rows)).toSorted(by))
 
   await header(page, 'Context').getByRole('button').click()
   await expect(header(page, 'Context')).toHaveAttribute('aria-sort', 'descending')
   await expect(page.getByRole('button', { name: 'Sort Title Z to A' })).toBeVisible()
+  await expect(rows.first()).toBeVisible()
   expect(await texts(rows)).toEqual((await texts(rows)).toSorted(by).reverse())
 
   // From the keyboard: Enter on the focused header flips it back.

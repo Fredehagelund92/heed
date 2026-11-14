@@ -9,7 +9,8 @@ import { CommandPalette } from '@/components/command-palette'
 import { ShortcutsDialog } from '@/components/shortcuts-dialog'
 import { ReportDialog } from '@/components/report-dialog'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { useDock } from '@/lib/dock'
+import { DOCK_TITLE, useDock } from '@/lib/dock'
+import { DockFrame, DockWaiting } from '@/components/dock'
 import { useAfter } from '@/lib/loading'
 import { DefinitionPeek } from '@/components/heed/definition-peek'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -75,7 +76,7 @@ function ShellSkeleton() {
 }
 
 // A topic's answer panel opens only from Observability, so it comes with that page's code
-// (pages/observability) rather than the first load; it shows nothing until its topic is read.
+// (pages/observability) rather than the first load; its frame shows while that code loads.
 const AnswerPanel = React.lazy(() =>
   import('@/pages/observability').then((m) => ({ default: m.AnswerPanel })),
 )
@@ -120,8 +121,13 @@ function SafeScreen() {
 
 function SafeDock() {
   const dock = useDock()
+  const title = dock ? DOCK_TITLE[dock.kind] : ''
   return (
-    <ErrorBoundary key={`${dock?.kind}.${dock?.id}`}>
+    <ErrorBoundary
+      key={`${dock?.kind}.${dock?.id}`}
+      what="panel"
+      frame={(body) => <DockFrame title={title}>{body}</DockFrame>}
+    >
       <InDock.Provider value>
         <div className="h-full dock-swap">
           <DockContent />
@@ -139,7 +145,7 @@ function DockContent() {
       return <ReviewSheet cardId={dock.id!} />
     case 'context':
       return (
-        <React.Suspense fallback={null}>
+        <React.Suspense fallback={<DockWaiting title={DOCK_TITLE.context} />}>
           <FactPeek id={dock.id!} />
         </React.Suspense>
       )
@@ -151,7 +157,7 @@ function DockContent() {
       return <TryIt cardId={dock.id} />
     case 'topic':
       return (
-        <React.Suspense fallback={null}>
+        <React.Suspense fallback={<DockWaiting title={DOCK_TITLE.topic} />}>
           <AnswerPanel id={dock.id!} />
         </React.Suspense>
       )
@@ -161,7 +167,7 @@ function DockContent() {
       return <WherePanel id={dock.id!} />
     case 'conflict':
       return (
-        <React.Suspense fallback={null}>
+        <React.Suspense fallback={<DockWaiting title={DOCK_TITLE.conflict} />}>
           <ConflictDock pairKey={dock.id ?? ''} />
         </React.Suspense>
       )

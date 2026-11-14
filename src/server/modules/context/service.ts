@@ -626,6 +626,7 @@ export function createContextService(
       item,
       lastChecked: row.lastChecked,
       trust: row.trust,
+      check: row.check,
       chips: row.chips,
       owners: row.owners,
       history: await historyOf(id),

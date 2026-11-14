@@ -86,7 +86,6 @@ export function DefinitionPeek({ name }: { name: string }) {
           subject.type === 'metric' && (
             // The footer's one action, so always the filled primary; the name is in the title right above.
             <Button
-              size="sm"
               nativeButton={false}
               render={<a href={href('/context/new', { metric: d.name })} />}
             >
@@ -95,7 +94,7 @@ export function DefinitionPeek({ name }: { name: string }) {
             </Button>
           )
         ) : (
-          <Button size="sm" nativeButton={false} render={<a href={href(`${page}/edit`)} />}>
+          <Button nativeButton={false} render={<a href={href(`${page}/edit`)} />}>
             <PencilIcon data-icon="inline-start" />
             Edit
           </Button>
@@ -121,7 +120,6 @@ export function DefinitionPeek({ name }: { name: string }) {
               action={
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => navigate(`/definitions/${encodeURIComponent(word.name)}`)}
                 >
                   Resolve

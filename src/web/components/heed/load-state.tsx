@@ -3,6 +3,7 @@ import { ViewTransition } from 'react'
 import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrivedAfterWait, useDelayedBusy } from '@/lib/loading'
 import { useOnline } from '@/lib/send'
@@ -145,11 +146,26 @@ export function LoadError({
           Nothing is lost. Check the connection and try again.
         </p>
       </div>
-      <Button variant="outline" size="sm" onClick={onRetry}>
+      <Button variant="outline" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
         Retry
       </Button>
     </div>
+  )
+}
+
+/** A context item's page, or its editor, when the item is not there. */
+export function NoSuchItem() {
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>No such context item</EmptyTitle>
+        <EmptyDescription>
+          It may have been a draft someone deleted. Settings, Advanced says who deleted what, and
+          when.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   )
 }
 
@@ -179,7 +195,7 @@ export function RefreshError({
         <span className="font-medium">Couldn't refresh {what}.</span>{' '}
         <span className="text-muted-foreground">What you see may be out of date.</span>
       </span>
-      <Button variant="ghost" size="sm" onClick={onRetry}>
+      <Button variant="ghost" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
         Try again
       </Button>

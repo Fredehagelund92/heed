@@ -25,7 +25,7 @@ import type { Version, VersionKind } from '@/model/history'
 import type { Fact, Kind, LogEntry, ScopeTerm } from '@/model/items'
 import { dateLabel, whenLabel } from '@/model/validity'
 import type { ItemPage } from './client'
-import { ownersOf, statusOf, validityOf, type Names } from './http-map'
+import { dueWords, ownersOf, statusOf, validityOf, type Names } from './http-map'
 
 /* ---------- the words a scope and a mention name ---------- */
 
@@ -299,6 +299,7 @@ export function factOfPage(page: ServiceItemPage, names: Names, words: Words): F
     valid,
     when: whenLabel(valid),
     status: statusOf({ status: item.status, trust: page.trust }),
+    ...dueWords({ check: page.check, reviewDate: item.reviewDate }),
     checkedBy: page.lastChecked ? names.person(page.lastChecked.personId) : '',
     checkedOn: page.lastChecked ? dateLabel(page.lastChecked.on) : '',
     source: evidence?.url ?? '',

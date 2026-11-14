@@ -1,5 +1,5 @@
 import { askedOf, stateLabel, stateSentence, type Answer } from '@/model/ask'
-import { TODAY } from '@/model/history'
+import { today } from './today'
 import type { Fact } from '@/model/items'
 
 // Copy for Slack, and the answer card: what an answer keeps when it leaves the product. Only what
@@ -8,8 +8,8 @@ import type { Fact } from '@/model/items'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** "23 Oct 2026", from the demo world's today. */
-export const answeredOn = (iso: string = TODAY) => {
+/** "23 Oct 2026", from the service's today. */
+export const answeredOn = (iso: string = today()) => {
   const [y, m, d] = iso.split('-').map(Number)
   return `${d} ${MONTHS[m! - 1]} ${y}`
 }

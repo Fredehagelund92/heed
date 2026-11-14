@@ -45,7 +45,7 @@ import type { AutoPublish, DomainPolicies, Policy } from '@/lib/policies'
 import type { Filters, SavedView } from '@/lib/obs-views'
 import type { ObsData, Range } from '@/model/observability'
 import type { Replay, When } from '@/model/replay'
-import type { Domain, Person } from '@/model/people'
+import type { Domain, Invite, Person } from '@/model/people'
 import type { Relation, Review } from '@/model/review'
 import type { SettingGroup } from '@/model/settings'
 import type { SavedQuestion } from '@/model/saved-questions'
@@ -69,7 +69,10 @@ export type Workspace = {
   /** The workspace's name, as an admin set it in General. */
   name: string
   domains: Domain[]
+  /** The members. */
   people: Person[]
+  /** The open invites: nobody here yet, and never anyone's stand-in as a domain's owner. */
+  invites: Invite[]
   /** What the business is about, in its own words: every agent reads it first. */
   about: string
   /** What Start from the guide fills in: a worked example of that text. */
@@ -345,23 +348,26 @@ export interface HeedApi {
   /** A new domain; its id is made from the name. */
   addDomain: (input: { name: string; owners: string[]; text?: string }) => Promise<{ id: DomainId }>
   removeDomain: (input: { id: DomainId }) => Promise<void>
-  /** Makes someone an owner of a domain, or not. A domain always keeps one owner: `last` refuses. */
+  /** Makes a member an owner of a domain, or not. A domain always keeps one owner: `last` refuses. */
   setOwner: (input: {
-    name: string
+    id: string
     domain: DomainId
     own: boolean
   }) => Promise<{ done: true } | { done: false; last: true }>
-  setAdmin: (input: { name: string; admin: boolean }) => Promise<void>
+  /** Makes a member an admin, or a member. */
+  setAdmin: (input: { id: string; admin: boolean }) => Promise<void>
   /** Invites people by address: a member or an admin, owners of the chosen domains from the start. */
   invite: (input: { emails: string[]; admin: boolean; owns: DomainId[] }) => Promise<Invited>
-  /** Sends an invite again: a new link, and the old one stops working. */
-  resendInvite: (input: { name: string }) => Promise<{ link: string }>
+  /** Sends an invite again, by its id: a new link, and the old one stops working. */
+  resendInvite: (input: { id: string }) => Promise<{ link: string }>
+  /** Takes back an invite, by its id: its link stops working. Undo invites them again. */
+  revokeInvite: (input: { id: string }) => Promise<Undoable>
   /**
-   * Takes back an invite or removes someone, unless they own a domain alone: those domains come
-   * back instead, to hand over first.
+   * Removes a member, by their id, unless they own a domain alone: those domains come back
+   * instead, to hand over first.
    */
   removePerson: (input: {
-    name: string
+    id: string
   }) => Promise<({ removed: true } & Undoable) | { removed: false; alone: DomainId[] }>
 
   // The library
@@ -802,6 +808,7 @@ export const heedApiMethods = [
   'setAdmin',
   'invite',
   'resendInvite',
+  'revokeInvite',
   'removePerson',
   'getLibrary',
   'searchAll',
@@ -930,6 +937,66 @@ const complete: [Missing] extends [never] ? true : Missing = true
 void complete
 
 export type HeedApiMethod = (typeof heedApiMethods)[number]
+
+/** The reads: every other method of `HeedApi` is a write. */
+export const readMethods = [
+  'getSession',
+  'listSignInPeople',
+  'getWorkspace',
+  'getVocabulary',
+  'getActivity',
+  'getSignInMethod',
+  'readInvite',
+  'getLibrary',
+  'searchAll',
+  'searchScope',
+  'contextPage',
+  'itemPage',
+  'conflicts',
+  'conflict',
+  'getItemHistory',
+  'getRelated',
+  'draftFromText',
+  'getComments',
+  'getDefinitions',
+  'definitionsPage',
+  'definitionPage',
+  'getDefinitionHistory',
+  'getInbox',
+  'inboxPage',
+  'getReviews',
+  'getNames',
+  'getSavedQuestions',
+  'getSavedCheck',
+  'getAlerts',
+  'getSavedViews',
+  'readQuestion',
+  'ask',
+  'getAskExamples',
+  'askedThisWeek',
+  'listChats',
+  'getMyReports',
+  'getSettings',
+  'advancedPage',
+  'getIntegrations',
+  'integrationsPage',
+  'integrationPage',
+  'connectForm',
+  'testIntegration',
+  'integrationLeftOut',
+  'readFigure',
+  'tryFigure',
+  'listAgentConnections',
+  'getAutoPublish',
+  'getDomainPolicies',
+  'checkConnect',
+  'getConnectReview',
+  'getConnectRequest',
+  'observabilityPage',
+  'obsDimensions',
+  'obsValues',
+  'replayTopic',
+] as const satisfies readonly HeedApiMethod[]
 
 /**
  * The reads a screen's loading state shows (Loadable, or the skeleton of Overview's filter and its

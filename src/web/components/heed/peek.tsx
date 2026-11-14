@@ -203,25 +203,16 @@ export function PeekLink({
   href?: string
   className?: string
 }) {
-  const cls = cn(
-    "-ml-1.5 h-7 gap-1.5 px-1.5 text-sm font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-11 [&_svg:not([class*='size-'])]:size-3.5",
-    className,
-  )
+  const cls = cn('-ml-3 text-muted-foreground hover:text-foreground pointer-coarse:h-11', className)
   if (href)
     return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cls}
-        nativeButton={false}
-        render={<a href={href} />}
-      >
+      <Button variant="ghost" className={cls} nativeButton={false} render={<a href={href} />}>
         <Icon aria-hidden />
         {children}
       </Button>
     )
   return (
-    <Button variant="ghost" size="sm" className={cls} onClick={onClick}>
+    <Button variant="ghost" className={cls} onClick={onClick}>
       <Icon aria-hidden />
       {children}
     </Button>

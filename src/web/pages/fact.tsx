@@ -27,7 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
 import { openDock } from '@/lib/dock'
@@ -39,9 +38,9 @@ import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
 import { useWide } from '@/hooks/use-wide'
 import { VersionHistory } from '@/components/heed/version-history'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
-import { Loadable, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
+import { Loadable, NoSuchItem, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() =>
@@ -82,21 +81,13 @@ export function FactPage({ id }: { id: string }) {
   if (!fact)
     return (
       <Page title="Context">
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No such context item</EmptyTitle>
-            <EmptyDescription>
-              It may have been a draft someone deleted. Settings, Advanced says who deleted what,
-              and when.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <NoSuchItem />
       </Page>
     )
   const owner = me.owns.includes(fact.domain) || me.admin
   const entryFor = (what: LogEntry['what'], summary: string): LogEntry => ({
     id: `log-${what}-${fact.id}`,
-    on: TODAY,
+    on: today(),
     who: me.name,
     what,
     summary,
@@ -150,7 +141,6 @@ export function FactPage({ id }: { id: string }) {
           {owner && (
             <Button
               variant="outline"
-              size="sm"
               onClick={() =>
                 void write('editItem', {
                   id: fact.id,
@@ -216,7 +206,7 @@ export function FactPage({ id }: { id: string }) {
         <>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label="Ask about this context item"
             onClick={() => openDock('ask')}
           >
@@ -224,7 +214,7 @@ export function FactPage({ id }: { id: string }) {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="outline" size="icon-sm" aria-label="More" />}
+              render={<Button variant="outline" size="icon" aria-label="More" />}
             >
               <EllipsisIcon />
             </DropdownMenuTrigger>
@@ -264,9 +254,10 @@ export function FactPage({ id }: { id: string }) {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* Where the page has a decision of its own (Compare and decide), that is its one solid blue button. */}
           {owner ? (
             <Button
-              size="sm"
+              variant={other ? 'outline' : 'default'}
               nativeButton={false}
               render={<a href={href(`/context/${fact.id}/edit`)} />}
             >
@@ -275,7 +266,7 @@ export function FactPage({ id }: { id: string }) {
           ) : (
             !pending && (
               <Button
-                size="sm"
+                variant={other ? 'outline' : 'default'}
                 nativeButton={false}
                 render={<a href={href(`/context/${fact.id}/suggest`)} />}
               >
@@ -308,8 +299,7 @@ export function FactPage({ id }: { id: string }) {
                 </span>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7"
+
                   onClick={() =>
                     void write('withdrawSuggestion', { id: pending.id }).then(() =>
                       toast('Withdrawn', { description: 'The owner no longer sees it.' }),

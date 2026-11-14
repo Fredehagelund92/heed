@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useLibrary, useSession, useWorkspace } from '@/api/queries'
 import type { Fact } from '@/model/items'
-import type { Domain, Domains, Person } from '@/model/people'
+import type { Domain, Domains, Invite, Person } from '@/model/people'
 
 // The shared reads as the screens use them: who is signed in, the workspace's domains and people,
 // and the context items. The shell loads them once before it draws (App.tsx), so these read the
 // cache and never wait.
 
-const EMPTY: Person = { name: '', role: '', owns: [], admin: false }
+const EMPTY: Person = { id: '', name: '', role: '', owns: [], admin: false }
 
 /** Someone by name; the first person when nobody matches, as the demo's picker starts. */
 export const personIn = (people: Person[], name: string | null) =>
@@ -29,7 +29,11 @@ export function useDomains(): Domains {
 /** The domains in the workspace's order. */
 export const useDomainList = (): Domain[] => useWorkspace().domains
 
+/** The members. */
 export const usePeople = (): Person[] => useWorkspace().people
+
+/** The open invites. */
+export const useInvites = (): Invite[] => useWorkspace().invites
 
 /** Every context item as it is now. */
 export const useFacts = (): Fact[] => useLibrary().items

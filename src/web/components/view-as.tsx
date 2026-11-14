@@ -36,9 +36,8 @@ export function ViewAs() {
         render={
           <Button
             variant="outline"
-            size="sm"
             aria-label={`View as: ${me.name}`}
-            className="max-sm:size-8 max-sm:px-0"
+            className="max-sm:size-7 max-sm:px-0"
           />
         }
       >
