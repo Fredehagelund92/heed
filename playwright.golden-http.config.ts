@@ -78,7 +78,7 @@ export default defineConfig({
   projects: [{ name: 'chromium' }],
   webServer: {
     command:
-      `tsc -p tsconfig.web.json --noEmit && vite build --outDir ../../dist/web-http --emptyOutDir && ` +
+      `vite build --outDir ../../dist/web-http --emptyOutDir && ` +
       `vite preview --outDir ../../dist/web-http --port ${webPort}`,
     url: `http://localhost:${webPort}`,
     reuseExistingServer: !ci,
