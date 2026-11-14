@@ -105,7 +105,7 @@ The service runs its own jobs on the same database. A job that came due while th
 POST /api/v1/operations/jobs/retention.run/run
 ```
 
-Problems are error log lines with an `alert` field: `job_failed` after the last retry, and `job_overdue` and `connector_stale` from the watchdog.
+Problems are error log lines with an `alert` field: `job_failed` after the last retry, and `job_overdue` and `connector_stale` from the watchdog. A job that only waits out an earlier failure, as the saved check does, is backing off, not succeeding: the failure stands until a run goes well, and the watchdog sees the job overdue meanwhile.
 
 ## Metrics
 

@@ -18,7 +18,9 @@ export function savedCheckJob({ clock = systemClock() }: { clock?: Clock } = {})
     expectedEverySeconds: 15 * 60,
     async run({ database }) {
       const done = await checkIfMoved(database, clock, cache)
-      return done ? { trigger: done.trigger, checked: done.checked } : { checked: 0 }
+      if (!done) return { checked: 0 }
+      if ('backingOff' in done) return { checked: 0, backingOff: true }
+      return { trigger: done.trigger, checked: done.checked }
     },
   }
 }

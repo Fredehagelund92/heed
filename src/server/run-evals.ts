@@ -6,6 +6,8 @@ import { ConfigError, loadConfig } from './config/env.ts'
 import { createDatabase, type Queryable } from './db/database.ts'
 import {
   CEILING_MARGIN,
+  commandKinds,
+  commandRunNotResumed,
   createEvalsService,
   modelsFor,
   queueAreaRun,
@@ -110,13 +112,14 @@ async function main() {
     if (values.resume) {
       const id = values.resume
       const [run] = await database.query<{
+        kind: string
         state: string
         spent: string
         estimated: string
         model_id: string
         judge_model_id: string | null
       }>(
-        'select state::text,actual_cost_micros::text as spent,estimated_cost_micros::text as estimated,model_id,judge_model_id from eval_runs where id=$1',
+        'select kind::text,state::text,actual_cost_micros::text as spent,estimated_cost_micros::text as estimated,model_id,judge_model_id from eval_runs where id=$1',
         [id],
       )
       if (!run) {
@@ -125,6 +128,10 @@ async function main() {
       }
       if (run.state !== 'incomplete') {
         console.error(`Run ${id} is ${run.state}; only an incomplete run is resumed.`)
+        return 1
+      }
+      if (commandKinds.includes(run.kind)) {
+        console.error(`Run ${id}: ${commandRunNotResumed} It is left as it was.`)
         return 1
       }
       const now = modelsFor(deps.port, await readEvalSettings(database))

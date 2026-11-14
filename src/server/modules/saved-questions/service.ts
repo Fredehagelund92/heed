@@ -63,9 +63,14 @@ const toCheck = `select id::text, area_id as "areaId", question, expect_items as
 export const answerNow = (bundle: AnswerBundle, question: string, today: string): SavedAnswer =>
   savedAnswerOf(answer(bundle, { question }, { today }))
 
-/** A run's row as the API gives it. */
+/**
+ * A run's row as the API gives it. A run is ended by its own process; one that has not ended by the
+ * job's expiry died with that process (a crash, a deploy, a database gone mid-run before it could
+ * mark the run failed), so it reads as failed and Check now works again.
+ */
 const runFields = `r.id::text, r.trigger, r.area_id as "areaId",
-  case when r.failed_at is not null then 'failed' when r.finished_at is not null then 'done' else 'running' end as state,
+  case when r.failed_at is not null then 'failed' when r.finished_at is not null then 'done'
+       when r.started_at < now() - interval '15 minutes' then 'failed' else 'running' end as state,
   r.checked, r.total, r.started_at::text as "startedAt", coalesce(r.finished_at, r.failed_at)::text as "endedAt"`
 
 const iso = (at: string | null) => (at === null ? null : new Date(at).toISOString())
@@ -207,13 +212,14 @@ export async function adoptPublished(
  * What the check job does each minute: once what agents get has moved since its last run (a new
  * edition, a stop or a flag over it from a sync, or a new day, on which a check date may pass), a
  * run over every saved question, named by what moved. Otherwise nothing. A run that failed is not
- * retried for the same state until a wait, doubling with each failure up to an hour, has passed.
+ * retried for the same state until a wait, doubling with each failure up to an hour, has passed;
+ * while it waits it says so, as backing off is not a check that went well.
  */
 export async function checkIfMoved(
   database: Database,
   clock: Clock,
   cache: BundleCache,
-): Promise<{ trigger: CheckTrigger; checked: number } | null> {
+): Promise<{ trigger: CheckTrigger; checked: number } | { backingOff: true } | null> {
   const today = clock.today()
   const moved = await database.transaction(null, async (tx) => {
     const head = await liveHead(tx)
@@ -236,7 +242,7 @@ export async function checkIfMoved(
                                       where started_by is null and finished_at is not null), '-infinity')`,
       [head.seq, head.overlay, today],
     )
-    if (failed?.waiting) return null
+    if (failed?.waiting) return 'backing_off' as const
     if (!last) return 'publish' as const
     if (last.edition !== head.seq) {
       const [newest] = await tx.query<{ reason: string }>(
@@ -250,6 +256,7 @@ export async function checkIfMoved(
     return null
   })
   if (!moved) return null
+  if (moved === 'backing_off') return { backingOff: true }
   const done = await runCheck(database, clock, cache, null, { trigger: moved })
   return { trigger: moved, checked: done.run.checked }
 }
