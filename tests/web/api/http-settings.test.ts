@@ -472,7 +472,9 @@ describe('Settings, Advanced', () => {
   })
 
   it('says each history entry as a line, with a link to what it names', () => {
-    expect(historyLine(entry({}))).toEqual({ what: 'Changed a setting: workspace.name' })
+    expect(historyLine(entry({}))).toEqual({
+      what: 'Changed a setting: The workspace’s name, on the share card and for the people in it (workspace.name)',
+    })
     // An integration's figures settings changed, never which token.
     expect(
       historyLine(entry({ action: 'figures.changed', subjectType: 'source', subjectId: 'cube' })),
@@ -572,7 +574,10 @@ describe('Settings, Advanced', () => {
     )
     expect(rows.map((r) => [r.who, r.what])).toEqual([
       ['Jon Abara', 'Deleted “Black Friday”, “Gift cards” and 1 more'],
-      ['Jon Abara', 'Changed a setting: workspace.name'],
+      [
+        'Jon Abara',
+        'Changed a setting: The workspace’s name, on the share card and for the people in it (workspace.name)',
+      ],
     ])
   })
 

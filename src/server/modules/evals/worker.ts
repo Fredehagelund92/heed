@@ -30,6 +30,7 @@ import { openArm, ToolCallRefused, type Arm } from './arm.ts'
 import { cellEstimateMicros, cellKey, loadRevisions, type ArmName, type Models } from './plan.ts'
 import { replayDeliveries } from './replay.ts'
 import {
+  commandKinds,
   failRun,
   finishRun,
   headAt,
@@ -119,13 +120,12 @@ export async function workEvaluations(
               lease_until=now()+interval '${LEASE}'
         where id=(select id from eval_runs
                    where state in ('queued','running') and ($1::uuid is null or id=$1)
-                     -- The assistant's test cases and the held-out questions are worked by the
-                     -- command that runs them.
-                     and kind not in ('assistant_mock','assistant_real','held_out')
+                     -- Never one only its command works.
+                     and kind <> all($3::eval_kind[])
                      and (worker is null or worker=$2 or lease_until is null or lease_until<now())
                    order by (state='running') desc,created_at limit 1 for update skip locked)
         returning ${runColumns}`,
-      [options.only ?? null, worker],
+      [options.only ?? null, worker, commandKinds],
     )
     if (!run) break
     summary.runs.push(run.id)
@@ -136,11 +136,12 @@ export async function workEvaluations(
 }
 
 async function housekeeping(database: Database, options: WorkOptions, summary: WorkSummary) {
-  // FR-517: a scheduled run that has not finished within a day is failed and alerted, once.
+  // FR-517: a scheduled run that has not finished within a day is failed and alerted, once;
+  // one that stopped too, as nothing resumes a run stopped at a cap or a ceiling by itself.
   const expired = await database.query<{ id: string; area_id: string }>(
     `update eval_runs set state='failed',finished_at=now(),failure='The scheduled run did not finish within 24 hours',
             worker=null,lease_until=null
-      where kind='scheduled' and state in ('estimated','awaiting_approval','queued','running')
+      where kind='scheduled' and state in ('estimated','awaiting_approval','queued','running','incomplete')
         and created_at < now() - interval '24 hours' returning id::text,area_id`,
   )
   for (const run of expired)
@@ -156,11 +157,12 @@ async function housekeeping(database: Database, options: WorkOptions, summary: W
     `update eval_runs set state='queued',finished_at=null,failure=null,
             summary=summary||jsonb_build_object('resumes',coalesce((summary->>'resumes')::int,0)+1)
       where state='incomplete' and cost_ceiling_micros is null
-        and kind not in ('assistant_mock','assistant_real','held_out')
+        and kind <> all($1::eval_kind[])
         and summary->'stopped'->>'reason'='infrastructure'
         and coalesce((summary->>'resumes')::int,0) < ${AUTO_RESUMES}
         and finished_at < now() - interval '${AUTO_RESUME_AFTER}'
       returning id`,
+    [commandKinds],
   )
   summary.resumed = resumed.length
 }

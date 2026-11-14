@@ -78,7 +78,7 @@ export function ViewSwitch({
       </DropdownMenu>
       <TextSwitch
         label="Views"
-        className="min-w-0 pl-1 text-dense @max-4xl/main:hidden"
+        className="min-w-0 pl-1 text-sm @max-4xl/main:hidden"
         value={on.id}
         onChange={onChange}
         options={views.map((v) => ({ value: v.id, label: v.name, count: v.count }))}

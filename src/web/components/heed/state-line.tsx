@@ -88,7 +88,7 @@ const stateTone: Record<AnswerState, string> = {
   grounded: 'bg-primary/8 [&>svg]:text-primary',
   partial: 'bg-muted [&>svg]:text-muted-foreground',
   missing: 'border border-dashed border-input [&>svg]:text-muted-foreground',
-  conflict: 'bg-warn/14 ring-1 ring-warn/45 ring-inset [&>svg]:text-[var(--warn)]',
-  stale: 'bg-warn/8 [&>svg]:text-[var(--warn)]',
-  failed: 'bg-destructive/10 [&>svg]:text-destructive',
+  conflict: 'bg-caution/8 ring-1 ring-caution/45 ring-inset [&>svg]:text-caution',
+  stale: 'bg-caution/8 [&>svg]:text-caution',
+  failed: 'bg-destructive/8 [&>svg]:text-destructive',
 }

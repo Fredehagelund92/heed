@@ -81,7 +81,7 @@ export function dayText(day: string, short = false) {
 
 // 24px tall at the least, so each is a target a pointer can hit (WCAG 2.5.8).
 const chip =
-  'inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+  'inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm px-1.5 py-px align-baseline text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /**
  * A trigger with its card: hover opens it after a moment, keyboard focus opens it at once, a press

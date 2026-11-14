@@ -28,10 +28,13 @@ import { ContextText } from '@/components/heed/mention-chip'
 import { hostOf } from '@/lib/host'
 import { useSideChoice } from '@/lib/side-panel'
 import { useSend } from '@/lib/send'
+import { useLeaveGuard } from '@/lib/leave-guard'
+import { problemsOf, sourceProblem, type EditorField } from '@/lib/editor-problems'
 import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
 import { conflictPath } from '@/model/conflicts'
+import { holdLine, readinessOf, SUMMARY_LIMIT } from '@/model/editor-readiness'
 import { type Validity } from '@/model/validity'
 import {
   missingDates,
@@ -362,16 +365,13 @@ function Editor({
   React.useEffect(() => {
     if (failed.current) reset()
   }, [form, reset])
-  // Drafts save themselves: a quiet status instead of a Save button.
-  const [saving, setSaving] = React.useState(false)
-  const saveTimer = React.useRef<number>(0)
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => {
+  const set = <K extends keyof Form>(k: K, v: Form[K]) =>
     setForm((f) => (Object.is(f[k], v) ? f : { ...f, [k]: v }))
-    setSaving(true)
-    window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => setSaving(false), 700)
-  }
-  React.useEffect(() => () => window.clearTimeout(saveTimer.current), [])
+  // A new item asks when it starts (an Event, when it happened) until the person has picked: the
+  // service keeps a start for every item, so a silent default would be a date they never chose.
+  const [whenChosen, setWhenChosen] = React.useState(
+    () => mode !== 'new' || initial.when !== 'always',
+  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -417,15 +417,19 @@ function Editor({
   // leaves its source alone keeps the sentence it has.
   const quoteNeeded =
     mode === 'new' || form.source !== initial.source || form.quote !== initial.quote
+  const asksWhen = mode === 'new' && form.kind === 'event' && !whenChosen
   const missing = [
     !domains[form.domain] && 'a domain',
     !form.title && 'a title',
     !form.body.trim() && 'what agents should know',
     !form.where.length && 'where it applies',
+    asksWhen && 'when it happened',
     !form.source && 'a source',
     form.source && quoteNeeded && !form.quote.trim() && 'a sentence copied from the source',
   ].filter(Boolean) as string[]
   const unanswered = clashes.find((c) => !overlap[c.itemId])
+  // A source is a link: said at the field as soon as it is not, not when the service refuses it.
+  const linkProblem = sourceProblem(form.source)
   const reaches = whereNames.length ? (whereNames.includes('Norway') ? 12 : 9) : 0
   // Counted as agents read it: a mention is its words.
   const text = plainText(form.body)
@@ -445,21 +449,28 @@ function Editor({
     toast('Filled from your text', { description: 'Check each part before you publish.' })
   }
 
-  const unchanged = mode !== 'new' && JSON.stringify(form) === JSON.stringify(initial)
-  // The first paragraph is the summary agents read first; the real schema keeps it to 280 characters.
+  // Nothing is kept until Save: words that differ from what the page opened with are unsaved.
+  const edited = JSON.stringify(form) !== JSON.stringify(initial)
+  const unchanged = mode !== 'new' && !edited
+  const guard = useLeaveGuard(edited)
+  // The first paragraph is the summary agents read first; the service keeps it to SUMMARY_LIMIT characters.
   const summaryLength = plainText(form.body.split('\n\n')[0] ?? '').length
-  const tooLong = summaryLength > 280
+  const tooLong = summaryLength > SUMMARY_LIMIT
   // With no definitions connected there is nothing to say where it applies with yet.
   const noWords = !form.where.length && !vocabulary.metrics.length && !vocabulary.dimensions.length
-  const blocked = missing.length
-    ? `Add ${missing.join(', ')} first.${noWords ? ' Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox.' : ''}`
-    : tooLong
-      ? 'Shorten the first paragraph to 280 characters first.'
-      : unchanged
-        ? 'Nothing has changed yet.'
-        : unanswered
-          ? `Say how this relates to “${unanswered.title}” first.`
-          : ''
+  // One answer for the button, the footer and the side panel.
+  const readiness = readinessOf({
+    missing,
+    badLink: Boolean(linkProblem),
+    tooLong,
+    unchanged,
+    unanswered: unanswered?.title,
+  })
+  const blocked =
+    holdLine(readiness) +
+    (readiness.state === 'missing' && noWords
+      ? ' Where it applies is named from your definitions: connect them in Settings, Integrations, then publish their names in the Inbox.'
+      : '')
   // A blocked click goes to the first thing missing instead of answering with a toast.
   const focusField = (name: string) =>
     document.getElementById(fieldId(name))?.nextElementSibling?.querySelector('button')?.focus()
@@ -468,7 +479,8 @@ function Editor({
     else if (!form.title) titleRef.current?.focus()
     else if (!form.body.trim()) editor?.commands.focus('end')
     else if (!form.where.length) focusField('where')
-    else if (!form.source || (quoteNeeded && !form.quote.trim())) setSourceOpen(true)
+    else if (asksWhen) focusField('when')
+    else if (!form.source || (quoteNeeded && !form.quote.trim()) || linkProblem) setSourceOpen(true)
     else if (unanswered)
       document.getElementById(`${ids}-clashes`)?.querySelector<HTMLElement>('[role=radio]')?.focus()
   }
@@ -487,6 +499,7 @@ function Editor({
           at: 'just now',
         },
       })
+      guard.release()
       toast(`Sent to ${ownerName}, owner of ${domains[form.domain]?.name}`, {
         description: 'Agents get it once the owner publishes it.',
       })
@@ -512,6 +525,7 @@ function Editor({
       gap: query.get('gap') ?? undefined,
       setup: !!query.get('setup'),
     })
+    guard.release()
     if (query.get('setup')) {
       toast('Published', {
         description: 'Your first context item. Agents get it from the next question.',
@@ -542,16 +556,30 @@ function Editor({
   // Retry only where sending again can help: no answer, or the service failing on its side. A
   // refusal says why instead, and the change it asks for makes Publish work again.
   // The service's own words for a refusal, as a sentence.
-  const refusal =
+  const refused =
     sendState === 'failed' &&
     sendError &&
     !(sendError.kind === 'unanswered' || sendError.kind === 'failed')
-      ? sendError.message.replace(/[^.!?]$/, '$&.')
+  // What the service found wrong, each at its field; the sentence above them only points there.
+  const problems = problemsOf(refused && sendError ? sendError.findings : [])
+  const marked = Object.keys(problems.at).length + problems.elsewhere.length > 0
+  const refusal =
+    refused && sendError
+      ? marked
+        ? 'Fix what is marked below.'
+        : sendError.message.replace(/[^.!?]$/, '$&.')
       : ''
-  // A new refusal comes into view, wherever the page was scrolled.
+  // What is wrong at a field: the link's shape as it is written, or the service's reason for it.
+  const problemAt = (field: EditorField) =>
+    (field === 'source' ? linkProblem : '') || problems.at[field] || ''
+  // A new refusal brings the first thing marked into view, wherever the page was scrolled, and
+  // never scrolls so far that the title is cut.
   const refusalRef = React.useRef<HTMLElement>(null)
   React.useEffect(() => {
-    if (refusal) refusalRef.current?.scrollIntoView({ block: 'start' })
+    if (!refusal) return
+    const field = refusalRef.current?.parentElement?.querySelector('[data-problem]')
+    if (field) field.scrollIntoView({ block: 'nearest' })
+    else refusalRef.current?.scrollIntoView({ block: 'start' })
   }, [refusal])
   const retryable = !sendError || sendError.kind === 'unanswered' || sendError.kind === 'failed'
   const submit = () => {
@@ -563,6 +591,29 @@ function Editor({
 
   const heading =
     form.title || (mode === 'new' ? 'New context' : mode === 'edit' ? 'Edit' : 'Suggest a change')
+
+  // Leaving with words that are not saved asks first; the safe answer has the focus.
+  const keepRef = React.useRef<HTMLButtonElement>(null)
+  const leaveDialog = (
+    <Dialog open={guard.asking} onOpenChange={(open) => !open && guard.stay()}>
+      <DialogContent className="sm:max-w-md" initialFocus={keepRef}>
+        <DialogHeader>
+          <DialogTitle>Leave without saving?</DialogTitle>
+          <DialogDescription>
+            What you wrote here is not saved yet. If you leave now, it is lost.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="destructive" onClick={guard.leave}>
+            Leave and lose it
+          </Button>
+          <Button ref={keepRef} onClick={guard.stay}>
+            Keep editing
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 
   // Draft from text: a short dialog, opened from the More menu.
   const draftFromText = (
@@ -620,7 +671,7 @@ function Editor({
               never boxed, so the panel keeps one scroll bar at most. */}
           <div
             className={cn(
-              'mt-2.5 flex flex-col gap-2 leading-relaxed text-foreground/85',
+              'mt-2.5 flex flex-col gap-2 leading-relaxed text-foreground',
               long && !previewAll && 'max-h-44 overflow-hidden fade-out-bottom',
             )}
           >
@@ -692,7 +743,7 @@ function Editor({
       </PanelGroup>
     </>
   )
-  const notReady = missing.length ? `Add ${missing.join(', ')}.` : unanswered ? blocked : ''
+  const notReady = holdLine(readiness) || (marked ? 'Fix what is marked.' : '')
   const ready = (
     <p className="flex items-start gap-2 p-4 text-sm">
       {notReady ? (
@@ -726,7 +777,15 @@ function Editor({
             }
             bare
           >
-            <SaveStatus saving={saving} offline={!online} />
+            {/* Nothing is kept until Save, so a new page that holds nothing yet has nothing to say. */}
+            {(mode !== 'new' || edited) && (
+              <SaveStatus
+                saving={sendState === 'sending'}
+                offline={!online}
+                unsaved={edited}
+                failed={sendState === 'failed'}
+              />
+            )}
             {/* Write or try it: the same draft, seen two ways, so a quiet toggle rather than tabs. */}
             <ViewToggle
               pressed={trying}
@@ -791,6 +850,7 @@ function Editor({
             </HeaderMore>
           </SiteHeader>
           {draftFromText}
+          {leaveDialog}
         </>
       }
       aside={
@@ -843,29 +903,36 @@ function Editor({
                   Retry
                 </Button>
               </span>
-            ) : missing.length ? (
+            ) : readiness.state === 'ready' ? (
+              <>
+                <CircleCheckIcon className="size-3.5" aria-hidden />
+                Ready
+              </>
+            ) : readiness.state === 'bad-link' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 <span>
-                  Not ready<span className="hidden sm:inline">: add {missing.join(', ')}</span>
+                  Not ready<span className="hidden sm:inline">: fix the link in Source</span>
                 </span>
               </>
-            ) : unchanged ? (
+            ) : readiness.state === 'unchanged' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 No changes yet
               </>
-            ) : unanswered ? (
+            ) : (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 <span>
-                  Not ready<span className="hidden sm:inline">: say how it relates</span>
+                  Not ready
+                  <span className="hidden sm:inline">
+                    {readiness.state === 'missing'
+                      ? `: add ${readiness.missing.join(', ')}`
+                      : readiness.state === 'too-long'
+                        ? ': shorten the first paragraph'
+                        : ': say how it relates'}
+                  </span>
                 </span>
-              </>
-            ) : (
-              <>
-                <CircleCheckIcon className="size-3.5" aria-hidden />
-                Ready
               </>
             )
           }
@@ -877,7 +944,7 @@ function Editor({
             )}
             title="The first paragraph is what agents read first"
           >
-            Summary {summaryLength} of 280
+            Summary {summaryLength} of {SUMMARY_LIMIT}
           </span>
           <span className="whitespace-nowrap">
             {words.toLocaleString('en-GB')} {words === 1 ? 'word' : 'words'}
@@ -885,7 +952,6 @@ function Editor({
           <span className="whitespace-nowrap max-sm:hidden">
             {(form.title.length + text.length).toLocaleString('en-GB')} characters
           </span>
-          <span className="hidden sm:inline">Markdown</span>
         </DocFooter>
       }
     >
@@ -916,12 +982,17 @@ function Editor({
           ref={titleRef}
           aria-label="Title"
           rows={1}
-          className="mb-4 field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 sm:mb-5 sm:text-3xl"
+          className="mb-4 field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground sm:mb-5 sm:text-3xl"
           placeholder="What should agents know?"
           value={form.title}
           onChange={(e) => set('title', e.target.value.replace(/\n/g, ' '))}
           onPaste={(e) => noteEmoji(e.clipboardData.getData('text/plain'))}
         />
+        {problemAt('title') && (
+          <p data-problem className="-mt-3 mb-4 text-sm text-destructive">
+            {problemAt('title')}
+          </p>
+        )}
         {/* What stopped a publish, in the service's words, and the live items it named to relate
             to, answered here, under the title, at any width. */}
         {(refusal || clashes.length > 0) && (
@@ -939,6 +1010,11 @@ function Editor({
                 />
                 <span>
                   Couldn't {verb.toLowerCase()}. {refusal}
+                  {problems.elsewhere.map((reason) => (
+                    <span key={reason} className="block text-muted-foreground">
+                      {reason}
+                    </span>
+                  ))}
                 </span>
               </p>
             ) : (
@@ -978,6 +1054,7 @@ function Editor({
               label="Domain"
               icon={<FolderIcon />}
               required={!domains[form.domain]}
+              problem={problemAt('domain')}
             >
               <SelectField
                 labelId={fieldId('domain')}
@@ -1054,6 +1131,7 @@ function Editor({
               label="Applies to"
               icon={<MapPinIcon />}
               required={!form.where.length}
+              problem={problemAt('where')}
             >
               <ScopeField
                 labelId={fieldId('where')}
@@ -1063,13 +1141,21 @@ function Editor({
                 placeholder="Add a metric, dimension or value"
               />
             </PropertyRow>
-            <PropertyRow id={fieldId('when')} label="When" icon={<CalendarIcon />}>
+            <PropertyRow
+              id={fieldId('when')}
+              label="When"
+              icon={<CalendarIcon />}
+              required={asksWhen}
+              problem={problemAt('when')}
+            >
               <WhenField
                 labelId={fieldId('when')}
                 value={whenOf(form)}
-                onChange={(w) =>
+                asking={asksWhen ? 'When did it happen? Pick a date' : undefined}
+                onChange={(w) => {
+                  setWhenChosen(true)
                   setForm((f) => ({ ...f, when: w.mode, from: w.from, until: w.until }))
-                }
+                }}
               />
             </PropertyRow>
           </PropertyGroup>
@@ -1079,6 +1165,7 @@ function Editor({
               label="Source"
               icon={<LinkIcon />}
               required={!form.source}
+              problem={problemAt('source')}
             >
               <PickerField
                 labelId={fieldId('source')}
@@ -1102,11 +1189,15 @@ function Editor({
                     <Input
                       id="fact-source"
                       type="url"
+                      aria-invalid={!!problemAt('source')}
                       value={form.source}
                       onChange={(e) => set('source', e.target.value)}
                       placeholder="https://"
                       className="h-9"
                     />
+                    {problemAt('source') && (
+                      <p className="text-xs text-destructive">{problemAt('source')}</p>
+                    )}
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="fact-quote">A sentence copied from it</FieldLabel>
@@ -1130,12 +1221,17 @@ function Editor({
                 </div>
               </PickerField>
             </PropertyRow>
-            <PropertyRow id={fieldId('dont')} label="Don't conclude" icon={<ShieldAlertIcon />}>
+            <PropertyRow
+              id={fieldId('dont')}
+              label="Don't conclude"
+              icon={<ShieldAlertIcon />}
+              problem={problemAt('dont')}
+            >
               <InlineText
                 labelId={fieldId('dont')}
                 value={form.dontConclude}
                 onChange={(v) => set('dontConclude', v)}
-                placeholder="Anything an agent should not conclude from this?"
+                placeholder="Left empty, agents are told: Cause not proven."
               />
             </PropertyRow>
             {original && (
@@ -1151,6 +1247,11 @@ function Editor({
           </PropertyGroup>
         </PropertyList>
         <RichTextEditor.Content className="text-base [&_.ProseMirror]:min-h-48! [&_.ProseMirror]:max-w-reading [&_.ProseMirror]:p-0!" />
+        {problemAt('text') && (
+          <p data-problem className="mt-2 text-sm text-destructive">
+            {problemAt('text')}
+          </p>
+        )}
       </Paper>
       {sideOpen && !wide && (
         <section aria-labelledby="doc-side-under" className="border-t bg-background">

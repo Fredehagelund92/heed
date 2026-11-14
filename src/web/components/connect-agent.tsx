@@ -161,7 +161,7 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
           p.code ? (
             <code
               key={i}
-              className="block rounded-md bg-muted px-2.5 py-1.5 font-mono text-code-sm leading-relaxed wrap-anywhere"
+              className="block rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs leading-relaxed wrap-anywhere"
             >
               {p.text}
             </code>
@@ -216,7 +216,7 @@ function LiveLine({
               {TOOL_NAMES.map((t, i) => (
                 <React.Fragment key={t}>
                   {i > 0 && (i === TOOL_NAMES.length - 1 ? ' and ' : ', ')}
-                  <code className="font-mono text-code-sm text-foreground">{t}</code>
+                  <code className="font-mono text-xs text-foreground">{t}</code>
                 </React.Fragment>
               ))}
               .
@@ -225,7 +225,7 @@ function LiveLine({
           </>
         )}
         {(phase === 'hint' || phase === 'timeout') && (
-          <ul className="flex list-disc flex-col gap-1 pl-4 marker:text-muted-foreground/60">
+          <ul className="flex list-disc flex-col gap-1 pl-4 marker:text-muted-foreground">
             {CHECKS.map((c) => (
               <li key={c}>{c}</li>
             ))}
@@ -394,7 +394,11 @@ function QuickCells({
           onOpen={() => start('vscode')}
         />
       </Cell>
-      <Cell logo={guide('chatgpt').logo} name="ChatGPT and others" hint="Any agent that speaks MCP">
+      <Cell
+        logo={guide('chatgpt').logo}
+        name="ChatGPT and others"
+        hint="Any other agent that can connect by address (MCP)"
+      >
         <CopyButton label="Copy address" text={address} onCopy={() => start('other')} />
         <TextButton onClick={() => showSteps('chatgpt')}>Steps</TextButton>
       </Cell>

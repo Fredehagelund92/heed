@@ -337,8 +337,8 @@ and a concurrent request using the same key returns 409. A rolled-back request c
   stale write returns 409 with the current record.
 - `POST /proposals/{id}/submit` takes `{ revision }`. The proposer submits an immutable version,
   scope, evidence, references, mention rows, digests and format checks in one transaction with
-  the proposal state, audit and outbox records. Resubmit creates another version. Submission
-  does not publish anything.
+  the proposal state, audit and outbox records. Resubmit creates another version, written against
+  the version agents get now. Submission does not publish anything.
 - `POST /proposals/{id}/withdraw` takes `{ revision, reason }`. The reason is plain text, without
   mentions. Only the proposer withdraws.
 
@@ -1115,7 +1115,8 @@ the change, in its own transactions.
   manages, or one domain's, counting as it goes, and answers with the run and how many are Same,
   Changed and Needs a look. Nothing is published.
 - `GET /saved-questions/status` (`areaId` to narrow): the newest run the person started or the job
-  ran (its trigger, `running`, `done` or `failed`, how many it checked of how many), when the saved
+  ran (its trigger, `running`, `done` or `failed`, how many it checked of how many; a run with no end
+  15 minutes after it started died with its process and reads `failed`), when the saved
   questions were last checked, and for each of the last eight weeks, Monday first, how many
   answered as saved at its end (the current week: now) of how many there were.
 - The review sheet (`GET /review/{id}/sheet`) gives `saved`: the saved questions the person

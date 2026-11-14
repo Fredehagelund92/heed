@@ -86,20 +86,20 @@ export function KindIcon({ kind, className }: { kind: Kind; className?: string }
 }
 
 const statusLook = {
-  Live: { icon: CircleCheckIcon, tone: 'text-[var(--ok)]', hint: 'Live: agents get it' },
+  Live: { icon: CircleCheckIcon, tone: 'text-good', hint: 'Live: agents get it' },
   'Needs checking': {
     icon: CircleAlertIcon,
-    tone: 'text-[var(--warn)]',
+    tone: 'text-caution',
     hint: 'Needs checking: its check date passed or a definition changed',
   },
   Draft: {
     icon: CircleDashedIcon,
-    tone: 'text-[var(--idle)]',
+    tone: 'text-muted-foreground',
     hint: 'Draft: written, not shared with agents yet',
   },
   Archived: {
     icon: CircleMinusIcon,
-    tone: 'text-[var(--idle)]',
+    tone: 'text-muted-foreground',
     hint: 'Archived: agents no longer get it',
   },
 } as const
@@ -138,7 +138,7 @@ export function TimeGlyph({ time, plain }: { time: TimeFrame; plain?: boolean })
       label={timeLong(time)}
       detail={timeNow(time)}
       plain={plain}
-      className="items-center gap-1.5 text-dense whitespace-nowrap"
+      className="items-center gap-1.5 text-sm whitespace-nowrap"
     >
       <Icon aria-hidden className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
       <span>{timeDate(time)}</span>
@@ -159,10 +159,10 @@ export function FreshDot({ fact, plain }: { fact: Fact; plain?: boolean }) {
   const trust = trustOf(fact)
   const tone =
     trust === 'fresh'
-      ? 'text-[var(--ok)]'
+      ? 'text-good'
       : trust === 'ageing' || trust === 'due'
-        ? 'text-[var(--warn)]'
-        : 'text-[var(--idle)]'
+        ? 'text-caution'
+        : 'text-muted-foreground'
   return (
     <Tip label={freshLabel[trust]} detail={checkedTip(fact)} plain={plain} className={tone}>
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>

@@ -235,10 +235,10 @@ function Decide({
           <h2 id="consent-can" className="text-sm font-medium text-muted-foreground">
             It will be able to
           </h2>
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-md border">
             {request.scopes.map((scope) => (
               <li key={scope} className="flex gap-3 px-4 py-3">
-                <CheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good-icon" />
+                <CheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good" />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-sm font-medium">{scopeWords[scope].title}</span>
                   <span className="text-sm text-muted-foreground">{scopeWords[scope].detail}</span>
@@ -249,8 +249,7 @@ function Decide({
           <p className="flex gap-2 text-sm text-muted-foreground">
             <ShieldCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
             It sees only what you can see. What it suggests waits for an owner, unless the owner
-            lets it publish without review. You can disconnect it at any time in Settings, under
-            Agents and access.
+            lets it publish without review. An admin can disconnect it for you at any time.
           </p>
         </section>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -138,7 +138,7 @@ export function TextSwitch<T extends string>({
           return (
             <React.Fragment key={o.value}>
               {separator && i > 0 && (
-                <span aria-hidden className="-mx-1.5 text-muted-foreground/70">
+                <span aria-hidden className="-mx-1.5 text-muted-foreground">
                   {separator}
                 </span>
               )}

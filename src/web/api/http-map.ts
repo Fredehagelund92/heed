@@ -21,7 +21,7 @@ import type {
 import type { Definition, SynonymCheck } from '@/lib/definitions'
 import type { Comments, Subject } from '@/model/comments'
 import type { Fact, Kind, Status } from '@/model/items'
-import { shiftDate } from '@domain/validity'
+import { anyDate, shiftDate } from '@domain/validity'
 import { dateLabel, whenLabel, type Validity } from '@/model/validity'
 import type { SearchHits } from './client'
 
@@ -47,7 +47,8 @@ export function statusOf(row: Pick<LibraryItem, 'status' | 'trust'>): Status {
  */
 export function validityOf(row: Pick<LibraryItem, 'validity' | 'reviewQuestion'>): Validity {
   return {
-    from: row.validity.start,
+    // The service keeps a start for every item: the earliest day is how it says "always".
+    ...(row.validity.start === anyDate.start ? {} : { from: row.validity.start }),
     ...(row.validity.end ? { until: shiftDate(row.validity.end, -1) } : {}),
     ...(row.reviewQuestion === 'still_going_on' ? { ongoing: true } : {}),
   }

@@ -188,14 +188,14 @@ function RowMeta({ row, plain }: { row: InboxRow; plain: boolean }) {
   const reviews = useReviews()
   if (row.note)
     return (
-      <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-foreground/80">
+      <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         <AtSignIcon className="size-3 shrink-0" aria-hidden />
         Mentioned by {row.note.from}
       </span>
     )
   if (reply && row.kind === 'card' && !row.done)
     return (
-      <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-foreground/80">
+      <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         <MessageSquareTextIcon className="size-3 shrink-0" aria-hidden />
         New reply from {reply.from}
       </span>
@@ -365,7 +365,7 @@ function InboxList({
                     )}
                   >
                     {care ? (
-                      <TriangleAlertIcon aria-label={care} className="text-caution-icon" />
+                      <TriangleAlertIcon aria-label={care} className="text-caution" />
                     ) : source ? (
                       <ToolLogo c={lookOf(source.connector)} size="sm" />
                     ) : (

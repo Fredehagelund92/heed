@@ -4,8 +4,9 @@ import { normalizeName, type Term } from './vocabulary.ts'
   The search behind "Where it applies" (FR-107): a dimension can have thousands of values, so the
   picker never lists them all. It asks for a page: metrics, and per dimension a few values and how
   many match, with recent and often-used terms first. Inside one dimension it pages through the
-  values. Before anything is typed it offers only the person's recent terms. Pure: the caller
-  passes the live vocabulary, the person's recent terms and how many live items use each term.
+  values. Before anything is typed it offers the person's recent terms, the busiest metrics and the
+  dimensions, none of their values. Pure: the caller passes the live vocabulary, the person's
+  recent terms and how many live items use each term.
 */
 
 export type ScopeTermKind = 'metric' | 'dimension' | 'dimension_value'
@@ -63,6 +64,8 @@ export type ScopeUsage = {
 export const SCOPE_PAGE = 20
 const MAX_RECENT = 6
 const MAX_METRICS = 5
+/** Metrics offered before anything is typed. */
+const MAX_OPENING_METRICS = 8
 const MAX_GROUPS = 4
 const MAX_GROUP_VALUES = 5
 
@@ -196,7 +199,18 @@ export function searchScope(
         return entry ? [entry.hit] : []
       })
       .slice(0, MAX_RECENT)
-    return { recent, metrics: [], groups: [], nextCursor: null }
+    // What the picker can offer when it opens: the busiest metrics, and each dimension with how
+    // many values it has, never the values themselves.
+    const metrics = ranked(terms.filter((term) => term.kind === 'metric'))
+      .slice(0, MAX_OPENING_METRICS)
+      .map((entry) => entry.hit)
+    const groups = ranked(terms.filter((term) => term.kind === 'dimension')).map((entry) => ({
+      dimension: entry.hit,
+      named: true,
+      count: valuesOf.get(entry.hit.key)?.length ?? 0,
+      values: [],
+    }))
+    return { recent, metrics, groups, nextCursor: null }
   }
   const metrics = ranked(terms.filter((term) => term.kind === 'metric')).slice(0, MAX_METRICS)
   const dimensions = terms.filter((term) => term.kind === 'dimension')

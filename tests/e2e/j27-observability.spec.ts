@@ -157,7 +157,7 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   const up = page.getByRole('link', { name: /^Checked answers/ }).locator('[data-slot=kpi-change]')
   await expect(up).toContainText(/\+\d+ pts/)
   await expect(up.locator('svg')).toHaveCount(1)
-  await expect(up).toHaveClass(/text-good-ink/)
+  await expect(up).toHaveClass(/\btext-good\b/)
 
   // A number narrows the topics to its answers, on the same page: the chart keeps that answer, and
   // the numbers add up what those topics may show.
@@ -492,6 +492,7 @@ test('Limits: every tuning setting, read only, with where its value comes from',
     page.getByText('All 36 settings and their values now. This page only shows them.'),
   ).toBeVisible()
   // The page says how a setting is really changed, and names no command that does not exist.
+  await page.getByRole('button', { name: 'For engineers' }).click()
   await expect(page.getByText('PUT /api/v1/settings/{key}')).toBeVisible()
   await expect(page.getByText(/settings set/)).toHaveCount(0)
   const settings = page.getByRole('table', { name: 'Tuning settings' })

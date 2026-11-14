@@ -110,8 +110,16 @@ jobs:
         run: npm run typecheck
       - name: Lint (ESLint with the Tailwind and token guard rails, then Stylelint)
         run: npm run lint
-      - name: Plain words (no file gains old words; plain-words.baseline.json, docs/design/voice.md)
+      - name: Plain words and copy shape (no count rises; plain-words.baseline.json, copy-checks.baseline.json)
         run: npm run lint:words
+      - name: Copy reading report (a note in the job summary, never a gate)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          npm run --silent copy:report -- "origin/$BASE_REF" >> "$GITHUB_STEP_SUMMARY"
       - name: Format
         run: npm run format:check
 

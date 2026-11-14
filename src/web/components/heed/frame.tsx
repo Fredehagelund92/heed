@@ -118,7 +118,7 @@ export function FrameSection({
           data-slot="frame-section-header"
           className={cn(
             headerRow,
-            'relative flex-nowrap transition-colors duration-(--dur-1) hover:bg-band-soft',
+            'relative flex-nowrap transition-colors duration-(--dur-1) hover:bg-band',
           )}
         >
           <SectionHeader
@@ -332,7 +332,7 @@ export function FrameFooter({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-2 border-t bg-band-soft px-4 py-3 md:px-5',
+        'flex flex-wrap items-center gap-2 border-t bg-band px-4 py-3 md:px-5',
         className,
       )}
     >

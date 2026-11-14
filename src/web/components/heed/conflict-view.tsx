@@ -185,6 +185,7 @@ function dialogCopy(p: Pending, c: Conflict) {
       reason: 'Why does this one stay?',
       empty: 'Add a reason to keep this one.',
       confirm: 'Keep this one',
+      failure: "Couldn't keep this one. Nothing changed. Try again.",
       then: said ? (p.keep.id === c.holder.id ? said.onlyHolder : said.onlyOther) : null,
       told: `${ownerNames(p.other)}, who ${owns(p.other)} “${sideTitle(p.other)}”, ${are(p.other)} told.`,
     }
@@ -195,6 +196,7 @@ function dialogCopy(p: Pending, c: Conflict) {
       reason: 'Why should it be archived?',
       empty: 'Add a reason for the owners.',
       confirm: 'Send the suggestion',
+      failure: "Couldn't send the suggestion. Nothing changed. Try again.",
       then: said ? (p.stays.id === c.holder.id ? said.onlyHolder : said.onlyOther) : null,
       told: `${ownerNames(p.goes)} ${are(p.goes)} told.`,
     }
@@ -206,6 +208,7 @@ function dialogCopy(p: Pending, c: Conflict) {
       reason: 'Why do both stay?',
       empty: 'Add a reason to keep both.',
       confirm: 'Keep both',
+      failure: "Couldn't keep both. Nothing changed. Try again.",
       then: said?.now ?? SAID_NOW,
       told: 'The other owners of the two items are told.',
     }
@@ -215,6 +218,7 @@ function dialogCopy(p: Pending, c: Conflict) {
     reason: 'Why is this not a conflict?',
     empty: 'Add a reason to remove the flag.',
     confirm: 'Not a conflict',
+    failure: "Couldn't remove the Conflict mark. Nothing changed. Try again.",
     then: said?.withoutFlag ?? null,
     told: `${ownerNames(c.other)}, who ${owns(c.other)} “${sideTitle(c.other)}”, ${are(c.other)} told.`,
   }
@@ -262,10 +266,7 @@ function SettleDialog({
           </DialogHeader>
           {failed && (
             <div role="alert" className="flex items-start gap-2 rounded-frame border p-3 text-sm">
-              <TriangleAlertIcon
-                aria-hidden
-                className="mt-0.5 size-4 shrink-0 text-destructive-ink"
-              />
+              <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
               <span>
                 <span className="font-medium">{failed}</span>{' '}
                 <span className="text-muted-foreground">
@@ -623,7 +624,7 @@ export function ConflictView({
         try {
           await write('suggestArchiving', { id: goes.id, reason: draft.reason.trim() })
         } catch (error) {
-          setFailed('Could not send the suggestion. Nothing changed.')
+          setFailed(dialogCopy(pending, c).failure)
           throw error
         }
         setDrafts((d) => ({ ...d, [draftKey]: { reason: '', quote: '' } }))
@@ -664,7 +665,7 @@ export function ConflictView({
           setChanged(true)
           return
         }
-        setFailed(`Could not ${dialogCopy(pending, c).confirm.toLowerCase()}. Nothing changed.`)
+        setFailed(dialogCopy(pending, c).failure)
         throw error
       }
     })
@@ -894,7 +895,6 @@ function ConflictBody({
   onSettle: () => void
 }) {
   const [ca, cb] = comparePair(c.holder.summary ?? '', c.other.summary ?? '')
-  const off = !online ? 'Off until you are back' : undefined
   const any = Object.values(c.rights).some(Boolean)
   const crossDomain = c.holder.domain !== c.other.domain && !admin && any
   type Col = { s: ConflictSide; other: ConflictSide; c: Compared; i: 0 | 1; label: string }
@@ -919,7 +919,7 @@ function ConflictBody({
           aria-describedby={`keep-hint-${col.i}`}
         >
           <CheckIcon data-icon="inline-start" />
-          {off ?? 'Keep this one'}
+          Keep this one
         </Button>
         {mayEdit(col) ? (
           <Button variant="outline" disabled={held} onClick={() => edit(col.s)}>
@@ -1068,6 +1068,12 @@ function ConflictBody({
         )}
       </header>
 
+      {!online && (
+        <p role="status" className="text-sm text-muted-foreground">
+          You are offline. You can decide when you are online again. Nothing is lost.
+        </p>
+      )}
+
       {c.keptBoth && (
         <p
           role="status"
@@ -1090,7 +1096,7 @@ function ConflictBody({
           role="alert"
           className="flex flex-wrap items-start gap-3 rounded-frame border p-4 text-sm"
         >
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
           <div className="min-w-0 flex-1">
             <p className="font-medium">One of the two changed while you read.</p>
             <p className="text-muted-foreground">
@@ -1129,7 +1135,7 @@ function ConflictBody({
                 aria-keyshortcuts="B"
               >
                 <LayersIcon data-icon="inline-start" />
-                {off ?? 'Keep both'}
+                Keep both
               </Button>
             )}
             <Button
@@ -1140,7 +1146,7 @@ function ConflictBody({
               aria-describedby={c.rights.notConflict ? undefined : 'not-conflict-why'}
             >
               <SplitIcon data-icon="inline-start" />
-              {off ?? 'Not a conflict'}
+              Not a conflict
             </Button>
             <Button variant="ghost" onClick={() => ask(c.other)} aria-keyshortcuts="O">
               <AtSignIcon data-icon="inline-start" />
@@ -1191,7 +1197,7 @@ function ConflictBody({
           </Button>
           <Button className="h-11 flex-1" disabled={held || !any} onClick={onSettle}>
             <SplitIcon data-icon="inline-start" />
-            {off ?? 'Settle it'}
+            Settle it
           </Button>
         </div>
       )}

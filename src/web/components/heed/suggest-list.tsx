@@ -103,7 +103,7 @@ export const SuggestList = React.forwardRef<
       // Keeps the caret in the box when a row is clicked.
       onMouseDown={(e) => e.preventDefault()}
       className={cn(
-        'rounded-lg! border bg-popover p-0 shadow-md',
+        'rounded-md! border bg-popover p-0 shadow-md',
         'animate-in duration-(--dur-2) fade-in-0 slide-in-from-top-1',
         'max-sm:rounded-b-none! max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-safe-area max-sm:shadow-sheet-up max-sm:slide-in-from-bottom-4 sm:w-104',
         className,

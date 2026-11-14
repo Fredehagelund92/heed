@@ -59,6 +59,7 @@ test("Cube's page shows figures as its second connection, where an admin tries o
   const figures = page.getByRole('heading', { name: 'Figures connection' })
   await expect(figures).toBeVisible()
   await expect(page.getByText(/The second of Cube's two connections/)).toBeVisible()
+  await page.getByRole('button', { name: 'Connection details' }).click()
   await expect(page.getByLabel('Token, set')).toBeVisible()
   await page.getByRole('button', { name: 'Try a figure' }).click()
   const dialog = page.getByRole('dialog', { name: 'Try a figure from Cube' })

@@ -49,12 +49,19 @@ const blocking: ScheduledJob = {
   run: () => new Promise((resolve) => (release = () => resolve({ released: true }))),
 }
 
+const backingOff: ScheduledJob = {
+  name: 'test.backs-off',
+  cron: '0 0 1 1 *',
+  expectedEverySeconds: 3600,
+  run: () => Promise.resolve({ checked: 0, backingOff: true }),
+}
+
 const database = createDatabase(apiUrl, logger)
 const runner: JobRunner = createJobRunner({
   connectionString: apiUrl,
   database,
   logger,
-  jobs: [...maintenanceJobs, failing, blocking],
+  jobs: [...maintenanceJobs, failing, blocking, backingOff],
   pollingIntervalSeconds: 0.5,
   retryDelaySeconds: 1,
 })
@@ -261,6 +268,16 @@ describe('the job runner', () => {
       expect.objectContaining({ level: 50, attempt: 4, msg: 'job failed after its last retry' }),
     ])
   }, 60_000)
+
+  it('never counts a run that only waited out an earlier failure as a success', async () => {
+    const job = await run('test.backs-off')
+    expect(job).toMatchObject({ state: 'completed', output: { checked: 0, backingOff: true } })
+    // The earlier failure stands, and the watchdog sees the job late once the wait outlasts it.
+    expect(await heartbeat('test.backs-off')).toMatchObject({ last_succeeded: null, runs_ok: '0' })
+    expect(records()).toContainEqual(
+      expect.objectContaining({ job: 'test.backs-off', msg: 'job backing off after a failure' }),
+    )
+  })
 
   it('alerts on overdue jobs and out-of-date connectors', async () => {
     await client.query(`

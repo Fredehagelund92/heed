@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 /** editorcn's canvas: the muted surface the paper sits on. */
 export function Canvas({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('bg-band-strong', className)}>{children}</div>
+  return <div className={cn('bg-band', className)}>{children}</div>
 }
 
 /**

@@ -260,8 +260,9 @@ function AgentDetails({
               return (
                 <li key={tool} className="flex items-start justify-between gap-3">
                   <span className="flex min-w-0 flex-col gap-0.5">
-                    <label htmlFor={id} className="font-mono text-xs">
-                      {tool}
+                    <label htmlFor={id} className="text-sm">
+                      {AGENT_TOOLS.find((t) => t.name === tool)?.title ?? tool}{' '}
+                      <code className="font-mono text-xs text-muted-foreground">{tool}</code>
                     </label>
                     <span className="text-xs text-muted-foreground">{hint}</span>
                   </span>
@@ -489,7 +490,7 @@ function AgentRow({
               aria-label={
                 r.kind === 'key' ? `Details of ${r.agent}` : `Details of ${r.agent} for ${r.who}`
               }
-              className="h-7 rounded-md px-2.5 text-control-sm font-medium text-muted-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
+              className="h-7 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
             />
             <Button
               variant="ghost"
@@ -695,11 +696,11 @@ export function Agents() {
       >
         <FrameRows
           rows={[
-            ...AGENT_TOOLS.filter((t) => t.name !== 'get_related').map(({ name, what }) => ({
+            ...AGENT_TOOLS.filter((t) => t.name !== 'get_related').map(({ name, title, what }) => ({
               id: name,
               label: (
-                <label htmlFor={`tool-${name}`} className="font-mono text-xs">
-                  {name}
+                <label htmlFor={`tool-${name}`} className="text-sm">
+                  {title} <code className="font-mono text-xs text-muted-foreground">{name}</code>
                 </label>
               ),
               hint: what,
@@ -716,8 +717,10 @@ export function Agents() {
               id: 'get_related',
               label: (
                 <label htmlFor="tool-get_related" className="flex flex-col gap-0.5">
-                  <span className="font-mono text-xs">get_related</span>
-                  <span className="text-sm">Let agents follow links</span>
+                  <span className="text-sm">
+                    Let agents follow links{' '}
+                    <code className="font-mono text-xs text-muted-foreground">get_related</code>
+                  </span>
                 </label>
               ),
               hint: 'Follows a link between context items, definitions and domains, one step at a time. It never changes what an answer includes, and never lets agents read comments.',
@@ -728,7 +731,7 @@ export function Agents() {
             {
               id: 'keys',
               label: 'Access keys',
-              hint: `For a bot or a scheduled job that can't sign in. ${keysHint(rows)}`,
+              hint: `A key is a long password for a program. Use one for a bot or a scheduled job that can't sign in. ${keysHint(rows)}`,
               value: (
                 <Button variant="outline" size="sm" onClick={() => openNaming()}>
                   Create an access key

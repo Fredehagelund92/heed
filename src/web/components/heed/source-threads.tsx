@@ -177,9 +177,9 @@ export function useSourceNotes({
   const actions: ThreadActions = {
     me,
     owners,
-    post: (content, parentId) => void commentActions.post(subject, content, { parentId }),
+    post: (content, parentId) => commentActions.post(subject, content, { parentId }),
     react: (id, emoji) => void commentActions.react(subject, id, emoji),
-    edit: (id, content) => void commentActions.edit(subject, id, content),
+    edit: (id, content) => commentActions.edit(subject, id, content),
     remove: (id) => void commentActions.remove(subject, id),
   }
   const close = (key: string) => {

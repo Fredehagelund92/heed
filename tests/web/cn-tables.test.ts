@@ -41,9 +41,10 @@ describe("the app's compiled class merge tables", () => {
 
   it("know the app's named tokens: one of a kind gives way, a size and a colour stay together", () => {
     expect(cn('z-raised', 'z-overlay')).toBe('z-overlay')
-    expect(cn('text-sm', 'text-dense')).toBe('text-dense')
-    expect(cn('text-muted-foreground', 'text-dense')).toBe('text-muted-foreground text-dense')
-    expect(cn('rounded-md', 'rounded-tile')).toBe('rounded-tile')
+    expect(cn('text-sm', 'text-xs')).toBe('text-xs')
+    expect(cn('text-muted-foreground', 'text-xs')).toBe('text-muted-foreground text-xs')
+    expect(cn('leading-6', 'leading-chat')).toBe('leading-chat')
+    expect(cn('rounded-md', 'rounded-composer')).toBe('rounded-composer')
     expect(cn('shadow-sm', 'shadow-hairline')).toBe('shadow-hairline')
     expect(cn('max-h-96', 'max-h-bottom-sheet')).toBe('max-h-bottom-sheet')
   })

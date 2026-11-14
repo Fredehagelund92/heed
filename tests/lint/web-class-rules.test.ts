@@ -1,3 +1,7 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { webClassRules } from '../../eslint.class-rules.js'
 
@@ -5,7 +9,8 @@ import { webClassRules } from '../../eslint.class-rules.js'
  * The class rules of the web app (eslint.class-rules.js, `webClassRules`), against samples:
  * every class in the first list must be flagged by its rule, and no rule may flag a class in the
  * second. The second list is the scales design contract v2 allows: half steps,
- * margins, Tailwind's text sizes, weights 400 to 700, and the tokens by name.
+ * margins, the six text sizes, the two text greys, the five corners, weights 400 to 700, and the
+ * tokens by name.
  */
 
 const mustFlag: [string, string][] = [
@@ -60,17 +65,53 @@ const mustFlag: [string, string][] = [
   ['max-sm:hidden', 'viewport-variant'],
   ['dark:lg:hidden', 'viewport-variant'],
   ['min-[60rem]:grid', 'viewport-variant'],
+  // Six text sizes (contract 2.3): what lies between the steps folds into one
+  ['text-dense', 'text-size'],
+  ['text-lg', 'text-size'],
+  ['md:text-lg', 'text-size'],
+  ['text-2xs', 'text-size'],
+  ['text-5xs', 'text-size'],
+  ['text-reading', 'text-size'],
+  ['text-control-sm', 'text-size'],
+  ['text-code', 'text-size'],
+  ['text-hero', 'text-size'],
+  ['text-4xl', 'text-size'],
+  ['text-lg/7', 'text-size'],
+  // Two text greys, ink and muted, never faded (contract 2.1)
+  ['text-foreground/75', 'text-grey'],
+  ['hover:text-foreground/90', 'text-grey'],
+  ['text-sidebar-foreground/70', 'text-grey'],
+  ['placeholder:text-muted-foreground/60', 'text-grey'],
+  ['marker:text-muted-foreground/60', 'text-grey'],
+  ['text-idle', 'text-grey'],
+  ['text-[var(--idle)]', 'text-grey'],
+  // Five corners (contract 2.2)
+  ['rounded', 'radius'],
+  ['rounded-lg', 'radius'],
+  ['rounded-xl', 'radius'],
+  ['rounded-4xl', 'radius'],
+  ['rounded-t-lg', 'radius'],
+  ['data-open:rounded-lg', 'radius'],
+  ['rounded-tile', 'radius'],
+  ['rounded-mark', 'radius'],
+  ['rounded-inset', 'radius'],
+  // A soft fill is its colour at 8 percent (contract 2.1)
+  ['bg-caution/12', 'soft-fill'],
+  ['hover:bg-good/20', 'soft-fill'],
 ]
 
 const mustNotFlag = `
   p-4 px-2.5 py-1.5 gap-1.5 gap-x-5 pt-0.5 mt-4 -mt-2 mx-auto ml-1 space-y-4 p-5 py-px
   size-4 h-2.5 w-20 max-w-96 min-w-0 w-full w-1/2 h-bar h-tool p-bar max-w-sheet max-w-wide max-w-reading
-  text-xs text-sm text-base text-lg text-xl text-2xl text-3xl text-xs/relaxed md:text-xl
+  text-xs text-sm text-base text-xl text-2xl text-3xl text-xs/relaxed md:text-xl text-left text-pretty
+  text-foreground text-muted-foreground hover:text-foreground placeholder:text-muted-foreground
   font-normal font-medium font-semibold font-bold
   bg-primary text-primary-foreground text-muted-foreground border-input ring-ring/50
-  bg-mark-add decoration-mark-del-line text-ok text-warn bg-idle bg-chip text-chip-foreground
+  bg-mark-add decoration-mark-del-line text-good text-caution bg-caution/8 bg-good/8 border-caution/45
+  bg-chip text-chip-foreground
   bg-[var(--mark-add)] decoration-[var(--mark-del-line)] max-w-(--container-sheet)
-  rounded-frame rounded-surface rounded-md rounded-lg rounded-none
+  rounded-frame rounded-surface rounded-composer rounded-xs rounded-sm rounded-md rounded-full
+  rounded-none rounded-t-md rounded-l-sm rounded-b-frame rounded-(--cell-radius) rounded-s-(--cell-radius)
   z-base z-raised z-header z-overlay focus-visible:z-raised z-skip
   transition-colors transition-opacity transition-[width] transition-[border-color,box-shadow]
   duration-(--dur-2) delay-(--dur-3) ease-out ease-move ease-panel ease-in-out
@@ -110,5 +151,52 @@ describe('class rules of the web app (design contract v2)', () => {
 
   it('names the fix in every message', () => {
     for (const rule of webClassRules) expect(rule.message).toMatch(/\$0/)
+  })
+})
+
+/**
+ * Lint reads the classes of a className, cn() or cva(), not a class list kept in a constant
+ * (`const chip = '...'`). The small system's rules (design contract 2: six text sizes, two text
+ * greys, five corners, soft fills at 8 percent, and no arbitrary size or corner) also hold there:
+ * every word of every string in src/web is read. The bare word `rounded` is left to lint, since a
+ * sentence may say it.
+ */
+describe('the small system holds in every string of src/web', () => {
+  const web = fileURLToPath(new URL('../../src/web', import.meta.url))
+  const ids = ['text-size', 'text-grey', 'radius', 'soft-fill']
+  const rules = webClassRules.filter((rule) => ids.includes(rule.id))
+  const arbitrary = new RegExp(webClassRules.find((rule) => rule.id === 'arbitrary-value')!.pattern)
+  const offList = (word: string) =>
+    rules.some((rule) => new RegExp(rule.pattern).test(word)) ||
+    (arbitrary.test(word) && /(?:^|:)!?(?:text|rounded(?:-[a-z]+)?)-\[/.test(word))
+
+  /** Every word of every string and template in a file. */
+  function words(file: string): string[] {
+    const source = ts.createSourceFile(
+      file,
+      readFileSync(join(web, file), 'utf8'),
+      ts.ScriptTarget.Latest,
+    )
+    const found: string[] = []
+    const visit = (node: ts.Node) => {
+      if (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node))
+        found.push(...node.text.split(/\s+/))
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    return found
+  }
+
+  it('has no size, grey of text, corner or soft fill off the lists', () => {
+    const files = (readdirSync(web, { recursive: true }) as string[]).filter(
+      (file) => /\.tsx?$/.test(file) && !file.endsWith('cn-tables.gen.ts'),
+    )
+    const off = files.flatMap((file) =>
+      words(file)
+        .filter((word) => word !== 'rounded')
+        .filter(offList)
+        .map((word) => `${file}: ${word}`),
+    )
+    expect(off).toEqual([])
   })
 })
