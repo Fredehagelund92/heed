@@ -57,10 +57,11 @@ export function ViewAs() {
             onValueChange={(value: string) => {
               const name = value
               if (name === me.name) return
-              // The page may be one the next person can't open, so they start in their Inbox.
+              // The page may be one the next person can't open, so they start where the app
+              // opens for them.
               signIn
                 .mutateAsync({ name })
-                .then(() => navigate('/inbox'))
+                .then(() => navigate('/'))
                 .catch(() =>
                   toast.error('The switch did not work. You are still viewing as yourself.'),
                 )
