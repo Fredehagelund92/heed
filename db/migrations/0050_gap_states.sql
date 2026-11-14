@@ -1,4 +1,4 @@
--- 0049_gap_states: a gap has three states, and only the moves between them that Heed makes (#201).
+-- 0050_gap_states: a gap has three states, and only the moves between them that Heed makes (#201).
 --
 -- - Open (`open`): agents keep asking and nothing covers it yet. Covered (`resolved`): context was
 --   published for it. Set aside (`wont_fix`): its owners decided it is not something to write
