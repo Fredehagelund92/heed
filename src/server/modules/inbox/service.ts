@@ -626,9 +626,15 @@ export function createInboxFeedService(
               p.area_id as "areaId", p.submitted_at::text as "sentAt",
               coalesce((select array_agg(x.display_name order by x.display_name) from area_assignments a join people x on x.id=a.person_id
                          where a.area_id=p.area_id and a.role='owner' and a.valid_at @> now()
-                           and x.deactivated_at is null and x.erased_at is null and x.id<>cl_person()),'{}') as "waitingFor"
+                           and x.deactivated_at is null and x.erased_at is null and x.id<>cl_person()),'{}') as "waitingFor",
+              case when p.state='changes_requested' then
+                (select json_build_object('by',x.display_name,'at',d.decided_at::text)
+                   from decisions d left join people x on x.id=d.decided_by
+                  where d.proposal_id=p.id and d.outcome='request_changes'
+                  order by d.decided_at desc,d.id desc limit 1) end as returned
          from proposals p left join item_versions v on v.id=p.item_version_id
-        where p.proposer_id=cl_person() and p.state in ('submitted','in_review') and p.discarded_at is null
+        where p.proposer_id=cl_person() and p.state in ('submitted','in_review','changes_requested')
+          and p.discarded_at is null
         order by p.submitted_at desc nulls last limit 100`,
     )
   }

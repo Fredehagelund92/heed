@@ -11001,6 +11001,13 @@
                         ]
                       }
                     },
+                    "standing": {
+                      "enum": [
+                        "current",
+                        "stale"
+                      ],
+                      "type": "string"
+                    },
                     "canPublish": {
                       "type": "boolean"
                     },
@@ -11038,6 +11045,7 @@
                     "tryIt",
                     "reach",
                     "saved",
+                    "standing",
                     "canPublish",
                     "whyNot"
                   ]
@@ -14449,6 +14457,13 @@
                               ]
                             }
                           },
+                          "standing": {
+                            "enum": [
+                              "current",
+                              "stale"
+                            ],
+                            "type": "string"
+                          },
                           "canPublish": {
                             "type": "boolean"
                           },
@@ -14486,6 +14501,7 @@
                           "tryIt",
                           "reach",
                           "saved",
+                          "standing",
                           "canPublish",
                           "whyNot"
                         ]
@@ -19738,7 +19754,7 @@
     "/review/{id}/close": {
       "post": {
         "operationId": "review.close",
-        "summary": "Closes a suggestion to archive that its sender took back in the comments: nothing changes, and the context item stays live; answers with a token that undoes it",
+        "summary": "Closes a suggestion to archive: nothing changes. One its sender took back in the comments closes as it is, any other with a reason from the owner; answers with a token that undoes it",
         "tags": [
           "review"
         ],
@@ -19764,6 +19780,11 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
                   }
                 },
                 "required": [
@@ -67036,6 +67057,35 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "returned": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "by": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "by",
+                                  "at"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -67043,7 +67093,8 @@
                           "title",
                           "areaId",
                           "sentAt",
-                          "waitingFor"
+                          "waitingFor",
+                          "returned"
                         ]
                       }
                     }

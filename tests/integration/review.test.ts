@@ -511,18 +511,13 @@ describe('review and release', () => {
     // The author sends it again with the change, from the editor.
     const record = (await call('GET', `/proposals/${p.id}`, 'author')).json<ProposalRecord>()
     expect(record.state).toBe('changes_requested')
-    const resent = await database.transaction(people.author, (tx) =>
-      createProposalsService(tx, systemClock('2026-10-08'), people.author).save(
-        p.id,
-        record.revision,
-        { ...record.draft, title: 'Better' },
-      ),
-    )
-    const resubmitted = await call('POST', `/proposals/${p.id}/submit`, 'author', {
-      revision: resent.revision,
+    const resubmitted = await call('POST', '/items/publish', 'author', {
+      draftId: p.id,
+      draft: { ...record.draft, title: 'Better' },
     })
     expect(resubmitted.statusCode, resubmitted.body).toBe(200)
-    const again = resubmitted.json<ProposalRecord>()
+    const again = (await call('GET', `/proposals/${p.id}`, 'author')).json<ProposalRecord>()
+    expect(again).toMatchObject({ state: 'submitted', title: 'Better' })
     expect((await levels(again.itemVersionId!)).every((l) => l.outcome === 'passed')).toBe(true)
     const published = await decide(p.id, 'accept')
     expect(published.statusCode, published.body).toBe(200)
@@ -562,6 +557,91 @@ describe('review and release', () => {
     const published = await decide(p.id, 'accept')
     expect(published.statusCode, published.body).toBe(200)
     expect(published.json<Decided>().proposal).toMatchObject({ state: 'accepted' })
+  })
+
+  it('says on the sheet that a change written against an earlier version is not published', async () => {
+    const item = await acceptedItem({ title: 'Return window' })
+    const p = await submitted(
+      { title: 'Return window', summary: 'Returns take 14 days' },
+      'author',
+      item,
+    )
+    expect((await sheet(p.id)) as unknown).toMatchObject({ standing: 'current' })
+    expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
+    expect((await sheet(p.id)) as unknown).toMatchObject({
+      standing: 'stale',
+      canPublish: false,
+      whyNot:
+        'It was written against an earlier version of this item. Return it, so its sender writes it against the version agents get now.',
+    })
+  })
+
+  it('lists a returned suggestion for its sender, who edits it and sends it again from the editor', async () => {
+    const item = await acceptedItem({ title: 'Gift cards' })
+    const p = await submitted(
+      { title: 'Gift cards', summary: 'Gift cards never expire' },
+      'author',
+      item,
+    )
+    const feed = async () =>
+      (await call('GET', '/inbox/feed?tab=all', 'author'))
+        .json<{
+          waiting: { proposalId: string; returned: { by: string | null; at: string } | null }[]
+        }>()
+        .waiting.find((w) => w.proposalId === p.id)
+    expect(await feed()).toMatchObject({ returned: null })
+    expect((await decide(p.id, 'request_changes')).statusCode).toBe(200)
+    expect(await feed()).toMatchObject({ returned: { by: 'owner' } })
+    // The editor sends the person's own returned suggestion as itself, with the new words.
+    const record = (await call('GET', `/proposals/${p.id}`, 'author')).json<ProposalRecord>()
+    const sent = await call('POST', '/items/publish', 'author', {
+      draftId: p.id,
+      draft: { ...record.draft, summary: 'Gift cards expire after three years' },
+    })
+    expect(sent.statusCode, sent.body).toBe(200)
+    expect(sent.json()).toMatchObject({ published: false, proposalId: p.id })
+    expect(await feed()).toMatchObject({ returned: null })
+    // Someone else may not send it.
+    expect((await decide(p.id, 'request_changes')).statusCode).toBe(200)
+    const theirs = await call('POST', '/items/publish', 'stranger', {
+      draftId: p.id,
+      draft: record.draft,
+    })
+    expect(theirs.statusCode).toBe(404)
+  })
+
+  it('lets an owner close a suggestion to archive with a reason, its sender or not', async () => {
+    const item = await acceptedItem({ title: 'Loyalty points' })
+    const asked = await call('POST', `/items/${item}/retire-proposals`, 'author', {
+      reason: 'Nobody uses it',
+    })
+    expect(asked.statusCode, asked.body).toBe(200)
+    const retirement = asked.json<ReviewProposal>()
+    const close = async (reason?: string) =>
+      call('POST', `/review/${retirement.id}/close`, 'owner', {
+        revision: await revisionOf(retirement.id),
+        ...(reason ? { reason } : {}),
+      })
+    // Its sender did not take it back: the owner says why it stays.
+    const bare = await close()
+    expect(bare.statusCode, bare.body).toBe(422)
+    // Still true on the item while it waits: it was written against an earlier version.
+    expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
+    expect((await sheet(retirement.id)) as unknown).toMatchObject({
+      standing: 'stale',
+      canPublish: false,
+    })
+    const closed = await close('Members still collect points every week')
+    expect(closed.statusCode, closed.body).toBe(200)
+    expect((await decisions(retirement.id)).map((d) => [d.outcome, d.reason])).toEqual([
+      ['reject', 'Members still collect points every week'],
+    ])
+    expect(await delivered()).toContain(item)
+    // Someone may suggest archiving it again.
+    const again = await call('POST', `/items/${item}/retire-proposals`, 'author', {
+      reason: 'Still nobody uses it',
+    })
+    expect(again.statusCode, again.body).toBe(200)
   })
 
   it('retires at once or by proposal, and closes replaced items in the same edition', async () => {

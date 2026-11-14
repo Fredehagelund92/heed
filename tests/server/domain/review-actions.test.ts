@@ -9,12 +9,13 @@ import {
   What a person may do with a suggestion in review, and which action leads. One row per kind of
   suggestion, so the panel, the phone's bar and the key cannot each work it out differently. The
   rules follow the service: a suggestion to archive is archived or closed, never returned; Publish
-  waits only for a clash with no answer.
+  waits for a clash with no answer, and a stale suggestion is returned or closed, not sent out.
 */
 
 const plain: ReviewActionsInput = {
   mode: 'edit',
   withdrawn: false,
+  stale: false,
   clashes: 0,
   claimsToCheck: 0,
   drafted: false,
@@ -69,9 +70,24 @@ describe('what may be done with a suggestion', () => {
       },
     ],
     [
-      'a suggestion to archive: archived, never returned or published',
+      'a change written against an earlier version: Return leads, Publish waits',
+      { stale: true },
+      {
+        can: ['publish', 'return'],
+        primary: 'return',
+        blockedBy: { publish: 'stale' },
+        ready: false,
+      },
+    ],
+    [
+      'a suggestion to archive: archived, or closed with a reason; never returned or published',
       { mode: 'retire' },
-      { can: ['archive'], primary: 'archive', blockedBy: {}, ready: true },
+      { can: ['archive', 'close'], primary: 'archive', blockedBy: {}, ready: true },
+    ],
+    [
+      'a suggestion to archive written against an earlier version: closed, not archived',
+      { mode: 'retire', stale: true },
+      { can: ['archive', 'close'], primary: 'close', blockedBy: { archive: 'stale' }, ready: true },
     ],
     [
       'a suggestion to archive its sender took back: closed, or archived anyway',

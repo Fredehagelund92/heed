@@ -421,7 +421,11 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   sentence it copied (`claims`). It carries the clashes, the overlaps, the readiness line, the
   person's read state and Try it: the suggestion's own question answered on the live edition
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
-  hides from the reader reads as its words only.
+  hides from the reader reads as its words only. `standing` says whether a waiting suggestion is
+  still written against the version agents get: once the item has a new live version (a check,
+  another publish) or was archived another way it is `stale`, `canPublish` is false and `whyNot`
+  says to return a change or to close a suggestion to archive.
+  A decided suggestion is `current`.
 - `POST /review/sheets` takes `{ ids }` (at most 100) and gives the same read for many
   suggestions at once, in the order asked, leaving out one that went or that the reader may not
   see: the Inbox reads every suggestion it lists in one call. It changes nothing; as a POST it
@@ -438,9 +442,10 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   no answer is 422. `POST /review/{id}/return` takes `{ revision, note, body? }`: the suggestion
   goes back to its writer, and the note is its first comment, marked returned (`body` is the
   note as the comment box wrote it, with its mentions; without it the comment is the note's
-  words). `POST /review/{id}/close` takes `{ revision }` and closes a suggestion to archive that
-  its sender took back in the comments: nothing changes, the item stays live, and the answer has
-  a token that undoes it.
+  words). `POST /review/{id}/close` takes `{ revision, reason? }` and closes a suggestion to
+  archive: nothing changes, and the answer has a token that undoes it. One its sender took back in
+  the comments needs no reason; any other needs the owner's `reason`, kept with the decision (422
+  without one).
 - `POST /review/{id}/read` takes `{ itemVersionId }` and records that the person read that
   version (FR-226); a version that is no longer the one under review is 409.
   `POST /review/publish-read` takes `{ ids }` (up to 50) and publishes each suggestion the
@@ -467,7 +472,8 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   the item they are about; one waits until an owner closes it or checks, changes or archives its
   item, and is then done with that outcome. A Not found card's title
   names what agents asked about and the month: "Orders in Spain, October 2026". Under All come what the person sent that waits
-  on an owner and what was done in the last 14 days. A suggestion's card says whether the
+  on an owner, and what an owner returned to them with a note (`returned`, who and when), and
+  what was done in the last 14 days. A suggestion's card says whether the
   person read the version under review (`read`), so it may go out with the others they read.
   `week` counts this week's agent questions, each hidden under `privacy.min_count` (FR-614).
 - `POST /inbox/cards/read` takes `{ cards }`: the person opened them (a Mentioned you card:
@@ -596,8 +602,8 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   owner answered in the editor: a clash left unanswered refuses the publish (422, with the open
   clashes as `data.clashes`, each `{ itemId, title }`), and an answer
   for an item it does not clash with is left out. `draftId` names the person's own draft it
-  finishes: the draft takes the words and is sent as itself, changing the item it was started
-  from, if any; only its writer sends a draft (403 otherwise). A publish the checks refuse keeps
+  finishes, or their suggestion an owner returned: it takes the words and is sent as itself,
+  changing the item it was started from, if any; only its writer sends it (403 otherwise). A publish the checks refuse keeps
   nothing.
 - `POST /drafts/from-text` takes `{ text }`: a draft read from pasted text, or from the page a
   single link points to, with no model. It fills the words, a kind and dates by rule and where

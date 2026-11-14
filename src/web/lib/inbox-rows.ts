@@ -17,7 +17,6 @@ export const rowId = (r: InboxRow) =>
   r.kind === 'card' ? r.card.id : r.kind === 'waiting' ? r.item.id : `m.${r.subject}`
 export const rowTitle = (r: InboxRow) =>
   r.kind === 'card' ? r.card.title : r.kind === 'waiting' ? r.item.title : r.title
-/** What needs you: an open card, and anything that mentions you that you haven't read. */
 /**
  * The Inbox's groups, in the order of need: the names a read made first, then what agents couldn't
  * answer, suggestions after.
@@ -29,6 +28,7 @@ export const INBOX_GROUPS = [
   { id: 'look', label: 'Saved questions' },
   { id: 'alert', label: 'Alerts' },
   { id: 'mention', label: 'Mentioned you' },
+  { id: 'returned', label: 'Returned to you' },
   { id: 'check', label: 'Due for a check' },
   { id: 'suggestion', label: 'Suggestions' },
   { id: 'waiting', label: 'Waiting on others' },
@@ -41,16 +41,27 @@ export const groupOf = (r: InboxRow): InboxGroup =>
   r.kind === 'mention'
     ? 'mention'
     : r.kind === 'waiting'
-      ? r.note
-        ? 'mention'
-        : 'waiting'
+      ? r.item.returned
+        ? 'returned'
+        : r.note
+          ? 'mention'
+          : 'waiting'
       : r.done && !r.note
         ? 'done'
         : r.card.type
 
 const order = (r: InboxRow) => INBOX_GROUPS.findIndex((g) => g.id === groupOf(r))
 
-export const needs = (r: InboxRow) => (r.kind === 'card' ? !r.done || !!r.note : !!r.note)
+/**
+ * What needs you: an open card, your suggestion an owner returned to you, and anything that
+ * mentions you that you haven't read.
+ */
+export const needs = (r: InboxRow) =>
+  r.kind === 'card'
+    ? !r.done || !!r.note
+    : r.kind === 'waiting'
+      ? !!r.note || !!r.item.returned
+      : !!r.note
 
 /**
  * Your Inbox: open cards, mentions of you, your suggestions waiting on others, and what is done.

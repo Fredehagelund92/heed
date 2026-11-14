@@ -281,6 +281,12 @@ export const reviewSheetSchema = z.object({
    * (FR-526): shown before Publish, never kept, and never a reason Publish waits.
    */
   saved: z.array(savedDraftSchema),
+  /**
+   * Whether a waiting suggestion is still written against the version agents get (stale once the
+   * item has a new live version or was archived since): a stale one is returned or closed, not
+   * published as it is. A decided one is current.
+   */
+  standing: z.enum(['current', 'stale']),
   /** Whether the person may publish it now, and why not when they may not. */
   canPublish: z.boolean(),
   whyNot: z.nullable(z.string()),
@@ -331,10 +337,14 @@ export const returnResultSchema = z.object({
   undo: undoTokenSchema,
 })
 
-/** Closes a suggestion to archive that its sender took back in the comments: nothing changes. */
+/**
+ * Closes a suggestion to archive: nothing changes. One its sender took back in the comments needs
+ * no reason; any other is closed with the owner's reason, kept with the decision.
+ */
 export const closeInputSchema = z.strictObject({
   id: z.string().check(z.uuid()),
   revision: z.number().check(z.int(), z.minimum(1)),
+  reason: z.optional(z.string().check(z.trim(), z.minLength(1), z.maxLength(500))),
 })
 export const closeResultSchema = z.object({
   proposal: reviewProposalSchema,

@@ -5,6 +5,7 @@ import {
   CalendarClockIcon,
   CircleDashedIcon,
   ClockIcon,
+  CornerUpLeftIcon,
   FlagIcon,
   GitPullRequestArrowIcon,
   TagIcon,
@@ -47,6 +48,7 @@ export const cardIcon = {
   conflict: TriangleAlertIcon,
   mention: AtSignIcon,
   waiting: ClockIcon,
+  returned: CornerUpLeftIcon,
 } satisfies Record<PaneState['icon'], unknown>
 
 /** The card's state as Heed's one chip: its icon and its word, tinted only when it needs care. */

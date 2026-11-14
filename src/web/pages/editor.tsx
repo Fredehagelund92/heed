@@ -524,10 +524,9 @@ function Editor({
       toast(`Sent to ${ownerName}, owner of ${domains[form.domain]?.name}`, {
         description: 'Agents get it once the owner publishes it.',
       })
-      navigate(
-        original ? `/context/${original.id}` : '/inbox',
-        original ? undefined : { tab: 'all', card: id },
-      )
+      // A draft, or a suggestion sent again, has no item page yet: it waits in the Inbox.
+      const item = original && original.status !== 'Draft' ? original : undefined
+      navigate(item ? `/context/${item.id}` : '/inbox', item ? undefined : { tab: 'all', card: id })
       return
     }
     const { id } = await write('saveItem', {
@@ -1254,7 +1253,8 @@ function Editor({
                 placeholder="Left empty, agents are told: Cause not proven."
               />
             </PropertyRow>
-            {original && (
+            {/* A draft, or a suggestion sent back, was never checked: it has no such row. */}
+            {original?.checkedBy && (
               <PropertyRow id={fieldId('checked')} label="Checked" icon={<CircleCheckIcon />}>
                 <StaticField>
                   <PersonAvatar name={original.checkedBy} size={20} />

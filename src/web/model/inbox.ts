@@ -108,6 +108,11 @@ export type Waiting = {
   sent: string
   /** The suggestion's card in the owner's Inbox, where its comments hang. */
   card: string
+  /**
+   * An owner returned it with a note, the first comment of its thread: it waits on the person,
+   * who edits it and sends it again.
+   */
+  returned?: { by: string; when: string }
 }
 
 export type SetupStep = { id: string; title: string; description: string; action: string }
