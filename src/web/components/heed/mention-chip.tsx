@@ -71,7 +71,7 @@ export function MentionIcon({
 // Whole, never broken across lines: the chip sits on the text's baseline and the line wraps around
 // it; a title longer than the line ends in an ellipsis inside the chip, the full title on hover.
 const chip =
-  'mention-chip inline-flex max-w-full items-baseline gap-1 rounded-sm px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap [&>svg]:self-center'
+  'mention-chip inline-flex max-w-full items-baseline gap-1 rounded-sm px-1.5 py-px align-baseline text-sm font-medium whitespace-nowrap [&>svg]:self-center'
 
 /** A mention's tint: the same as its tag chip (metrics, markets, terms and domains tinted; the rest neutral). */
 function mentionTone(kind: string, key: string) {

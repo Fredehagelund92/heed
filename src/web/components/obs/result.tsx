@@ -16,11 +16,7 @@ export function ResultIcon({ result, className }: { result: SavedResult; classNa
     <span
       className={cn(
         'inline-flex shrink-0',
-        result === 'same'
-          ? 'text-[var(--ok)]'
-          : result === 'changed'
-            ? 'text-primary'
-            : 'text-[var(--warn)]',
+        result === 'same' ? 'text-good' : result === 'changed' ? 'text-primary' : 'text-caution',
         className,
       )}
     >

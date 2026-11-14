@@ -40,7 +40,9 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-/** A person: 28 in lists, 32 in the user menu. */
+/** A person: 28 in lists, 32 in the user menu. Initials are 12 px; at 16 and 20 px there is no
+ *  room for 12 px letters, so the avatar shows its colour (hidden from a screen reader, which hears
+ *  the name beside it) and the name stays in its title. */
 export function PersonAvatar({
   name,
   size = 28,
@@ -51,8 +53,10 @@ export function PersonAvatar({
   className?: string
 }) {
   const [tint, ink] = PASTELS[hash(name) % PASTELS.length]!
+  const lettered = size >= 28
   return (
     <Avatar
+      aria-hidden={lettered ? undefined : true}
       className={cn(
         size === 16 ? 'size-4' : size === 20 ? 'size-5' : size === 28 ? 'size-7' : 'size-8',
         className,
@@ -60,19 +64,10 @@ export function PersonAvatar({
       title={name}
     >
       <AvatarFallback
-        className={cn(
-          'bg-(--avatar-tint) font-semibold text-(--avatar-ink)',
-          size === 16
-            ? 'text-5xs'
-            : size === 20
-              ? 'text-4xs'
-              : size === 28
-                ? 'text-2xs'
-                : 'text-xs',
-        )}
+        className="bg-(--avatar-tint) text-xs font-semibold text-(--avatar-ink)"
         style={{ '--avatar-tint': tint, '--avatar-ink': ink } as CSSProperties}
       >
-        {initials(name)}
+        {lettered && initials(name)}
       </AvatarFallback>
     </Avatar>
   )
@@ -106,7 +101,7 @@ export { StateLine } from './state-line'
 /** Inside a button that is not built yet: it stays where it will be, disabled, and says so. */
 export function ComingSoon() {
   return (
-    <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal">
+    <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-xs font-normal">
       Coming soon
     </span>
   )

@@ -19,7 +19,7 @@ export function ClaimCheck({
 }) {
   const verdict = {
     same: { icon: CircleCheckIcon, label: 'Same', cls: 'text-foreground' },
-    check: { icon: CircleHelpIcon, label: 'Same? Check', cls: 'text-caution-ink' },
+    check: { icon: CircleHelpIcon, label: 'Same? Check', cls: 'text-caution' },
     different: { icon: CircleXIcon, label: 'Different', cls: 'text-destructive' },
   } as const
   return (

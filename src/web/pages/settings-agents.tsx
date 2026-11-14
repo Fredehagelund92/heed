@@ -490,7 +490,7 @@ function AgentRow({
               aria-label={
                 r.kind === 'key' ? `Details of ${r.agent}` : `Details of ${r.agent} for ${r.who}`
               }
-              className="h-7 rounded-md px-2.5 text-control-sm font-medium text-muted-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
+              className="h-7 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
             />
             <Button
               variant="ghost"

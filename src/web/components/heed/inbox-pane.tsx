@@ -100,7 +100,7 @@ export function PaneHead({
       <h2 className="text-xl leading-tight font-semibold tracking-tight text-balance @md:text-2xl">
         {title}
       </h2>
-      {summary && <p className="text-reading leading-relaxed text-pretty">{summary}</p>}
+      {summary && <p className="text-base leading-relaxed text-pretty">{summary}</p>}
       {from && <div className="text-sm text-muted-foreground">{from}</div>}
     </header>
   )
@@ -174,11 +174,11 @@ export function PrimaryAction({
 
 /** The 3 px rule over the answer after the decision, in its state's colour. */
 const afterRule: Record<AnswerState, string> = {
-  grounded: 'border-t-[var(--ok)]',
-  partial: 'border-t-[var(--warn)]',
-  missing: 'border-t-[var(--idle)]',
-  conflict: 'border-t-[var(--caution-icon)]',
-  stale: 'border-t-[var(--warn)]',
+  grounded: 'border-t-good',
+  partial: 'border-t-caution',
+  missing: 'border-t-muted-foreground',
+  conflict: 'border-t-caution',
+  stale: 'border-t-caution',
   failed: 'border-t-destructive',
 }
 
@@ -204,15 +204,15 @@ function AnswerSide({
           cn(
             'border-t-3 @pane-split:border-l',
             afterRule[answer.state],
-            answer.state === 'conflict' && 'bg-caution-soft',
+            answer.state === 'conflict' && 'bg-caution/8',
           ),
       )}
     >
-      <span className="text-dense font-semibold text-muted-foreground">{label}</span>
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
       <StateLine state={answer.state} />
       <p
         className={cn(
-          'text-reading leading-relaxed text-pretty',
+          'text-base leading-relaxed text-pretty',
           answer.state === 'missing' && !after && 'text-muted-foreground',
         )}
       >
@@ -238,7 +238,7 @@ export function AgentAnswers({ answers, asked }: { answers: Answers; asked?: Rea
     <section aria-label="What agents will say" className="border">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-band px-4 py-3.5">
         {asked ?? (
-          <p className="rounded-surface border bg-background px-3.5 py-2 text-reading leading-snug">
+          <p className="rounded-surface border bg-background px-3.5 py-2 text-base leading-snug">
             {answers.question}
           </p>
         )}
@@ -258,14 +258,14 @@ export function AgentAnswers({ answers, asked }: { answers: Answers; asked?: Rea
 export function AskedAbout({ scope, times }: { scope: string[]; times: number }) {
   return (
     <>
-      <span className="text-dense font-semibold text-muted-foreground">Agents asked about</span>
+      <span className="text-xs font-semibold text-muted-foreground">Agents asked about</span>
       <span className="flex flex-wrap gap-1.5">
         {scope.map((s) => (
           <TagChip key={s}>{s}</TagChip>
         ))}
       </span>
       {times > 0 && (
-        <span className="text-dense text-muted-foreground tabular-nums @pane-split:ml-auto">
+        <span className="text-xs text-muted-foreground tabular-nums @pane-split:ml-auto">
           {times} {times === 1 ? 'time' : 'times'} this week
         </span>
       )}
@@ -354,7 +354,7 @@ export function ItemFold({ fact, link = true }: { fact: Fact; link?: boolean }) 
       </h3>
       <CollapsibleContent keepMounted>
         <div className="flex flex-col gap-3 pb-4 pl-7 text-sm leading-relaxed">
-          <p className="text-reading">{plainText(fact.summary)}</p>
+          <p className="text-base">{plainText(fact.summary)}</p>
           {/* The row says the kind, and the item's page has the quote and Related. */}
           <DetailsBody fact={fact} leaveOut={['kind', 'source', 'related']} />
           {link && (

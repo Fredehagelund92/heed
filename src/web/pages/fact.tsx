@@ -331,7 +331,7 @@ export function FactPage({ id }: { id: string }) {
             {/* The document is the page: the item as people read it, the same view a review previews. */}
             <ItemDocument fact={fact} />
             {!wide && attention && (
-              <div className="mt-6 overflow-hidden rounded-frame border border-caution/45 bg-caution/6 dark:border-warn/45 dark:bg-caution/10 [&>section]:border-b-0 [&>section+section]:border-t">
+              <div className="mt-6 overflow-hidden rounded-frame border border-caution/45 bg-caution/8 dark:border-caution/45 dark:bg-caution/8 [&>section]:border-b-0 [&>section+section]:border-t">
                 {attention}
               </div>
             )}

@@ -6,7 +6,9 @@
 
   tests/lint/web-tokens.test.ts checks that every token exists in light and dark and recomputes
   every contrast pair from this file: text 4.5:1, controls, field borders, marks and meaningful
-  icons 3:1.
+  icons 3:1. It also holds the file to a small system (design contract 2): six text sizes, two
+  greys of text, five corners, and one colour per meaning, an amber, a green and a red, whose soft
+  fill is the colour at 8 percent.
 */
 
 /* Motion: the curves and the defaults every transition-* class without its own duration uses.
@@ -20,7 +22,8 @@
 }
 
 /* Heed's theme: shadcn neutral, with Heed blue as the one primary. Two changes for contrast:
-   muted text at 4.5:1 on the muted surface, and input borders at 3:1 on the page. */
+   muted text at 4.5:1 on the muted surface, and input borders at 3:1 on the page. Text has two
+   greys, ink and muted: shadcn's other text colours are the ink. */
 :root {
   color-scheme: light;
 
@@ -33,35 +36,38 @@
   --primary: #2c5dbd;
   --primary-foreground: #fff;
   --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: #666;
   --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --accent-foreground: oklch(0.145 0 0);
+
+  /* One colour per meaning (design contract 2.1): red, broken or removed; green, checked and in
+     force; amber, look at this. Each is text at 4.5:1 on every surface, so it also draws the icon,
+     the rule and the line of its meaning. A soft fill behind one is the colour at 8 percent, by
+     rule (bg-caution/8), never a second name. */
+  --destructive: oklch(0.5 0.2 27);
+  --good: oklch(0.5 0.14 150);
+  --caution: oklch(0.501 0.133 49.7);
   --border: oklch(0.922 0 0);
   --input: #8f8f8f;
   --ring: #2c5dbd;
 
   /* Review marks: a soft fill for the words and a stronger line for the underline or strike. A
-     changed word inside an added or removed line of the Text diff takes the stronger -word fill. */
+     changed word inside an added or removed line of the Text diff takes the stronger -word fill.
+     An added, removed or link line is the colour of its meaning. */
   --mark-add: oklch(0.94 0.06 150);
-  --mark-add-line: oklch(0.55 0.15 150);
+  --mark-add-line: var(--good);
   --mark-add-word: oklch(0.86 0.1 150);
   --mark-del: oklch(0.94 0.04 25);
-  --mark-del-line: oklch(0.56 0.19 25);
+  --mark-del-line: var(--destructive);
   --mark-del-word: oklch(0.87 0.08 25);
   --mark-fmt: oklch(0.95 0.04 300);
   --mark-fmt-line: oklch(0.5 0.2 295);
   --mark-link: oklch(0.95 0.07 85);
-  --mark-link-line: oklch(0.62 0.15 70);
+  --mark-link-line: var(--caution);
   --mark-move: oklch(0.96 0.01 250);
   --mark-move-line: oklch(0.55 0.03 250);
-
-  /* Freshness and the list's trust ring. */
-  --ok: oklch(0.5 0.14 150);
-  --warn: oklch(0.55 0.15 60);
-  --idle: oklch(0.58 0 0);
 
   /* Charts: the same greys in both themes. */
   --chart-1: oklch(0.87 0 0);
@@ -69,12 +75,15 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.985 0 0);
+
+  /* One band: the sidebar, table heads, captions and bars. */
+  --band: oklch(0.985 0 0);
+  --sidebar: var(--band);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #2c5dbd;
   --sidebar-primary-foreground: #fff;
   --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: #2c5dbd;
 
@@ -91,42 +100,20 @@
   --chip-ink-l: 0.36;
   --chip-ink-c: 0.07;
 
-  /* Radius: containers square, conversational surfaces soft, small controls round. */
-  --radius: 0.625rem;
-
-  /* Notices and states drawn in their own tones: an amber caution (a figure, a missing
-     key, a skipped row) with its soft fill behind a Conflict answer in the quick view (design
-     contract 2.1), a green good (healthy, published, live), the status dots, a destructive ghost
-     button's text, and the word diff's fills. A token with a dark value below changes with the
-     theme; the rest are the same in both. */
-  --caution: oklch(0.68 0.16 65);
-  --caution-ink: oklch(0.5 0.13 65);
-  --caution-icon: oklch(0.55 0.15 60);
-  --caution-text: oklch(0.5 0.14 55);
-  --caution-soft: oklch(0.978 0.024 80);
-  --due: oklch(0.7 0.15 70);
-  --good: oklch(0.62 0.15 150);
-  --good-ink: oklch(0.45 0.12 150);
-  --good-icon: oklch(0.55 0.14 150);
-  --ready: oklch(0.62 0.13 150);
+  /* A status dot that is off, the word diff's fills, and its inks and line in the colour of their
+     meaning. A token with a dark value below changes with the theme; the rest are the same in both. */
   --off: oklch(0.62 0 0);
-  --destructive-ink: oklch(0.5 0.2 27);
   --diff-add: oklch(96.2% 0.044 156.743);
-  --diff-add-ink: oklch(39.3% 0.095 152.535);
-  --diff-add-line: oklch(52.7% 0.154 150.069);
+  --diff-add-ink: var(--good);
+  --diff-add-line: var(--good);
   --diff-del: oklch(93.6% 0.032 17.717);
-  --diff-del-ink: oklch(39.6% 0.141 25.723);
+  --diff-del-ink: var(--destructive);
   --scrim: oklch(0 0 0 / 10%);
   --chip-hover: oklch(0 0 0 / 8%);
   --logo-plate: #fff;
   --mark-fmt-ink: #fff;
 
-  /* Surfaces mixed from the theme: a band (table heads, captions, footers) in three strengths, a
-     row under the pointer, a fresh row, and the secondary button under the pointer. */
-  --band: color-mix(in oklab, var(--muted) 45%, var(--background));
-  --band-soft: color-mix(in oklab, var(--muted) 35%, var(--background));
-  --band-strong: color-mix(in oklab, var(--muted) 50%, var(--background));
-  --row-hover: color-mix(in oklab, var(--muted) 60%, var(--background));
+  /* Surfaces mixed from the theme: a fresh row, and the secondary button under the pointer. */
   --fresh: color-mix(in oklab, var(--primary) 6%, var(--background));
   --secondary-hover: color-mix(in oklch, var(--secondary), var(--foreground) 5%);
 
@@ -197,7 +184,7 @@
 
   /* Hand written stylesheets: the rich text editor and the comment renderer
      (components/editor/style.css and components/static-renderer/style.css). Their font sizes
-     use Tailwind's --text-* scale and --text-dense; the rest is here. */
+     are the six steps (--text-*) and their corners the five (--radius-*); the rest is here. */
 
   /* A spacing scale in steps of 4 px (--space-1 is 4 px), with 1 px and half steps, and steps in
      em for margins that follow the text's size. */
@@ -225,22 +212,6 @@
   --rte-handle-overhang: -3px;
   --rte-handle-corner-overhang: -5px;
   --rte-task-nested-offset: 5px;
-
-  /* Type: the embed toolbar's preset labels and size badge, and inline code. */
-  --rte-text-badge: 0.7rem;
-  --rte-text-code: 0.875em;
-
-  /* Radius: menu items, small buttons and inline code; toolbar buttons and the task checkbox; the
-     compact toolbar's buttons; the resize handles; the size badge; the word count's dot and a
-     colour swatch, both fully round. */
-  --rte-radius-item: calc(var(--radius) - 4px);
-  --rte-radius-control: calc(var(--radius) - 2px);
-  --rte-radius-control-sm: calc(var(--radius) - 3px);
-  --rte-radius-handle: 1px;
-  --rte-radius-handle-corner: 2px;
-  --rte-radius-badge: 4px;
-  --rte-radius-dot: 9999px;
-  --rte-radius-swatch: 999px;
 
   /* The code block: a dark theme in both themes (Catppuccin Mocha), one colour per syntax role. */
   --code-bg: #1e1e2e;
@@ -329,15 +300,15 @@
     --muted-foreground: #a3a3a3;
     --accent: oklch(0.269 0 0);
     --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+    --destructive: oklch(0.8 0.13 22);
+    --good: oklch(0.78 0.15 150);
+    --caution: oklch(0.8 0.13 75);
     --border: oklch(1 0 0 / 10%);
     --input: #6b6b6b;
     --ring: #7aa2f0;
     --mark-add: oklch(0.34 0.07 150);
-    --mark-add-line: oklch(0.72 0.15 150);
     --mark-add-word: oklch(0.43 0.12 150);
     --mark-del: oklch(0.34 0.07 25);
-    --mark-del-line: oklch(0.7 0.17 25);
     --mark-del-word: oklch(0.42 0.15 25);
     --mark-fmt: oklch(0.33 0.07 300);
 
@@ -345,13 +316,10 @@
        fix, not a design change (design contract 2.1). */
     --mark-fmt-line: oklch(0.72 0.14 295);
     --mark-link: oklch(0.36 0.07 80);
-    --mark-link-line: oklch(0.78 0.14 80);
     --mark-move: oklch(0.3 0.015 250);
     --mark-move-line: oklch(0.7 0.03 250);
-    --ok: oklch(0.78 0.15 150);
-    --warn: oklch(0.78 0.14 70);
-    --idle: #8a8a8a;
-    --sidebar: oklch(0.205 0 0);
+    --band: oklch(0.205 0 0);
+    --sidebar: var(--band);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: #7aa2f0;
     --sidebar-primary-foreground: #0a0a0a;
@@ -359,12 +327,6 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: #7aa2f0;
-    --caution-ink: oklch(0.8 0.13 75);
-    --caution-icon: oklch(0.8 0.13 75);
-    --caution-text: oklch(0.8 0.13 75);
-    --caution-soft: oklch(0.23 0.035 75);
-    --good-ink: oklch(0.78 0.13 150);
-    --destructive-ink: oklch(0.8 0.13 22);
     --diff-add: oklch(26.6% 0.065 152.934);
     --diff-add-ink: oklch(96.2% 0.044 156.743);
     --diff-del: oklch(25.8% 0.092 26.042);
@@ -412,25 +374,25 @@
 
 /* Type: written as variables too, so a stylesheet of the app's own reads the same sizes. */
 @theme {
-  /* Tailwind's scale, and the in-between sizes the app draws. A size here sets no line
-     height, so the line keeps the one it inherits. */
-  --text-5xs: 0.4375rem; /* 7 px: a 16 px avatar's initials */
-  --text-4xs: 0.5625rem; /* 9 px: a 20 px avatar's initials */
-  --text-3xs: 0.625rem; /* 10 px: chart labels, a format note */
-  --text-2xs: 0.6875rem; /* 11 px: a 28 px avatar's initials, small labels and counts */
-  --text-code-sm: 12.5px; /* 12.5 px: a command in the connect prompt */
-  --text-control-sm: 0.8rem; /* a small button and the calendar */
-  --text-dense: 0.8125rem; /* 13 px: sidebar rows, dense lists and controls */
-  --text-reading: 0.9375rem; /* 15 px: a review's text, a docs page, a peek */
-  --text-hero: 2rem; /* a docs page's title */
-  --text-hero-lg: 2.5rem; /* the docs home's title */
-  --text-code: 0.85em; /* code inside a line of text */
+  /* Six steps, one line height each (design contract 2.3), and nothing between them: Tailwind's
+     own scale is cleared, so a size off the list is not a class. */
+  --text-*: initial;
+  --text-xs: 0.75rem; /* 12 px, meta: captions, chips, counts, table heads */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem; /* 14 px, interface: rows, buttons, the sidebar, fields */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem; /* 16 px, reading: a context item's text, an Ask answer */
+  --text-base--line-height: 1.5rem;
+  --text-xl: 1.25rem; /* 20 px, a section: a dialog, a card, a pane heading */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem; /* 24 px, a page: the thing a pane is about, a big figure */
+  --text-2xl--line-height: 1.875rem;
+  --text-3xl: 1.875rem; /* 30 px, a document: a context item or a docs page */
+  --text-3xl--line-height: 2.375rem;
 
   /* An Ask question and answer: 16 px text (text-base) on 26 px lines, as the chat apps people
-     know set theirs. */
+     know set theirs. A docs title draws a little tighter. */
   --leading-chat: 1.625rem;
-  --leading-hero: 1.1;
-  --leading-hero-lg: 1.05;
   --tracking-hero: -0.02em;
 }
 
@@ -467,9 +429,6 @@
   --color-mark-link-line: var(--mark-link-line);
   --color-mark-move: var(--mark-move);
   --color-mark-move-line: var(--mark-move-line);
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-  --color-idle: var(--idle);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -484,17 +443,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-caution: var(--caution);
-  --color-caution-ink: var(--caution-ink);
-  --color-caution-icon: var(--caution-icon);
-  --color-caution-text: var(--caution-text);
-  --color-caution-soft: var(--caution-soft);
-  --color-due: var(--due);
   --color-good: var(--good);
-  --color-good-ink: var(--good-ink);
-  --color-good-icon: var(--good-icon);
-  --color-ready: var(--ready);
   --color-off: var(--off);
-  --color-destructive-ink: var(--destructive-ink);
   --color-diff-add: var(--diff-add);
   --color-diff-add-ink: var(--diff-add-ink);
   --color-diff-add-line: var(--diff-add-line);
@@ -505,8 +455,6 @@
   --color-logo-plate: var(--logo-plate);
   --color-mark-fmt-ink: var(--mark-fmt-ink);
   --color-band: var(--band);
-  --color-band-soft: var(--band-soft);
-  --color-band-strong: var(--band-strong);
   --color-fresh: var(--fresh);
   --color-secondary-hover: var(--secondary-hover);
 
@@ -515,23 +463,23 @@
   --color-chip-foreground: oklch(var(--chip-ink-l) var(--chip-ink-c) var(--chip-h));
   --color-chip-dot: oklch(0.62 0.14 var(--chip-h));
 
-  /* Small controls on shadcn's scale: sm 6, md 8, lg 10, xl 14 px. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-
-  /* Containers are square: cards, panels, dialogs, sheets, popovers, tables, editors, callouts
-     and empty states. One token, so the whole app can go back to a soft corner in one line. */
+  /* Five corners (design contract 2.2), and nothing between them: Tailwind's own scale is
+     cleared, so a corner off the list is not a class. Containers are square: cards, panels,
+     dialogs, sheets, popovers, tables, editors, callouts and empty states, one token, so the whole
+     app can go back to a soft corner in one line. Then 4 for the smallest marks (a checkbox, a
+     review mark), 6 for a chip, a key and a switch's segment, 8 for a button, a field, a menu and
+     a badge, and the pill for an avatar, a switch and a dot. */
+  --radius-*: initial;
   --radius-frame: 0px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-full: calc(infinity * 1px);
 
-  /* Conversational input surfaces are soft: the comment box, a question and a suggestion to ask.
-     The Ask composer, the one box a chat is typed in, is softer still: xl, 14 px. */
-  --radius-surface: var(--radius);
-  --radius-composer: var(--radius-xl);
+  /* Conversational input surfaces, the comment box, a question and a suggestion to ask, are a
+     control's 8 px. The Ask composer, the one box a chat is typed in, is the one soft thing. */
+  --radius-surface: var(--radius-md);
+  --radius-composer: 14px;
 
   /* One bar height: the page header, the sidebar's logo row and user block, and every bottom
      bar, so their hairlines line up. The editor's toolbar is a slimmer fixed row under the
@@ -548,13 +496,6 @@
   /* A named pane-width rule (design contract 3.6): the quick view's answers stand side by side
      from 560 px of pane, in the Inbox and in the dock, and one above the other below it. */
   --container-pane-split: 35rem;
-
-  /* Radius between the scale's steps: a review mark's highlight, a logo tile, and a control
-     inset in a field. */
-  --radius-mark: 3px;
-  --radius-tile: 5px;
-  --radius-inset: calc(var(--radius) - 3px);
-  --radius-inset-sm: calc(var(--radius) - 5px);
 
   /* Shadows: hairlines drawn inside a box, the peeked row's edge, the sidebar's ring and a phone
      sheet lifting from the bottom. */

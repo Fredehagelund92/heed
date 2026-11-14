@@ -236,9 +236,15 @@ Its behaviour is checked against the golden journeys in `tests/e2e`.
 
 ## The class rules
 
-Tailwind's spacing and text scales, and weights 400 to 700, are allowed.
-`eslint.class-rules.js` reports the rest, one rule each, with the fix in its message:
+Tailwind's spacing scale, the six text sizes (`text-xs`, `text-sm`, `text-base`, `text-xl`,
+`text-2xl`, `text-3xl`), the five corners (`rounded-frame`, `rounded-xs`, `rounded-sm`,
+`rounded-md`, `rounded-full`, and `rounded-composer` for the Ask composer), and weights 400 to 700
+are allowed. `eslint.class-rules.js` reports the rest, one rule each, with the fix in its message:
 
+- a text size or a corner off those lists (`text-lg`, `rounded-lg`);
+- a faded grey of text (`text-foreground/75`): text is `text-foreground` or
+  `text-muted-foreground`, and only a switched-off control fades, with `opacity-50`;
+- a soft fill at any strength but 8 percent (`bg-caution/12`): use `bg-caution/8`;
 - an arbitrary value (`w-[13px]`) or property, except a token by its variable
   (`bg-[var(--mark-add)]`), the properties a transition names and the two keyframes of
   [motion](docs/design/motion.md);

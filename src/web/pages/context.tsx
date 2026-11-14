@@ -320,21 +320,21 @@ export function ContextPage() {
                 <ToolLogo
                   c={lookOf(f.origin.connector)}
                   size="sm"
-                  className="size-4 rounded p-0.5"
+                  className="size-4 rounded-xs p-0.5"
                 />
                 <span className="sr-only">From {f.origin.tool}</span>
               </span>
             )}
           </span>
           {/* On a phone the columns fold into a second line: the time frame in words, then the scope. */}
-          <span className="mt-0.5 hidden min-w-0 items-center gap-2 text-dense text-muted-foreground @max-xl/main:flex">
+          <span className="mt-0.5 hidden min-w-0 items-center gap-2 text-xs text-muted-foreground @max-xl/main:flex">
             <span className="shrink-0">{timeShort(time)}</span>
             <span className="min-w-0 truncate">
               <Highlight text={where} query={text} />
             </span>
           </span>
         </td>
-        <td className="hidden w-50.5 max-w-50.5 min-w-50.5 px-1.5 align-middle text-dense text-muted-foreground @min-[60rem]/main:table-cell">
+        <td className="hidden w-50.5 max-w-50.5 min-w-50.5 px-1.5 align-middle text-sm text-muted-foreground @min-[60rem]/main:table-cell">
           {/* The scope as the same tag chips as everywhere: two, then how many more. */}
           <span className="flex min-w-0 items-center gap-1 overflow-hidden">
             {f.where.slice(0, 2).map((w) => (

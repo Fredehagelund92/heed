@@ -29,7 +29,7 @@ export function RangeSwitch({ value }: { value: Range }) {
           // Days chosen on the chart belong to the range they were chosen in.
           onClick={() => setQuery({ range: r === 7 ? undefined : String(r), days: undefined })}
           className={cn(
-            'rounded-tile px-2.5 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+            'rounded-sm px-2.5 text-sm whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
             value === r && 'bg-muted font-medium text-foreground',
           )}
         >
@@ -142,8 +142,8 @@ export function Kpi({
           className={cn(
             'mt-0.5 flex items-center gap-0.5 text-xs font-semibold text-muted-foreground',
             !change.direction && 'font-medium',
-            change.direction && change.tone === 'good' && 'text-good-ink',
-            change.direction && change.tone === 'bad' && 'text-caution-text',
+            change.direction && change.tone === 'good' && 'text-good',
+            change.direction && change.tone === 'bad' && 'text-caution',
             change.direction && !change.tone && 'text-foreground',
           )}
         >

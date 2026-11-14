@@ -74,7 +74,7 @@ export function TypeTile({
       title={kindName(d)}
       className={cn(
         'inline-flex shrink-0 items-center justify-center border bg-muted text-foreground',
-        size === 'md' ? 'size-6 rounded-tile [&>svg]:size-3.5' : 'size-7 rounded-md [&>svg]:size-4',
+        size === 'md' ? 'size-6 rounded-sm [&>svg]:size-3.5' : 'size-7 rounded-md [&>svg]:size-4',
         className,
       )}
     >
@@ -138,7 +138,7 @@ export function ConflictNote({
         className,
       )}
     >
-      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
+      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
       <span>
         <span className="font-medium">
           {conflict.kind === 'chain'
@@ -174,7 +174,7 @@ export function WordNote({
         className,
       )}
     >
-      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
+      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
       <span>
         <span className="font-medium">{title} </span>
         {children}
@@ -444,7 +444,7 @@ export function SynonymTags({
         <p className="text-sm text-muted-foreground">No other names yet.</p>
       )}
       {refused.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-caution-text">
+        <ul className="flex flex-col gap-0.5 text-xs text-caution">
           {refused.map((r) => (
             <li key={r.word}>{r.reason}</li>
           ))}

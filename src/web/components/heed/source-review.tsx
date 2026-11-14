@@ -120,7 +120,7 @@ function Words({ words, side }: { words: Word[]; side: 'before' | 'after' }) {
     ) : side === 'before' ? (
       <del
         key={i}
-        className="rounded-mark bg-mark-del-word text-foreground decoration-[var(--mark-del-line)] decoration-2"
+        className="rounded-xs bg-mark-del-word text-foreground decoration-[var(--mark-del-line)] decoration-2"
       >
         <span className="sr-only">[removed: </span>
         <MentionText text={w.text} />
@@ -129,7 +129,7 @@ function Words({ words, side }: { words: Word[]; side: 'before' | 'after' }) {
     ) : (
       <ins
         key={i}
-        className="rounded-mark bg-mark-add-word text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3"
+        className="rounded-xs bg-mark-add-word text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3"
       >
         <span className="sr-only">[added: </span>
         <MentionText text={w.text} />

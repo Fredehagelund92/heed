@@ -138,7 +138,7 @@ export function Summary({
         tabIndex={size === 'lg' ? -1 : undefined}
         className={cn(
           'leading-snug font-semibold tracking-tight text-balance outline-none',
-          size === 'lg' ? 'text-xl sm:text-2xl' : 'text-lg',
+          size === 'lg' ? 'text-xl sm:text-2xl' : 'text-xl',
         )}
       >
         {r.summary}
@@ -196,7 +196,7 @@ export function QuickReview({ r, asked }: { r: Review; asked?: React.ReactNode }
       {/* What needs care shows before Review, never only inside it, and never folded. */}
       {care && (
         <p className="flex items-start gap-2 text-sm">
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
           {/* One span keeps the colon against the words: the row's gap would put a space before it. */}
           <span>
             <Mark role="needs" icon={false}>

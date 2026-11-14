@@ -105,7 +105,7 @@ function Alerts() {
           ))}
         </ul>
         {!me.admin && (
-          <p className="border-b px-4 py-3 text-dense text-muted-foreground md:px-5">
+          <p className="border-b px-4 py-3 text-xs text-muted-foreground md:px-5">
             {all.length - rules.length} more rules go only to admins: about spend, failed calls and
             the whole workspace.
           </p>
@@ -134,7 +134,7 @@ function Alerts() {
                   >
                     {r.title}
                   </a>
-                  <p className="text-dense text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {r.domain && (
                       <span className="mr-1.5 inline-flex items-center gap-1.5 align-middle">
                         <DomainDot id={r.domain} />
@@ -237,12 +237,12 @@ function RuleRow({
         <p data-dim className="flex flex-wrap items-center gap-2 text-sm font-medium">
           {r.name}
           {r.isNew && (
-            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal text-muted-foreground">
+            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-xs font-normal text-muted-foreground">
               New
             </span>
           )}
         </p>
-        <p className="mt-0.5 text-dense text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {r.threshold && after !== undefined ? (
             <>
               {before}
@@ -261,7 +261,7 @@ function RuleRow({
                   <SelectTrigger
                     size="sm"
                     aria-label={`${r.name}: threshold`}
-                    className="mx-0.5 inline-flex h-6 gap-1 px-1.5 align-baseline text-dense text-foreground"
+                    className="mx-0.5 inline-flex h-6 gap-1 px-1.5 align-baseline text-sm text-foreground"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -292,14 +292,11 @@ function RuleRow({
           aria-label={admin ? r.name : `${r.name}, for ${where}`}
         />
       </div>
-      <p
-        data-dim
-        className="text-dense @4xl/main:col-start-2 @4xl/main:row-start-1 @4xl/main:text-sm"
-      >
+      <p data-dim className="text-sm @4xl/main:col-start-2 @4xl/main:row-start-1">
         <span className="text-muted-foreground @4xl/main:sr-only">Then: </span>
         {r.then}
       </p>
-      <p className="col-span-2 text-dense text-muted-foreground @4xl/main:col-span-1 @4xl/main:col-start-3 @4xl/main:row-start-1">
+      <p className="col-span-2 text-xs text-muted-foreground @4xl/main:col-span-1 @4xl/main:col-start-3 @4xl/main:row-start-1">
         <span className="@4xl/main:sr-only">Last raised: </span>
         {seen.href && last !== 'Never' ? (
           <a
