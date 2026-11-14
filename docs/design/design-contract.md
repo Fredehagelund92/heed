@@ -11,7 +11,7 @@
 
 ## 0. One page summary
 
-**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, checked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
+**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, ticked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
 
 **The three radius rules.**
 
@@ -167,9 +167,9 @@ The chart tokens are the same in light and dark. One value differs from the mock
 **Colour rules.**
 
 - Colour is never the only sign. Every mark has an icon, a shape or a word as well (section 5 of [Accessibility](accessibility.md)).
-- The logo, the chrome's surfaces, counts and badges never take the accent.
+- The logo, the chrome's surfaces, counts and badges never take the accent. Nor does a state: a Checked answer is green in its chip, its bars and their legend, a card not opened yet has a dot in the ink, and a domain's dot and a metric chip keep 35 degrees of hue away from Heed blue (`lib/tones.ts`). A done step and a settled value are marked with a green check, never a blue one.
 - Kinds have no hue. A kind shows as a neutral icon.
-- Charts: blue for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
+- Charts: green for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
 - Marked text uses one component (`components/heed/mark.tsx`) and four roles. The colour rides on the ink, the weight and an underline, never on a fill:
 
   | Role               | Used for                                  | Looks                                                   |
@@ -298,7 +298,7 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 1. **Frame.** An 80rem square frame with a 24 px gutter, a header row per section divided by hairlines, and tables edge to edge with the thin header band. Settings, Integrations, the Inbox list and Observability use it (`components/heed/frame.tsx`).
 2. **Document editor shell.** The page header, the formatting toolbar as a fixed 40 px row, the tinted canvas with the 56rem sheet as the only scroller, an optional side panel, and one footer bar. The context editor, the term editor, About our business and a domain all use it (`document-shell.tsx`).
 3. **Inbox mail layout.** A list in the middle and a detail pane at the right, resizable. The dock takes the pane's place.
-4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline, on the empty thread too. The composer is one surface: the words, then a 44 px row with @ on the left and a 32 px Send on the right, with no hairline between and no keys written in it (they are in Send's tooltip). Stop takes Send's place until the last word of an answer shows. Under each answer, its sources are numbered chips with what was looked up beside them, then one row of icons (Copy, Good, Bad, Ask again on the last answer, and More with Something wrong?, Save question and Share), always on the last answer and on hover or focus for the earlier ones. Suggestion chips show only on the empty thread, before the first message; once a message is sent, nothing in the thread suggests a question to ask.
+4. **Ask thread.** A 44rem thread with history on the left (a sheet on a phone) and the composer docked under a hairline, on the empty thread too. The composer is one surface: the words, then a 44 px row with @ on the left and a 28 px Send on the right, with no hairline between and no keys written in it (they are in Send's tooltip). Stop takes Send's place until the last word of an answer shows. Under each answer, its sources are numbered chips with what was looked up beside them, then one row of icons (Copy, Good, Bad, Ask again on the last answer, and More with Something wrong?, Save question and Share), always on the last answer and on hover or focus for the earlier ones. Suggestion chips show only on the empty thread, before the first message; once a message is sent, nothing in the thread suggests a question to ask.
 5. **Full-screen review.** The queue, the change, and the decision and Try it on the right, inside the app with the sidebar folded.
 
 ## 4. Components
@@ -310,6 +310,8 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 - Only the product's own parts (`components/heed`, `components/obs`) are held to the copy rules.
 - Lucide icons are imported only in the icon module.
 - A second component base (`@radix-ui/*`), `vaul`, `framer-motion` and decorative animated sets are not used.
+
+**The button and the field.** One recipe each, in `button.tsx` and `input.tsx`, and a call site does not draw its own. A button is 28 px high; the one decision a pane or a page is for (the foot of the Inbox pane and of a review, sign-in, a consent) is `lg`, 36 px. Text 14 px at weight 500, corners 8, side padding 12. An icon button is a square of the same two heights (`icon`, `icon-lg`). A field is 32 px high with corners 8, so a field and the button beside it share a corner. A touch screen and a narrow pane may grow a control to 44 px (`pointer-coarse:h-11`); nothing else changes its size. One solid blue button a screen: when the page has a decision of its own (Compare and decide on a context item that disagrees with another; the Write context of a quick view), the header's standing action (Edit, New term, New context) is an outline. A journey measures both (`tests/e2e/buttons-fields.spec.ts`).
 
 **The chip.** One chip for everything that names a thing: 24 px high, a 6 px radius, the type's icon, tinted by what it names. A metric, a dimension, a market, a term and each domain has its own hue (the hues are in `lib/tones.ts` and the `--chip-h-*` tokens). Colour is never alone: the icon and the words stay. A mention chip never breaks across lines. A dashed chip means its target is gone (archived or deleted) and keeps the author's words. A synonym shows as a tag. A domain shows as a dot plus its name. Tags in the editor, Details, the list's Scope column, filters and mentions all use the same chip.
 
@@ -469,7 +471,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 1. **Tiptap in the first load.** The editor loads on demand (the comment box, the Ask composer and the document editors). Whether the Ask composer's editor can load later still, and what the first-load budget becomes if it does, is decided when the bundle is measured.
 2. **Virtual lists.** The mockup renders whole lists. The app virtualises past 200 rows against the pane scroller. This changes no pixels, and the rows and the keyboard cursor must behave the same.
-3. **Chip hues as tokens.** Settled: the chip tint and its ink are `bg-chip` and `text-chip-foreground`, drawn from the chip's own `--chip-h`. The hues of metric, dimension, market, term and warn are `--chip-h-*` tokens; a domain's hue is its data. The token test checks every hue from 0 to 359 at 4.5:1 in both themes, so any domain hue is safe.
+3. **Chip hues as tokens.** Settled: the chip tint and its ink are `bg-chip` and `text-chip-foreground`, drawn from the chip's own `--chip-h`. The hues of metric (110), dimension, market, term and warn are `--chip-h-*` tokens, and none is within 35 degrees of Heed blue; a domain's hue is its data. The token test checks every hue from 0 to 359 at 4.5:1 in both themes, so any domain hue is safe.
 4. **Right-to-left and other languages.** Out of scope for v1. Every vocabulary lives in one place per list so a later translation is possible.
 
 ## 11. Rules of Draft 1 that v2 withdraws

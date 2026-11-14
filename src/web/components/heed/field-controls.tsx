@@ -508,7 +508,7 @@ export function WhenField({
             ))}
           <div className="mt-auto flex items-center justify-between gap-2 border-t px-1 pt-2 pb-1">
             <span className="min-w-0 truncate px-1 text-xs font-medium">{whenSummary(value)}</span>
-            <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
+            <Button variant="secondary" onClick={() => setOpen(false)}>
               Done
             </Button>
           </div>

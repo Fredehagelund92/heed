@@ -20,8 +20,8 @@ describe('when someone last signed in, in words', () => {
 })
 
 describe('the people and their domains', () => {
-  it('names members by their role and domains, and an invite by its address, owning its domains', () => {
-    const { people, domains } = peopleOf({
+  it('names members by their role and domains, and an invite apart, with the domains it will own', () => {
+    const { people, invites } = peopleOf({
       now,
       domains: [
         { id: 'area_sales', name: 'Sales', owners: ['Jon Abara'], covers: '', text: '' },
@@ -53,6 +53,7 @@ describe('the people and their domains', () => {
     })
     expect(people).toEqual([
       {
+        id: 'p1',
         name: 'Jon Abara',
         role: 'Owner of Sales, admin',
         owns: ['area_sales'],
@@ -60,21 +61,20 @@ describe('the people and their domains', () => {
         email: 'jon@larchwood.example',
         lastActive: 'Today',
       },
+    ])
+    expect(invites).toEqual([
       {
-        name: 'nina@larchwood.example',
-        role: 'Invited',
-        owns: ['area_marketing'],
-        admin: false,
+        id: 'i1',
         email: 'nina@larchwood.example',
-        invited: true,
-        lastActive: 'Not yet',
+        admin: false,
+        willOwn: ['area_marketing'],
+        sentBy: 'p1',
       },
     ])
-    expect(domains.map((d) => d.owners)).toEqual([['Jon Abara'], ['nina@larchwood.example']])
   })
 
   it('reads an invite with no sender, one made at the command line, like any other', () => {
-    const { people, domains } = peopleOf({
+    const { people, invites } = peopleOf({
       now,
       domains: [{ id: 'area_sales', name: 'Sales', owners: [], covers: '', text: '' }],
       members: [],
@@ -91,17 +91,15 @@ describe('the people and their domains', () => {
         },
       ],
     })
-    expect(people).toEqual([
+    expect(people).toEqual([])
+    expect(invites).toEqual([
       {
-        name: 'first@larchwood.example',
-        role: 'Invited',
-        owns: ['area_sales'],
-        admin: true,
+        id: 'i2',
         email: 'first@larchwood.example',
-        invited: true,
-        lastActive: 'Not yet',
+        admin: true,
+        willOwn: ['area_sales'],
+        sentBy: null,
       },
     ])
-    expect(domains[0]!.owners).toEqual(['first@larchwood.example'])
   })
 })

@@ -78,7 +78,7 @@ export function ConflictDock({ pairKey }: { pairKey: string }) {
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon"
                       aria-label="Previous conflict"
                       disabled={at === 0}
                       onClick={() => go(rows[at - 1]!)}
@@ -96,7 +96,7 @@ export function ConflictDock({ pairKey }: { pairKey: string }) {
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon"
                       aria-label="Next conflict"
                       disabled={at === rows.length - 1}
                       onClick={() => go(rows[at + 1]!)}

@@ -16,6 +16,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item'
 import { useQuery } from '@tanstack/react-query'
+import { readOf } from '@/lib/read'
 import {
   inviteQuery,
   sessionQuery,
@@ -43,20 +44,32 @@ const refusalWords = (reason: string, provider: string): string | null =>
   })[reason] ?? null
 
 /** What an invite link opens, in one line: "You're invited as a Member, owning Sales." */
-function InviteLine({ token }: { token: string }) {
-  const note = useQuery(inviteQuery(token))
-  if (note.isPending) return null
-  if (!note.data)
+export function InviteLine({ token }: { token: string }) {
+  const read = readOf(useQuery(inviteQuery(token)))
+  // The line is one line of the card: it arrives with its answer, and the card does not wait for it.
+  if (read.state === 'loading') return null
+  // A read that failed says nothing of the link: it may well work, so it is not called dead.
+  if (read.state === 'failed')
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        Couldn't load this invite.{' '}
+        <Button variant="link" className="h-auto p-0" onClick={read.retry}>
+          Try again
+        </Button>
+      </p>
+    )
+  if (read.state === 'missing')
     return (
       <p role="status" className="text-sm text-muted-foreground">
         This invite link doesn't work any more. Ask whoever invited you for a new one.
       </p>
     )
-  const owned = note.data.domains
+  const note = read.data
+  const owned = note.domains
   return (
     <p role="status" className="text-sm">
-      You're invited as {note.data.admin ? 'an Admin' : 'a Member'}
-      {owned.length ? `, owning ${owned.join(' and ')}` : ''}. Sign in as {note.data.email}.
+      You're invited as {note.admin ? 'an Admin' : 'a Member'}
+      {owned.length ? `, owning ${owned.join(' and ')}` : ''}. Sign in as {note.email}.
     </p>
   )
 }
@@ -134,7 +147,7 @@ export function SignInPage() {
                   {refused}
                 </p>
               )}
-              <Button nativeButton={false} render={<a href={start} />} className="w-full">
+              <Button size="lg" nativeButton={false} render={<a href={start} />} className="w-full">
                 Sign in with {provider.name}
               </Button>
             </FieldGroup>
@@ -255,11 +268,13 @@ function PeoplePicker({ columns = 1 }: { columns?: 1 | 2 }) {
  */
 export function SignInChoices({ returnTo }: { returnTo: string }) {
   const method = useQuery(signInMethodQuery())
+  // As on the sign-in page: nothing until the service says how, so the wrong choice never flashes;
+  // a service that does not answer gets the picker.
   if (method.isPending) return null
   if (method.data?.kind !== 'oidc') return <PeoplePicker />
   const start = `${method.data.start}?returnTo=${encodeURIComponent(returnTo)}`
   return (
-    <Button nativeButton={false} render={<a href={start} />} className="w-full">
+    <Button size="lg" nativeButton={false} render={<a href={start} />} className="w-full">
       Sign in with {method.data.name}
     </Button>
   )

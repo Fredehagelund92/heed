@@ -9,13 +9,19 @@ import {
   soleOwnerOf,
   type Domain,
   type Domains,
+  type Invite,
 } from '@/model/people'
-import { domainIds, domains as seedDomains, people as seedPeople } from './data/world'
+import {
+  domainIds,
+  domains as seedDomains,
+  invites as seedInvites,
+  people as seedPeople,
+} from './data/world'
 
-// The mock's workspace: its domains and people, as Settings, a domain page and People change
-// them. Two roles only, as v1 has them: an admin or a member. Ownership is per domain and lives on
-// the domain, so a person added as an owner on either page shows in both. Kept until the page
-// reloads.
+// The mock's workspace: its domains, people and open invites, as Settings, a domain page and
+// People change them. Two roles only, as v1 has them: an admin or a member. Ownership is per
+// domain and lives on the domain, so a person added as an owner on either page shows in both; an
+// invite's domains are its own until someone signs in with it. Kept until the page reloads.
 
 const seedText: Record<string, string> = {
   sales:
@@ -75,8 +81,10 @@ export function createWorkspace() {
   const people = seedPeople.map((p) => ({
     ...p,
     owns: [...p.owns],
-    lastActive: p.lastActive ?? (p.invited ? 'Not yet' : (seen[p.name] ?? 'A while ago')),
+    lastActive: p.lastActive ?? seen[p.name] ?? 'A while ago',
   }))
+  const invites: Invite[] = seedInvites.map((i) => ({ ...i, willOwn: [...i.willOwn] }))
+  let made = 0
 
   /** Ownership lives on the domain; each person's list and line follow from it. */
   const syncOwnership = () => {
@@ -90,6 +98,7 @@ export function createWorkspace() {
     domains: (): Domain[] => order.flatMap((id) => domains[id] ?? []),
     domainMap: () => domains,
     people: () => people,
+    invites: () => invites,
     person: (name: string) => people.find((p) => p.name === name) ?? people[0],
 
     updateDomain(input: { id: string; name?: string; owners?: string[]; text?: string }) {
@@ -129,18 +138,19 @@ export function createWorkspace() {
       syncOwnership()
     },
 
-    /** Make someone an owner of a domain, or not. A domain always keeps one owner. */
-    setOwner(name: string, d: string, own: boolean): 'ok' | 'last' {
+    /** Make a member an owner of a domain, or not. A domain always keeps one owner. */
+    setOwner(id: string, d: string, own: boolean): 'ok' | 'last' {
+      const name = people.find((p) => p.id === id)?.name
       const owners = domains[d]?.owners ?? []
       if (!own && owners.length === 1 && owners[0] === name) return 'last'
-      if (!domains[d]) return 'ok'
+      if (!domains[d] || !name) return 'ok'
       domains[d].owners = own ? [...new Set([...owners, name])] : owners.filter((o) => o !== name)
       syncOwnership()
       return 'ok'
     },
 
-    setAdmin(name: string, admin: boolean) {
-      const p = people.find((x) => x.name === name)
+    setAdmin(id: string, admin: boolean) {
+      const p = people.find((x) => x.id === id)
       if (!p) return
       p.admin = admin
       p.role = describe(p, domains)
@@ -148,67 +158,87 @@ export function createWorkspace() {
 
     /**
      * Invite people by address: a member or an admin, owners of the chosen domains from the start.
-     * Each new invite gets a link, as the service gives one; an address already here is left out.
+     * Each new invite gets a link, as the service gives one; an address already here, or already
+     * invited, is left out.
      */
-    invite(emails: string[], admin: boolean, owns: string[], origin: string): Invited {
+    invite(
+      emails: string[],
+      admin: boolean,
+      owns: string[],
+      origin: string,
+      sentBy: string,
+    ): Invited {
       const result: Invited = { links: [], skipped: [] }
       for (const email of emails) {
-        const known = people.find((p) => emailOf(p) === email)
-        if (known) {
-          result.skipped.push({ email, why: known.invited ? 'pending' : 'member' })
+        if (people.some((p) => emailOf(p) === email)) {
+          result.skipped.push({ email, why: 'member' })
+          continue
+        }
+        if (invites.some((i) => i.email === email)) {
+          result.skipped.push({ email, why: 'pending' })
           continue
         }
         result.links.push({ email, link: linkFor(email, origin) })
-        people.push({
-          name: email,
+        invites.push({
+          id: `inv_${++made}`,
           email,
-          role: 'Invited',
-          owns: [],
           admin,
-          invited: true,
-          lastActive: 'Not yet',
+          willOwn: owns.filter((d) => domains[d]),
+          sentBy,
         })
-        for (const d of owns) if (domains[d]) domains[d].owners = [...domains[d].owners, email]
       }
-      syncOwnership()
       return result
     },
 
     /** Sends an invite again: a new link, and the old one stops working. */
-    resendInvite(name: string, origin: string) {
-      const p = people.find((x) => x.name === name && x.invited)
-      if (!p) return null
-      for (const [token, email] of links) if (email === emailOf(p)) links.delete(token)
-      return linkFor(emailOf(p), origin)
+    resendInvite(id: string, origin: string) {
+      const invite = invites.find((i) => i.id === id)
+      if (!invite) return null
+      for (const [token, email] of links) if (email === invite.email) links.delete(token)
+      return linkFor(invite.email, origin)
     },
 
     /** What an invite link's token opens: its address, role and domains; null for any other. */
     readInvite(token: string) {
       const email = links.get(token)
-      const p = email ? people.find((x) => x.invited && emailOf(x) === email) : undefined
-      if (!p) return null
+      const invite = email ? invites.find((i) => i.email === email) : undefined
+      if (!invite) return null
       return {
-        email: emailOf(p),
-        admin: p.admin,
-        domains: order
-          .filter((d) => domains[d]?.owners.includes(p.name))
-          .map((d) => domains[d]!.name),
+        email: invite.email,
+        admin: invite.admin,
+        domains: order.filter((d) => invite.willOwn.includes(d)).map((d) => domains[d]!.name),
       }
     },
 
-    /** Take back an invite, or remove someone; only when they own no domain alone. Undo puts them back. */
-    removePerson(name: string): { alone: string[] } | { restore: () => void } {
-      const alone = soleOwnerOf(name, domains, people)
-      if (alone.length) return { alone }
-      const at = people.findIndex((p) => p.name === name)
+    /** Take back an invite: its links stop working. Undo puts it back, with a new link to send. */
+    revokeInvite(id: string): { restore: () => void } | null {
+      const at = invites.findIndex((i) => i.id === id)
+      const gone = invites[at]
+      if (!gone) return null
+      invites.splice(at, 1)
+      for (const [token, email] of links) if (email === gone.email) links.delete(token)
+      return {
+        restore: () => {
+          if (!invites.some((i) => i.email === gone.email)) invites.splice(at, 0, gone)
+        },
+      }
+    },
+
+    /** Remove a member; only when they own no domain alone. Undo puts them back. */
+    removePerson(id: string): { alone: string[] } | { restore: () => void } {
+      const at = people.findIndex((p) => p.id === id)
       const gone = people[at]
+      if (!gone) return { restore: () => {} }
+      const { name } = gone
+      const alone = soleOwnerOf(name, domains)
+      if (alone.length) return { alone }
       const owned = order.filter((d) => domains[d]?.owners.includes(name))
       for (const d of Object.values(domains)) d.owners = d.owners.filter((o) => o !== name)
-      if (at >= 0) people.splice(at, 1)
+      people.splice(at, 1)
       syncOwnership()
       return {
         restore: () => {
-          if (!gone || people.some((p) => p.name === name)) return
+          if (people.some((p) => p.id === id)) return
           people.splice(at, 0, gone)
           for (const d of owned) if (domains[d]) domains[d].owners = [...domains[d].owners, name]
           syncOwnership()

@@ -1,11 +1,11 @@
-import type { Invite, Member } from '@contract/members'
-import { describe, type Domain, type Domains, type Person } from '@/model/people'
+import type { Invite as InviteRow, Member } from '@contract/members'
+import { describe, type Domain, type Domains, type Invite, type Person } from '@/model/people'
 
 /*
   The workspace's people as the service has them (members.list and invites.list), in the app's
-  shape: an Admin or a Member, the domains each owns, when they last signed in in words, and the
-  open invites, each a person named by their address, who owns the invite's domains from the
-  start. A domain lists its invited owners beside its owners.
+  shape: the members, each an Admin or a Member with the domains they own and when they last
+  signed in in words; and the open invites, each with the domains it owns once taken. An invite
+  is never among a domain's owners.
 */
 
 const DAY = 86_400_000
@@ -24,23 +24,17 @@ export function lastActiveOf(at: string | null, now: Date): string {
   return 'A while ago'
 }
 
-/** The people and the domains with their invited owners, as the app reads them. */
+/** The members and the open invites, as the app reads them. */
 export function peopleOf(input: {
   members: readonly Member[]
-  invites: readonly Invite[]
+  invites: readonly InviteRow[]
   domains: readonly Domain[]
   now: Date
-}): { people: Person[]; domains: Domain[] } {
-  const domains: Domain[] = input.domains.map((d) => ({
-    ...d,
-    owners: [
-      ...d.owners,
-      ...input.invites.filter((i) => i.areaIds.includes(d.id)).map((i) => i.email),
-    ],
-  }))
-  const byId: Domains = Object.fromEntries(domains.map((d) => [d.id, d]))
-  const members: Person[] = input.members.map((m) => {
+}): { people: Person[]; invites: Invite[] } {
+  const byId: Domains = Object.fromEntries(input.domains.map((d) => [d.id, d]))
+  const people: Person[] = input.members.map((m) => {
     const person: Person = {
+      id: m.id,
       name: m.name,
       role: '',
       owns: m.owns.filter((d) => byId[d]),
@@ -50,14 +44,12 @@ export function peopleOf(input: {
     }
     return { ...person, role: describe(person, byId) }
   })
-  const invited: Person[] = input.invites.map((i) => ({
-    name: i.email,
-    role: 'Invited',
-    owns: i.areaIds.filter((d) => byId[d]),
-    admin: i.role === 'admin',
+  const invites: Invite[] = input.invites.map((i) => ({
+    id: i.id,
     email: i.email,
-    invited: true,
-    lastActive: 'Not yet',
+    admin: i.role === 'admin',
+    willOwn: i.areaIds.filter((d) => byId[d]),
+    sentBy: i.invitedBy,
   }))
-  return { people: [...members, ...invited], domains }
+  return { people, invites }
 }

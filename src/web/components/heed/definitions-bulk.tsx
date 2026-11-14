@@ -19,7 +19,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
@@ -94,7 +94,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     const gone = [...held.act, ...others]
     const entry: LogEntry = {
       id: `log-term-${++entries}`,
-      on: TODAY,
+      on: today(),
       who: me.name,
       what: 'deleted',
       summary: 'Deleted: a term, and the other names that pointed at it.',

@@ -146,7 +146,6 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
           Paste this into your agent
         </span>
         <Button
-          size="sm"
           onClick={() => {
             copyNow(prompt)
             onCopy()
@@ -233,12 +232,8 @@ function LiveLine({
         )}
         {(phase === 'hint' || phase === 'timeout' || phase === 'declined') && (
           <div className="flex flex-wrap gap-2 pt-1">
-            {phase === 'timeout' && (
-              <Button size="sm" onClick={onAgain}>
-                Check again
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={onCopyAgain}>
+            {phase === 'timeout' && <Button onClick={onAgain}>Check again</Button>}
+            <Button variant="outline" onClick={onCopyAgain}>
               <CopyIcon data-icon="inline-start" />
               Copy prompt again
             </Button>
@@ -255,7 +250,6 @@ function CopyButton({ label, text, onCopy }: { label: string; text: string; onCo
   const [copied, copyNow] = useCopied()
   return (
     <Button
-      size="sm"
       variant="outline"
       onClick={() => {
         copyNow(text)
@@ -270,11 +264,7 @@ function CopyButton({ label, text, onCopy }: { label: string; text: string; onCo
 
 function LinkButton({ label, href, onOpen }: { label: string; href: string; onOpen: () => void }) {
   return (
-    <a
-      href={href}
-      onClick={onOpen}
-      className={cn(buttonVariants({ size: 'sm', variant: 'outline' }))}
-    >
+    <a href={href} onClick={onOpen} className={cn(buttonVariants({ variant: 'outline' }))}>
       <PlugIcon data-icon="inline-start" />
       {label}
     </a>

@@ -391,7 +391,11 @@ export function ContextPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <SiteHeader title="Context" icon={<NotebookTextIcon />}>
-        <Button size="sm" onClick={() => navigate('/context/new')}>
+        {/* With a context item's quick view open, its own action (Edit) is the one solid blue button. */}
+        <Button
+          variant={dock?.kind === 'context' ? 'outline' : 'default'}
+          onClick={() => navigate('/context/new')}
+        >
           <PlusIcon data-icon="inline-start" />
           New context
         </Button>
@@ -444,7 +448,6 @@ export function ContextPage() {
                     render={
                       <Button
                         variant="ghost"
-                        size="sm"
                         className={cn(barButton, filters > 0 && 'bg-muted text-foreground')}
                       />
                     }
@@ -535,7 +538,6 @@ export function ContextPage() {
                     render={
                       <Button
                         variant="ghost"
-                        size="sm"
                         className={cn(barButton, group !== 'none' && 'bg-muted text-foreground')}
                       />
                     }
@@ -567,7 +569,6 @@ export function ContextPage() {
                 {/* On a phone, where there is no hover or Shift, Select starts picking rows. */}
                 <Button
                   variant="ghost"
-                  size="sm"
                   className={cn(barButton, '@xl/main:hidden', boxes && 'bg-muted text-foreground')}
                   onClick={() => (boxes ? sel.clear() : sel.setPicking(true))}
                 >
@@ -681,7 +682,6 @@ export function ContextPage() {
                           </p>
                           <Button
                             variant="outline"
-                            size="sm"
                             className="mt-3"
                             onClick={() => setOnlyConflicts(false)}
                           >
@@ -700,7 +700,7 @@ export function ContextPage() {
                                 .join(', ')}
                               .
                             </p>
-                            <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
+                            <Button variant="outline" className="mt-3" onClick={clearAll}>
                               Clear search and filters
                             </Button>
                           </td>

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { SHOWN, shownSum, STATE_WORDS, type Counts, type Shown } from '@/model/observability'
 import { ArrivedAfterWait } from '@/lib/loading'
 
-// Observability's charts, small SVG on the app's own tokens. One rule for colour: blue is the one
+// Observability's charts, small SVG on the app's own tokens. One rule for colour: green is the one
 // colour for checked context, amber for what to look at, greys for the rest, and a hatch for
 // "nothing written down", so every state also differs by shape and never by colour alone. Each
 // chart carries a table of its numbers for screen readers; the drawing itself is decoration.
@@ -11,7 +11,7 @@ import { ArrivedAfterWait } from '@/lib/loading'
 /** How each state fills a bar; "nothing written down" is the hatch, by its pattern's id. */
 const fillOf = (state: Shown, hatch: string) =>
   ({
-    grounded: 'var(--primary)',
+    grounded: 'var(--good)',
     partial: 'var(--chart-1)',
     conflict: 'var(--caution)',
     stale: 'color-mix(in oklab, var(--caution) 45%, var(--background))',
@@ -901,7 +901,7 @@ export function MixBar({
   const rest = of && counts.missing !== null ? of - shownSum(counts) : 0
   const parts = SHOWN.flatMap((st) => [
     ...(st === 'missing' && rest > 0
-      ? [{ key: 'rest', w: rest, fill: 'var(--primary)', opacity: 0.45 }]
+      ? [{ key: 'rest', w: rest, fill: 'var(--good)', opacity: 0.45 }]
       : []),
     { key: st, w: counts[st] ?? 0, fill: fillOf(st, hatch), opacity: 1 },
   ])

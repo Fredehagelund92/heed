@@ -24,7 +24,7 @@ export function CompareButton({
   variant?: 'default' | 'outline'
 }) {
   return (
-    <Button size="sm" variant={variant} onClick={() => openDock('conflict', pairKey)}>
+    <Button variant={variant} onClick={() => openDock('conflict', pairKey)}>
       <ArrowLeftRightIcon data-icon="inline-start" />
       {canSettle ? 'Compare and decide' : 'Compare the two'}
     </Button>

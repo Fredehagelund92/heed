@@ -68,6 +68,7 @@ export function workspaceOf(input: {
   const byId: Domains = Object.fromEntries(domains.map((d) => [d.id, d]))
   const people: Person[] = input.people.map((p) => {
     const person: Person = {
+      id: p.id,
       name: p.name,
       role: '',
       owns: input.areas.filter((a) => a.ownerIds.includes(p.id)).map((a) => a.id),

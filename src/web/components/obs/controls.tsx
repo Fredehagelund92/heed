@@ -79,7 +79,7 @@ export function Definition({ label, definition }: { label: string; definition: s
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon"
             className="-my-1 text-muted-foreground max-sm:size-9 print:hidden"
             aria-label={`What ${label} counts`}
           />
