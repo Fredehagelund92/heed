@@ -18,7 +18,9 @@ import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
 import { conflictsQuery } from '@/api/queries'
-import { DockFrame, DockMissing } from '@/components/dock'
+import { DockFrame } from '@/components/dock'
+import { DockRead } from '@/components/dock-read'
+import { LoadError } from '@/components/heed/load-state'
 import { StateLine } from '@/components/heed/bits'
 import { pairOfItems } from '@/model/conflicts'
 import { countedState } from '@/model/ask'
@@ -62,16 +64,17 @@ export function AnswerPanel({ id }: { id: string }) {
   const t = obs.data.topics.find((x) => x.id === id)
   const view = useObsView()
   const { query } = useRoute()
-  const now = useReplay(id, 'now')
-  if (t && !now) return null
-  if (!t || !now)
+  const replay = useReplay(id, 'now')
+  if (!t || replay.state !== 'ready')
     return (
-      <DockFrame title="Answer">
-        <DockMissing>
-          This topic isn't in the list any more. Close the panel and pick another.
-        </DockMissing>
-      </DockFrame>
+      <DockRead
+        title="Answer"
+        what="this answer"
+        read={t && replay.state !== 'ready' ? replay : { state: 'missing' }}
+        missing="This topic isn't in the list any more. Close the panel and pick another."
+      />
     )
+  const now = replay.data
   const tab = (
     ['overview', 'steps', 'warnings'].includes(query.get('ptab') ?? '')
       ? query.get('ptab')
@@ -193,10 +196,16 @@ export function AnswerPanel({ id }: { id: string }) {
 }
 
 function OverviewTab({ t }: { t: Topic }) {
-  const now = useReplay(t.id, 'now')
-  const before = useReplay(t.id, 'before')
+  const nowRead = useReplay(t.id, 'now')
+  const beforeRead = useReplay(t.id, 'before')
   const [compare, setCompare] = React.useState(false)
-  if (!now || !before) return null
+  if (beforeRead.state === 'failed')
+    return <LoadError what="what agents got before" className="p-0" onRetry={beforeRead.retry} />
+  // The panel shows this tab once its own replay is ready, and a replay runs no model (about 30
+  // ms), so there is nothing to show in between; a missing one is a topic gone, which the panel says.
+  if (nowRead.state !== 'ready' || beforeRead.state !== 'ready') return null
+  const now = nowRead.data
+  const before = beforeRead.data
   const same = strip(now.answer.text) === strip(before.answer.text)
   return (
     <div className="flex flex-col gap-5">
@@ -255,8 +264,12 @@ function OverviewTab({ t }: { t: Topic }) {
 }
 
 function StepsTab({ t, when }: { t: Topic; when: When }) {
-  const run = useReplay(t.id, when)
-  if (!run) return null
+  const read = useReplay(t.id, when)
+  if (read.state === 'failed')
+    return <LoadError what="this replay" className="p-0" onRetry={read.retry} />
+  // As in the overview: a replay runs in about 30 ms, and a missing one is a topic gone.
+  if (read.state !== 'ready') return null
+  const run = read.data
   const changed = run.changed
   const steps: ReplayStep[] = [
     ...run.steps,

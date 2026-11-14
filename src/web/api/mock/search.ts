@@ -49,7 +49,7 @@ export function searchWorld(
       (d) => d.name,
     ).map((d) => ({ id: d.id, name: d.name })),
     people: best(
-      world.people.filter((p) => !p.invited && has(p.name)),
+      world.people.filter((p) => has(p.name)),
       (p) => p.name,
     ).map((p) => ({ name: p.name })),
   }

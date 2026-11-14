@@ -65,7 +65,10 @@ import { plainText } from '@/lib/mentions'
 import { PersonAvatar } from '@/components/heed/bits'
 import { DocFooter, Paper } from '@/components/heed/doc'
 import { ResizableAside } from '@/components/resizable-aside'
-import { SiteHeader } from '@/components/site-header'
+import { Page, SiteHeader } from '@/components/site-header'
+import { LoadError, NoSuchItem } from '@/components/heed/load-state'
+import { readOf } from '@/lib/read'
+import { Loading } from '@/App'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -307,8 +310,26 @@ export function FactEditor(props: { mode: 'new' | 'edit' | 'suggest'; factId?: s
   // the list's row is all there is when that read fails.
   const page = useQuery({ ...itemPageQuery(props.factId ?? ''), enabled: !!props.factId })
   const listed = useFact(props.factId)
-  if (fromText.isFetching || (props.factId && page.isPending)) return null
-  return <Editor {...props} fromText={fromText.data} original={page.data?.item ?? listed} />
+  const read = readOf(page)
+  if (fromText.isFetching || (props.factId && read.state === 'loading'))
+    return <Loading shape="editor" />
+  if (props.factId) {
+    // An item that is not there opens no editor: there is nothing to edit, and Publish would make it.
+    if (read.state === 'missing')
+      return (
+        <Page title="Context">
+          <NoSuchItem />
+        </Page>
+      )
+    if (read.state === 'failed' && !listed)
+      return (
+        <Page title="Context">
+          <LoadError what="this context item" onRetry={read.retry} />
+        </Page>
+      )
+  }
+  const original = read.state === 'ready' ? read.data.item : listed
+  return <Editor {...props} fromText={fromText.data} original={original} />
 }
 
 function Editor({
@@ -780,10 +801,17 @@ function Editor({
             {/* Nothing is kept until Save, so a new page that holds nothing yet has nothing to say. */}
             {(mode !== 'new' || edited) && (
               <SaveStatus
-                saving={sendState === 'sending'}
-                offline={!online}
-                unsaved={edited}
-                failed={sendState === 'failed'}
+                status={
+                  sendState === 'failed'
+                    ? 'failed'
+                    : sendState === 'sending'
+                      ? 'saving'
+                      : !edited
+                        ? 'clean'
+                        : online
+                          ? 'dirty'
+                          : 'offline'
+                }
               />
             )}
             {/* Write or try it: the same draft, seen two ways, so a quiet toggle rather than tabs. */}

@@ -334,6 +334,7 @@ const page = (patch: Partial<ItemPage['item']> = {}, extra: Partial<ItemPage> = 
   },
   lastChecked: { on: '2026-10-02', personId: 'per_sofia' },
   trust: 'current',
+  check: null,
   chips: ['Orders', 'Norway'],
   owners: [],
   conflicts: [],
@@ -378,6 +379,16 @@ describe("a context item's page", () => {
     const domain = factOfPage(page({}, { owners: ['per_jon', 'per_sofia'] }), names, words)
     expect(domain?.owners).toBeUndefined()
     expect(factOfPage(page({ status: 'retired' }), names, words)?.status).toBe('Archived')
+  })
+
+  it('says why it is due, from the check the service names', () => {
+    const due = factOfPage(
+      page({ reviewDate: '2026-10-02' }, { trust: 'needs_check', check: 'date' }),
+      names,
+      words,
+    )
+    expect(due?.outOfDate).toBe('Its check date passed on 2 Oct 2026.')
+    expect(factOfPage(page(), names, words)).not.toHaveProperty('outOfDate')
   })
 
   it('leaves out an item of the kind the app does not offer', () => {

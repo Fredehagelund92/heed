@@ -27,7 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
 import { openDock } from '@/lib/dock'
@@ -39,9 +38,9 @@ import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
 import { useWide } from '@/hooks/use-wide'
 import { VersionHistory } from '@/components/heed/version-history'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
-import { Loadable, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
+import { Loadable, NoSuchItem, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() =>
@@ -82,21 +81,13 @@ export function FactPage({ id }: { id: string }) {
   if (!fact)
     return (
       <Page title="Context">
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No such context item</EmptyTitle>
-            <EmptyDescription>
-              It may have been a draft someone deleted. Settings, Advanced says who deleted what,
-              and when.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <NoSuchItem />
       </Page>
     )
   const owner = me.owns.includes(fact.domain) || me.admin
   const entryFor = (what: LogEntry['what'], summary: string): LogEntry => ({
     id: `log-${what}-${fact.id}`,
-    on: TODAY,
+    on: today(),
     who: me.name,
     what,
     summary,

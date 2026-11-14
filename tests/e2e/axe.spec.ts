@@ -431,6 +431,7 @@ for (const { name, width, height } of widths) {
         await expect(source.getByRole('textbox', { name: 'Comment on line 1' })).toBeFocused()
         await page.keyboard.type('Since when are there 340?')
         await page.keyboard.press('ControlOrMeta+Enter')
+        await expect(source.getByText('Since when are there 340?')).toBeVisible()
         await source.locator('[data-source-place="before:1"]').focus()
         await page.keyboard.press('c')
         await expect(
@@ -438,6 +439,7 @@ for (const { name, width, height } of widths) {
         ).toBeFocused()
         await page.keyboard.type('Was 312 ever right?')
         await page.keyboard.press('ControlOrMeta+Enter')
+        await expect(source.getByText('Was 312 ever right?')).toBeVisible()
         await source
           .getByRole('region', { name: /^Removed line 1: / })
           .getByRole('button', { name: 'Resolve' })

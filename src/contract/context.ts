@@ -9,7 +9,7 @@ import { bulkActions, bulkRowSkipCodes } from '../domain/context-bulk.ts'
 import { clashRelations } from '../domain/readiness.ts'
 import { draftSchema } from '../domain/draft.ts'
 import { itemKinds, itemSchema } from '../domain/item.ts'
-import { itemTrusts } from '../domain/status.ts'
+import { itemChecks, itemTrusts } from '../domain/status.ts'
 
 const isoDate = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))
 const personId = z.string().check(z.uuid())
@@ -125,6 +125,7 @@ export const itemPageSchema = z.object({
   item: itemSchema,
   lastChecked: z.nullable(z.object({ on: isoDate, personId: z.string() })),
   trust: z.enum(itemTrusts),
+  check: z.nullable(z.enum(itemChecks)),
   chips: z.array(z.string()),
   /** Its own owners, besides its domain's; empty when its domain's owners answer for it. */
   owners: z.array(z.string()),
