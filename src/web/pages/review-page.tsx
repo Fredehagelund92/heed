@@ -1029,6 +1029,47 @@ type DecisionProps = {
   variant?: 'panel' | 'bar'
 }
 
+/**
+ * Archiving takes context away from agents, so it asks first. One dialog for the whole page: the
+ * panel and the phone's bar are two views of one decision, and a phone mounts both.
+ */
+function ArchiveDialog({
+  r,
+  flow,
+  cancel,
+  press,
+}: Pick<DecisionProps, 'r' | 'flow' | 'cancel' | 'press'>) {
+  const withdrawn = r.retire?.withdrawn
+  return (
+    r.retire && (
+      <Dialog open={flow.kind === 'confirmingArchive'} onOpenChange={(open) => !open && cancel()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Archive the context item?</DialogTitle>
+            <DialogDescription>
+              Agents stop getting “{r.title}” from the next question; {r.retire.used} questions used
+              it this week.
+              {withdrawn
+                ? ` ${withdrawn.by.split(' ')[0]} withdrew this suggestion in the comments.`
+                : ''}{' '}
+              Undo is there for a moment after.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button
+              variant={withdrawn ? 'destructive' : 'default'}
+              onClick={() => press('archive')}
+            >
+              Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  )
+}
+
 /** What a failed action is called in "Couldn't ...". */
 const failedVerb: Record<ReviewAction, string> = {
   publish: 'publish',
@@ -1294,37 +1335,12 @@ function Decision({
     </div>
   )
 
-  const archiveDialog = r.retire && (
-    <Dialog open={flow.kind === 'confirmingArchive'} onOpenChange={(open) => !open && cancel()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Archive the context item?</DialogTitle>
-          <DialogDescription>
-            Agents stop getting “{r.title}” from the next question; {r.retire.used} questions used
-            it this week.
-            {withdrawn
-              ? ` ${withdrawn.by.split(' ')[0]} withdrew this suggestion in the comments.`
-              : ''}{' '}
-            Undo is there for a moment after.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button variant={withdrawn ? 'destructive' : 'default'} onClick={() => press('archive')}>
-            Archive
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-
   // On a phone: the state in words and where you are, then the two actions at full touch size.
   if (variant === 'bar') {
     if (returning) return null
     const at = reviews.findIndex((x) => x.id === r.id)
     return (
       <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-4 pt-2.5 pb-safe-sm">
-        {archiveDialog}
         {finished ? (
           outcome
         ) : done ? (
@@ -1387,7 +1403,6 @@ function Decision({
 
   return (
     <div id="decision" className="flex scroll-mt-4 flex-col">
-      {archiveDialog}
       {/* Once decided, the panel says what happened, never what was true before. */}
       <section hidden={!!done && !finished} className="flex flex-col gap-3 border-b p-4">
         <p className="flex items-start gap-2 text-sm">
@@ -1555,7 +1570,6 @@ export function ReviewPage({ id }: { id: string }) {
   if (flow.id !== id) step({ type: 'open', id })
   const finished = flow.kind === 'done' ? flow.done : null
   const returning = writingReturn(flow)
-  const returnNote = React.useRef<JSONContent | null>(null)
   const openId = React.useRef(id)
   React.useEffect(() => {
     openId.current = id
@@ -1718,7 +1732,7 @@ export function ReviewPage({ id }: { id: string }) {
     })
   const first = r.from.split(' ')[0]
   // What each action writes, and what it says it did.
-  const commits: Record<ReviewAction, () => Promise<Finished>> = {
+  const commits: Record<ReviewAction, (note?: JSONContent) => Promise<Finished>> = {
     publish: async () => {
       const { undo } = await write('publishReview', {
         id: r.id,
@@ -1752,9 +1766,10 @@ export function ReviewPage({ id }: { id: string }) {
         description: 'Nothing changes: the context item stays live.',
       }
     },
-    return: async () => {
-      const note = returnNote.current!
-      // The note becomes the first comment; if the return fails, it stays in the editor.
+    return: async (words) => {
+      // The note becomes the first comment; if the return fails, it stays in the editor. The
+      // decision sends a Return only with its note.
+      const note = words!
       const { undo } = await write('returnReview', { id: r.id, note })
       onDraft(null)
       return {
@@ -1769,16 +1784,15 @@ export function ReviewPage({ id }: { id: string }) {
   }
   const actions = actionsOf(r, answers)
   // One way to start a write, whichever panel asked: the reducer says whether it may, and holds
-  // the action, so a failure is retried as itself.
-  const send = (
-    event: Extract<DecisionEvent<Finished>, { type: 'press' | 'retry' }>,
-    action: ReviewAction,
-  ) => {
-    if (!online || decide(flow, event) === flow) return
+  // the action and its note, so a failure is retried as itself.
+  const send = (event: Extract<DecisionEvent<Finished>, { type: 'press' | 'retry' }>) => {
+    const next = decide(flow, event)
+    if (!online || next === flow || next.kind !== 'sending') return
     step(event)
-    commits[action]().then(onDone, (error: unknown) =>
-      step({ type: 'error', id: r.id, reason: reasonOf(toApiError(error)) }),
-    )
+    commits[next.action](next.note).then(onDone, (error: unknown) => {
+      const { kind } = toApiError(error)
+      step({ type: 'error', id: r.id, failure: kind, reason: reasonOf(toApiError(error)) })
+    })
   }
   const undo = () => {
     window.clearTimeout(hold.current.timer)
@@ -1815,12 +1829,10 @@ export function ReviewPage({ id }: { id: string }) {
         )
     },
     cancel: () => step({ type: 'cancel' }),
-    press: (action: ReviewAction) => send({ type: 'press', action, actions }, action),
-    sendNote: (note: JSONContent) => {
-      returnNote.current = note
-      send({ type: 'press', action: 'return', actions }, 'return')
-    },
-    retry: () => flow.kind === 'failed' && send({ type: 'retry', actions }, flow.action),
+    press: (action: ReviewAction) => send({ type: 'press', action, actions }),
+    sendNote: (note: JSONContent) => send({ type: 'press', action: 'return', actions, note }),
+    // A failed note goes again as the editor holds it now, so an edit made after the failure is sent.
+    retry: () => send({ type: 'retry', actions, note: drafts[r.id] }),
     onUndo: undo,
     draft: drafts[r.id],
     onDraft,
@@ -2055,6 +2067,7 @@ export function ReviewPage({ id }: { id: string }) {
             ? `All ${reviews.length} handled.`
             : `Suggestion ${at + 1} of ${reviews.length}: ${r.title}`}
         </p>
+        <ArchiveDialog {...decision} />
         <Sheet open={queueOpen} onOpenChange={setQueueOpen}>
           <SheetContent side="left" className="w-popover-phone gap-0 bg-background p-0">
             <SheetHeader className="border-b">

@@ -332,19 +332,26 @@ export const demoTools: Record<string, DemoTool> = {
         source: {
           ...page.source,
           health: 'reauth',
-          failures: 1,
+          // Not paused: each day's read tries the key again.
+          failures: 2,
           failure: 'Google refused the service account key',
-          last: { at: { day: '21 Oct', time: '06:00' }, complete: false, seconds: null, seen: 0 },
+          last: { at: { day: 'Today', time: '06:00' }, complete: false, seconds: null, seen: 0 },
           lastGood: { day: '20 Oct', time: '06:00' },
         },
         activity: [
           {
-            when: '21 Oct, 06:00',
+            when: 'Today, 06:00',
             tone: 'failed',
             what: 'Read refused',
-            detail: 'Google refused the service account key. Reading paused.',
+            detail: 'Google refused the service account key again.',
           },
-          ...driveActivity.slice(1),
+          {
+            when: 'Yesterday, 06:00',
+            tone: 'failed',
+            what: 'Read refused',
+            detail: 'Google refused the service account key.',
+          },
+          ...driveActivity.slice(2),
         ],
         connection: page.connection.map((row) =>
           row.label === 'Service account key'
