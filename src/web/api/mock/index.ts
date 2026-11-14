@@ -1160,19 +1160,34 @@ export function createMockApi() {
     keepNewAnswer: ({ id }) => now(() => remember(saved.keepNew(id))),
   }
 
-  // Every write is sent as the scenario plays a send: refused offline, as long as a send takes,
-  // and failing its first try under a fault flag. ?decide=fail names the card it fails on.
+  // Every write is sent as the scenario plays a send: refused offline, failing its first try under
+  // a fault flag. These take as long as a send does; every other write answers at once unless a
+  // flag plays sends. ?decide=fail names the card it fails on.
+  const timedSends: HeedApiMethod[] = [
+    'settleConflict',
+    'suggestArchiving',
+    'saveItem',
+    'sendSuggestion',
+    'saveTerm',
+    'addSynonym',
+    'removeTerm',
+    'decideCard',
+    'publishReview',
+    'publishReviews',
+    'archiveReview',
+    'closeReview',
+    'returnReview',
+  ]
   for (const method of heedApiMethods) {
     if ((readMethods as readonly string[]).includes(method)) continue
     const write = api[method] as (...args: unknown[]) => Promise<unknown>
     api[method] = ((...args: unknown[]) =>
-      scenario.send(
-        method,
-        () => write(...args),
-        method === 'decideCard'
-          ? { key: (args[0] as Parameters<HeedApi['decideCard']>[0]).card, flag: 'decide' }
-          : {},
-      )) as never
+      scenario.send(method, () => write(...args), {
+        quick: !timedSends.includes(method),
+        ...(method === 'decideCard'
+          ? { key: (args[0] as Parameters<HeedApi['decideCard']>[0]).card, flag: 'decide' as const }
+          : {}),
+      })) as never
   }
 
   const controls = {

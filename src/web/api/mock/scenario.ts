@@ -152,15 +152,17 @@ export function createScenario() {
 
     /**
      * A send as the scenario plays it: refused offline, as long as a send takes, and with a fault
-     * flag the first one of its kind fails (`key` names the kind: a card for ?decide=fail).
+     * flag the first one of its kind fails (`key` names the kind: a card for ?decide=fail). A quick
+     * send takes no time unless a flag plays sends.
      */
     async send<T>(
       method: HeedApiMethod,
       run: () => T,
-      options: { key?: string; flag?: 'decide' | 'bulk' } = {},
+      options: { key?: string; flag?: 'decide' | 'bulk'; quick?: boolean } = {},
     ): Promise<T> {
       if (offline()) throw new ApiError('unanswered', "You're offline.")
-      await wait(sendTime(slow()))
+      // A quick write (a toggle, a mark) answers at once unless a flag asks to see sends play.
+      if (!options.quick || slow() || fault !== null) await wait(sendTime(slow()))
       const kind = `${method}:${options.key ?? ''}`
       const flagged =
         fault === 'failed' || (options.flag !== undefined && address.query[options.flag] === 'fail')
