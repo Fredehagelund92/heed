@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useEditor } from '@tiptap/react'
-import { CheckIcon, CircleAlertIcon, Loader2Icon, PanelRightIcon } from '@/components/icons'
+import { PanelRightIcon } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { Button } from '@/components/ui/button'
 import { DocumentEditorShell } from '@/components/heed/document-shell'
 import { DocFooter, Paper } from '@/components/heed/doc'
-import { HeaderMore } from '@/components/heed/editor-header'
+import { HeaderMore, SaveStatus } from '@/components/heed/editor-header'
 import { Panel } from '@/components/heed/panel'
 import { ResizableAside } from '@/components/resizable-aside'
 import { SiteHeader } from '@/components/site-header'
@@ -16,7 +16,9 @@ import { useHelpAside } from '@/lib/help-aside'
 import { useWide } from '@/hooks/use-wide'
 import { docExtensions } from '@/lib/doc-extensions'
 import { navigate, useRoute } from '@/lib/router'
+import { toApiError } from '@/api/errors'
 import { useWorkspace, useWrite } from '@/api/queries'
+import { useAutosave } from '@/lib/autosave'
 import { useMe } from '@/lib/workspace'
 
 // About our business in the same document editor shell as a context item: the formatting row under
@@ -40,36 +42,16 @@ export function AboutPage({
   const setup = query.get('setup')
   // Null until the first keystroke; until then the count is what the editor writes back.
   const [typed, setLength] = React.useState<number | null>(null)
-  const [saving, setSaving] = React.useState(false)
-  const timer = React.useRef<number>(0)
-
-  const waiting = React.useRef<string | null>(null)
+  const autosave = useAutosave({
+    save: (text: string) => write('setAbout', { text }),
+    onError: (e) =>
+      toast("Couldn't save About our business", { description: toApiError(e).message }),
+  })
   const save = (text: string) => {
     setLength(text.length)
-    window.clearTimeout(timer.current)
-    if (text.length > LIMIT) {
-      waiting.current = null
-      return setSaving(false)
-    }
-    waiting.current = text
-    setSaving(true)
-    timer.current = window.setTimeout(() => {
-      void write('setAbout', { text }).then(() => {
-        waiting.current = null
-        setSaving(false)
-      })
-    }, 700)
+    // Too long is never sent; shortening it saves it.
+    if (text.length <= LIMIT) autosave.change(text)
   }
-  // Leaving the page saves what is still waiting, so a quick change is never lost.
-  React.useEffect(
-    () => () => {
-      window.clearTimeout(timer.current)
-      if (waiting.current !== null) void write('setAbout', { text: waiting.current })
-    },
-    // The write only changes when the query client does.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  )
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -88,25 +70,12 @@ export function AboutPage({
   const help = useHelpAside(me.name)
   const [paneRef, wide] = useWide<HTMLDivElement>()
 
+  // Too long is not saved, and the footer says how to save it.
   const status = (
-    <span
-      className={cn(
-        'flex items-center gap-1.5 text-xs text-muted-foreground',
-        tooLong && 'text-destructive',
-      )}
-      aria-live="polite"
-    >
-      {tooLong ? (
-        <CircleAlertIcon className="size-3.5" aria-hidden />
-      ) : saving ? (
-        <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-      ) : (
-        <CheckIcon className="size-3.5" aria-hidden />
-      )}
-      <span className={cn(!tooLong && 'max-sm:sr-only')}>
-        {tooLong ? 'Not saved' : saving ? 'Saving' : 'Saved'}
-      </span>
-    </span>
+    <SaveStatus
+      status={tooLong ? 'failed' : autosave.status}
+      retry={tooLong ? undefined : autosave.retry}
+    />
   )
 
   return (
@@ -122,9 +91,8 @@ export function AboutPage({
               data-primary
               disabled={tooLong || length === 0}
               onClick={() => {
-                window.clearTimeout(timer.current)
-                waiting.current = null
-                void write('setAbout', { text: editor.getMarkdown() })
+                void autosave
+                  .flush()
                   .then(() => write('completeSetupStep', { step: 'about' }))
                   .then(() => {
                     toast('Saved', { description: 'Agents read it from the next question.' })
