@@ -243,7 +243,8 @@ are allowed. `eslint.class-rules.js` reports the rest, one rule each, with the f
 
 - a text size or a corner off those lists (`text-lg`, `rounded-lg`);
 - a faded grey of text (`text-foreground/75`): text is `text-foreground` or
-  `text-muted-foreground`, and only a switched-off control fades, with `opacity-50`;
+  `text-muted-foreground`, and a switched-off button keeps its muted text and loses its fill
+  instead of fading;
 - a soft fill at any strength but 8 percent (`bg-caution/12`): use `bg-caution/8`;
 - an arbitrary value (`w-[13px]`) or property, except a token by its variable
   (`bg-[var(--mark-add)]`), the properties a transition names and the two keyframes of

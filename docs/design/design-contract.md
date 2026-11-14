@@ -63,7 +63,7 @@ The theme is shadcn's neutral theme with these changes only:
 - muted text is `#666666` in light and `#a3a3a3` in dark, so it keeps 4.5:1 on the muted surface;
 - input borders are `#8f8f8f` in light and `#6b6b6b` in dark, so fields, checkboxes and radios keep 3:1 on the page.
 
-**Two greys of text.** Text is the ink (`--foreground`) or muted (`--muted-foreground`). shadcn's other text colours (card, popover, secondary, accent, sidebar and sidebar accent) are the ink. Text never fades by opacity: only a switched-off control does, with `opacity-50`.
+**Two greys of text.** Text is the ink (`--foreground`) or muted (`--muted-foreground`). shadcn's other text colours (card, popover, secondary, accent, sidebar and sidebar accent) are the ink. Text never fades by opacity. A switched-off control keeps its text muted at full strength and loses its fill (`components/ui/button.tsx`).
 
 **One colour per meaning.** `--destructive` is red: broken, removed, cannot be undone. `--good` is green: checked and in force. `--caution` is amber: look at this. Each is text at 4.5:1 on every surface, so one colour draws the words, the icon, the rule and the line of its meaning: the review marks' added, removed and link lines and the Text diff's inks are these three. A soft fill behind one is the colour at 8 percent, by rule and never a second name (`bg-caution/8`, `bg-good/8`): a Conflict answer in the quick view's answers sits on `bg-caution/8` (section 5.3), where the answer line, the words and the caution ink keep their contrast.
 
@@ -323,14 +323,14 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 
 Design B, at one density. A filter bar (Filter with a live count per value, Sort with its direction in words and both ways on offer, Group by domain or metric, and search on `/`), then a 36 px sticky header band, then rows.
 
-| Column  | Content                                                                          |
-| ------- | -------------------------------------------------------------------------------- |
-| Kind    | The kind as an icon before the title                                             |
-| Title   | The title alone                                                                  |
-| Scope   | Muted text, in its own 190 px column; it steps aside under 960 px of pane        |
-| Status  | A circle icon (dashed draft, check live, alert needs checking, minus archived)   |
-| When    | A glyph and a short date (infinity always, arrow ongoing, since, until, a range) |
-| Checked | One dot: filled up to 30 days, half up to 90, hollow after that                  |
+| Column  | Content                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Kind    | The kind as an icon before the title                                                                                                  |
+| Title   | The title alone                                                                                                                       |
+| Scope   | Tag chips in a column as wide as they are (up to 20rem), the metric cut first and a market never; it steps aside under 960 px of pane |
+| Status  | A circle icon (dashed draft, check live, alert needs checking, minus archived)                                                        |
+| When    | A glyph and a short date (infinity always, arrow ongoing, since, until, a range)                                                      |
+| Checked | One dot: filled up to 30 days, half up to 90, hollow after that                                                                       |
 
 Every mark gives its exact value on hover. The Context and Checked headers sort (Name and Context in Definitions, Topic and Asked in Observability's topics): a click on another column starts it its own way (A to Z, newest first, most first), a second click on the same column flips it, and the arrow and the header's sort state follow. A ranking (Best match, Coverage) has one way only. Observability's Overview keeps the sort and its direction in the address, as it keeps its filters. Filters that are on read as sentences under the bar ("Domain is any of Sales, Marketing") with Clear all. A totals row stays at the foot. Opening a peek keeps the search, filters, ticked rows and scroll. The peek steps with J and K, and Escape closes it first. Definitions rows show the type tile, the name with its other names as "Also called" tags (the first three, then +N), the domain at wide widths, the count of context, a flag only when something needs a look, and the source (a lock for read-only, the author's avatar for a term).
 

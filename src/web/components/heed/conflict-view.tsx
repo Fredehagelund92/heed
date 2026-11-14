@@ -37,6 +37,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { conflictQuery, conflictsQuery, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { ApiError } from '@/api/errors'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
@@ -546,6 +547,7 @@ export function ConflictView({
   const list = useQuery(conflictsQuery('all'))
   const me = useMe()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const online = useOnline()
   const isMobile = useIsMobile()
   const [measure, wide] = useWide<HTMLDivElement>(SIDE_BY_SIDE)
@@ -686,7 +688,7 @@ export function ConflictView({
 
   const undoDone = async () => {
     if (!done) return
-    await write('undo', { token: done.undo })
+    if (!(await takeBack(done.undo))) return
     dispatch({ type: 'finish' })
     toast('Undone', { description: 'Both items are as they were.' })
   }

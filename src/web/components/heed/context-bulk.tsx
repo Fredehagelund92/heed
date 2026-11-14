@@ -48,7 +48,8 @@ import {
   type Me,
 } from '@/lib/bulk'
 import { api } from '@/api'
-import { useLibrary, useRefreshAfter, useWrite } from '@/api/queries'
+import { useLibrary, useRefreshAfter } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { useOnline } from '@/lib/send'
 import { useDomains, useMe, usePeople } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
@@ -80,7 +81,7 @@ export function ContextBulk({
   const domains = useDomains()
   const people = usePeople()
   const online = useOnline()
-  const write = useWrite()
+  const takeBack = useTakeBack()
   const refreshAfter = useRefreshAfter()
   const [note, setNote] = React.useState<BulkNote>()
   const picked = facts.filter((f) => sel.isSelected(f.id))
@@ -169,8 +170,8 @@ export function ContextBulk({
       action: {
         label: 'Undo',
         onClick: () =>
-          void write('undo', { token: result.undo }).then(() =>
-            toast(`Undone: ${count(ok.length, 'item')} as before`),
+          void takeBack(result.undo).then(
+            (back) => back && toast(`Undone: ${count(ok.length, 'item')} as before`),
           ),
       },
     })

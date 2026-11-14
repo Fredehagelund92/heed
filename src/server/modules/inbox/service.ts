@@ -447,6 +447,9 @@ export function createInboxFeedService(
         care: { claims: 0, clash: false },
       })
     }
+    // A card decided twice (returned, then published) is one row, labelled by the newest decision.
+    const newest = new Set<string>()
+    cards.splice(0, cards.length, ...cards.filter((c) => !newest.has(c.id) && newest.add(c.id)))
     const closed = await tx.query<{
       card: string
       area: string

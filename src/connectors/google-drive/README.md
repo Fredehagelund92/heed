@@ -48,7 +48,8 @@ comes with it, so nobody can send a key they never saw to a host of their choosi
    no cursor, so the next one is a full read, which lists what moved in and lets the core withdraw
    what moved out. A cursor Drive no longer knows reads everything again from a new start.
 
-The core hands no cursor once the last full read is a week old, so a full read finds what a
+The core hands no cursor once the last full read is a week old, or older than the last change of
+the source's settings (a folder just ticked has no changes to read), so a full read finds what a
 change list missed. Other files (sheets, slides, PDFs) are left alone. A document longer than a
 read takes, or one whose owner does not let viewers download it, is left out with a warning, and
 its suggestion stays as it was.

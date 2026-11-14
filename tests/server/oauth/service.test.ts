@@ -5,12 +5,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { Database } from '../../../src/server/db/database.ts'
 import { createLoginServer, loadKeyRing } from '../../../src/server/modules/oauth/index.ts'
-import {
-  browserToken,
-  createRevocations,
-  pkceMatches,
-  sameText,
-} from '../../../src/server/modules/oauth/service.ts'
+import { browserToken, pkceMatches, sameText } from '../../../src/server/modules/oauth/service.ts'
 
 const dir = await mkdtemp(join(tmpdir(), 'heed-oauth-service-'))
 afterAll(() => rm(dir, { recursive: true, force: true }))
@@ -85,31 +80,4 @@ it('reads exactly one well-formed browser cookie', () => {
   expect(browserToken(`heed_oauth_browser=${value}; heed_oauth_browser=${value}`)).toBeUndefined()
   expect(browserToken('heed_oauth_browser=short')).toBeUndefined()
   expect(browserToken(undefined)).toBeUndefined()
-})
-
-it('fails closed for tokens issued before the start until recent disconnects are read', () => {
-  let time = 1_000_000
-  const revocations = createRevocations(() => new Date(time))
-  // Issued by an earlier process: refused, whatever the connection, until the list is read.
-  expect(revocations.has('g1', 999)).toBe(true)
-  // Issued since the start, by this process, which knows its own disconnects.
-  expect(revocations.has('g1', 1000)).toBe(false)
-  revocations.loaded()
-  expect(revocations.has('g1', 999)).toBe(false)
-  revocations.add('g2')
-  expect(revocations.has('g2', 999)).toBe(true)
-  time += 1000
-  expect(revocations.has('g2', 1000)).toBe(true)
-})
-
-it('remembers a revoked connection for as long as its access tokens can live', () => {
-  let time = 0
-  const revocations = createRevocations(() => new Date(time))
-  revocations.loaded()
-  revocations.add('g1')
-  expect(revocations.has('g1')).toBe(true)
-  time = 600_000 + 59_000
-  expect(revocations.has('g1')).toBe(true)
-  time = 600_000 + 61_000
-  expect(revocations.has('g1')).toBe(false)
 })

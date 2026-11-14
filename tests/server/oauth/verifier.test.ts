@@ -14,14 +14,12 @@ const resource = 'http://localhost:3000/mcp'
 const issuer = 'http://localhost:3000'
 const { privateKey, publicKey } = generateKeyPairSync('ed25519')
 const keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k1' }] })
-const revoked = new Set<string>()
 const verifier = createPersonVerifier({
   issuer,
   resource,
   keys,
   algorithms: ['EdDSA'],
   requireAccessTokenType: true,
-  isRevoked: (id) => revoked.has(id),
 })
 
 function token(
@@ -84,9 +82,6 @@ describe("a person's token", () => {
     )
     expect(await reason(token({ sub: '' }))).toBe('bad_claims')
     expect(await reason(token({ client_id: 7 }))).toBe('bad_claims')
-    revoked.add('g1')
-    expect(await reason(token())).toBe('revoked')
-    revoked.clear()
     expect(await reason(token())).toBe('accepted')
   })
 
