@@ -57,7 +57,7 @@ export function BulkBar({
           <div
             role="region"
             aria-label={label}
-            className="flex h-11 max-w-full items-center gap-1 rounded-lg bg-foreground pr-2 pl-4 text-sm text-background shadow-md max-md:h-auto max-md:min-h-14 max-md:w-full max-md:rounded-none max-md:px-2 max-md:shadow-none"
+            className="flex h-11 max-w-full items-center gap-1 rounded-md bg-foreground pr-2 pl-4 text-sm text-background shadow-md max-md:h-auto max-md:min-h-14 max-md:w-full max-md:rounded-none max-md:px-2 max-md:shadow-none"
           >
             <span className="px-1 font-semibold whitespace-nowrap tabular-nums">
               {count} selected

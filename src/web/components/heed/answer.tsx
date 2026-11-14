@@ -287,7 +287,7 @@ function ScopeLine({ answer }: { answer: Answer }) {
     !kinds.some((k) => k === 'market' || k === 'context') && answer.markets.join(' and '),
   ].filter(Boolean)
   return (
-    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-dense leading-6 text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-6 text-muted-foreground">
       <span>Scoped to</span>
       {scope.map((m) => (
         <MentionChip key={m.id} mention={m} />
@@ -462,7 +462,7 @@ function LookupCard({
                 <p className="mt-2 text-xs">
                   Tool <span className="font-mono text-foreground">get_context</span>
                 </p>
-                <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+                <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground">
                   {JSON.stringify(raw, null, 2)}
                 </pre>
                 {n > 0 && (
@@ -470,7 +470,7 @@ function LookupCard({
                     <p className="mt-2 text-xs">
                       Tool <span className="font-mono text-foreground">get_related</span>
                     </p>
-                    <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+                    <pre className="mt-1 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground">
                       {JSON.stringify(
                         {
                           depth: 1,
@@ -531,7 +531,7 @@ function LoopReads({ answer }: { answer: Answer }) {
             className="mt-1 -ml-1 px-1 text-xs text-muted-foreground"
           />
           <CollapsibleContent>
-            <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground/90">
+            <pre className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-2.5 font-mono text-xs leading-relaxed text-foreground">
               {JSON.stringify(answer.reads, null, 2)}
             </pre>
           </CollapsibleContent>
@@ -755,7 +755,7 @@ function AnswerWords({
         }
         className={cn(
           sentenceClass,
-          'rounded-mark box-decoration-clone transition-colors outline-none',
+          'rounded-xs box-decoration-clone transition-colors outline-none',
           // py-1: an inline box is its font's height (about 19px), so one that fits a line is under the
           // 24px target size; the padding makes it 24px or more and leaves the line height alone.
           opens &&
@@ -804,7 +804,7 @@ function AnswerWords({
       {first > 0 && run(0, first)}
       {/* The one mark on the sentences that differ: an amber rule, the words plain. The badge's card
           says which two items disagree. */}
-      <div data-differ className="border-l-2 border-caution-icon pl-3.5">
+      <div data-differ className="border-l-2 border-caution pl-3.5">
         {run(first, last + 1)}
       </div>
       {last < shown.length - 1 && run(last + 1, shown.length)}
@@ -818,7 +818,7 @@ function AliasChip({ alias }: { alias: NonNullable<Answer['alias']> }) {
     <button
       type="button"
       onClick={() => openDock('def', alias.is)}
-      className="flex w-fit max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex w-fit max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <TypeGlyph d={{ type: 'term', sameAs: alias.is }} />
       <span className="text-muted-foreground">You asked about</span>

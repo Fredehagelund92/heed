@@ -34,10 +34,10 @@
 
   --sl-font: var(--font-sans);
 
-  --sl-text-body: var(--text-reading);
+  --sl-text-body: var(--text-base);
   --sl-line-height: 1.75rem;
   --sl-line-height-headings: 1.375;
-  --sl-text-h1: var(--text-hero);
+  --sl-text-h1: var(--text-3xl);
   --sl-text-h2: 1.25rem;
   --sl-text-h3: 1rem;
   --sl-text-h4: 1rem;
@@ -52,7 +52,7 @@
 @media (min-width: 50em) {
   :root {
     --sl-nav-height: var(--spacing-bar);
-    --sl-text-h1: var(--text-hero);
+    --sl-text-h1: var(--text-3xl);
     --sl-text-h2: 1.25rem;
     --sl-text-h3: 1rem;
     --sl-text-h4: 1rem;
@@ -174,7 +174,7 @@ header a[rel='me']:hover {
 h1#_top {
   font-weight: 700;
   letter-spacing: var(--tracking-hero);
-  line-height: var(--leading-hero);
+  line-height: var(--text-3xl--line-height);
   text-wrap: balance;
 }
 

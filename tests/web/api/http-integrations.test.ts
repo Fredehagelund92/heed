@@ -150,7 +150,11 @@ describe('a source on its row', () => {
         }),
         now,
       ),
-    ).toMatchObject({ health: 'failed', read: 'reading', failure: "it couldn't be reached" })
+    ).toMatchObject({
+      health: 'failed',
+      read: 'reading',
+      failure: "it couldn't be reached (unreachable)",
+    })
     expect(sourceOf(row({ health: 'paused', read: null, nextReadAt: null }), now)).toMatchObject({
       health: 'paused',
       read: null,
@@ -171,7 +175,7 @@ describe('a source on its row', () => {
     expect(failed).toMatchObject({
       health: 'failed',
       failures: 3,
-      failure: "it couldn't be reached",
+      failure: "it couldn't be reached (unreachable)",
       lastGood: { day: '21 Oct', time: '06:00' },
     })
     expect(
@@ -182,7 +186,7 @@ describe('a source on its row', () => {
         }),
         now,
       )!.failure,
-    ).toBe('the key was refused')
+    ).toBe('the key was refused (unauthorized)')
   })
 
   it("says what a document tool's read created, waiting for owners in the Inbox", () => {
@@ -276,7 +280,7 @@ describe("a source's activity", () => {
     ).toMatchObject({ tone: 'failed', what: 'Read refused', detail: 'Cube refused the key.' })
     expect(
       activityOf(read({ status: 'failed', warnings: [{ code: 'timeout', count: 1 }] }), tool, now),
-    ).toMatchObject({ tone: 'failed', what: 'Read failed', detail: 'It took too long.' })
+    ).toMatchObject({ tone: 'failed', what: 'Read failed', detail: 'It took too long (timeout).' })
   })
 
   it('says what each document read did', () => {
@@ -709,8 +713,8 @@ describe('a tool whose file lives in a place you choose', () => {
   it('says why a read failed in history by the same words', () => {
     const read = (code: string) =>
       failureOf({ warnings: [{ code, target: 'x' }] } as unknown as Parameters<typeof failureOf>[0])
-    expect(read('timed_out')).toBe('it took too long')
-    expect(read('unauthorized')).toBe('the key was refused')
+    expect(read('timed_out')).toBe('it took too long (timed_out)')
+    expect(read('unauthorized')).toBe('the key was refused (unauthorized)')
     expect(read('something_new')).toBe("it couldn't be read")
   })
 

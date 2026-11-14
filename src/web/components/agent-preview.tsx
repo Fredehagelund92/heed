@@ -31,7 +31,7 @@ function AgentLine({ children }: { children: React.ReactNode }) {
 function UserLine({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-17/20 rounded-frame bg-muted px-4 py-2 text-reading leading-relaxed">
+      <div className="max-w-17/20 rounded-frame bg-muted px-4 py-2 text-base leading-relaxed">
         {children}
       </div>
     </div>
@@ -46,7 +46,7 @@ function Transcript({ agent }: { agent: string }) {
           <UserLine>{t.you}</UserLine>
           <AgentLine>
             <p className="text-xs font-medium text-muted-foreground">{agent}</p>
-            <p className="text-reading leading-relaxed">{t.agent}</p>
+            <p className="text-base leading-relaxed">{t.agent}</p>
             <StateLine state={t.state} className="text-xs font-medium text-muted-foreground">
               {t.line}
             </StateLine>
@@ -60,7 +60,7 @@ function Transcript({ agent }: { agent: string }) {
             <UserLine key={i}>{m.text}</UserLine>
           ) : (
             <AgentLine key={i}>
-              <p className="text-reading leading-relaxed">{m.text}</p>
+              <p className="text-base leading-relaxed">{m.text}</p>
             </AgentLine>
           ),
         )}

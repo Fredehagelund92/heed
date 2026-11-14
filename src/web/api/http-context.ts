@@ -18,7 +18,7 @@ import type { Draft } from '@domain/draft'
 import type { Scope, Vocabulary as ServiceVocabulary } from '@domain/item'
 import { defaultNotToConclude } from '@domain/proposal-rules'
 import { parseMentions, serializeMentions, type MentionPart } from '@domain/mentions'
-import { shiftDate } from '@domain/validity'
+import { anyDate, shiftDate } from '@domain/validity'
 import type { Link, LinkEnd, Rel } from '@/lib/links'
 import { mentionParts, mentionToken, parseMentionId } from '@/lib/mentions'
 import type { Version, VersionKind } from '@/model/history'
@@ -512,7 +512,7 @@ export function draftOf(fact: Fact, words: Words, today: string, before?: Fact):
       words,
     )
   if (changed('valid'))
-    draft.validity = { start: fact.valid.from ?? today, end: endOf(fact.valid.until) }
+    draft.validity = { start: fact.valid.from ?? anyDate.start, end: endOf(fact.valid.until) }
   if (changed('source') || changed('quote'))
     draft.evidence = fact.source ? [{ url: fact.source, quote: fact.quote, date: today }] : []
   if (changed('dontConclude')) draft.notToConclude = fact.dontConclude || defaultNotToConclude

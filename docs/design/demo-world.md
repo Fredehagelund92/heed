@@ -4,7 +4,7 @@ This page describes Heed's demo world: an invented outdoor-gear retailer, **Larc
 The demo data, the Cube demo model, the golden set and the test questions all tell this one
 world. New demo text keeps to it (section 14).
 
-The words follow the voice guide (`docs/design/voice.md`) and the glossary (`src/domain/words.ts`).
+The words follow the copy guide (`docs/design/copy.md`) and the glossary (`src/domain/words.ts`).
 
 The Heed v1 mockup tells the same world in its own fixtures: 22 context items, 18 Inbox cards, 12 reviews, 12 saved questions, 10 topics, 8 alert rules, 22 metrics, 5 dimensions, 13 terms and 14 people. They become the mock data of the new web app ([the product page](../product.md), section 14). The people, the domains and the Norway story match this page. Where the two lists differ in count, the mockup's fixtures are the demo data of the new web app, and the seed described here stays the service's until the two are brought together.
 

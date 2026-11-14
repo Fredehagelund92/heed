@@ -25,13 +25,32 @@ const terms: Term[] = [...base, term('dim:campaign', 'dimension', 'Campaign'), .
 const none: ScopeUsage = { recent: [], uses: {} }
 
 describe('the scope picker search (FR-107)', () => {
-  it('finds nothing for no words, except inside one dimension', () => {
-    expect(searchScope(terms, none, { query: '  ' })).toEqual({
-      recent: [],
-      metrics: [],
-      groups: [],
-      nextCursor: null,
-    })
+  it('offers metrics and dimensions for no words, never their values', () => {
+    const page = searchScope(terms, none, { query: '  ' })
+    expect(page.recent).toEqual([])
+    expect(page.nextCursor).toBeNull()
+    expect(page.metrics.map((hit) => hit.kind)).toEqual(page.metrics.map(() => 'metric'))
+    expect(page.metrics.length).toBeGreaterThan(0)
+    expect(page.metrics.length).toBeLessThanOrEqual(8)
+    expect(page.groups.map((g) => g.dimension.key).sort()).toEqual(
+      terms
+        .filter((t) => t.kind === 'dimension')
+        .map((t) => t.key)
+        .sort(),
+    )
+    // Each dimension says how many values it has, and lists none of them.
+    expect(page.groups.every((g) => g.named && g.values.length === 0)).toBe(true)
+    expect(page.groups.find((g) => g.dimension.key === 'dim:campaign')?.count).toBe(3000)
+  })
+
+  it('puts the metrics people use most first when it opens', () => {
+    const metrics = base.filter((t) => t.kind === 'metric')
+    const busiest = metrics.at(-1)!
+    const page = searchScope(terms, { recent: [], uses: { [busiest.key]: 9 } }, { query: '' })
+    expect(page.metrics[0]?.key).toBe(busiest.key)
+  })
+
+  it('pages the values of one dimension for no words', () => {
     const inside = searchScope(terms, none, { query: '', dimension: 'dim:campaign' })
     expect(inside.groups[0]).toMatchObject({ named: true, count: 3000 })
     expect(inside.groups[0]!.values).toHaveLength(20)
@@ -121,14 +140,12 @@ describe('the scope picker search (FR-107)', () => {
 })
 
 describe('the recent terms before anything is typed', () => {
-  it('offers the person their recent terms, newest first, and nothing else', () => {
+  it('offers the person their recent terms, newest first, ahead of the metrics and dimensions', () => {
     const usage: ScopeUsage = {
       recent: ['val:campaign/c0002', 'metric:gone', 'dim:market'],
       uses: { 'dim:market': 3 },
     }
     const page = searchScope(terms, usage, { query: '' })
-    expect(page.metrics).toEqual([])
-    expect(page.groups).toEqual([])
     expect(
       page.recent.map((hit) => [
         hit.key,

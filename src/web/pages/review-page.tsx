@@ -200,7 +200,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
                         ) : care ? (
                           <TriangleAlertIcon
                             aria-label={careLine(r) ?? 'Needs care'}
-                            className="size-3.5 shrink-0 text-caution-icon"
+                            className="size-3.5 shrink-0 text-caution"
                           />
                         ) : on ? (
                           <CircleIcon
@@ -714,7 +714,7 @@ function SyncedFrom({ r }: { r: Review }) {
         <dt className="text-muted-foreground">Set by the document</dt>
         <dd>The title, what agents should know, where and when it applies</dd>
         <dt className="text-muted-foreground">Not set by it</dt>
-        <dd>Who owns it and who it's for: the owners of Sales decide when they publish</dd>
+        <dd>Who owns it: you decide that when you publish</dd>
       </dl>
       <p className="text-xs text-muted-foreground">
         Only a link, the title and this quote are kept, never the document. If the document changes,
@@ -761,7 +761,7 @@ function Clash({ r }: { r: Review }) {
   return (
     <section className="flex flex-col gap-4 py-2">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
+        <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution" />
         <Mark role="needs" icon={false} className="text-sm">
           Overlaps live context
         </Mark>
@@ -1352,7 +1352,7 @@ function Decision({
             {problem ?? (
               <p className="flex items-center gap-2 text-sm">
                 {careLine(r) ? (
-                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
+                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution" />
                 ) : (
                   <ReadyIcon className="size-4 shrink-0" aria-hidden />
                 )}
@@ -1451,7 +1451,7 @@ function Decision({
           <div className="flex flex-col gap-2">
             {problem}
             {/* Desktop decisions are full size: 36px, 13px text. */}
-            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-dense">
+            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-sm">
               {shownActions}
             </div>
             {draft && (
@@ -1877,16 +1877,11 @@ export function ReviewPage({ id }: { id: string }) {
             <Breadcrumb className="min-w-0">
               <BreadcrumbList className="flex-nowrap text-sm">
                 <BreadcrumbItem className="max-sm:hidden">
-                  <BreadcrumbLink
-                    href={`/inbox?card=${r.id}`}
-                    className="text-foreground/75 hover:text-foreground"
-                  >
-                    Inbox
-                  </BreadcrumbLink>
+                  <BreadcrumbLink href={`/inbox?card=${r.id}`}>Inbox</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="max-sm:hidden" />
                 <BreadcrumbItem className="max-sm:hidden">
-                  <span className="text-foreground/75">Review</span>
+                  <span>Review</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="max-sm:hidden" />
                 <BreadcrumbItem className="min-w-0">

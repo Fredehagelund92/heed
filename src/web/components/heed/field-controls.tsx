@@ -83,12 +83,15 @@ export function PropertyRow({
   label,
   icon,
   required,
+  problem,
   children,
 }: {
   id: string
   label: string
   icon?: React.ReactNode
   required?: boolean
+  /** Why what is here is refused, in a sentence, under the value. */
+  problem?: string
   children: React.ReactNode
 }) {
   return (
@@ -105,7 +108,14 @@ export function PropertyRow({
           </span>
         )}
       </dt>
-      <dd className="min-w-0 pl-1.5 max-sm:pb-1.5">{children}</dd>
+      <dd className="min-w-0 pl-1.5 max-sm:pb-1.5">
+        {children}
+        {problem && (
+          <p data-problem className="pt-0.5 pb-1 text-xs text-destructive">
+            {problem}
+          </p>
+        )}
+      </dd>
     </div>
   )
 }
@@ -394,10 +404,13 @@ export function WhenField({
   labelId,
   value,
   onChange,
+  asking,
 }: {
   labelId: string
   value: WhenValue
   onChange: (value: WhenValue) => void
+  /** What to ask while nothing is picked: no preset is shown as chosen until one is. */
+  asking?: string
 }) {
   const [open, setOpen] = React.useState(false)
   const mobile = useIsMobile()
@@ -405,8 +418,9 @@ export function WhenField({
   const missing = missingDates(value)
   const month = toDate(value.mode === 'until' ? value.until : value.from) ?? new Date(2026, 9, 1)
   const single = value.mode === 'until' ? value.until : value.from
-  const hint =
-    value.mode === 'always'
+  const hint = asking
+    ? asking
+    : value.mode === 'always'
       ? 'Agents get it whatever dates a question asks about.'
       : value.mode === 'ongoing'
         ? 'Pick when it started, if you know.'
@@ -422,7 +436,9 @@ export function WhenField({
       labelId={labelId}
       label="When"
       value={
-        missing ? (
+        asking ? (
+          <Ghost>{asking}</Ghost>
+        ) : missing ? (
           <Ghost>{whenSummary(value)}</Ghost>
         ) : (
           <TagChip icon={<CalendarIcon aria-hidden />} className="max-w-full">
@@ -442,7 +458,7 @@ export function WhenField({
         <RadioGroup
           ref={presets}
           aria-label="When it applies"
-          value={value.mode}
+          value={asking ? '' : value.mode}
           onValueChange={(v) => onChange({ ...value, mode: v as WhenMode })}
           className="grid shrink-0 grid-cols-2 gap-0.5 p-1 sm:flex sm:w-40 sm:flex-col sm:border-r sm:pr-2"
         >

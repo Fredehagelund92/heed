@@ -27,7 +27,7 @@ export function FoldChevron({ className }: { className?: string }) {
 }
 
 const looks = {
-  row: 'flex min-h-11 w-full min-w-0 items-center gap-2 py-2 text-left text-sm hover:bg-band-soft focus-visible:ring-inset',
+  row: 'flex min-h-11 w-full min-w-0 items-center gap-2 py-2 text-left text-sm hover:bg-band focus-visible:ring-inset',
   inline:
     'relative inline-flex min-h-6 items-center gap-1 rounded-sm text-left hover:text-foreground pointer-coarse:after:absolute pointer-coarse:after:inset-(--touch-inset)',
   header:

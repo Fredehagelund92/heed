@@ -44,7 +44,7 @@ The person who publishes and checks a domain's context. Agents read only what an
 Everyone is an Admin or a Member. Owning a domain isn't a role: it's set on the domain, and shows on both the domain's page and People.
 
 - **Invite people** in Settings, People: their addresses, Admin or Member, and the domains they own from the start. An owner who isn't an admin invites from their own domain's page.
-- Each invite gives a link to copy and send them. It works for 7 days. Resend makes a new link, and the old one stops working.
+- Each invite gives a link to copy and send them. It works for 7 days. Make a new link gives a new one, and the old one stops working.
 - A person's row opens what they did lately: the context they checked last, newest first, of what you may read.
 - Removing someone waits until no domain has them as its only owner. What they published stays, with their name, and Undo brings them back.
 

@@ -1118,7 +1118,7 @@ function NothingConnected() {
         </div>
         <div className="border-t px-4 py-6 md:px-8 @4xl/main:border-t-0 @4xl/main:border-l">
           <div className="mb-1.5 flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg border text-muted-foreground">
+            <span className="flex size-9 items-center justify-center rounded-md border text-muted-foreground">
               <BotIcon className="size-5" aria-hidden />
             </span>
             <h2 className="text-base font-semibold">No agent has asked anything yet</h2>
@@ -1134,7 +1134,7 @@ function NothingConnected() {
                 className="flex items-center gap-3 border-b px-3.5 py-2.5 last:border-b-0"
               >
                 {s.done ? (
-                  <CircleCheckIcon className="size-4 text-[var(--ok)]" aria-hidden />
+                  <CircleCheckIcon className="size-4 text-good" aria-hidden />
                 ) : (
                   <CircleDashedIcon className="size-4 text-muted-foreground" aria-hidden />
                 )}

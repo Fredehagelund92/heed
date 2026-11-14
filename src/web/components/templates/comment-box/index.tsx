@@ -12,6 +12,7 @@ import {
 import type { CommentAnchor, Subject } from '@/model/comments'
 import { onVersions, placeLabel, placeOf, type ReviewVersions } from '@/model/source-places'
 import { Composer } from './composer'
+import { keepWords } from './keep-words'
 import type { CommentItem } from './types'
 import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from './thread'
 import { countComments } from './utils'
@@ -101,9 +102,9 @@ export function CommentBox({
   const actions: ThreadActions = {
     me,
     owners,
-    post: (content, parentId) => void commentActions.post(subject, content, { parentId }),
+    post: (content, parentId) => commentActions.post(subject, content, { parentId }),
     react: (id, emoji) => void commentActions.react(subject, id, emoji),
-    edit: (id, content) => void commentActions.edit(subject, id, content),
+    edit: (id, content) => commentActions.edit(subject, id, content),
     remove: (id) => void commentActions.remove(subject, id),
     ...(withdrawable
       ? { withdraw: (id, withdrew) => void commentActions.withdraw(subject, id, withdrew) }
@@ -191,10 +192,11 @@ export function CommentBox({
             label="Write a comment"
             placeholder="Add a comment"
             onCancel={comments.length === 0 ? () => setAdding(false) : undefined}
-            onPost={(content) => {
-              actions.post(content)
-              setAdding(false)
-            }}
+            onPost={(content) =>
+              keepWords(() => actions.post(content), "Your comment wasn't saved").then(() =>
+                setAdding(false),
+              )
+            }
           />
         </div>
       )}

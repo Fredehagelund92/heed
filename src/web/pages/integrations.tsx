@@ -32,8 +32,10 @@ import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
 import { CONNECTOR_REQUEST_URL } from '@domain/brand'
-import { fieldVisible, noSecretStoreWords } from '@domain/connector-config'
+import { fieldVisible, noSecretStoreHost, noSecretStorePlain } from '@domain/connector-config'
 import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
@@ -133,7 +135,7 @@ const crumbs = (...rest: { label: string; href?: string }[]) => (
 )
 
 const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: string }> = {
-  healthy: { label: 'Healthy', icon: <CircleCheckIcon />, cls: 'border-good/35 text-good-ink' },
+  healthy: { label: 'Healthy', icon: <CircleCheckIcon />, cls: 'border-good/35 text-good' },
   failed: {
     label: 'Failed',
     icon: <CircleAlertIcon />,
@@ -142,7 +144,7 @@ const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: st
   reauth: {
     label: 'Needs a new key',
     icon: <KeyRoundIcon />,
-    cls: 'border-caution/45 text-caution-ink',
+    cls: 'border-caution/45 text-caution',
   },
   paused: { label: 'Paused', icon: <PauseIcon />, cls: 'text-muted-foreground' },
 }
@@ -255,7 +257,7 @@ function NoDomain() {
   return (
     <Badge
       variant="outline"
-      className="gap-1 border-caution/45 font-normal text-caution-ink [&>svg]:size-3"
+      className="gap-1 border-caution/45 font-normal text-caution [&>svg]:size-3"
     >
       <TriangleAlertIcon />
       No domain
@@ -379,7 +381,7 @@ function FigureConnectionDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor={`${id}-token`}>Token</FieldLabel>
+              <FieldLabel htmlFor={`${id}-token`}>Key</FieldLabel>
               <Input
                 id={`${id}-token`}
                 name="token"
@@ -388,7 +390,10 @@ function FigureConnectionDialog({
                 required
                 minLength={8}
               />
-              <FieldDescription>Read only. Shown nowhere once saved.</FieldDescription>
+              <FieldDescription>
+                A key is a long password for a program. This one is a {c.name} token. Read only.
+                Shown nowhere once saved.
+              </FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter>
@@ -447,8 +452,8 @@ function TryFigureDialog({
         <DialogHeader>
           <DialogTitle>Try a figure from {c.name}</DialogTitle>
           <DialogDescription>
-            Reads one measure for the last 7 days, with the data endpoint and token as saved.
-            Nothing is kept, and Show figures in Ask stays as it is.
+            Reads one measure (a number such as Orders) for the last 7 days, with the address and
+            key as saved. Nothing is kept, and Show figures in Ask stays as it is.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-frame border p-4 text-sm" aria-live="polite">
@@ -540,7 +545,7 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
   return (
     <PanelSection
       title="Figures connection"
-      description={`The second of ${c.name}'s two connections, with its own endpoint and token: ${c.name}'s data API. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
+      description={`The second of ${c.name}'s two connections, with its own address and key, for figures. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
       action={
         <span className="flex items-center gap-2">
           <label htmlFor={switchId} className="text-sm">
@@ -569,47 +574,70 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
         </span>
       }
     >
+      <Collapsible className="border-t">
+        <FoldTrigger
+          variant="inline"
+          label="Connection details"
+          className="mx-3 my-1 px-1 text-xs text-muted-foreground md:mx-4"
+        />
+        <CollapsibleContent>
+          <dl className="border-t">
+            {(
+              [
+                [
+                  'Data endpoint',
+                  conn.endpoint ? (
+                    <code key="e" className="font-mono text-xs break-all">
+                      {conn.endpoint}
+                    </code>
+                  ) : (
+                    notSet
+                  ),
+                ],
+                [
+                  'Token',
+                  conn.secretSet ? (
+                    <span key="s">
+                      <code className="font-mono text-xs" aria-label="Token, set">
+                        {'••••••••••••'}
+                      </code>
+                      <span className="block text-xs text-muted-foreground">
+                        Its own, not the definitions token. Only used for reading.
+                      </span>
+                    </span>
+                  ) : (
+                    notSet
+                  ),
+                ],
+                [
+                  'Declared host',
+                  conn.host ? (
+                    <span key="h">
+                      <code className="font-mono text-xs">{conn.host}</code>
+                      <span className="block text-xs text-muted-foreground">
+                        The only host called for a figure. Read only, with a 4 second limit.
+                      </span>
+                    </span>
+                  ) : (
+                    notSet
+                  ),
+                ],
+              ] as [string, React.ReactNode][]
+            ).map(([k, v]) => (
+              <div
+                key={k}
+                className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-(--cols-lead-44) md:px-5"
+              >
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 break-words">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </CollapsibleContent>
+      </Collapsible>
       <dl className="border-t">
         {(
           [
-            [
-              'Data endpoint',
-              conn.endpoint ? (
-                <code key="e" className="font-mono text-dense break-all">
-                  {conn.endpoint}
-                </code>
-              ) : (
-                notSet
-              ),
-            ],
-            [
-              'Token',
-              conn.secretSet ? (
-                <span key="s">
-                  <code className="font-mono text-dense" aria-label="Token, set">
-                    {'••••••••••••'}
-                  </code>
-                  <span className="block text-xs text-muted-foreground">
-                    Its own, not the definitions token. Only used for reading.
-                  </span>
-                </span>
-              ) : (
-                notSet
-              ),
-            ],
-            [
-              'Declared host',
-              conn.host ? (
-                <span key="h">
-                  <code className="font-mono text-dense">{conn.host}</code>
-                  <span className="block text-xs text-muted-foreground">
-                    The only host called for a figure. Read only, with a 4 second limit.
-                  </span>
-                </span>
-              ) : (
-                notSet
-              ),
-            ],
             [
               'Data contact',
               <span key="c" className="flex flex-wrap items-center gap-2">
@@ -968,7 +996,7 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
           role="alert"
           className="flex flex-wrap items-start gap-3 border-t bg-caution/8 px-4 py-4 text-sm md:px-5"
         >
-          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
           <p className="min-w-0 flex-1">
             <span className="font-medium">{refusedTool.name} needs a new key.</span>{' '}
             {sentence(refused.failure ?? 'the key was refused')}
@@ -1001,7 +1029,7 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
       <PanelSection title="Connected">
         {sources.length === 0 ? (
           <div className="mx-4 mb-4 flex flex-col items-center gap-3 rounded-frame border border-dashed px-6 py-10 text-center md:mx-5">
-            <span className="grid size-10 place-items-center rounded-lg border bg-muted">
+            <span className="grid size-10 place-items-center rounded-md border bg-muted">
               <PlugIcon className="size-5" aria-hidden />
             </span>
             <p className="font-medium">Nothing connected yet</p>
@@ -1084,12 +1112,12 @@ const sentence = (words: string) => words.replace(/^./, (c) => c.toUpperCase())
 
 const docLook: Record<DocState, string> = {
   waiting: 'border-primary/35 text-primary',
-  published: 'border-good/35 text-good-ink',
+  published: 'border-good/35 text-good',
   returned: 'text-muted-foreground',
   declined: 'text-muted-foreground',
   withdrawn: 'text-muted-foreground',
   held: 'text-muted-foreground',
-  skipped: 'border-caution/45 text-caution-ink',
+  skipped: 'border-caution/45 text-caution',
   gone: 'text-muted-foreground',
 }
 const docLabel: Record<DocState, string> = {
@@ -1391,7 +1419,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
     ...connection.map((row): [string, React.ReactNode] => [
       row.label,
       row.code ? (
-        <code key={row.label} className="font-mono text-dense break-all">
+        <code key={row.label} className="font-mono text-xs break-all">
           {row.value}
         </code>
       ) : (
@@ -1490,7 +1518,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           </div>
         )}
         {h === 'failed' && (
-          <div role="alert" className="border-t bg-destructive/5 px-4 py-4 text-sm md:px-5">
+          <div role="alert" className="border-t bg-destructive/8 px-4 py-4 text-sm md:px-5">
             <p className="flex items-start gap-2">
               <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
               <span>
@@ -1654,7 +1682,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               description={
                 <>
                   {/* One run of text: a name in a run of its own is set a hair differently. */}
-                  {`Each ${c.name} view, and the domain it belongs to.${c.domainField ? ' It reads' : ''}`}
+                  {`Each ${c.name} view (a group of metrics), and the domain it belongs to.${c.domainField ? ' It reads' : ''}`}
                   {c.domainField && (
                     <>
                       {' '}
@@ -1668,7 +1696,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                 head={['View', 'Metrics', 'Dimensions', 'Domain', 'Owners']}
                 align={['left', 'right', 'right', 'left', 'left']}
                 rows={views.map((v) => [
-                  <code key="v" className="font-mono text-dense">
+                  <code key="v" className="font-mono text-xs">
                     {v.view}
                   </code>,
                   v.metrics,
@@ -1679,7 +1707,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               />
               {d && d.noDomain > 0 && (
                 <div className="flex flex-wrap items-center gap-3 border-t bg-caution/8 px-4 py-3 text-sm md:px-5">
-                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-ink" />
+                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution" />
                   <p className="min-w-0 flex-1">
                     <span className="font-medium">
                       {d.noDomain === 1
@@ -1903,7 +1931,7 @@ function Stepper({ at }: { at: number }) {
             {i > 0 && <span aria-hidden className="h-px w-5 bg-border max-sm:hidden" />}
             <span
               className={cn(
-                'grid size-5 place-items-center rounded-full border text-2xs tabular-nums',
+                'grid size-5 place-items-center rounded-full border text-xs tabular-nums',
                 done && 'border-foreground bg-foreground text-background',
                 on && 'border-primary text-primary ring-2 ring-primary/20',
               )}
@@ -1923,8 +1951,8 @@ function Stepper({ at }: { at: number }) {
 
 /** A step of a tool's check: done, a warning, failed, or left out. */
 const stepLook: Record<ConnectStep['status'], React.ReactNode> = {
-  ok: <CircleCheckIcon aria-hidden className="size-4 shrink-0 text-good-icon" />,
-  warning: <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-ink" />,
+  ok: <CircleCheckIcon aria-hidden className="size-4 shrink-0 text-good" />,
+  warning: <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution" />,
   failed: <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-destructive" />,
   skipped: <span aria-hidden className="size-4 shrink-0 rounded-full border" />,
 }
@@ -2021,7 +2049,7 @@ function DomainPick({
             size="sm"
             className={cn(
               'w-40 justify-between font-normal',
-              !value && 'border-caution/60 text-caution-ink',
+              !value && 'border-caution/60 text-caution',
             )}
           />
         }
@@ -2107,7 +2135,7 @@ function Recipe({ recipe }: { recipe: NonNullable<ConnectOption['recipe']> }) {
           <CopiedIcon copied={copied} />
         </Button>
       </figcaption>
-      <pre className="px-4 py-3 font-mono text-dense leading-6 break-words whitespace-pre-wrap">
+      <pre className="px-4 py-3 font-mono text-xs leading-6 break-words whitespace-pre-wrap">
         {recipe.code}
       </pre>
     </figure>
@@ -2295,7 +2323,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
             required={f.required}
             maxLength={f.maxLength}
             spellCheck={false}
-            className="max-h-96 min-h-40 font-mono text-dense"
+            className="max-h-96 min-h-40 font-mono text-xs"
           />
         ) : (
           <Input
@@ -2305,7 +2333,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
             placeholder={f.placeholder}
             required={f.required}
             maxLength={f.maxLength}
-            className={cn(f.kind !== 'text' && 'font-mono text-dense')}
+            className={cn(f.kind !== 'text' && 'font-mono text-xs')}
           />
         )}
         {(f.advanced || f.kind === 'json' || c.places) && (
@@ -2331,8 +2359,11 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
             role="alert"
             className="flex items-start gap-2.5 rounded-frame border border-caution/40 bg-caution/8 px-3 py-2.5 text-sm"
           >
-            <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
-            {noSecretStoreWords}
+            <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
+            <span>
+              {noSecretStorePlain}
+              <span className="block text-xs text-muted-foreground">{noSecretStoreHost}</span>
+            </span>
           </p>
         )}
         {at === 1 && <PickStep c={c} />}
@@ -2367,7 +2398,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                         (keyFile.set ? 'A key is set' : 'No key uploaded yet')}
                     </span>
                     {(files[keyFile.key] || keyFile.set) && (
-                      <Badge variant="outline" className="border-good/35 font-normal text-good-ink">
+                      <Badge variant="outline" className="border-good/35 font-normal text-good">
                         {files[keyFile.key] ? 'Uploaded' : 'Set'}
                       </Badge>
                     )}
@@ -2582,7 +2613,7 @@ function PickStep({ c }: { c: Connector }) {
                 ]
             ).map((t) => (
               <li key={t} className="flex items-center gap-2">
-                <CheckIcon aria-hidden className="size-4 text-good-icon" />
+                <CheckIcon aria-hidden className="size-4 text-good" />
                 {t}
               </li>
             ))}
@@ -2610,7 +2641,7 @@ function PickStep({ c }: { c: Connector }) {
           : c.places
             ? `You need a place your ${c.name} pipeline puts its file, and a way to read it there. Only admins can connect a source.`
             : c.git
-              ? `You need a read-only token for the ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'repository'}. Only admins can connect a source.`
+              ? `You need someone who can make a read-only key for your ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'Git repository'}. Only admins can connect a source.`
               : `${c.access.join(' ')} Only admins can connect a source.`}
       </p>
     </>
@@ -2719,14 +2750,14 @@ function ScopeChooser({
                   }}
                 />
                 <span className="flex min-w-0 flex-1 flex-col gap-x-3 sm:flex-row sm:items-baseline">
-                  <span className={cn('min-w-0 flex-1 truncate', mono && 'font-mono text-dense')}>
+                  <span className={cn('min-w-0 flex-1 truncate', mono && 'font-mono text-xs')}>
                     {s.title}
                   </span>
                   {s.detail && (
                     <span
                       className={cn(
                         'shrink-0 text-muted-foreground tabular-nums',
-                        s.detail === 'Not in the model' && 'text-caution-ink',
+                        s.detail === 'Not in the model' && 'text-caution',
                       )}
                     >
                       {s.detail}
@@ -2782,13 +2813,13 @@ function LeftOutNotice({
       className="flex flex-col gap-3 rounded-frame border border-caution/45 bg-caution/8 p-4 text-sm"
     >
       <h3 id="left-out" className="flex items-start gap-2 font-medium">
-        <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
+        <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
         {named.length
           ? `It stops reading ${plural(named.length, 'view')} of ${tool}`
           : `It stops reading members of ${tool} that are in no view`}
       </h3>
       <p>
-        <span className="font-mono text-dense">{names.slice(0, 5).join(', ')}</span>
+        <span className="font-mono text-xs">{names.slice(0, 5).join(', ')}</span>
         {names.length > 5 && ` and ${names.length - 5} more`}
         {loose && named.length > 0 && ', and members in no view'}
         {`. ${holds ? `Their ${holds} leave` : 'They leave'} Definitions from its next read. Nothing is unpublished or deleted.`}
@@ -3066,10 +3097,7 @@ function ChoiceSteps({
             )}
             {isDefinitions && unmapped > 0 && (
               <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
-                <TriangleAlertIcon
-                  aria-hidden
-                  className="mt-0.5 size-4 shrink-0 text-caution-ink"
-                />
+                <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
                 <span>
                   {unmapped === 1 ? '1 view has' : `${unmapped} views have`} no{' '}
                   {c.domainField ? (
@@ -3114,7 +3142,7 @@ function ChoiceSteps({
                 <tbody>
                   {chosen.map((s) => (
                     <tr key={s.id} className="border-t">
-                      <td className={cn('h-12 px-4', isDefinitions && 'font-mono text-dense')}>
+                      <td className={cn('h-12 px-4', isDefinitions && 'font-mono text-xs')}>
                         {s.title}
                       </td>
                       <td className="px-4">
@@ -3183,7 +3211,7 @@ function ChoiceSteps({
                   ]
               ).map((t, i) => (
                 <li key={i} className="flex gap-2">
-                  <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good-icon" />
+                  <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good" />
                   <span>{t}</span>
                 </li>
               ))}

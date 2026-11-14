@@ -111,8 +111,13 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
     await heartbeats.started(job.name)
     try {
       const summary = await job.run({ database, logger: log, signal: queued.signal })
+      const durationMs = Math.round(performance.now() - startedAt)
+      if (summary.backingOff) {
+        log.warn({ summary, durationMs }, 'job backing off after a failure')
+        return summary
+      }
       await heartbeats.succeeded(job.name)
-      log.info({ summary, durationMs: Math.round(performance.now() - startedAt) }, 'job succeeded')
+      log.info({ summary, durationMs }, 'job succeeded')
       return summary
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

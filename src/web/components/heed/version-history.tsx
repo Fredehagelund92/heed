@@ -79,7 +79,7 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
             <button
               type="button"
               onClick={onOpen}
-              className="flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-dense outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           }
         >

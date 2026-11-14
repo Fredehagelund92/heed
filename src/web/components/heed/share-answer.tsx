@@ -56,7 +56,7 @@ export function SharePopover({
         finalFocus={from}
         aria-label="Share this answer"
         initialFocus={copyRef}
-        className="max-h-popup w-share gap-3 overflow-y-auto rounded-lg p-4"
+        className="max-h-popup w-share gap-3 overflow-y-auto rounded-md p-4"
       >
         <p className="text-sm font-semibold">Share this answer</p>
         <ShareBody answer={answer} facts={facts} way={way} onWay={setWay} />
@@ -161,7 +161,7 @@ function ShareBody({
       <div
         role="tablist"
         aria-label="Share as"
-        className="grid grid-cols-3 gap-0.5 rounded-lg bg-muted p-0.5"
+        className="grid grid-cols-3 gap-0.5 rounded-md bg-muted p-0.5"
       >
         {tabs.map((t) => {
           const later = t.id === 'link'
@@ -177,7 +177,7 @@ function ShareBody({
               title={later ? LINK_REASON : undefined}
               onClick={() => !later && onWay(t.id as Way)}
               className={cn(
-                'flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-dense whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-10',
+                'flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-sm whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-10',
                 on && 'bg-background font-medium text-foreground shadow-xs',
                 later ? 'cursor-default' : 'hover:text-foreground',
               )}
@@ -185,7 +185,7 @@ function ShareBody({
               <t.icon className="size-3.5 shrink-0" aria-hidden />
               {t.label}
               {later && (
-                <span className="rounded-sm border px-1 text-3xs leading-4 text-muted-foreground">
+                <span className="rounded-sm border px-1 text-xs leading-4 text-muted-foreground">
                   Later
                 </span>
               )}
@@ -200,7 +200,7 @@ function ShareBody({
       >
         {way === 'slack' ? (
           <>
-            <div className="rounded-lg border bg-background p-3">
+            <div className="rounded-md border bg-background p-3">
               <div className="flex items-center gap-2">
                 <PersonAvatar name={me.name} size={20} />
                 <span className="text-sm font-semibold">{me.name}</span>
@@ -236,7 +236,7 @@ function SlackPreview({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       </p>
       <p>{plainAnswer(answer.text)}</p>
       {facts.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-dense text-muted-foreground">
+        <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
           {facts.map((f, i) => (
             <li key={f.id}>{sourceLine(f, i)}</li>
           ))}
@@ -250,7 +250,7 @@ function SlackPreview({ answer, facts }: { answer: Answer; facts: Fact[] }) {
 export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const workspace = useWorkspace().name
   return (
-    <figure className="m-0 flex flex-col gap-3 rounded-mark border bg-background p-4">
+    <figure className="m-0 flex flex-col gap-3 rounded-xs border bg-background p-4">
       {answer.state ? (
         <StateLine state={answer.state} sentence tip={false} className="text-xs" />
       ) : (
@@ -273,7 +273,7 @@ export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] })
           ))}
         </ol>
       )}
-      <figcaption className="border-t border-dotted pt-2 text-2xs text-muted-foreground">
+      <figcaption className="border-t border-dotted pt-2 text-xs text-muted-foreground">
         {cardFooter(workspace)}
       </figcaption>
     </figure>
