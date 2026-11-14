@@ -929,6 +929,62 @@ describe('weekly scorecard and baseline', () => {
     expect(command.stderr).toContain('npm run held-out -- eval')
     expect(await state()).toBe('incomplete')
   }, 180_000)
+
+  it('refuses in the database every move of a run its transition table does not list (#194)', async () => {
+    const states = [
+      'estimated',
+      'awaiting_approval',
+      'queued',
+      'running',
+      'finished',
+      'failed',
+      'cancelled',
+      'incomplete',
+    ]
+    const allowed = [
+      'estimated>failed',
+      'estimated>cancelled',
+      'awaiting_approval>queued',
+      'awaiting_approval>failed',
+      'awaiting_approval>cancelled',
+      'queued>running',
+      'queued>finished',
+      'queued>failed',
+      'queued>cancelled',
+      'running>finished',
+      'running>incomplete',
+      'running>failed',
+      'running>cancelled',
+      'incomplete>queued',
+      'incomplete>failed',
+      'incomplete>cancelled',
+    ]
+    const moved: string[] = []
+    const ids: string[] = []
+    for (const from of states)
+      for (const to of states.filter((s) => s !== from)) {
+        // A run only its command works, so no job of another test takes it.
+        const {
+          rows: [run],
+        } = await client.query<{ id: string }>(
+          `insert into eval_runs(kind,state,tool_schema_digest,model_id,client_label,test_set_digest,tries,
+             estimated_cost_micros,summary)
+           values('held_out',$1,'x','mock/scripted-answer','eval','\\x00',3,0,'{}') returning id::text`,
+          [from],
+        )
+        ids.push(run!.id)
+        const error = await client
+          .query('update eval_runs set state=$2 where id=$1', [run!.id, to])
+          .then(
+            () => null,
+            (e: { code?: string }) => e,
+          )
+        if (error === null) moved.push(`${from}>${to}`)
+        else expect(error.code).toBe('23514')
+      }
+    await client.query('delete from eval_runs where id=any($1)', [ids])
+    expect(moved.sort()).toEqual(allowed.sort())
+  })
 })
 
 describe('refusals', () => {
@@ -1279,5 +1335,87 @@ describe('questions run in memory, with nothing of them kept (FR-525)', () => {
       [run.runId],
     )
     expect(record.rows[0]!.failure).not.toContain(canary)
+  })
+
+  /** A held-out run whose answers wait until it is let go, and the run's row once it asks. */
+  async function heldRun() {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let asked!: () => void
+    const asking = new Promise<void>((resolve) => (asked = resolve))
+    const scripted = models.choose('eval_answer').model as MockLanguageModelV4
+    const waiting = new MockLanguageModelV4({
+      provider: 'mock',
+      modelId: 'scripted-answer',
+      doGenerate: async (options) => {
+        asked()
+        await gate
+        return scripted.doGenerate(options)
+      },
+    })
+    const port: ModelPort = {
+      ...models,
+      choose: (role, ref) => ({
+        ...models.choose(role, ref),
+        ...(role === 'eval_answer' ? { model: waiting } : {}),
+      }),
+    }
+    const running = runWithheld(
+      database,
+      { port, clock },
+      {
+        area: 'finance',
+        questions: [goldenQuestionSchema.parse(question('sealed-lifecycle', 'Online sales'))],
+        person: null,
+        ceilingMicros: null,
+        signal: new AbortController().signal,
+        logger,
+      },
+    )
+    await asking
+    const {
+      rows: [row],
+    } = await client.query<{ id: string; worker: string | null; held: boolean }>(
+      `select id::text,worker,coalesce(lease_until>now(),false) as held from eval_runs
+        where kind='held_out' and state='running' order by created_at desc limit 1`,
+    )
+    return { row: row!, running, release }
+  }
+  const runOf = async (id: string) =>
+    (
+      await client.query<{ state: string; failure: string | null }>(
+        'select state::text,failure from eval_runs where id=$1',
+        [id],
+      )
+    ).rows[0]!
+
+  it('stops when it is cancelled, and never writes over the cancel (#194)', async () => {
+    const { row, running, release } = await heldRun()
+    const cancelled = await call('POST', `/evals/runs/${row.id}/cancel`, 'admin')
+    expect(cancelled.statusCode, cancelled.body).toBe(200)
+    release()
+    const run = await running
+    expect(run.state).toBe('cancelled')
+    expect(run.stopped).not.toBeNull()
+    expect((await runOf(row.id)).state).toBe('cancelled')
+  })
+
+  it('holds a lease while it works, and is ended incomplete once its command stops renewing it (#194)', async () => {
+    const { row, running, release } = await heldRun()
+    expect(row.worker).not.toBeNull()
+    expect(row.held).toBe(true)
+    // Its command dies without a word (a kill, a closed terminal): nothing renews the lease.
+    await client.query("update eval_runs set lease_until=now()-interval '1 minute' where id=$1", [
+      row.id,
+    ])
+    expect(await work()).toMatchObject({ lapsed: 1 })
+    const ended = await runOf(row.id)
+    expect(ended.state).toBe('incomplete')
+    expect(ended.failure).toMatch(/command/)
+    // Had the command lived on after all, it leaves the run as housekeeping ended it.
+    release()
+    expect((await running).state).toBe('incomplete')
+    expect((await runOf(row.id)).failure).toMatch(/command/)
+    expect(await work()).toMatchObject({ lapsed: 0 })
   })
 })

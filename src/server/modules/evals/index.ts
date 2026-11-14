@@ -10,8 +10,8 @@ export { goldenL1, type GoldenCheck, type GoldenL1Result } from './golden.ts'
 export { deliver, deliveredIds, runRetrievalPass, workRetrieval } from './retrieval.ts'
 export { queueTriggeredRuns } from './triggers.ts'
 export {
+  canResume,
   commandKinds,
-  commandRunNotResumed,
   liveHead,
   modelsFor,
   queueAreaRun,

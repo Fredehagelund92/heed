@@ -295,13 +295,21 @@
   }
 }
 
-/* A row that leaves collapses and fades in 150ms; one added later opens in 220ms. Its one child
-   holds the content. A table row, which cannot collapse, only fades. */
+/* A sidebar place: its hover and selected colour ease in 90ms, like a button's; its fold (width, height,
+   padding) keeps 150ms. The fold for a dock is instant (see data-fold above). */
+@utility nav-motion {
+  transition-property: width, height, padding, background-color, color;
+  transition-duration: var(--dur-2), var(--dur-2), var(--dur-2), var(--dur-1), var(--dur-1);
+  transition-timing-function: var(--ease-out);
+}
+
+/* A row that leaves collapses and fades in 150ms; one added later opens in 220ms. Its hover colour
+   eases in 90ms. Its one child holds the content. A table row, which cannot collapse, only fades. */
 @utility row-presence {
   display: grid;
   grid-template-rows: 1fr;
   transition-property: grid-template-rows, opacity, background-color;
-  transition-duration: var(--dur-3);
+  transition-duration: var(--dur-3), var(--dur-3), var(--dur-1);
   transition-timing-function: var(--ease-out);
 
   & > * {
@@ -312,7 +320,7 @@
   &[data-leaving] {
     grid-template-rows: 0fr;
     opacity: 0;
-    transition-duration: var(--dur-2);
+    transition-duration: var(--dur-2), var(--dur-2), var(--dur-1);
   }
 
   [data-arrive] & {
@@ -324,12 +332,12 @@
 }
 @utility row-fade {
   transition-property: opacity, background-color;
-  transition-duration: var(--dur-3);
+  transition-duration: var(--dur-3), var(--dur-1);
   transition-timing-function: var(--ease-out);
 
   &[data-leaving] {
     opacity: 0;
-    transition-duration: var(--dur-2);
+    transition-duration: var(--dur-2), var(--dur-1);
   }
 
   [data-arrive] & {

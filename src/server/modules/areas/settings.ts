@@ -122,8 +122,7 @@ export async function createArea(
   )
   if (archived)
     throw new ORPCError('CONFLICT', {
-      message:
-        'A deleted domain has this id or name. Restore it from Deleted domains, or choose another.',
+      message: 'A deleted domain has this id or name. Choose another.',
     })
   const [existing] = await tx.query('select 1 from areas where id = $1', [input.id])
   if (existing)
