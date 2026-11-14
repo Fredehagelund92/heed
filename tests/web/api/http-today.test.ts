@@ -10,11 +10,16 @@ import { dateLabel } from '@/model/validity'
 afterEach(() => setToday(DEMO_TODAY))
 
 const json = (body: unknown) =>
-  new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
+  Promise.resolve(
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }),
+  )
 
 describe("the web reads the service's day", () => {
   it('moves off the demo day once the library index names another', async () => {
-    const fetch: typeof globalThis.fetch = async (input, init) => {
+    const fetch: typeof globalThis.fetch = (input, init) => {
       const path = new URL(new Request(input, init).url).pathname
       if (path.endsWith('/library')) {
         return json({ today: '2027-01-20', loadedAt: '2027-01-20T09:00:00.000Z', items: [] })
@@ -26,7 +31,16 @@ describe("the web reads the service's day", () => {
         })
       }
       if (path.endsWith('/people') || path.endsWith('/areas')) return json([])
-      return json({ rows: [], total: 0, items: [], people: [], areas: [], proposals: [], metrics: [], dimensions: [] })
+      return json({
+        rows: [],
+        total: 0,
+        items: [],
+        people: [],
+        areas: [],
+        proposals: [],
+        metrics: [],
+        dimensions: [],
+      })
     }
     const api = createHttpApi({ baseUrl: 'https://heed.example/api/v1', fetch })
     expect(today()).toBe(DEMO_TODAY)
