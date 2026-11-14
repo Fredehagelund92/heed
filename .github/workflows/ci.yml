@@ -409,7 +409,7 @@ jobs:
     # build of the web app against the service and the demo week, on a PostgreSQL 18
     # container. Each journey copies the demo week from a template, so within a part they run one
     # at a time; the parts, each with its own database, run side by side.
-    name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright, part ${{ matrix.shard }} of 3)'
+    name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright, part ${{ matrix.shard }} of 4)'
     needs: [scope, migrations]
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -417,7 +417,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
@@ -445,7 +445,7 @@ jobs:
       - run: npm ci
       - uses: ./.github/actions/playwright
       - name: Golden job specs in http mode
-        run: npm run test:e2e:golden-http -- --shard=${{ matrix.shard }}/3
+        run: npm run test:e2e:golden-http -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

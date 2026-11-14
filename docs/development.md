@@ -307,7 +307,7 @@ in `.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
 
 The slow jobs run in parallel parts, each on its own runner (and its own database where it needs
 one): the checks in two jobs, the service tests in two parts, and the golden job specs in three
-parts on the mock build and three in http mode. Every job stops after 25 minutes at most, so a hung
+parts on the mock build and four in http mode. Every job stops after 25 minutes at most, so a hung
 part fails instead of holding the run. The first load check writes the measured sizes, the budget
 and the margin to its job's summary page.
 
