@@ -10,6 +10,8 @@ export type Checks = {
   missing: string[]
   /** Why the word can't be used, when it already means something (definitions). */
   taken?: string
+  /** The link in Source is not one the service can open (context items). */
+  badLink?: boolean
   /** The first paragraph is longer than agents read (context items). */
   tooLong?: boolean
   /** Nothing differs from what is saved. */
@@ -22,6 +24,7 @@ export type Readiness =
   | { state: 'ready' }
   | { state: 'missing'; missing: string[] }
   | { state: 'taken'; reason: string }
+  | { state: 'bad-link' }
   | { state: 'too-long' }
   | { state: 'unchanged' }
   | { state: 'unanswered'; title: string }
@@ -29,6 +32,7 @@ export type Readiness =
 export function readinessOf(c: Checks): Readiness {
   if (c.missing.length) return { state: 'missing', missing: c.missing }
   if (c.taken) return { state: 'taken', reason: c.taken }
+  if (c.badLink) return { state: 'bad-link' }
   if (c.tooLong) return { state: 'too-long' }
   if (c.unchanged) return { state: 'unchanged' }
   if (c.unanswered) return { state: 'unanswered', title: c.unanswered }
@@ -47,6 +51,8 @@ export function holdLine(r: Readiness, join = ', ') {
       return `Add ${r.missing.join(join)} first.`
     case 'taken':
       return r.reason
+    case 'bad-link':
+      return 'Fix the link in Source first.'
     case 'too-long':
       return `Shorten the first paragraph to ${SUMMARY_LIMIT} characters first.`
     case 'unchanged':

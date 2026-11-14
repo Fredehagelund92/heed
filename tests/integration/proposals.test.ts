@@ -815,9 +815,12 @@ it('searches the scope picker on the server, the author’s recent terms first (
     expect(response.statusCode, response.body).toBe(200)
     return response.json<ScopeSearchResult>()
   }
-  // Before anything is typed: only the author's own recent terms.
+  // Before anything is typed: the author's own recent terms, then the busiest metrics and each dimension.
   const empty = await search('q=')
-  expect(empty).toMatchObject({ metrics: [], groups: [], nextCursor: null })
+  expect(empty.nextCursor).toBeNull()
+  expect(empty.metrics.map((hit) => hit.key)).toContain('metric:orders')
+  expect(empty.groups.map((group) => group.dimension.key)).toContain('dim:market')
+  expect(empty.groups.every((group) => group.values.length === 0)).toBe(true)
   expect(empty.recent.map((hit) => hit.key)).toEqual(
     expect.arrayContaining(['metric:orders', 'dim:market']),
   )
