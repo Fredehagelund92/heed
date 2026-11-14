@@ -2220,8 +2220,10 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
       setFiles((f) => ({ ...f, [key]: { name: file.name, account: accountOf(text) } }))
     })
 
-  if (at >= 3 && test.result?.ok && test.of === sentKey)
-    return (
+  // The choices stay mounted while the settings are untouched, so Back to Connect and on again
+  // finds them as they were; they draw nothing before step 3.
+  const choices =
+    test.result?.ok && test.of === sentKey ? (
       <ChoiceSteps
         key={test.run}
         form={form}
@@ -2232,7 +2234,8 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
         go={go}
         cancel={cancel}
       />
-    )
+    ) : null
+  if (at >= 3 && choices) return <>{choices}</>
 
   const showing = form.fields.filter((f) => fieldVisible(f, values.config, form.fields))
   const main = showing.filter((f) => !f.advanced)
@@ -2344,7 +2347,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
     else rows.push([f])
   }
 
-  return (
+  const settings = (
     <FlowFrame at={at}>
       <div className="flex flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
         {/* Said before the form is filled in: a test would pass, and only the last step fail. */}
@@ -2529,6 +2532,13 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
         </Button>
       </FlowFooter>
     </FlowFrame>
+  )
+
+  return (
+    <>
+      {choices}
+      {settings}
+    </>
   )
 }
 
@@ -3024,6 +3034,8 @@ function ChoiceSteps({
       setSaving(false)
     }
   }
+
+  if (at < 3) return null
 
   return (
     <FlowFrame at={at}>

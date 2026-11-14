@@ -396,7 +396,7 @@ function InboxList({
                     </span>
                     {unread ? (
                       <span
-                        className="size-1.5 rounded-full bg-primary"
+                        className="size-1.5 rounded-full bg-foreground"
                         aria-label="Not opened yet"
                       />
                     ) : (
