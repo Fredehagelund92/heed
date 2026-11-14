@@ -6,15 +6,15 @@ import { cn } from '@/lib/utils'
 import { useAfter } from '@/lib/loading'
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition duration-(--dur-1) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-97 disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:active:scale-100 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition duration-(--dur-1) outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-97 disabled:pointer-events-none disabled:bg-transparent disabled:text-muted-foreground aria-disabled:bg-transparent aria-disabled:text-muted-foreground aria-disabled:active:scale-100 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        // Every variant fades when it is disabled, also when it is only aria-disabled (still focusable,
-        // so a press can say why). The primary action instead turns muted but stays legible (never a
-        // faded fill that reads as a white button); its tooltip says what is missing.
+        // A switched-off control is not faded: its text turns muted at full strength and it loses its
+        // fill, also when it is only aria-disabled (still focusable, so a press can say why). Muted
+        // text stays legible; a faded control does not.
         default:
-          'bg-primary text-primary-foreground hover:bg-primary/80 disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 aria-disabled:border-border aria-disabled:bg-muted aria-disabled:text-muted-foreground aria-disabled:opacity-100 aria-disabled:hover:bg-muted',
+          'bg-primary text-primary-foreground hover:bg-primary/80 disabled:border-border disabled:bg-muted aria-disabled:border-border aria-disabled:bg-muted aria-disabled:hover:bg-muted',
         outline:
           'border-border bg-background hover:bg-muted hover:text-foreground aria-disabled:hover:bg-background aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/10 dark:hover:bg-input/20 dark:aria-disabled:hover:bg-input/10',
         secondary:

@@ -63,7 +63,7 @@ The theme is shadcn's neutral theme with these changes only:
 - muted text is `#666666` in light and `#a3a3a3` in dark, so it keeps 4.5:1 on the muted surface;
 - input borders are `#8f8f8f` in light and `#6b6b6b` in dark, so fields, checkboxes and radios keep 3:1 on the page.
 
-**Two greys of text.** Text is the ink (`--foreground`) or muted (`--muted-foreground`). shadcn's other text colours (card, popover, secondary, accent, sidebar and sidebar accent) are the ink. Text never fades by opacity: only a switched-off control does, with `opacity-50`.
+**Two greys of text.** Text is the ink (`--foreground`) or muted (`--muted-foreground`). shadcn's other text colours (card, popover, secondary, accent, sidebar and sidebar accent) are the ink. Text never fades by opacity. A switched-off control keeps its text muted at full strength and loses its fill (`components/ui/button.tsx`).
 
 **One colour per meaning.** `--destructive` is red: broken, removed, cannot be undone. `--good` is green: checked and in force. `--caution` is amber: look at this. Each is text at 4.5:1 on every surface, so one colour draws the words, the icon, the rule and the line of its meaning: the review marks' added, removed and link lines and the Text diff's inks are these three. A soft fill behind one is the colour at 8 percent, by rule and never a second name (`bg-caution/8`, `bg-good/8`): a Conflict answer in the quick view's answers sits on `bg-caution/8` (section 5.3), where the answer line, the words and the caution ink keep their contrast.
 
