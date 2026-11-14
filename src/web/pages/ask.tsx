@@ -47,8 +47,8 @@ import {
   keptAnswers,
   nextTurnId,
   openingAnswers,
+  openingQuestion,
   placeOf,
-  ready,
   reduce,
   sessionOf,
   type Join,
@@ -66,6 +66,7 @@ import {
 import type { AskQuestion, ComposerHandle } from '@/pages/ask-composer'
 import type { Fact } from '@/model/items'
 import { useDraft } from '@/lib/draft'
+import { useOpeningRead } from '@/lib/opening-read'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, setQuery, useRoute } from '@/lib/router'
@@ -136,6 +137,7 @@ function ComposerPlaceholder({ placeholder }: { placeholder: string }) {
 
 export function AskChat({
   initial,
+  failedOpening,
   draft,
   compact,
   prefill,
@@ -145,6 +147,8 @@ export function AskChat({
   onAnswers,
 }: {
   initial?: Answer[]
+  /** A chat whose first answer could not be read: its question, and why. It shows failed, to ask again. */
+  failedOpening?: { question: string; message: string }
   draft?: Fact
   compact?: boolean
   /** A question typed into the box, waiting to be sent. */
@@ -158,7 +162,16 @@ export function AskChat({
   /** Ask's loop: the chat's finished answers once none is on its way, to keep with it. */
   onAnswers?: (answers: Answer[]) => void
 }) {
-  const [turns, setTurns] = React.useState<Turn[]>(() => (initial ?? []).map(doneTurn))
+  const [turns, setTurns] = React.useState<Turn[]>(() =>
+    failedOpening
+      ? [
+          {
+            ...askedTurn('t0', failedOpening.question),
+            error: `Couldn't get an answer: ${reasonInWords(failedOpening.message)}`,
+          },
+        ]
+      : (initial ?? []).map(doneTurn),
+  )
   /** One more event for the turn `id`. */
   const update = (id: string, action: TurnAction) =>
     setTurns((ts) => ts.map((t) => (t.answer.id === id ? turnReducer(t, action) : t)))
@@ -1052,16 +1065,11 @@ function AskThread({
   const [answered, setAnswered] = React.useState<Session | null>(null)
   const became = React.useRef<Session | null>(null)
   const session = answered ?? sessionOf(place, threads)
-  // An example or a chat opens on its first answer, which is read before the thread shows. Each read
-  // is a look-up, so the chat on show is not read again, nor when the window regains focus.
-  const read = firstRead(session)
-  const first = useQuery({
-    ...askQuery(read ?? { question: '' }),
-    enabled: !!read,
-    refetchOnWindowFocus: false,
-  })
+  // An example or a chat opens on its first answer, which is read once before the thread shows (src/web/lib/opening-read.ts).
+  const examples = useAskExamples()
+  const opening = useOpeningRead(firstRead(session))
   // The thread takes these once, when it mounts: it is not shown before they are in.
-  const initial = openingAnswers(session, first.data)
+  const initial = openingAnswers(session, opening.state === 'read' ? opening.answer : undefined)
   const join = (j: Join) => {
     if (!j.known) threadActions.add(j.chat, j.question)
     onJoined(j.chat)
@@ -1085,17 +1093,37 @@ function AskThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chat],
   )
-  if (!ready(session, first.data)) return null
+  if (opening.state === 'reading') return <OpeningNotice />
   return (
     <AskChat
       compact={compact}
       initial={initial}
+      {...(opening.state === 'failed'
+        ? {
+            failedOpening: {
+              question: openingQuestion(session, examples),
+              message: opening.message,
+            },
+          }
+        : {})}
       prefill={prefill}
       onAnswered={onAnswered}
       onExample={onExample}
       onTurns={onTurns}
       onAnswers={keepAnswers}
     />
+  )
+}
+
+/** What a chat says while its first answer is read; no box yet, as the thread is not shown before. */
+function OpeningNotice() {
+  return (
+    <p
+      role="status"
+      className="grid h-full min-h-0 place-items-center text-sm text-muted-foreground"
+    >
+      Opening the chat…
+    </p>
   )
 }
 

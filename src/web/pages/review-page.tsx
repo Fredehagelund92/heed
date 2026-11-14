@@ -76,6 +76,7 @@ import { ChoiceGroup, TextSwitch, ViewToggle } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DRAFT_LABEL } from '@/model/ask'
 import { itemPageQuery, useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
 import { careLine, marks, readiness, type Relation, type Review } from '@/model/review'
@@ -262,6 +263,7 @@ function PublishReady({
   apart: number
 }) {
   const write = useWrite()
+  const takeBack = useTakeBack()
   const [confirm, setConfirm] = React.useState(false)
   const sender = useSend()
   const n = items.length
@@ -275,8 +277,9 @@ function PublishReady({
       action: {
         label: 'Undo',
         onClick: () =>
-          void write('undo', { token: undo }).then(() =>
-            toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' }),
+          void takeBack(undo).then(
+            (back) =>
+              back && toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' }),
           ),
       },
     })
@@ -1231,14 +1234,18 @@ function Decision({
 
   const returnButton = (
     <Button size="lg" variant="outline" disabled={sending !== null} onClick={() => ask('return')}>
-      Return<span className="max-sm:hidden"> with a note</span>
+      <span>
+        Return<span className="max-sm:hidden"> with a note</span>
+      </span>
     </Button>
   )
   // The buttons, the same in the panel and in the phone's bar.
   const offered = r.drafted ? (
     <>
       <Button size="lg" variant="outline" onClick={() => navigate('/context/new', { gap: r.id })}>
-        Edit<span className="max-sm:hidden"> the draft</span>
+        <span>
+          Edit<span className="max-sm:hidden"> the draft</span>
+        </span>
       </Button>
       <Button
         size="lg"
@@ -1269,7 +1276,9 @@ function Decision({
         disabled={sending !== null}
         onClick={() => ask('return')}
       >
-        Return<span className="max-sm:hidden"> with a note</span>
+        <span>
+          Return<span className="max-sm:hidden"> with a note</span>
+        </span>
       </Button>
     </>
   ) : (
@@ -1280,7 +1289,7 @@ function Decision({
         </Button>
       ) : actions.primary === 'archive' && actions.can.includes('close') ? (
         // An owner who does not want it archived closes it, with a reason.
-        <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => ask('close')}>
+        <Button size="lg" variant="outline" disabled={blockedBySend} onClick={() => ask('close')}>
           Don't archive
         </Button>
       ) : actions.can.includes('return') ? (
@@ -1306,7 +1315,9 @@ function Decision({
           loadingLabel="Archiving…"
           onClick={() => ask('archive')}
         >
-          Archive<span className="max-sm:hidden"> the context item</span>
+          <span>
+            Archive<span className="max-sm:hidden"> the context item</span>
+          </span>
         </Button>
       ) : (
         <Button
@@ -1574,6 +1585,7 @@ export function ReviewPage({ id }: { id: string }) {
   const state = useInbox()
   const domains = useDomains()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const isMobile = useIsMobile()
   // The source is the review; the preview is a second look, kept while you go through the queue.
@@ -1840,18 +1852,26 @@ export function ReviewPage({ id }: { id: string }) {
     window.clearTimeout(hold.current.timer)
     hold.current.timer = 0
     // Exactly this decision goes back: its outcome and the context items it changed, nothing else.
-    if (finished) {
-      void write('undo', { token: finished.undo })
-      finished.afterUndo?.()
+    if (!finished) {
+      step({ type: 'finish' })
+      return
     }
-    step({ type: 'finish' })
+    const { afterUndo } = finished
+    void takeBack(finished.undo).then((back) => {
+      if (!back) return
+      step({ type: 'finish' })
+      afterUndo?.()
+    })
   }
   const undoLast = () => {
     if (!allDone) return
-    void write('undo', { token: allDone.undo })
-    allDone.afterUndo?.()
-    setAllDone(null)
-    focusChange()
+    const { afterUndo } = allDone
+    void takeBack(allDone.undo).then((back) => {
+      if (!back) return
+      setAllDone(null)
+      focusChange()
+      afterUndo?.()
+    })
   }
   const decision = {
     r,

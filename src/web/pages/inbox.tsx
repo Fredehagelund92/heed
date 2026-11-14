@@ -82,6 +82,7 @@ import {
   useWorkspace,
   useWrite,
 } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { setupSteps } from '@/lib/setup'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
@@ -854,9 +855,9 @@ function WaitingDetail({
         returned ? (
           // Its words open in the editor; sending them again puts it back with the owners.
           <PaneFoot follows="It waits on the owners again once you send it.">
-            <Button size="sm" onClick={() => navigate(`/context/${item.card}/edit`)}>
+            <PrimaryAction keyHint={false} onClick={() => navigate(`/context/${item.card}/edit`)}>
               Edit and send again
-            </Button>
+            </PrimaryAction>
           </PaneFoot>
         ) : (
           note && (
@@ -1166,6 +1167,7 @@ export function InboxPage() {
   const inbox = useInbox()
   const { install } = useSession()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const { query } = useRoute()
   const isMobile = useIsMobile()
@@ -1262,7 +1264,7 @@ export function InboxPage() {
           })
           saved = undo
           // Undo was pressed while it was being saved: it is taken back as soon as it is in.
-          if (undone) await write('undo', { token: undo })
+          if (undone) await takeBack(undo)
         } catch {
           if (undone) return
           toast.error("Couldn't save that decision", {
@@ -1279,7 +1281,7 @@ export function InboxPage() {
         label: 'Undo',
         onClick: () => {
           undone = true
-          if (saved) void write('undo', { token: saved })
+          if (saved) void takeBack(saved)
         },
       },
     })

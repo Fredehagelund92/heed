@@ -973,6 +973,24 @@ describe('reading, publishing what was read, and undo (FR-226, FR-227)', () => {
     const back = await ok<{ state: string }>(call('GET', `/proposals/${p.id}`, 'author'))
     expect(back.state).toBe('submitted')
   })
+
+  it('keeps one Done row for a card, labelled by its newest decision', async () => {
+    const p = await submitted({ title: 'Returned, then published', ...inMarket('austria') })
+    const returned = await ok<{ proposal: { revision: number } }>(
+      call('POST', `/review/${p.id}/return`, 'owner', {
+        revision: p.revision,
+        note: 'Which markets?',
+      }),
+    )
+    const again = await ok<ProposalRecord>(
+      call('POST', `/proposals/${p.id}/submit`, 'author', { revision: returned.proposal.revision }),
+    )
+    const published = await ok<Published>(publish(p.id, again.revision))
+    const rows = (await feed('owner', 'all')).cards.filter((c) => c.id === `proposal:${p.id}`)
+    expect(rows.map((c) => c.done?.outcome)).toEqual(['Published'])
+    // Taken back, so the next tests' items do not clash with this one.
+    await ok(call('POST', '/decisions/undo', 'owner', { token: published.undo }))
+  })
 })
 
 describe('the Inbox (docs/product.md, section 5)', () => {

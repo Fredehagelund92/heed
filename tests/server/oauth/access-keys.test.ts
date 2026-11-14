@@ -71,7 +71,10 @@ describe('the MCP server and access keys', () => {
     const asked: string[] = []
     const verifier = withAgents(tokens, (connection) => {
       asked.push(connection)
-      return Promise.resolve({ agentId, tools: ['get_context', 'report'] as const })
+      return Promise.resolve({
+        state: 'open' as const,
+        agent: { agentId, tools: ['get_context', 'report'] as const },
+      })
     })
     for (let i = 0; i < 2; i++)
       expect(await verifier.verify('token')).toMatchObject({
@@ -79,6 +82,11 @@ describe('the MCP server and access keys', () => {
         agent: { kind: 'app', id: agentId, tools: ['get_context', 'report'] },
       })
     expect(asked).toEqual([person.connection, person.connection])
+    // A connection that is no longer open is refused, whichever instance ended it.
+    for (const state of ['revoked', 'expired'] as const) {
+      const ended = withAgents(tokens, () => Promise.resolve({ state, agent: null }))
+      await expect(ended.verify('token')).rejects.toMatchObject({ reason: 'revoked' })
+    }
     // A token that names no connection, such as a dev token, passes as it is.
     const dev = { ...person, connection: undefined }
     const unnamed = withAgents({ verify: () => Promise.resolve(dev) }, () => {
