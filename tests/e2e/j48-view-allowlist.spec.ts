@@ -109,3 +109,31 @@ for (const { name, width, height } of widths) {
     })
   }
 }
+
+test('stepping Back to the settings and on again keeps the views chosen', async ({ page }) => {
+  await go(page, '/settings/integrations/cube/connect?step=3&views=many')
+  const button = (label: string) => page.getByRole('button', { name: label, exact: true })
+  const counted = page.locator('p[aria-live=polite]')
+  await expect(counted).toHaveText('455 of 455 views chosen')
+  await button('Clear').click()
+  await page.getByRole('searchbox', { name: 'Search views' }).fill('coast_orders')
+  await button('Choose 7 shown').click()
+  await page.getByRole('searchbox', { name: 'Search views' }).fill('')
+  await expect(counted).toHaveText('7 of 455 views chosen')
+  // Back to the settings, then on again: nothing was changed, so nothing is chosen anew.
+  await button('Back').click()
+  await expect(page).toHaveURL(/step=2/)
+  await button('Back').click()
+  await expect(page).toHaveURL(/step=1/)
+  await button('Continue').click()
+  await button('Continue').click()
+  await expect(page).toHaveURL(/step=3/)
+  await expect(counted).toHaveText('7 of 455 views chosen')
+  await expect(page.getByRole('radio', { name: /^Only the views you choose/ })).toBeChecked()
+  // The browser's own Back and Forward do the same.
+  await page.goBack()
+  await expect(page).toHaveURL(/step=2/)
+  await page.goForward()
+  await expect(page).toHaveURL(/step=3/)
+  await expect(counted).toHaveText('7 of 455 views chosen')
+})

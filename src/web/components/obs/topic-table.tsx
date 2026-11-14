@@ -363,7 +363,7 @@ function TopicLine({
             <a
               href={st.href}
               className={cn(
-                buttonVariants({ variant: 'outline', size: 'xs' }),
+                buttonVariants({ variant: 'outline' }),
                 'gap-1 font-normal whitespace-nowrap',
               )}
             >

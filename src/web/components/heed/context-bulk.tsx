@@ -25,7 +25,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/model/history'
+import { dateLabel } from '@/model/validity'
+import { today } from '@/lib/today'
 import { leaveAllThen } from '@/lib/presence'
 import { APP_URL } from '@/lib/brand'
 import { kindLabel, type DomainId, type Fact, type Kind } from '@/model/items'
@@ -47,7 +48,8 @@ import {
   type Me,
 } from '@/lib/bulk'
 import { api } from '@/api'
-import { useLibrary, useRefreshAfter, useWrite } from '@/api/queries'
+import { useLibrary, useRefreshAfter } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { useOnline } from '@/lib/send'
 import { useDomains, useMe, usePeople } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
@@ -79,7 +81,7 @@ export function ContextBulk({
   const domains = useDomains()
   const people = usePeople()
   const online = useOnline()
-  const write = useWrite()
+  const takeBack = useTakeBack()
   const refreshAfter = useRefreshAfter()
   const [note, setNote] = React.useState<BulkNote>()
   const picked = facts.filter((f) => sel.isSelected(f.id))
@@ -117,7 +119,7 @@ export function ContextBulk({
       remove: action === 'delete' ? plan.act.map((f) => f.id) : [],
       entry: {
         id: `log-${++entries}`,
-        on: TODAY,
+        on: today(),
         who: me.name,
         what,
         summary,
@@ -168,8 +170,8 @@ export function ContextBulk({
       action: {
         label: 'Undo',
         onClick: () =>
-          void write('undo', { token: result.undo }).then(() =>
-            toast(`Undone: ${count(ok.length, 'item')} as before`),
+          void takeBack(result.undo).then(
+            (back) => back && toast(`Undone: ${count(ok.length, 'item')} as before`),
           ),
       },
     })
@@ -386,7 +388,7 @@ export function ContextBulk({
                       status: f.status === 'Needs checking' ? 'Live' : f.status,
                       outOfDate: undefined,
                       checkedBy: me.name,
-                      checkedOn: '22 Oct 2026',
+                      checkedOn: dateLabel(today()),
                     }),
                     {},
                   )

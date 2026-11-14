@@ -128,15 +128,7 @@ export function PanelRail({ label, onShow }: { label: string; onShow: () => void
     <div className="flex h-full flex-col items-center pt-1.5">
       <Tooltip>
         <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={label}
-              className="size-9"
-              onClick={onShow}
-            />
-          }
+          render={<Button variant="ghost" size="icon-lg" aria-label={label} onClick={onShow} />}
         >
           <PanelRightOpenIcon />
         </TooltipTrigger>

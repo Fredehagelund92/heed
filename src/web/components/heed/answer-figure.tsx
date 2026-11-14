@@ -163,7 +163,6 @@ export function FigureAgainst({
       <div className="flex flex-wrap gap-2">
         {owners && (
           <Button
-            size="sm"
             variant="outline"
             onClick={() =>
               tell(
@@ -177,7 +176,6 @@ export function FigureAgainst({
           </Button>
         )}
         <Button
-          size="sm"
           variant="outline"
           onClick={() =>
             tell(

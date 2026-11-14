@@ -61,7 +61,7 @@ export function SavedLine({ r, domain }: { r: Review; domain: string }) {
         </p>
         <a
           href={href('/observability/quality', { domain })}
-          className={cn(buttonVariants({ variant: 'ghost', size: 'xs' }), 'text-muted-foreground')}
+          className={cn(buttonVariants({ variant: 'ghost' }), 'text-muted-foreground')}
         >
           <ArrowUpRightIcon />
           Open in Quality

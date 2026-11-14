@@ -37,6 +37,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { conflictQuery, conflictsQuery, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { ApiError } from '@/api/errors'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
@@ -463,15 +464,15 @@ function Outcome({
         role="status"
         onPointerEnter={() => setHeld(true)}
         onPointerLeave={() => setHeld(false)}
-        className="flex animate-in flex-col gap-3 rounded-frame border border-primary p-4 duration-(--dur-4) fade-in-0 outline-none slide-in-from-bottom-1"
+        className="flex animate-in flex-col gap-3 rounded-frame border border-good p-4 duration-(--dur-4) fade-in-0 outline-none slide-in-from-bottom-1"
       >
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-          <span className="flex value-changed items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 font-semibold">
-            <CircleCheckIcon aria-hidden className="size-4 text-primary" />
+          <span className="flex value-changed items-center gap-1.5 rounded-md bg-good/8 px-2 py-1 font-semibold">
+            <CircleCheckIcon aria-hidden className="size-4 text-good" />
             {o.chip}
           </span>
           <span className="min-w-0 flex-1 text-pretty">{o.line}</span>
-          <Button variant="ghost" size="sm" onClick={onUndo}>
+          <Button variant="ghost" onClick={onUndo}>
             <Undo2Icon data-icon="inline-start" />
             Undo
           </Button>
@@ -490,7 +491,7 @@ function Outcome({
           <>
             <span aria-hidden className="h-0.5 overflow-hidden rounded-full bg-muted">
               <span
-                className="block h-full origin-left animate-[countdown_2.6s_linear_forwards] bg-primary"
+                className="block h-full origin-left animate-[countdown_2.6s_linear_forwards] bg-muted-foreground"
                 style={{ animationPlayState: held ? 'paused' : 'running' }}
                 onAnimationEnd={onNext}
               />
@@ -508,12 +509,12 @@ function Outcome({
           {next ? ` Next: ${next.topic}, ${next.asked} questions.` : ' Nothing else disagrees.'}
         </span>
         {next ? (
-          <Button variant="outline" size="sm" onClick={onNext}>
+          <Button variant="outline" onClick={onNext}>
             <ChevronRightIcon data-icon="inline-start" />
             Next conflict
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
+          <Button variant="outline" onClick={() => navigate(CONFLICTS_LIST)}>
             All conflicts
           </Button>
         )}
@@ -546,6 +547,7 @@ export function ConflictView({
   const list = useQuery(conflictsQuery('all'))
   const me = useMe()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const online = useOnline()
   const isMobile = useIsMobile()
   const [measure, wide] = useWide<HTMLDivElement>(SIDE_BY_SIDE)
@@ -686,7 +688,7 @@ export function ConflictView({
 
   const undoDone = async () => {
     if (!done) return
-    await write('undo', { token: done.undo })
+    if (!(await takeBack(done.undo))) return
     dispatch({ type: 'finish' })
     toast('Undone', { description: 'Both items are as they were.' })
   }
@@ -758,14 +760,14 @@ export function ConflictView({
         {!c ? (
           <div
             role="status"
-            className="flex flex-wrap items-start gap-3 rounded-frame border border-primary p-4 text-sm"
+            className="flex flex-wrap items-start gap-3 rounded-frame border border-good p-4 text-sm"
           >
-            <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+            <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <p className="font-medium">These two no longer disagree.</p>
               <p className="text-muted-foreground">There is nothing left to decide.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
+            <Button variant="outline" onClick={() => navigate(CONFLICTS_LIST)}>
               All conflicts
             </Button>
           </div>
@@ -1116,7 +1118,7 @@ function ConflictBody({
               The buttons are held until you have seen what changed.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={onSeenChange}>
+          <Button variant="outline" onClick={onSeenChange}>
             <EyeIcon data-icon="inline-start" />
             Show what changed
           </Button>

@@ -212,7 +212,7 @@ export function AskComposer({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 aria-label="Mention a domain, a definition, a context item or a market"
                 className="text-muted-foreground"
                 onClick={() =>

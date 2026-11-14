@@ -544,12 +544,7 @@ function Explorer({
                 <p className="mt-1 text-muted-foreground">
                   {said.join(', ') || 'Nothing in this view.'}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => set(cleared(view))}
-                >
+                <Button variant="outline" className="mt-3" onClick={() => set(cleared(view))}>
                   Clear the filters
                 </Button>
               </>
@@ -1143,11 +1138,7 @@ function NothingConnected() {
                   {s.done && <span className="sr-only">, done</span>}
                   {s.line && <span className="block text-xs text-muted-foreground">{s.line}</span>}
                 </span>
-                {s.act && (
-                  <Button size="sm" onClick={() => open('connect')}>
-                    Connect an agent
-                  </Button>
-                )}
+                {s.act && <Button onClick={() => open('connect')}>Connect an agent</Button>}
               </li>
             ))}
           </ol>

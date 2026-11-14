@@ -334,9 +334,9 @@ export function ContextPage() {
             </span>
           </span>
         </td>
-        <td className="hidden w-50.5 max-w-50.5 min-w-50.5 px-1.5 align-middle text-sm text-muted-foreground @min-[60rem]/main:table-cell">
-          {/* The scope as the same tag chips as everywhere: two, then how many more. */}
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+        <td className="hidden w-px min-w-50.5 px-1.5 align-middle text-sm text-muted-foreground @min-[60rem]/main:table-cell">
+          {/* The scope as the same tag chips as everywhere: two, then how many more. The column is as wide as the chips it holds, up to 20rem; past that the metric chip is cut first. */}
+          <span className="flex max-w-80 min-w-0 items-center gap-1 overflow-hidden">
             {f.where.slice(0, 2).map((w) => (
               <WhereChip key={w} w={w} label={<Highlight text={w} query={text} />} />
             ))}
@@ -391,7 +391,11 @@ export function ContextPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <SiteHeader title="Context" icon={<NotebookTextIcon />}>
-        <Button size="sm" onClick={() => navigate('/context/new')}>
+        {/* With a context item's quick view open, its own action (Edit) is the one solid blue button. */}
+        <Button
+          variant={dock?.kind === 'context' ? 'outline' : 'default'}
+          onClick={() => navigate('/context/new')}
+        >
           <PlusIcon data-icon="inline-start" />
           New context
         </Button>
@@ -444,7 +448,6 @@ export function ContextPage() {
                     render={
                       <Button
                         variant="ghost"
-                        size="sm"
                         className={cn(barButton, filters > 0 && 'bg-muted text-foreground')}
                       />
                     }
@@ -535,7 +538,6 @@ export function ContextPage() {
                     render={
                       <Button
                         variant="ghost"
-                        size="sm"
                         className={cn(barButton, group !== 'none' && 'bg-muted text-foreground')}
                       />
                     }
@@ -567,7 +569,6 @@ export function ContextPage() {
                 {/* On a phone, where there is no hover or Shift, Select starts picking rows. */}
                 <Button
                   variant="ghost"
-                  size="sm"
                   className={cn(barButton, '@xl/main:hidden', boxes && 'bg-muted text-foreground')}
                   onClick={() => (boxes ? sel.clear() : sel.setPicking(true))}
                 >
@@ -647,7 +648,7 @@ export function ContextPage() {
                         <span className="sr-only">Kind</span>
                       </Th>
                       {sortTh('title', 'w-full px-1.5 @max-xl/main:px-3')}
-                      <Th className="hidden w-50.5 min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
+                      <Th className="hidden w-px min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
                         Scope
                       </Th>
                       <Th className="hidden w-18 min-w-18 px-1.5 @xl/main:table-cell">Status</Th>
@@ -681,7 +682,6 @@ export function ContextPage() {
                           </p>
                           <Button
                             variant="outline"
-                            size="sm"
                             className="mt-3"
                             onClick={() => setOnlyConflicts(false)}
                           >
@@ -700,7 +700,7 @@ export function ContextPage() {
                                 .join(', ')}
                               .
                             </p>
-                            <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
+                            <Button variant="outline" className="mt-3" onClick={clearAll}>
                               Clear search and filters
                             </Button>
                           </td>

@@ -42,13 +42,7 @@ function ReadyRow({
         )}
         {name.areaId && <Domain id={name.areaId} />}
         {name.linked.length === 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto"
-            disabled={busy}
-            onClick={onLeaveOut}
-          >
+          <Button variant="ghost" className="ml-auto" disabled={busy} onClick={onLeaveOut}>
             Leave out
           </Button>
         )}
@@ -94,11 +88,11 @@ function FlaggedRow({
           className="min-w-48 flex-1"
           onChange={(e) => setChosen(e.target.value)}
         />
-        <Button variant="outline" size="sm" disabled={busy} onClick={() => onAccept(chosen)}>
+        <Button variant="outline" disabled={busy} onClick={() => onAccept(chosen)}>
           Publish
         </Button>
         {onLeaveOut && (
-          <Button variant="ghost" size="sm" disabled={busy} onClick={onLeaveOut}>
+          <Button variant="ghost" disabled={busy} onClick={onLeaveOut}>
             Leave out
           </Button>
         )}
@@ -231,7 +225,7 @@ export default function NamesReview({
               ))}
             </ul>
             {shown.length < ready.length && (
-              <Button variant="ghost" size="sm" className="w-fit" onClick={() => setAll(true)}>
+              <Button variant="ghost" className="w-fit" onClick={() => setAll(true)}>
                 Show all {ready.length}
               </Button>
             )}
