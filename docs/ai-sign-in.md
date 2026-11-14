@@ -119,7 +119,5 @@ Connections survive a rotation, because refresh tokens are not signed.
 
 ## Known limits
 
-- With several instances, disconnecting refuses access tokens at once only in the instance that did it. The others take up to ten minutes.
 - Rate counts live in one process.
-- After a restart, the service refuses access tokens issued before it started until it has read the latest disconnects. Agents get new ones with their refresh tokens.
 - Agents signed in through another login server, and dev tokens, are not listed in Agents and access.

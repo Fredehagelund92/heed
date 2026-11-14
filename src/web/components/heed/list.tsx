@@ -49,8 +49,7 @@ export function ListBar({ children }: { children: React.ReactNode }) {
 }
 
 /** A control in the bar. */
-export const barButton =
-  "h-7 gap-1.5 px-2 text-sm font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+export const barButton = 'text-muted-foreground hover:text-foreground aria-expanded:text-foreground'
 
 export function BarSpacer({ children }: { children?: React.ReactNode }) {
   return (
@@ -109,7 +108,7 @@ export function SearchField({
         }}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-7 pr-8 pl-8 text-sm md:text-sm @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
+        className="pr-8 pl-8 text-sm md:text-sm @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
       />
       <Kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 max-md:hidden">
         /
@@ -197,12 +196,7 @@ export function FilterRow({
     <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-4 py-1.5 md:px-6">
       {children}
       {count > 1 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-xs font-normal text-muted-foreground"
-          onClick={onClear}
-        >
+        <Button variant="ghost" className="text-muted-foreground" onClick={onClear}>
           Clear all
         </Button>
       )}
@@ -289,7 +283,7 @@ export function RowMenu({
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon"
             aria-label={`More for ${title}`}
             className="text-muted-foreground opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100 [@media(hover:none)]:opacity-100"
             onClick={(e) => e.stopPropagation()}
@@ -389,7 +383,7 @@ export function DockStepper({
           render={
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous"
               disabled={at === 0}
               onClick={() => onGo(order[at - 1]!)}
@@ -407,7 +401,7 @@ export function DockStepper({
           render={
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Next"
               disabled={at === order.length - 1}
               onClick={() => onGo(order[at + 1]!)}
@@ -516,7 +510,7 @@ export function SortMenu<K extends string>({
   const other: Dir = key.first === 'asc' ? 'desc' : 'asc'
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={barButton} />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" className={barButton} />}>
         <ArrowUpDownIcon />
         <span className={narrow}>Sort</span>
         <span className={cn('text-foreground', narrow)}>{key.label}</span>

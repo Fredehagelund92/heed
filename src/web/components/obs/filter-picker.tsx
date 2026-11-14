@@ -349,7 +349,7 @@ function PickerBody({
   const valueStepName = () => (step && step !== 'all' ? keyWords(step) : '')
   let foot: React.ReactNode = phone ? (
     <div className="flex h-14 shrink-0 items-center justify-end border-t px-3">
-      <Button size="sm" variant="secondary" className="h-11 px-4" onClick={onClose}>
+      <Button variant="secondary" className="h-11 px-4" onClick={onClose}>
         Done
       </Button>
     </div>
@@ -405,7 +405,7 @@ function PickerBody({
         {onPin && isDim(valueStep) && (
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon"
             className={cn('text-muted-foreground', phone && 'size-11')}
             aria-label={`${pinned.includes(valueStep) ? 'Unpin' : 'Pin'} ${name} for everyone`}
             title={
@@ -465,11 +465,7 @@ function PickerBody({
         <span className="ml-auto tabular-nums" aria-live="polite">
           {n ? `${n} chosen` : ''}
         </span>
-        <Button
-          size="sm"
-          className={cn('h-7 pointer-coarse:h-11', phone && 'h-11 px-4')}
-          onClick={onClose}
-        >
+        <Button className={cn('pointer-coarse:h-11', phone && 'h-11 px-4')} onClick={onClose}>
           Done
         </Button>
       </div>
@@ -1038,7 +1034,7 @@ function StepHead({
       {onBack && (
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon"
           aria-label="Back"
           className={cn('pointer-coarse:size-11', phone && 'size-11')}
           onClick={onBack}
@@ -1083,7 +1079,7 @@ function Retry({ what, onRetry }: { what: string; onRetry: () => void }) {
   return (
     <span className="flex items-center gap-2">
       Couldn’t load {what}.
-      <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onRetry}>
+      <Button variant="link" className="h-auto p-0 text-xs" onClick={onRetry}>
         Try again
       </Button>
     </span>

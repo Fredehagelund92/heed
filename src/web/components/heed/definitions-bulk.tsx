@@ -27,6 +27,7 @@ import { useDeleteConfirmation } from '@/hooks/use-delete-confirmation'
 import { APP_URL } from '@/lib/brand'
 import { count, download, heldRows, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
 import { useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { leaveAllThen } from '@/lib/presence'
 import { kindName, toolOf, useGlossary, type Definition } from '@/lib/definitions'
 import { useOnline } from '@/lib/send'
@@ -42,6 +43,7 @@ let entries = 0
 
 export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Definition[] }) {
   const write = useWrite()
+  const takeBack = useTakeBack()
   const glossary = useGlossary()
   const domains = useDomains()
   const me = useMe()
@@ -112,7 +114,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     toast(`${count(names.length, 'term')} deleted`, {
       description: others.length ? `With ${count(others.length, 'other name')}.` : undefined,
       duration: 10_000,
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
 
@@ -122,7 +124,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     const { undo } = await write('moveTerms', { names: plan.act.map((x) => x.name), domain: d })
     settle(plan.act, plan.skipped)
     toast(`${count(plan.act.length, 'term')} moved to ${domains[d]?.name}`, {
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
 

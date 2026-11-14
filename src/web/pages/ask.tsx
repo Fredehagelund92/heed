@@ -47,8 +47,8 @@ import {
   keptAnswers,
   nextTurnId,
   openingAnswers,
+  openingQuestion,
   placeOf,
-  ready,
   reduce,
   sessionOf,
   type Join,
@@ -66,6 +66,7 @@ import {
 import type { AskQuestion, ComposerHandle } from '@/pages/ask-composer'
 import type { Fact } from '@/model/items'
 import { useDraft } from '@/lib/draft'
+import { useOpeningRead } from '@/lib/opening-read'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, setQuery, useRoute } from '@/lib/router'
@@ -136,6 +137,7 @@ function ComposerPlaceholder({ placeholder }: { placeholder: string }) {
 
 export function AskChat({
   initial,
+  failedOpening,
   draft,
   compact,
   prefill,
@@ -145,6 +147,8 @@ export function AskChat({
   onAnswers,
 }: {
   initial?: Answer[]
+  /** A chat whose first answer could not be read: its question, and why. It shows failed, to ask again. */
+  failedOpening?: { question: string; message: string }
   draft?: Fact
   compact?: boolean
   /** A question typed into the box, waiting to be sent. */
@@ -158,7 +162,16 @@ export function AskChat({
   /** Ask's loop: the chat's finished answers once none is on its way, to keep with it. */
   onAnswers?: (answers: Answer[]) => void
 }) {
-  const [turns, setTurns] = React.useState<Turn[]>(() => (initial ?? []).map(doneTurn))
+  const [turns, setTurns] = React.useState<Turn[]>(() =>
+    failedOpening
+      ? [
+          {
+            ...askedTurn('t0', failedOpening.question),
+            error: `Couldn't get an answer: ${reasonInWords(failedOpening.message)}`,
+          },
+        ]
+      : (initial ?? []).map(doneTurn),
+  )
   /** One more event for the turn `id`. */
   const update = (id: string, action: TurnAction) =>
     setTurns((ts) => ts.map((t) => (t.answer.id === id ? turnReducer(t, action) : t)))
@@ -637,7 +650,7 @@ function ThreadRow({
             ref={nameInput}
             defaultValue={thread.title}
             aria-label="Chat name"
-            className="h-9 rounded-md px-2.5 text-sm"
+            className="text-sm"
             onBlur={(e) => finishRename(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') finishRename(e.currentTarget.value)
@@ -702,7 +715,7 @@ function ThreadRow({
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
                         tabIndex={-1}
                         aria-label={`Rename ${thread.title}`}
                         className="hover:bg-foreground/8"
@@ -719,7 +732,7 @@ function ThreadRow({
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
                         tabIndex={-1}
                         aria-label={`Delete ${thread.title}`}
                         className="hover:bg-foreground/8"
@@ -738,7 +751,7 @@ function ThreadRow({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="icon"
                       aria-label={`More for ${thread.title}`}
                       className="hidden hover:bg-foreground/8 [@media(hover:none)]:inline-flex"
                     />
@@ -774,9 +787,8 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               aria-label="Show history"
-              className="size-9"
               onClick={() => onShow()}
             />
           }
@@ -790,13 +802,7 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="New chat"
-              className="size-9"
-              onClick={startChat}
-            />
+            <Button variant="ghost" size="icon-lg" aria-label="New chat" onClick={startChat} />
           }
         >
           <SquarePenIcon />
@@ -808,9 +814,8 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               aria-label="Search chats"
-              className="size-9"
               onClick={() => onShow(true)}
             />
           }
@@ -903,9 +908,8 @@ function ThreadList({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-lg"
                     aria-label="Hide history"
-                    className="size-9"
                     onClick={onHide}
                   />
                 }
@@ -920,7 +924,8 @@ function ThreadList({
           <Button
             data-new-chat
             variant="ghost"
-            className="h-9 flex-1 justify-start gap-2 px-2.5"
+            size="lg"
+            className="flex-1 justify-start"
             onClick={startNew}
           >
             <SquarePenIcon />
@@ -939,7 +944,7 @@ function ThreadList({
             placeholder="Search chats"
             aria-label="Search chats"
             data-search-chats
-            className="h-8 pr-8 pl-8 text-sm"
+            className="pr-8 pl-8 text-sm"
           />
           {search && (
             <button
@@ -1060,16 +1065,11 @@ function AskThread({
   const [answered, setAnswered] = React.useState<Session | null>(null)
   const became = React.useRef<Session | null>(null)
   const session = answered ?? sessionOf(place, threads)
-  // An example or a chat opens on its first answer, which is read before the thread shows. Each read
-  // is a look-up, so the chat on show is not read again, nor when the window regains focus.
-  const read = firstRead(session)
-  const first = useQuery({
-    ...askQuery(read ?? { question: '' }),
-    enabled: !!read,
-    refetchOnWindowFocus: false,
-  })
+  // An example or a chat opens on its first answer, which is read once before the thread shows (src/web/lib/opening-read.ts).
+  const examples = useAskExamples()
+  const opening = useOpeningRead(firstRead(session))
   // The thread takes these once, when it mounts: it is not shown before they are in.
-  const initial = openingAnswers(session, first.data)
+  const initial = openingAnswers(session, opening.state === 'read' ? opening.answer : undefined)
   const join = (j: Join) => {
     if (!j.known) threadActions.add(j.chat, j.question)
     onJoined(j.chat)
@@ -1093,17 +1093,37 @@ function AskThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chat],
   )
-  if (!ready(session, first.data)) return null
+  if (opening.state === 'reading') return <OpeningNotice />
   return (
     <AskChat
       compact={compact}
       initial={initial}
+      {...(opening.state === 'failed'
+        ? {
+            failedOpening: {
+              question: openingQuestion(session, examples),
+              message: opening.message,
+            },
+          }
+        : {})}
       prefill={prefill}
       onAnswered={onAnswered}
       onExample={onExample}
       onTurns={onTurns}
       onAnswers={keepAnswers}
     />
+  )
+}
+
+/** What a chat says while its first answer is read; no box yet, as the thread is not shown before. */
+function OpeningNotice() {
+  return (
+    <p
+      role="status"
+      className="grid h-full min-h-0 place-items-center text-sm text-muted-foreground"
+    >
+      Opening the chat…
+    </p>
   )
 }
 
@@ -1178,7 +1198,6 @@ export function AskPage() {
             render={
               <Button
                 variant="outline"
-                size="sm"
                 aria-label="History"
                 aria-expanded={isMobile ? sheet : !collapsed}
                 aria-controls={isMobile ? undefined : 'ask-chats'}
@@ -1200,12 +1219,7 @@ export function AskPage() {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label="New chat"
-                  onClick={startChat}
-                />
+                <Button variant="outline" size="icon" aria-label="New chat" onClick={startChat} />
               }
             >
               <SquarePenIcon />
