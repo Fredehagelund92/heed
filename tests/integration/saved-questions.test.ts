@@ -16,6 +16,7 @@ import {
   checkIfMoved,
   draftChecks,
   runCheck,
+  savedCheckJob,
 } from '../../src/server/modules/saved-questions/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -343,6 +344,37 @@ describe('the free check', () => {
     expect(await list('owner')).toEqual(before)
   })
 
+  it('a run that never ended, as when its process died, reads as failed once past its deadline', async () => {
+    const started = (minutes: number) =>
+      client.query<{ id: string }>(
+        `insert into check_runs (trigger, edition, overlay, day, total, checked, started_at)
+         select 'manual', seq, 0, $1, 3, 1, now() - $2 * interval '1 minute' from live_edition
+         returning id::text`,
+        [today, minutes],
+      )
+    const ids: string[] = []
+    // The earlier runs move a day back for the while, so these are the newest.
+    const shift = (by: string) =>
+      client.query(
+        `update check_runs set started_at = started_at + $1::interval where id <> all($2::uuid[])`,
+        [by, ids],
+      )
+    await shift('-1 day')
+    try {
+      ids.push((await started(16)).rows[0]!.id)
+      // Check now works again: the run reads as one that did not finish.
+      const status = await ok<SavedStatus>('owner', 'GET', '/saved-questions/status')
+      expect(status.run).toMatchObject({ state: 'failed', checked: 1, total: 3, endedAt: null })
+      // One still well inside its time is still running.
+      ids.push((await started(1)).rows[0]!.id)
+      const running = await ok<SavedStatus>('owner', 'GET', '/saved-questions/status')
+      expect(running.run).toMatchObject({ state: 'running', checked: 1, total: 3 })
+    } finally {
+      await client.query('delete from check_runs where id = any($1::uuid[])', [ids])
+      await shift('1 day')
+    }
+  })
+
   it('the check job backs off from a run that failed, for the same state, then tries again', async () => {
     const clock = systemClock(today)
     const broken = {
@@ -359,9 +391,17 @@ describe('the free check', () => {
     const before = await failedRuns()
     await expect(checkIfMoved(database, clock, broken)).rejects.toThrow('could not be read')
     expect(await failedRuns()).toBe(before + 1)
-    // The next minutes do not start another run over the same state.
-    expect(await checkIfMoved(database, clock, createBundleCache())).toBeNull()
-    expect(await checkIfMoved(database, clock, broken)).toBeNull()
+    // The next minutes do not start another run over the same state, and say they are waiting,
+    // so the job runner never counts the wait as a run that went well.
+    expect(await checkIfMoved(database, clock, createBundleCache())).toEqual({ backingOff: true })
+    expect(await checkIfMoved(database, clock, broken)).toEqual({ backingOff: true })
+    expect(
+      await savedCheckJob({ clock }).run({
+        database,
+        logger: createLogger({ level: 'silent' }),
+        signal: new AbortController().signal,
+      }),
+    ).toEqual({ checked: 0, backingOff: true })
     expect(await failedRuns()).toBe(before + 1)
     // Once the wait has passed it tries again, and waits longer after failing again.
     const age = (minutes: number) =>
@@ -374,7 +414,7 @@ describe('the free check', () => {
     await expect(checkIfMoved(database, clock, broken)).rejects.toThrow('could not be read')
     expect(await failedRuns()).toBe(before + 2)
     await age(3)
-    expect(await checkIfMoved(database, clock, createBundleCache())).toBeNull()
+    expect(await checkIfMoved(database, clock, createBundleCache())).toEqual({ backingOff: true })
     await age(60)
     expect(await checkIfMoved(database, clock, createBundleCache())).toMatchObject({
       checked: 1,
