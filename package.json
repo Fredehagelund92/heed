@@ -122,6 +122,7 @@
     "lint": "node --max-old-space-size=8192 node_modules/eslint/bin/eslint.js . && npm run lint:css",
     "lint:css": "stylelint \"src/**/*.css\"",
     "lint:words": "node scripts/check-plain-words.ts",
+    "copy:report": "node scripts/copy-report.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run --project '!integration'",

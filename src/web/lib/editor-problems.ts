@@ -59,7 +59,7 @@ function reasonOf({ field, message }: Finding): string {
     case 'dont':
       return 'This is empty or too long.'
     default:
-      return 'The service does not accept this.'
+      return 'The service did not take this.'
   }
 }
 

@@ -394,7 +394,11 @@ function QuickCells({
           onOpen={() => start('vscode')}
         />
       </Cell>
-      <Cell logo={guide('chatgpt').logo} name="ChatGPT and others" hint="Any agent that speaks MCP">
+      <Cell
+        logo={guide('chatgpt').logo}
+        name="ChatGPT and others"
+        hint="Any other agent that can connect by address (MCP)"
+      >
         <CopyButton label="Copy address" text={address} onCopy={() => start('other')} />
         <TextButton onClick={() => showSteps('chatgpt')}>Steps</TextButton>
       </Cell>

@@ -32,8 +32,10 @@ import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
 import { CONNECTOR_REQUEST_URL } from '@domain/brand'
-import { fieldVisible, noSecretStoreWords } from '@domain/connector-config'
+import { fieldVisible, noSecretStoreHost, noSecretStorePlain } from '@domain/connector-config'
 import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { FoldTrigger } from '@/components/heed/fold'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
@@ -379,7 +381,7 @@ function FigureConnectionDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor={`${id}-token`}>Token</FieldLabel>
+              <FieldLabel htmlFor={`${id}-token`}>Key</FieldLabel>
               <Input
                 id={`${id}-token`}
                 name="token"
@@ -388,7 +390,10 @@ function FigureConnectionDialog({
                 required
                 minLength={8}
               />
-              <FieldDescription>Read only. Shown nowhere once saved.</FieldDescription>
+              <FieldDescription>
+                A key is a long password for a program. This one is a {c.name} token. Read only.
+                Shown nowhere once saved.
+              </FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter>
@@ -447,8 +452,8 @@ function TryFigureDialog({
         <DialogHeader>
           <DialogTitle>Try a figure from {c.name}</DialogTitle>
           <DialogDescription>
-            Reads one measure for the last 7 days, with the data endpoint and token as saved.
-            Nothing is kept, and Show figures in Ask stays as it is.
+            Reads one measure (a number such as Orders) for the last 7 days, with the address and
+            key as saved. Nothing is kept, and Show figures in Ask stays as it is.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-frame border p-4 text-sm" aria-live="polite">
@@ -540,7 +545,7 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
   return (
     <PanelSection
       title="Figures connection"
-      description={`The second of ${c.name}'s two connections, with its own endpoint and token: ${c.name}'s data API. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
+      description={`The second of ${c.name}'s two connections, with its own address and key, for figures. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
       action={
         <span className="flex items-center gap-2">
           <label htmlFor={switchId} className="text-sm">
@@ -569,47 +574,70 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
         </span>
       }
     >
+      <Collapsible className="border-t">
+        <FoldTrigger
+          variant="inline"
+          label="Connection details"
+          className="mx-3 my-1 px-1 text-xs text-muted-foreground md:mx-4"
+        />
+        <CollapsibleContent>
+          <dl className="border-t">
+            {(
+              [
+                [
+                  'Data endpoint',
+                  conn.endpoint ? (
+                    <code key="e" className="font-mono text-dense break-all">
+                      {conn.endpoint}
+                    </code>
+                  ) : (
+                    notSet
+                  ),
+                ],
+                [
+                  'Token',
+                  conn.secretSet ? (
+                    <span key="s">
+                      <code className="font-mono text-dense" aria-label="Token, set">
+                        {'••••••••••••'}
+                      </code>
+                      <span className="block text-xs text-muted-foreground">
+                        Its own, not the definitions token. Only used for reading.
+                      </span>
+                    </span>
+                  ) : (
+                    notSet
+                  ),
+                ],
+                [
+                  'Declared host',
+                  conn.host ? (
+                    <span key="h">
+                      <code className="font-mono text-dense">{conn.host}</code>
+                      <span className="block text-xs text-muted-foreground">
+                        The only host called for a figure. Read only, with a 4 second limit.
+                      </span>
+                    </span>
+                  ) : (
+                    notSet
+                  ),
+                ],
+              ] as [string, React.ReactNode][]
+            ).map(([k, v]) => (
+              <div
+                key={k}
+                className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-(--cols-lead-44) md:px-5"
+              >
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 break-words">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </CollapsibleContent>
+      </Collapsible>
       <dl className="border-t">
         {(
           [
-            [
-              'Data endpoint',
-              conn.endpoint ? (
-                <code key="e" className="font-mono text-dense break-all">
-                  {conn.endpoint}
-                </code>
-              ) : (
-                notSet
-              ),
-            ],
-            [
-              'Token',
-              conn.secretSet ? (
-                <span key="s">
-                  <code className="font-mono text-dense" aria-label="Token, set">
-                    {'••••••••••••'}
-                  </code>
-                  <span className="block text-xs text-muted-foreground">
-                    Its own, not the definitions token. Only used for reading.
-                  </span>
-                </span>
-              ) : (
-                notSet
-              ),
-            ],
-            [
-              'Declared host',
-              conn.host ? (
-                <span key="h">
-                  <code className="font-mono text-dense">{conn.host}</code>
-                  <span className="block text-xs text-muted-foreground">
-                    The only host called for a figure. Read only, with a 4 second limit.
-                  </span>
-                </span>
-              ) : (
-                notSet
-              ),
-            ],
             [
               'Data contact',
               <span key="c" className="flex flex-wrap items-center gap-2">
@@ -1665,7 +1693,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               description={
                 <>
                   {/* One run of text: a name in a run of its own is set a hair differently. */}
-                  {`Each ${c.name} view, and the domain it belongs to.${c.domainField ? ' It reads' : ''}`}
+                  {`Each ${c.name} view (a group of metrics), and the domain it belongs to.${c.domainField ? ' It reads' : ''}`}
                   {c.domainField && (
                     <>
                       {' '}
@@ -2343,7 +2371,10 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
             className="flex items-start gap-2.5 rounded-frame border border-caution/40 bg-caution/8 px-3 py-2.5 text-sm"
           >
             <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
-            {noSecretStoreWords}
+            <span>
+              {noSecretStorePlain}
+              <span className="block text-xs text-muted-foreground">{noSecretStoreHost}</span>
+            </span>
           </p>
         )}
         {at === 1 && <PickStep c={c} />}
@@ -2621,7 +2652,7 @@ function PickStep({ c }: { c: Connector }) {
           : c.places
             ? `You need a place your ${c.name} pipeline puts its file, and a way to read it there. Only admins can connect a source.`
             : c.git
-              ? `You need a read-only token for the ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'repository'}. Only admins can connect a source.`
+              ? `You need someone who can make a read-only key for your ${isDefinitions ? `Git repository that holds your ${c.name} files` : 'Git repository'}. Only admins can connect a source.`
               : `${c.access.join(' ')} Only admins can connect a source.`}
       </p>
     </>
