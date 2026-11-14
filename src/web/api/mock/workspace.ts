@@ -198,7 +198,7 @@ export function createWorkspace() {
 
     /** Take back an invite, or remove someone; only when they own no domain alone. Undo puts them back. */
     removePerson(name: string): { alone: string[] } | { restore: () => void } {
-      const alone = soleOwnerOf(name, domains)
+      const alone = soleOwnerOf(name, domains, people)
       if (alone.length) return { alone }
       const at = people.findIndex((p) => p.name === name)
       const gone = people[at]

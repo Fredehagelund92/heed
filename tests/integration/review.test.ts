@@ -531,6 +531,39 @@ describe('review and release', () => {
     expect((await decide(p.id, 'accept')).statusCode).toBe(409)
   })
 
+  it('rebases a change sent again on the version agents get now', async () => {
+    const item = await acceptedItem({ title: 'Refund window' })
+    const p = await submitted(
+      { title: 'Refund window', summary: 'The window is 30 days' },
+      'author',
+      item,
+    )
+    // Still true on the item while the change waits: a new version goes live under it.
+    expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
+    const stale = await decide(p.id, 'accept')
+    expect(stale.statusCode, stale.body).toBe(409)
+    expect(stale.json<{ message: string }>().message).toBe(
+      'The accepted fact changed after this version was written. Ask for changes.',
+    )
+    // The owner does what the refusal says, and the author sends it again.
+    expect((await decide(p.id, 'request_changes')).statusCode).toBe(200)
+    const record = (await call('GET', `/proposals/${p.id}`, 'author')).json<ProposalRecord>()
+    const resent = await database.transaction(people.author, (tx) =>
+      createProposalsService(tx, systemClock('2026-10-08'), people.author).save(
+        p.id,
+        record.revision,
+        { ...record.draft, summary: 'The window is 30 days, from 1 October' },
+      ),
+    )
+    const resubmitted = await call('POST', `/proposals/${p.id}/submit`, 'author', {
+      revision: resent.revision,
+    })
+    expect(resubmitted.statusCode, resubmitted.body).toBe(200)
+    const published = await decide(p.id, 'accept')
+    expect(published.statusCode, published.body).toBe(200)
+    expect(published.json<Decided>().proposal).toMatchObject({ state: 'accepted' })
+  })
+
   it('retires at once or by proposal, and closes replaced items in the same edition', async () => {
     const proposed = await acceptedItem({ title: 'To retire by proposal' })
     const asked = await call('POST', `/items/${proposed}/retire-proposals`, 'author', {

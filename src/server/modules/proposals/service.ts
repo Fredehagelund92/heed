@@ -566,7 +566,9 @@ function proposalsService(
             message:
               'Agents get this fact again since it was restored, so this proposal is out of date.',
           })
-        previous ??= base?.id ?? rescue?.versionId ?? null
+        // A change sent again hangs on the version agents get now, not on its last one: a check
+        // or another publish since then would otherwise leave it unpublishable for good.
+        previous = base?.id ?? previous ?? rescue?.versionId ?? null
       }
       const version = await insertVersion(tx, item, v, previous)
       const [area] = await tx.query<{ review_days: number }>(

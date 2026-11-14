@@ -9,7 +9,9 @@ import { createWorkspace } from '@/api/mock/workspace'
 import { findDefinition, goesWith } from '@/lib/definitions'
 import {
   canChange,
+  askDelete,
   doneLine,
+  heldRows,
   movableTo,
   needsTyping,
   planFacts,
@@ -181,6 +183,63 @@ describe('terms', () => {
     for (const s of synonyms) expect(findDefinition(definitions.list(), s)).toBeUndefined()
     undo()
     expect(definitions.list()).toBe(before)
+  })
+})
+
+describe('the delete confirmation', () => {
+  // Jon ticks a metric synced from Cube and presses Delete: nothing can be deleted, so nothing opens.
+  const all = createDefinitions().list()
+  const orders = findDefinition(all, 'Orders')!
+  const webshop = findDefinition(all, 'Webshop')!
+  const reasonFor = (ids: string[]) => {
+    const plan = planTerms(
+      'delete',
+      all.filter((d) => ids.includes(d.name)),
+      jon,
+      domains,
+    )
+    return plan.act.length ? undefined : plan.skipped[0]?.reason
+  }
+
+  it('opens nothing when nothing in the selection can be deleted, and says why', () => {
+    expect(askDelete([orders.name], reasonFor([orders.name]))).toEqual({
+      refused: 'Metrics and dimensions are read-only here: change them in Cube.',
+    })
+  })
+
+  it('opens holding exactly the ids it was asked with', () => {
+    const ids = [webshop.name, orders.name]
+    const asked = askDelete(ids, reasonFor(ids))
+    expect(asked).toEqual({ confirming: { ids } })
+    // A copy: ticking or unticking afterwards cannot change what the confirmation holds.
+    ids.length = 0
+    expect(asked).toEqual({ confirming: { ids: [webshop.name, orders.name] } })
+  })
+
+  it('never opens for an empty selection', () => {
+    expect(askDelete([])).toEqual({ refused: 'Nothing is ticked.' })
+  })
+
+  it('refuses for the reason it is given, such as being offline', () => {
+    expect(askDelete([webshop.name], "Off while you're offline. Nothing is lost.")).toEqual({
+      refused: "Off while you're offline. Nothing is lost.",
+    })
+  })
+
+  it('holds the rows it was opened with, however the list changes under it', () => {
+    const held = { ids: [webshop.name] }
+    const named = (rows: typeof all) => heldRows(rows, held, (d) => d.name).map((d) => d.name)
+    expect(named(all)).toEqual([webshop.name])
+    // The list refreshes with the row changed: the confirmation shows it as it is now.
+    const refreshed = all.map((d) => (d.name === webshop.name ? { ...d, definition: 'new' } : d))
+    expect(heldRows(refreshed, held, (d) => d.name)[0]!.definition).toBe('new')
+    // The row has gone: it drops out, and the rows ticked since are not added.
+    expect(named(all.filter((d) => d.name !== webshop.name))).toEqual([])
+    expect(named(all.filter((d) => d.name === orders.name))).toEqual([])
+  })
+
+  it('holds nothing while it is shut', () => {
+    expect(heldRows(all, null, (d) => d.name)).toEqual([])
   })
 })
 
