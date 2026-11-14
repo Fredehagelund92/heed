@@ -17,11 +17,20 @@ export const retryUnanswered = (limit: number) => (failureCount: number, error: 
 // mock's, a cached one) never shows an empty frame first.
 notifyManager.setScheduler(queueMicrotask)
 
+const signedOutBy = new WeakMap<QueryClient, (error: unknown) => void>()
+
+/**
+ * A change made outside a mutation (`useWrite`) answers a 401 the same way a mutation's error
+ * handler does: the app opens sign-in instead of showing a failed screen.
+ */
+export const reportSignedOut = (client: QueryClient, error: unknown) =>
+  signedOutBy.get(client)?.(error)
+
 export function createQueryClient({ onSignedOut }: QueryClientOptions = {}) {
   const signedOut = (error: unknown) => {
     if (isSignedOut(error)) onSignedOut?.()
   }
-  return new QueryClient({
+  const client = new QueryClient({
     queryCache: new QueryCache({ onError: signedOut }),
     mutationCache: new MutationCache({ onError: signedOut }),
     defaultOptions: {
@@ -36,4 +45,6 @@ export function createQueryClient({ onSignedOut }: QueryClientOptions = {}) {
       mutations: { retry: false },
     },
   })
+  signedOutBy.set(client, signedOut)
+  return client
 }

@@ -295,9 +295,9 @@ in `api/queries.ts`. Do not call `fetch` from a component.
 
 A change goes through `useApiWrite` or `useWrite` in `api/queries.ts`: it refreshes what the change
 made stale (the `invalidations` map), and the http binding keeps the retry key when an answer is
-lost, so a retry is applied once. Both bindings refuse with an `ApiError` (`api/errors.ts`). A
-behaviour the mock and the service share belongs in the conformance suite
-(`tests/web/conformance/heed-api.ts`), which runs against both.
+lost, so a retry is applied once. A 401 from either opens sign-in. Both bindings refuse with an
+`ApiError` (`api/errors.ts`). A behaviour the mock and the service share belongs in the conformance
+suite (`tests/web/conformance/heed-api.ts`), which runs against both.
 
 ## Module boundaries
 

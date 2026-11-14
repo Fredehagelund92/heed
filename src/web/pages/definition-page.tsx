@@ -72,6 +72,7 @@ export function DefinitionPage({ name }: { name: string }) {
             what="this definition"
             skeleton={<PageSkeleton />}
             errorClassName="p-0"
+            refreshClassName="mb-5 rounded-frame border"
             query={page}
           >
             <div className="mb-6 flex items-center gap-3 sm:mb-8">
