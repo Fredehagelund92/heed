@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { Inbox } from '@/api'
-import { useInbox } from '@/api/queries'
+import { useInbox, useSession } from '@/api/queries'
 import type { MentionNote, Subject } from '@/model/comments'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Domains } from '@/model/people'
@@ -64,6 +64,16 @@ export function useInboxRows(decided?: Record<string, Outcome>) {
     () => inboxRows(inbox, me.name, domains, decided),
     [inbox, me.name, domains, decided],
   )
+}
+
+/**
+ * How many rows need you: the sidebar's count, and what decides where the app opens. A new install
+ * counts none, since its Inbox is the setup checklist.
+ */
+export function useNeedsYou() {
+  const { install } = useSession()
+  const { needing } = useInboxRows()
+  return install === 'new' ? 0 : needing.length
 }
 
 /** The rows of a person's Inbox, from what the Inbox read says. */
