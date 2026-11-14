@@ -119,7 +119,8 @@ test('the demo switches to a reader who has real context to read', async ({ page
   await viewAs(page).click()
   await page.getByRole('menuitemradio', { name: /Maria Lindqvist/ }).click()
   await expect(sidebarUser(page)).toContainText('Maria Lindqvist')
-  await expect(page).toHaveURL(/\/inbox$/)
+  // Nothing waits on a reader, so the app opens on Ask.
+  await expect(page).toHaveURL(/\/ask$/)
   // A reader reads the published library, a little less than the administrator sees.
   await page.goto('/context')
   await expect(page.getByText(/of 1,\d{3} context items/)).toBeVisible()
@@ -128,7 +129,7 @@ test('the demo switches to a reader who has real context to read', async ({ page
   ).toBeVisible()
   // The reader has the switch too, and /signin opened again does not swap them for the admin.
   await page.goto('/signin')
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/\/ask$/)
   await expect(sidebarUser(page)).toContainText('Maria Lindqvist')
   await viewAs(page).click()
   await page.getByRole('menuitemradio', { name: /Ravi Kapoor/ }).click()
