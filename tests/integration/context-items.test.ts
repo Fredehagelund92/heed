@@ -512,7 +512,7 @@ describe("a context item's page, history and related context", () => {
     const item = await live()
     const page = await ok<ItemPage>(call('GET', `/items/${item}/page`, 'owner'))
     expect(page.item).toMatchObject({ id: item, kind: 'note', status: 'accepted' })
-    expect(page).toMatchObject({ trust: 'current', owners: [], canChange: true })
+    expect(page).toMatchObject({ trust: 'current', check: null, owners: [], canChange: true })
     expect(page.chips).toContain('Orders')
     expect(page.lastChecked?.personId).toBe(people.owner)
     expect(page.history).toEqual([

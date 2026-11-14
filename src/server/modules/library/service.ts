@@ -92,6 +92,11 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
                                 or (l.entry->>'reviewDate')::date < $1::date then 'needs_check'
                               when (l.entry->'validity'->>'end')::date <= $1::date then 'ended'
                               else 'current' end,
+                'check', case when l.entry->>'status' = 'retired' then null
+                              when l.entry->>'checkFlag' = 'source_missing' then 'source_gone'
+                              when l.entry->>'checkFlag' = 'needs_check' then 'source_changed'
+                              when (l.entry->>'reviewDate')::date < $1::date then 'date'
+                              else null end,
                 'chips', coalesce(ch.names, '[]'),
                 'owners', coalesce(o.ids, '[]'),
                 'conflicts', coalesce(pt.ids, '[]'),

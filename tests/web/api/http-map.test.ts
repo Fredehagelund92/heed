@@ -39,6 +39,7 @@ const row = (patch: Partial<LibraryItem> = {}): LibraryItem => ({
   updatedAt: '2026-10-01T09:00:00Z',
   lastChecked: { on: '2026-10-03', personId: 'per_jon' },
   trust: 'current',
+  check: null,
   chips: ['Orders', 'Norway'],
   owners: [],
   opened: false,
@@ -64,6 +65,15 @@ describe('reading the library index', () => {
     expect(statusOf(row({ trust: 'needs_check' }))).toBe('Needs checking')
     expect(statusOf(row({ trust: 'ended' }))).toBe('Live')
     expect(statusOf(row({ status: 'retired', trust: 'ended' }))).toBe('Archived')
+  })
+
+  it('says why an item is due, from the check the service names', () => {
+    const due = (check: LibraryItem['check']) =>
+      factsOf([row({ trust: 'needs_check', check, reviewDate: '2026-10-02' })], names)[0]!.outOfDate
+    expect(due('date')).toBe('Its check date passed on 2 Oct 2026.')
+    expect(due('source_changed')).toBe('A definition it relies on changed.')
+    expect(due('source_gone')).toBe('A definition it relies on is gone.')
+    expect(factsOf([row()], names)[0]!).not.toHaveProperty('outOfDate')
   })
 
   it('keeps the dates, the day before the end as the last one, and an issue still going on', () => {

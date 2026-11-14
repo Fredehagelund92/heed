@@ -41,6 +41,7 @@ import { plainOf } from '@/components/templates/comment-box/utils'
 import { recordsAnswer, replyAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
 import { parseMentionId } from '@/lib/mentions'
+import { setToday } from '@/lib/today'
 import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { FigureReport } from '@/model/figures'
@@ -659,6 +660,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       readWords(),
     ])
     calendar = { today: index.today, shift: dayShiftOf(index) }
+    setToday(index.today)
     return {
       index,
       names,

@@ -38,7 +38,7 @@ import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
 import { useWide } from '@/hooks/use-wide'
 import { VersionHistory } from '@/components/heed/version-history'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
 import { Loadable, NoSuchItem, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
 
@@ -87,7 +87,7 @@ export function FactPage({ id }: { id: string }) {
   const owner = me.owns.includes(fact.domain) || me.admin
   const entryFor = (what: LogEntry['what'], summary: string): LogEntry => ({
     id: `log-${what}-${fact.id}`,
-    on: TODAY,
+    on: today(),
     who: me.name,
     what,
     summary,

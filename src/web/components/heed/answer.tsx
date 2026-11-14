@@ -25,6 +25,8 @@ import { asksWhatItIs } from '@domain/scope'
 import { SharePopover } from '@/components/heed/share-answer'
 import { recordsParts } from '@/components/heed/records-parts'
 import { loopParts } from '@/components/heed/loop-parts'
+import { today } from '@/lib/today'
+import { dateLabel } from '@/model/validity'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
 import { sentencesOf, type Sentence } from '@/lib/where'
@@ -1200,7 +1202,7 @@ export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
                 status: 'Live',
                 outOfDate: undefined,
                 checkedBy: me.name,
-                checkedOn: '22 Oct 2026',
+                checkedOn: dateLabel(today()),
               },
             }).then(() =>
               toast('Checked: still true', {

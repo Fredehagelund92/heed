@@ -25,7 +25,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/model/history'
+import { dateLabel } from '@/model/validity'
+import { today } from '@/lib/today'
 import { leaveAllThen } from '@/lib/presence'
 import { APP_URL } from '@/lib/brand'
 import { kindLabel, type DomainId, type Fact, type Kind } from '@/model/items'
@@ -117,7 +118,7 @@ export function ContextBulk({
       remove: action === 'delete' ? plan.act.map((f) => f.id) : [],
       entry: {
         id: `log-${++entries}`,
-        on: TODAY,
+        on: today(),
         who: me.name,
         what,
         summary,
@@ -386,7 +387,7 @@ export function ContextBulk({
                       status: f.status === 'Needs checking' ? 'Live' : f.status,
                       outOfDate: undefined,
                       checkedBy: me.name,
-                      checkedOn: '22 Oct 2026',
+                      checkedOn: dateLabel(today()),
                     }),
                     {},
                   )

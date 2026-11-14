@@ -1,11 +1,11 @@
 import type { Fact } from '@/model/items'
+import { todayMs } from './today'
 
 // When a context item holds and how fresh its check is, in the fixed vocabulary of the
 // list columns' design B: five time frames (Always, Ongoing, Since X, Until X, X to Y),
 // a short date for each, and one freshness level for the dot: fresh up to 30 days, ageing up to
 // 90, overdue after that or when a definition changed.
 
-export const TODAY = Date.UTC(2026, 9, 23) // 23 Oct 2026, the demo world's today
 const DAY = 86400000
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -87,15 +87,15 @@ export function timeLong(t: TimeFrame) {
   return t.from && t.to ? `${dmy(t.from)} to ${dmy(t.to)}` : 'For a while'
 }
 export function inForce(t: TimeFrame) {
-  if (t.t === 'since') return !t.from || t.from <= TODAY
-  if (t.t === 'until') return !t.to || t.to >= TODAY
-  if (t.t === 'range') return !!t.from && !!t.to && t.from <= TODAY && t.to >= TODAY
+  if (t.t === 'since') return !t.from || t.from <= todayMs()
+  if (t.t === 'until') return !t.to || t.to >= todayMs()
+  if (t.t === 'range') return !!t.from && !!t.to && t.from <= todayMs() && t.to >= todayMs()
   return true
 }
 export const timeNow = (t: TimeFrame) =>
   inForce(t)
     ? 'In force now'
-    : t.t === 'since' && t.from && t.from > TODAY
+    : t.t === 'since' && t.from && t.from > todayMs()
       ? `Starts ${dmy(t.from)}`
       : 'Over'
 
@@ -103,7 +103,7 @@ export type Trust = 'fresh' | 'ageing' | 'due' | 'draft' | 'retired'
 
 export function ageDays(checkedOn: string) {
   const d = day(checkedOn)
-  return d ? Math.max(0, Math.round((TODAY - d) / DAY)) : undefined
+  return d ? Math.max(0, Math.round((todayMs() - d) / DAY)) : undefined
 }
 
 export function trustOf(f: Fact): Trust {
@@ -126,8 +126,7 @@ export function checkedTip(f: Fact) {
     `Checked ${f.checkedOn} by ${f.checkedBy}${age !== undefined ? `, ${age} days ago` : ''}`,
   ]
   if (trust === 'retired') lines.push('No longer checked')
-  else if (trust === 'due')
-    lines.push(f.outOfDate ? 'A definition it relies on changed since' : 'Its check is due')
+  else if (trust === 'due') lines.push(f.outOfDate ?? 'Its check is due')
   else if (trust === 'ageing') lines.push('Its check date has not passed')
   else lines.push('Checked in the last 30 days')
   return lines.join('. ') + '.'
