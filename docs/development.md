@@ -53,7 +53,7 @@ npm ci            # installs exact, locked versions
 npm run dev       # http://localhost:5173
 ```
 
-You should see the sign-in page: pick a demo person, and the Inbox opens on the demo week.
+You should see the sign-in page: pick a demo person. The app opens on their Inbox, or on Ask when nothing waits on them.
 `Cmd+K` (or `Ctrl+K`) opens the search, and `?` every shortcut. The theme is in the menu at the
 right end of every header.
 
