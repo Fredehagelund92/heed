@@ -82,6 +82,7 @@ import {
   useWorkspace,
   useWrite,
 } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { setupSteps } from '@/lib/setup'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
@@ -1143,6 +1144,7 @@ export function InboxPage() {
   const inbox = useInbox()
   const { install } = useSession()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const { query } = useRoute()
   const isMobile = useIsMobile()
@@ -1239,7 +1241,7 @@ export function InboxPage() {
           })
           saved = undo
           // Undo was pressed while it was being saved: it is taken back as soon as it is in.
-          if (undone) await write('undo', { token: undo })
+          if (undone) await takeBack(undo)
         } catch {
           if (undone) return
           toast.error("Couldn't save that decision", {
@@ -1256,7 +1258,7 @@ export function InboxPage() {
         label: 'Undo',
         onClick: () => {
           undone = true
-          if (saved) void write('undo', { token: saved })
+          if (saved) void takeBack(saved)
         },
       },
     })

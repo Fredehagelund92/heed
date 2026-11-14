@@ -33,6 +33,7 @@ import { openDock } from '@/lib/dock'
 import { href, navigate } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import { itemPageQuery, useInbox, useLibrary, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { useCommentActions } from '@/lib/comments'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
@@ -58,6 +59,7 @@ export function FactPage({ id }: { id: string }) {
   const domains = useDomains()
   const me = useMe()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const [deleting, setDeleting] = React.useState(false)
   const [bodyRef, wide] = useWide<HTMLDivElement>()
@@ -103,7 +105,7 @@ export function FactPage({ id }: { id: string }) {
     })
     toast('Archived', {
       description: 'Agents stop getting it from the next question.',
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
   // A draft nobody published is deleted for good, after a confirmation, with Undo for a few seconds.
@@ -119,7 +121,7 @@ export function FactPage({ id }: { id: string }) {
     toast('Deleted 1 draft', {
       description: 'You can undo it for 10 seconds; then it is gone for good.',
       duration: 10_000,
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
   const pending = sent.find((x) => x.factId === fact.id && x.by === me.name)

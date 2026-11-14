@@ -75,6 +75,7 @@ import { ChoiceGroup, TextSwitch, ViewToggle } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DRAFT_LABEL } from '@/model/ask'
 import { itemPageQuery, useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
 import { careLine, marks, readiness, type Relation, type Review } from '@/model/review'
@@ -261,6 +262,7 @@ function PublishReady({
   apart: number
 }) {
   const write = useWrite()
+  const takeBack = useTakeBack()
   const [confirm, setConfirm] = React.useState(false)
   const sender = useSend()
   const n = items.length
@@ -274,8 +276,9 @@ function PublishReady({
       action: {
         label: 'Undo',
         onClick: () =>
-          void write('undo', { token: undo }).then(() =>
-            toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' }),
+          void takeBack(undo).then(
+            (back) =>
+              back && toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' }),
           ),
       },
     })
@@ -1536,6 +1539,7 @@ export function ReviewPage({ id }: { id: string }) {
   const state = useInbox()
   const domains = useDomains()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const isMobile = useIsMobile()
   // The source is the review; the preview is a second look, kept while you go through the queue.
@@ -1799,15 +1803,15 @@ export function ReviewPage({ id }: { id: string }) {
     hold.current.timer = 0
     // Exactly this decision goes back: its outcome and the context items it changed, nothing else.
     if (finished) {
-      void write('undo', { token: finished.undo })
-      finished.afterUndo?.()
+      const { afterUndo } = finished
+      void takeBack(finished.undo).then((back) => back && afterUndo?.())
     }
     step({ type: 'finish' })
   }
   const undoLast = () => {
     if (!allDone) return
-    void write('undo', { token: allDone.undo })
-    allDone.afterUndo?.()
+    const { afterUndo } = allDone
+    void takeBack(allDone.undo).then((back) => back && afterUndo?.())
     setAllDone(null)
     focusChange()
   }

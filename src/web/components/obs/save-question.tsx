@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input'
 import type { Answer } from '@/model/ask'
 import { useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import type { DomainId } from '@/model/items'
 import { navigate } from '@/lib/router'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
@@ -37,6 +38,7 @@ export function SaveQuestion({
   const facts = useFacts()
   const factById = (id: string) => facts.find((f) => f.id === id)
   const write = useWrite()
+  const takeBack = useTakeBack()
   const [open, setOpenState] = React.useState(!!anchor)
   const setOpen = (o: boolean) => {
     setOpenState(o)
@@ -106,7 +108,7 @@ export function SaveQuestion({
               setOpen(false)
               toast('Question saved', {
                 description: 'It is checked after every change. Quality shows the result.',
-                action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+                action: { label: 'Undo', onClick: () => void takeBack(undo) },
                 cancel: {
                   label: 'Open Quality',
                   onClick: () => navigate('/observability/quality'),
