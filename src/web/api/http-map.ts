@@ -41,6 +41,17 @@ export function statusOf(row: Pick<LibraryItem, 'status' | 'trust'>): Status {
   return row.trust === 'needs_check' ? 'Needs checking' : 'Live'
 }
 
+/** Why an item is due, in the words its card and peek say: the service's check, and the date it passed. */
+export function dueWords(
+  row: Pick<LibraryItem, 'check' | 'reviewDate'>,
+): { outOfDate: string } | Record<string, never> {
+  if (row.check === 'source_changed') return { outOfDate: 'A definition it relies on changed.' }
+  if (row.check === 'source_gone') return { outOfDate: 'A definition it relies on is gone.' }
+  return row.check === 'date' && row.reviewDate
+    ? { outOfDate: `Its check date passed on ${dateLabel(row.reviewDate)}.` }
+    : {}
+}
+
 /**
  * The service's dates as the app's: its end is the first day the item no longer applies, so the
  * last day it applies is the day before. An open end of an issue that is still going on says so.
@@ -89,6 +100,7 @@ export function factsOf(rows: readonly LibraryItem[], names: Names): Fact[] {
       valid,
       when: whenLabel(valid),
       status: statusOf(row),
+      ...dueWords(row),
       checkedBy: row.lastChecked ? names.person(row.lastChecked.personId) : '',
       checkedOn: row.lastChecked ? dateLabel(row.lastChecked.on) : '',
       source: '',

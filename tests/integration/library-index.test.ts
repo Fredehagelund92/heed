@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexedItem, LibraryItem } from '../../src/contract/index.ts'
 import { indexedItemSchema } from '../../src/contract/schemas.ts'
-import { itemTrust } from '../../src/domain/status.ts'
+import { itemCheck, itemTrust } from '../../src/domain/status.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLibraryService } from '../../src/server/modules/library/index.ts'
 import { generateItems, versionDays } from '../../db/seed/fixtures/items.ts'
@@ -65,6 +65,9 @@ describe('the library index on PostgreSQL', () => {
       const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
       for (const item of index.items) {
         expect(item.trust, item.id).toBe(itemTrust(generated.get(item.id)!, today))
+        // Why it is due is the one rule too, and it is said exactly when the item is.
+        expect(item.check, item.id).toBe(itemCheck(generated.get(item.id)!, today))
+        expect(item.check !== null, item.id).toBe(item.trust === 'needs_check')
         const keys = [
           ...item.scope.metrics.map((id) => `metric:${id}`).sort(byKey),
           ...item.scope.dimensions.map((id) => `dim:${id}`).sort(byKey),

@@ -6,7 +6,7 @@
 import * as z from 'zod/mini'
 import { itemKinds, itemSchema, itemStatuses } from '../domain/item.ts'
 import { mentionTargetSchema } from '../domain/mentions.ts'
-import { itemTrusts } from '../domain/status.ts'
+import { itemChecks, itemTrusts } from '../domain/status.ts'
 
 export { API_PREFIX } from './limits.ts'
 
@@ -43,6 +43,8 @@ export const libraryItemSchema = z.extend(indexedItemSchema, {
   lastChecked: z.nullable(z.object({ on: isoDate, personId: z.string() })),
   /** Whether it can be trusted today (`itemTrust`), the rule `library.freshness` counts by. */
   trust: z.enum(itemTrusts),
+  /** Why it is due for a check (`itemCheck`), null while it is not: a passed date, or a definition that changed or is gone. */
+  check: z.nullable(z.enum(itemChecks)),
   /**
    * Its scope as people read it: the metrics, then the dimensions, then the values, each by key,
    * named as the live vocabulary names them (the key's id when the vocabulary has no name).
