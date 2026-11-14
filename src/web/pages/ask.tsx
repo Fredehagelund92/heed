@@ -650,7 +650,7 @@ function ThreadRow({
             ref={nameInput}
             defaultValue={thread.title}
             aria-label="Chat name"
-            className="h-9 rounded-md px-2.5 text-sm"
+            className="text-sm"
             onBlur={(e) => finishRename(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') finishRename(e.currentTarget.value)
@@ -715,7 +715,7 @@ function ThreadRow({
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
                         tabIndex={-1}
                         aria-label={`Rename ${thread.title}`}
                         className="hover:bg-foreground/8"
@@ -732,7 +732,7 @@ function ThreadRow({
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
                         tabIndex={-1}
                         aria-label={`Delete ${thread.title}`}
                         className="hover:bg-foreground/8"
@@ -751,7 +751,7 @@ function ThreadRow({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="icon"
                       aria-label={`More for ${thread.title}`}
                       className="hidden hover:bg-foreground/8 [@media(hover:none)]:inline-flex"
                     />
@@ -787,9 +787,8 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               aria-label="Show history"
-              className="size-9"
               onClick={() => onShow()}
             />
           }
@@ -803,13 +802,7 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="New chat"
-              className="size-9"
-              onClick={startChat}
-            />
+            <Button variant="ghost" size="icon-lg" aria-label="New chat" onClick={startChat} />
           }
         >
           <SquarePenIcon />
@@ -821,9 +814,8 @@ function HistoryRail({ onShow }: { onShow: (focusSearch?: boolean) => void }) {
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               aria-label="Search chats"
-              className="size-9"
               onClick={() => onShow(true)}
             />
           }
@@ -916,9 +908,8 @@ function ThreadList({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-lg"
                     aria-label="Hide history"
-                    className="size-9"
                     onClick={onHide}
                   />
                 }
@@ -933,7 +924,8 @@ function ThreadList({
           <Button
             data-new-chat
             variant="ghost"
-            className="h-9 flex-1 justify-start gap-2 px-2.5"
+            size="lg"
+            className="flex-1 justify-start"
             onClick={startNew}
           >
             <SquarePenIcon />
@@ -952,7 +944,7 @@ function ThreadList({
             placeholder="Search chats"
             aria-label="Search chats"
             data-search-chats
-            className="h-8 pr-8 pl-8 text-sm"
+            className="pr-8 pl-8 text-sm"
           />
           {search && (
             <button
@@ -1206,7 +1198,6 @@ export function AskPage() {
             render={
               <Button
                 variant="outline"
-                size="sm"
                 aria-label="History"
                 aria-expanded={isMobile ? sheet : !collapsed}
                 aria-controls={isMobile ? undefined : 'ask-chats'}
@@ -1228,12 +1219,7 @@ export function AskPage() {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label="New chat"
-                  onClick={startChat}
-                />
+                <Button variant="outline" size="icon" aria-label="New chat" onClick={startChat} />
               }
             >
               <SquarePenIcon />

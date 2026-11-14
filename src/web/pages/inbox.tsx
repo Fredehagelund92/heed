@@ -82,6 +82,7 @@ import {
   useWorkspace,
   useWrite,
 } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { setupSteps } from '@/lib/setup'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
@@ -202,7 +203,7 @@ function RowMeta({ row, plain }: { row: InboxRow; plain: boolean }) {
     )
   const care = rowCare(row, reviews)
   return (
-    <span className="line-clamp-1 text-xs text-muted-foreground">
+    <span className="line-clamp-2 text-xs text-muted-foreground">
       {meta(
         row,
         reviews,
@@ -355,7 +356,7 @@ function InboxList({
                   data-row-open={id}
                   aria-current={isSelected || undefined}
                   onClick={(e) => sel.rowClick(id, e) || onSelect(id)}
-                  className="flex h-16 min-w-0 flex-1 items-center gap-3 px-4 text-left outline-none @md:pr-6 @md:pl-0"
+                  className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left outline-none @md:pr-6 @md:pl-0"
                 >
                   <span
                     aria-hidden={!care}
@@ -375,6 +376,7 @@ function InboxList({
                   <span className="min-w-0 flex-1 space-y-1">
                     <TruncatedText
                       text={rowTitle(row)}
+                      lines={2}
                       className={cn(
                         'text-sm leading-snug',
                         done ? 'text-muted-foreground' : 'text-foreground',
@@ -396,7 +398,7 @@ function InboxList({
                     </span>
                     {unread ? (
                       <span
-                        className="size-1.5 rounded-full bg-primary"
+                        className="size-1.5 rounded-full bg-foreground"
                         aria-label="Not opened yet"
                       />
                     ) : (
@@ -1005,7 +1007,7 @@ function Setup() {
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon"
           aria-label="Ask in the side panel"
           onClick={() => openDock('ask')}
         >
@@ -1061,7 +1063,6 @@ function Setup() {
                         {(!isDone || (step.id === 'definitions' && !!names?.length)) && (
                           <Button
                             variant={first?.id === step.id ? 'default' : 'outline'}
-                            size="sm"
                             onClick={() => go(step.id)}
                           >
                             {step.id === 'definitions' && names?.length
@@ -1127,7 +1128,7 @@ function AllDone({ waitingCount }: { waitingCount: number }) {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" onClick={() => navigate('/ask')}>
+        <Button variant="outline" onClick={() => navigate('/ask')}>
           <MessageSquareIcon data-icon="inline-start" />
           Ask a question
         </Button>
@@ -1143,6 +1144,7 @@ export function InboxPage() {
   const inbox = useInbox()
   const { install } = useSession()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const { query } = useRoute()
   const isMobile = useIsMobile()
@@ -1239,7 +1241,7 @@ export function InboxPage() {
           })
           saved = undo
           // Undo was pressed while it was being saved: it is taken back as soon as it is in.
-          if (undone) await write('undo', { token: undo })
+          if (undone) await takeBack(undo)
         } catch {
           if (undone) return
           toast.error("Couldn't save that decision", {
@@ -1256,7 +1258,7 @@ export function InboxPage() {
         label: 'Undo',
         onClick: () => {
           undone = true
-          if (saved) void write('undo', { token: saved })
+          if (saved) void takeBack(saved)
         },
       },
     })
@@ -1412,7 +1414,7 @@ export function InboxPage() {
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon"
           aria-label="Ask in the side panel"
           onClick={() => openDock('ask')}
         >
@@ -1457,7 +1459,7 @@ function AlertPair({ pair: key }: { pair: string | undefined }) {
     <div className="flex flex-col gap-3">
       <ConflictPairCompact pair={pair} />
       <div>
-        <Button size="sm" onClick={() => openDock('conflict', pair.key)}>
+        <Button onClick={() => openDock('conflict', pair.key)}>
           <ArrowLeftRightIcon data-icon="inline-start" />
           {row.canSettle ? 'Compare and decide' : 'Compare the two'}
         </Button>

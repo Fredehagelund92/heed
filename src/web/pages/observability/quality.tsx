@@ -48,6 +48,7 @@ import { ReadingLine } from '@/components/heed/reading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SavedCheck } from '@/api'
 import { conflictsQuery, queryKeys, savedCheckQuery, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { openDock } from '@/lib/dock'
 import { savedCounts, type SavedQuestion, type SavedResult } from '@/model/saved-questions'
 import { useSavedQuestions } from '@/api/queries'
@@ -135,9 +136,7 @@ function Quality({ first }: { first: SavedCheck }) {
     <div className="flex flex-wrap items-center gap-2">
       {domainChoices.length > 1 && (
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="sm" className="h-8 gap-1.5 font-normal" />}
-          >
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
             <LayersIcon className="size-3.5" />
             <span className="sr-only">Domain: </span>
             {domain ? domains[domain]?.name : 'All domains'}
@@ -163,7 +162,6 @@ function Quality({ first }: { first: SavedCheck }) {
       <AddQuestion domains={domainChoices} me={me.name} />
       <Button
         variant="outline"
-        size="sm"
         aria-disabled={!online || undefined}
         loading={running}
         loadingLabel="Checking…"
@@ -242,7 +240,7 @@ function Quality({ first }: { first: SavedCheck }) {
             The check did not finish. It stopped after {status.checked} of {status.total} questions.
             Nothing was changed, and agents still get what was published.
           </span>
-          <Button size="sm" variant="outline" onClick={check}>
+          <Button variant="outline" onClick={check}>
             Try again
           </Button>
         </div>
@@ -333,7 +331,7 @@ function Quality({ first }: { first: SavedCheck }) {
             </div>
             <a
               href="/settings/advanced"
-              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0')}
+              className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}
             >
               <ArrowUpRightIcon data-icon="inline-start" />
               Settings, Advanced
@@ -348,11 +346,12 @@ function Quality({ first }: { first: SavedCheck }) {
 function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean }) {
   const domains = useDomains()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const open = (
     <a
       key="open"
       href={href(`/context/${q.factId}`)}
-      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+      className={cn(buttonVariants({ variant: 'outline' }))}
     >
       <ArrowUpRightIcon data-icon="inline-start" />
       Open the item
@@ -362,7 +361,6 @@ function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean })
     <Button
       key="keep"
       variant="outline"
-      size="sm"
       aria-disabled={!canChange || undefined}
       aria-description={
         canChange ? undefined : 'Owners of the domain and admins keep a new answer.'
@@ -372,7 +370,7 @@ function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean })
         void write('keepNewAnswer', { id: q.id }).then(({ undo }) => {
           toast('The new answer is its saved one', {
             description: 'It is checked against it from now on.',
-            action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+            action: { label: 'Undo', onClick: () => void takeBack(undo) },
           })
         })
       }}
@@ -438,7 +436,7 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
   const [d, setD] = React.useState<DomainId>(choices[0] ?? 'sales')
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+      <PopoverTrigger render={<Button variant="outline" />}>
         <PlusIcon data-icon="inline-start" />
         Add a question
       </PopoverTrigger>
@@ -502,12 +500,10 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
             agents get, not how an agent words it.
           </p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Save question
-            </Button>
+            <Button type="submit">Save question</Button>
           </div>
         </form>
       </PopoverContent>
@@ -521,7 +517,7 @@ function CompareNow({ ids }: { ids: string[] }) {
   const row = pairOfItems(rows, ids)
   if (!row) return null
   return (
-    <Button size="sm" onClick={() => openDock('conflict', row.key)}>
+    <Button onClick={() => openDock('conflict', row.key)}>
       <ArrowLeftRightIcon data-icon="inline-start" />
       {row.canSettle ? 'Compare and decide' : 'Compare the two'}
     </Button>

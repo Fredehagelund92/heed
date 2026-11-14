@@ -163,7 +163,6 @@ export function FilterBar({
           render={
             <Button
               variant="ghost"
-              size="sm"
               className={cn(barButton, facets.on && !facets.sheet && 'text-foreground')}
               aria-pressed={facets.sheet ? undefined : facets.on}
               onClick={facets.toggle}
@@ -199,11 +198,10 @@ export function FilterBar({
       <Button
         ref={button}
         variant="outline"
-        size="sm"
         aria-haspopup="dialog"
         aria-expanded={!!at && !at.fromChip}
         aria-keyshortcuts="F"
-        className="h-7 gap-1.5 px-2 text-sm font-normal @max-2xl/main:h-11 pointer-coarse:h-11"
+        className="@max-2xl/main:h-11 pointer-coarse:h-11"
         onClick={(e) => (at ? close() : open(null, e.currentTarget))}
       >
         <ListFilterIcon />
@@ -234,8 +232,7 @@ export function FilterBar({
       {chips.length + (time ? 1 : 0) > 1 && (
         <Button
           variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs font-normal text-muted-foreground"
+          className="ml-auto text-muted-foreground"
           onClick={() => {
             if (onClearAll) onClearAll()
             else onChange([], 'Cleared every filter')

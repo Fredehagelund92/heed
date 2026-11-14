@@ -357,7 +357,7 @@ function AgentDetails({
           )}
           {admin && r.kind === 'key' && (
             <div>
-              <Button variant="outline" size="sm" onClick={onRename}>
+              <Button variant="outline" onClick={onRename}>
                 Rename
               </Button>
             </div>
@@ -555,7 +555,6 @@ function AgentRow({
             />
             <Button
               variant="ghost"
-              size="sm"
               className="text-muted-foreground hover:text-foreground"
               onClick={onRevoke}
             >
@@ -777,7 +776,7 @@ export function Agents() {
               label: 'Access keys',
               hint: `A key is a long password for a program. Use one for a bot or a scheduled job that can't sign in. ${keysHint(rows)}`,
               value: (
-                <Button variant="outline" size="sm" onClick={() => openNaming()}>
+                <Button variant="outline" onClick={() => openNaming()}>
                   Create an access key
                 </Button>
               ),

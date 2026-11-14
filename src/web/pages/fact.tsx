@@ -33,12 +33,13 @@ import { openDock } from '@/lib/dock'
 import { href, navigate } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import { itemPageQuery, useInbox, useLibrary, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { useCommentActions } from '@/lib/comments'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import type { LogEntry } from '@/model/items'
 import { useWide } from '@/hooks/use-wide'
 import { VersionHistory } from '@/components/heed/version-history'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
 import { Loadable, NoSuchItem, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
 
@@ -58,6 +59,7 @@ export function FactPage({ id }: { id: string }) {
   const domains = useDomains()
   const me = useMe()
   const write = useWrite()
+  const takeBack = useTakeBack()
   const commentActions = useCommentActions()
   const [deleting, setDeleting] = React.useState(false)
   const [bodyRef, wide] = useWide<HTMLDivElement>()
@@ -87,7 +89,7 @@ export function FactPage({ id }: { id: string }) {
   const owner = me.owns.includes(fact.domain) || me.admin
   const entryFor = (what: LogEntry['what'], summary: string): LogEntry => ({
     id: `log-${what}-${fact.id}`,
-    on: TODAY,
+    on: today(),
     who: me.name,
     what,
     summary,
@@ -103,7 +105,7 @@ export function FactPage({ id }: { id: string }) {
     })
     toast('Archived', {
       description: 'Agents stop getting it from the next question.',
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
   // A draft nobody published is deleted for good, after a confirmation, with Undo for a few seconds.
@@ -119,7 +121,7 @@ export function FactPage({ id }: { id: string }) {
     toast('Deleted 1 draft', {
       description: 'You can undo it for 10 seconds; then it is gone for good.',
       duration: 10_000,
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
   const pending = sent.find((x) => x.factId === fact.id && x.by === me.name)
@@ -141,7 +143,6 @@ export function FactPage({ id }: { id: string }) {
           {owner && (
             <Button
               variant="outline"
-              size="sm"
               onClick={() =>
                 void write('editItem', {
                   id: fact.id,
@@ -207,7 +208,7 @@ export function FactPage({ id }: { id: string }) {
         <>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label="Ask about this context item"
             onClick={() => openDock('ask')}
           >
@@ -215,7 +216,7 @@ export function FactPage({ id }: { id: string }) {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="outline" size="icon-sm" aria-label="More" />}
+              render={<Button variant="outline" size="icon" aria-label="More" />}
             >
               <EllipsisIcon />
             </DropdownMenuTrigger>
@@ -255,9 +256,10 @@ export function FactPage({ id }: { id: string }) {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* Where the page has a decision of its own (Compare and decide), that is its one solid blue button. */}
           {owner ? (
             <Button
-              size="sm"
+              variant={other ? 'outline' : 'default'}
               nativeButton={false}
               render={<a href={href(`/context/${fact.id}/edit`)} />}
             >
@@ -266,7 +268,7 @@ export function FactPage({ id }: { id: string }) {
           ) : (
             !pending && (
               <Button
-                size="sm"
+                variant={other ? 'outline' : 'default'}
                 nativeButton={false}
                 render={<a href={href(`/context/${fact.id}/suggest`)} />}
               >
@@ -299,8 +301,7 @@ export function FactPage({ id }: { id: string }) {
                 </span>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="h-7"
+
                   onClick={() =>
                     void write('withdrawSuggestion', { id: pending.id }).then(() =>
                       toast('Withdrawn', { description: 'The owner no longer sees it.' }),

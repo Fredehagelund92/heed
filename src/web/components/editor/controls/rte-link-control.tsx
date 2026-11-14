@@ -83,14 +83,9 @@ export const LinkControl = () => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="rte-link-editor-input h-8 text-sm"
+            className="rte-link-editor-input text-sm"
           />
-          <Button
-            size="sm"
-            variant="default"
-            onClick={handleSave}
-            className="rte-link-editor-save h-8"
-          >
+          <Button variant="default" onClick={handleSave} className="rte-link-editor-save">
             {labels.linkEditorSave}
           </Button>
         </div>

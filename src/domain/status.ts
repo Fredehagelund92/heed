@@ -61,6 +61,24 @@ export function itemTrust(
 }
 
 /**
+ * Why an item is due for a check, when `itemTrust` says `needs_check`: the check date passed, a
+ * definition it refers to changed, or one it refers to is gone. Null when it is not due. A source
+ * flag wins over a date that has passed too.
+ */
+export const itemChecks = ['date', 'source_changed', 'source_gone'] as const
+export type ItemCheck = (typeof itemChecks)[number]
+
+export function itemCheck(
+  item: Pick<ContextItem, 'status' | 'reviewDate' | 'checkFlag'>,
+  today: string,
+): ItemCheck | null {
+  if (item.status === 'retired') return null
+  if (item.checkFlag === 'source_missing') return 'source_gone'
+  if (item.checkFlag === 'needs_check') return 'source_changed'
+  return item.reviewDate !== null && item.reviewDate < today ? 'date' : null
+}
+
+/**
  * "Needs a look" (contract open question 11): re-check due, source changed or source missing.
  * These are the items an owner should look at again.
  */

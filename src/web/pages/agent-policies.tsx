@@ -83,7 +83,6 @@ export function PolicyCard({
       {policy.canEnd && (
         <Button
           variant="outline"
-          size="sm"
           className="shrink-0"
           disabled={ending}
           aria-label={`Turn off publishing without review for ${policy.agent} in ${policy.domainName}`}
@@ -182,7 +181,7 @@ function DomainPoliciesBody({
       )}
       {d.canSet && d.on && (
         <div>
-          <Button variant="outline" size="sm" onClick={onSet}>
+          <Button variant="outline" onClick={onSet}>
             Let an agent publish without review
           </Button>
         </div>

@@ -19,7 +19,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/model/history'
+import { today } from '@/lib/today'
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
@@ -27,6 +27,7 @@ import { useDeleteConfirmation } from '@/hooks/use-delete-confirmation'
 import { APP_URL } from '@/lib/brand'
 import { count, download, heldRows, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
 import { useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { leaveAllThen } from '@/lib/presence'
 import { kindName, toolOf, useGlossary, type Definition } from '@/lib/definitions'
 import { useOnline } from '@/lib/send'
@@ -42,6 +43,7 @@ let entries = 0
 
 export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Definition[] }) {
   const write = useWrite()
+  const takeBack = useTakeBack()
   const glossary = useGlossary()
   const domains = useDomains()
   const me = useMe()
@@ -94,7 +96,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     const gone = [...held.act, ...others]
     const entry: LogEntry = {
       id: `log-term-${++entries}`,
-      on: TODAY,
+      on: today(),
       who: me.name,
       what: 'deleted',
       summary: 'Deleted: a term, and the other names that pointed at it.',
@@ -112,7 +114,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     toast(`${count(names.length, 'term')} deleted`, {
       description: others.length ? `With ${count(others.length, 'other name')}.` : undefined,
       duration: 10_000,
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
 
@@ -122,7 +124,7 @@ export function DefinitionsBulk({ sel, defs }: { sel: RowSelection; defs: Defini
     const { undo } = await write('moveTerms', { names: plan.act.map((x) => x.name), domain: d })
     settle(plan.act, plan.skipped)
     toast(`${count(plan.act.length, 'term')} moved to ${domains[d]?.name}`, {
-      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+      action: { label: 'Undo', onClick: () => void takeBack(undo) },
     })
   }
 

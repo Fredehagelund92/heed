@@ -67,7 +67,6 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
                   href={r.next.href}
                   className={cn(
                     buttonVariants({
-                      size: 'sm',
                       variant: r.next.label === 'Write it' ? 'default' : 'outline',
                     }),
                     'shrink-0',

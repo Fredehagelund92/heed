@@ -73,7 +73,7 @@ export function SaveStatus({ status, retry }: { status: SaveState; retry?: () =>
       />
       <span className="max-sm:sr-only">{words[status]}</span>
       {failed && retry && (
-        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={retry}>
+        <Button variant="link" className="h-auto p-0 text-xs" onClick={retry}>
           Try again
         </Button>
       )}
@@ -86,7 +86,7 @@ export function HeaderMore({ children }: { children?: ReactNode }) {
   const mobile = useIsMobile()
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="More" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More" />}>
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

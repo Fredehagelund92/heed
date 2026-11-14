@@ -90,7 +90,7 @@
   /* Chips: one tint per kind of thing a chip names, and one per domain (a domain's hue is its
      data). A chip sets --chip-h to a hue; bg-chip and text-chip-foreground draw it. Colour is
      never the only sign: every chip also has its type's icon and its words. */
-  --chip-h-metric: 255;
+  --chip-h-metric: 110;
   --chip-h-dimension: 210;
   --chip-h-market: 165;
   --chip-h-term: 300;

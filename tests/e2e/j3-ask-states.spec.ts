@@ -339,7 +339,7 @@ test('More holds Something wrong?, Save question and Share; an earlier answer sh
   await expect(page.getByText('Which part?')).toBeVisible()
 })
 
-test('The composer is one surface: no hairline or keys inside, a 32 px Send, corners of 14 px', async ({
+test('The composer is one surface: no hairline or keys inside, a 28 px Send, corners of 14 px', async ({
   page,
 }) => {
   await go(page, `/ask?n=${Date.now()}`)
@@ -364,7 +364,7 @@ test('The composer is one surface: no hairline or keys inside, a 32 px Send, cor
   expect(rules).toBe(0)
   const send = form.getByRole('button', { name: 'Ask', exact: true })
   const size = (await send.boundingBox())!
-  expect([size.width, size.height]).toEqual([32, 32])
+  expect([size.width, size.height]).toEqual([28, 28])
   // Its keys are in its tooltip.
   await page.getByRole('textbox', { name: 'Ask a question' }).pressSequentially('Orders')
   await send.hover()

@@ -16,7 +16,7 @@ Use the checklist while you build. The gates at the end are what CI and the revi
 
 Every mark has an icon, a shape or a word as well.
 
-- Answer lines: a word, an icon and a tint. Charts: blue, amber, greys and a hatch for Not found, with a table of the numbers for screen readers.
+- Answer lines: a word, an icon and a tint. Charts: green, amber, greys and a hatch for Not found, with a table of the numbers for screen readers.
 - Item status and kind: an icon with a tooltip that gives the exact value. Freshness is a filled, half or hollow dot with a value on hover.
 - Review marks: added words are underlined, removed words struck through, formatting has a dotted underline and names itself, a link shows its old and new address, a moved step says where it came from.
 - Saved question results: a check (Same), two arrows (Changed), a triangle (Needs a look).
@@ -40,7 +40,7 @@ Every mark has an icon, a shape or a word as well.
 
 - On a touch screen (`pointer: coarse`) every control can be hit with a finger: its tap area grows to **44 px** around it, while the control keeps the size it is drawn. Header actions are spaced so two 44 px areas never overlap.
 - Nothing on the review or the quick view is under 44 px under a finger. On a phone the decision bar's actions are 44 px.
-- On a desktop pointer, 24 px is the floor for any target, 28 px for row buttons, 32 px for default controls.
+- On a desktop pointer, 24 px is the floor for any target. A button is 28 px high, or 36 px for the one decision a pane or a page is for; a field is 32 px.
 - Lists on a phone use Select, and a tap then ticks a row.
 
 ## 5. Names, structure, forms
