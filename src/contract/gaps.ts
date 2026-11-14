@@ -6,7 +6,6 @@ import {
   gapStatuses,
   gapTypes,
 } from '../domain/gaps.ts'
-import { questionSplits } from '../domain/golden-question.ts'
 
 const gapId = z.string().check(z.uuid())
 /** A count below the minimum is null: hidden (FR-614). */
@@ -58,8 +57,9 @@ export const gapSchema = z.object({
       noItemCalls: shownCount,
     }),
   ),
+  /** The suggestions written for it (`proposals.source_gap_id`) that were not deleted. */
   proposals: z.array(z.string()),
-  /** Whether the signed-in person may change its status and read and add notes. */
+  /** Whether the signed-in person may set it aside or open it again, and read its notes. */
   canManage: z.boolean(),
 })
 export const gapNoteSchema = z.object({
@@ -67,33 +67,6 @@ export const gapNoteSchema = z.object({
   source: z.enum(gapNoteSources),
   note: z.string(),
   createdHour: z.string(),
-})
-/**
- * A test question linked to a gap (FR-610). Its first pass on the resolving edition or a later one,
- * and its newest result, so the gap's record shows where verification stands.
- */
-export const gapTestSchema = z.object({
-  question: z.string(),
-  split: z.enum(questionSplits),
-  /** Only an active question counts towards verification; a retired or saturated one is set aside. */
-  active: z.boolean(),
-  linkedHour: z.string(),
-  /** The failing run that led to the link, if one was named. */
-  evidenceRun: z.nullable(z.string()),
-  /** Its first pass in a weekly or full run on the resolving edition or a later one; null until then. */
-  passed: z.nullable(
-    z.object({ run: z.string(), edition: z.string(), revision: z.number(), hour: z.string() }),
-  ),
-  /** Its result in the newest finished weekly or full run of its area that tested it. */
-  latest: z.nullable(
-    z.object({
-      run: z.string(),
-      kind: z.enum(['scheduled', 'full']),
-      edition: z.string(),
-      finishedAt: z.string(),
-      verdict: z.nullable(z.enum(['pass', 'fail', 'no_answer'])),
-    }),
-  ),
 })
 /** One step of a gap's lifecycle from the history log: what happened and the hour, never who. */
 export const gapHistoryEntrySchema = z.object({
@@ -105,19 +78,12 @@ export const gapDetailSchema = z.extend(gapSchema, {
   /** Only owners of the area and administrators read notes (FR-611); null for anyone else. */
   notes: z.nullable(z.array(gapNoteSchema)),
   /**
-   * The live edition when an owner resolved the gap (FR-610). Null while it is not resolved, and
-   * for a gap resolved before Heed recorded the edition: unknown stays unknown.
+   * The live edition when the gap was covered (FR-610): the one that carries the context published
+   * for it. Null while it is not covered, and for a gap covered before Heed recorded the edition:
+   * unknown stays unknown.
    */
   resolvedEdition: z.nullable(z.string()),
-  /**
-   * Verified by test (FR-610): the hour and the edition on which every linked, active test had
-   * passed. It sits beside `resolved`, never instead of it, and every reader sees it.
-   */
-  verifiedAt: z.nullable(z.string()),
-  verifiedEdition: z.nullable(z.string()),
-  /** The linked tests, for owners of the area and administrators; null for anyone else. */
-  tests: z.nullable(z.array(gapTestSchema)),
-  /** The gap's lifecycle, oldest first, for the same readers as the tests; null for anyone else. */
+  /** The gap's moves, oldest first, for the same readers as the notes; null for anyone else. */
   history: z.nullable(z.array(gapHistoryEntrySchema)),
 })
 export const gapIdInputSchema = z.strictObject({ id: gapId })
@@ -139,6 +105,5 @@ export const topicCountsSchema = z.object({
 
 export type Gap = z.infer<typeof gapSchema>
 export type GapDetail = z.infer<typeof gapDetailSchema>
-export type GapTest = z.infer<typeof gapTestSchema>
 export type GapHistoryEntry = z.infer<typeof gapHistoryEntrySchema>
 export type TopicCounts = z.infer<typeof topicCountsSchema>

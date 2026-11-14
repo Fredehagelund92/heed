@@ -7,7 +7,7 @@ grant select on all tables in schema public to :api;
 grant insert on people, areas, area_assignments, global_role_grants, vocab_terms, vocab_term_versions, items, item_versions, item_version_metrics,
   item_version_dimension_values, item_version_dimensions, item_version_evidence, item_version_refs, item_version_replaces, item_version_conflicts, proposals, proposal_events,
   vocab_term_refs, decisions, check_results, connectors, connector_snapshots, definitions, definition_marks, overlay_events, topics, deliveries, topic_week_counts, gaps, gap_weekly_counts,
-  gap_proposals, gap_notes, feedback, golden_questions, golden_question_revisions, eval_runs, eval_cells, eval_transcripts, eval_baselines, retrieval_runs, retrieval_results, audit_log, outbox_events, inbox_items,
+  gap_notes, feedback, golden_questions, golden_question_revisions, eval_runs, eval_cells, eval_transcripts, eval_baselines, retrieval_runs, retrieval_results, audit_log, outbox_events, inbox_items,
   notification_prefs, chat_links, webhook_endpoints, webhook_deliveries, idempotency_keys, settings_versions, tool_config, client_policies, saved_views, import_batches,
   mcp_requests, llm_spend_daily, llm_spend_monthly, job_heartbeats to :api;
 grant update on people, areas, area_assignments, global_role_grants, proposals, definitions, connectors, golden_questions, gaps, gap_weekly_counts, topic_week_counts,
@@ -90,16 +90,10 @@ grant execute on function cl_outbox_relay(int) to :api;
 -- report (case 5), which writes no person.
 grant execute on function cl_gaps_detect(), cl_area_review_times(text, timestamptz) to :api;
 grant execute on function cl_report_gap_person(text, text, text[], text[], text[], date, gap_type, text, bytea, bytea) to :api;
--- Gap tests: an owner links and unlinks a gap's tests and attaches tests to drafts; a manager may record a
--- test's pass (a run records it through an owner-run function), and nothing else of a link changes. Who did it is in the history log, never in these rows.
-grant insert, delete on gap_tests, proposal_tests to :api;
-grant update (passed_run, passed_edition_seq, passed_revision, passed_hour) on gap_tests to :api;
--- Gap test reads: a gap's managers read its history log rows, never who; a draft started from a gap is
--- attached the gap's development tests though its author may not read the gap's links.
-grant execute on function cl_gap_history(uuid), cl_gap_draft_tests(uuid) to :api;
--- Gap verification: a finished weekly or full answer run, often without a person, reads its area's resolved
--- gaps' tests and records their passes.
-grant execute on function cl_gap_run_tests(uuid), cl_gap_record_pass(uuid, uuid, text) to :api;
+-- Tests attached to a draft (FR-524): an owner attaches and detaches them. Who did it is in the history log.
+grant insert, delete on proposal_tests to :api;
+-- A gap's managers read its history log rows, never who.
+grant execute on function cl_gap_history(uuid) to :api;
 -- Test runs: one row per model call, written once and never changed; an assistant case try is written when it
 -- starts and finished once.
 grant insert on model_calls, assistant_case_tries to :api;

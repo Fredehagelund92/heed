@@ -118,7 +118,7 @@ describe('the catalogue on PostgreSQL', () => {
          returning id)
        insert into gaps (topic_id,type,status,opened_by_case)
        select id, t.type::gap_type, t.status::gap_status, 2 from topic,
-         (values ('missing','open'),('outdated','proposal_made'),('incorrect','resolved')) as t(type,status)`,
+         (values ('missing','open'),('outdated','open'),('incorrect','wont_fix'),('unclear_question','resolved')) as t(type,status)`,
     )
     expect((await term('metric:orders'))!.shelf.gaps).toBe(before + 2)
     // One gap names two markets: it counts once for Market.

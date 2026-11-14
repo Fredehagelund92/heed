@@ -15,7 +15,6 @@ import {
 } from '../../src/server/modules/evals/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
-import { gapFixtures } from './fixtures/gaps.ts'
 import { generateItems, regression } from './fixtures/items.ts'
 import { areas } from './fixtures/reference-data.ts'
 import { bulkSeed, seedPersonId, type LibraryExtras } from './bulk.ts'
@@ -29,8 +28,8 @@ import { demoTestQuestions } from './test-questions.ts'
   the twelve weeks up to the newest edition. Offline and with no key: the runs and passes are the
   service's own, through the MCP gateway with the scripted mock model (MODELS=mock), on the
   edition that was live then and with the clock set to that day. The weekly run of the newest
-  Monday fails the demo's regression (`regression` in db/seed/fixtures/items.ts) on its note, and
-  the open gap about the same question is linked to it.
+  Monday fails the demo's regression (`regression` in db/seed/fixtures/items.ts) on its note,
+  which agents raised as an open gap about the same scope (gaps.ts).
 
   A run plans on the live edition, so each Monday the seed points the live edition back to the
   one live then, and restores it after the last run. The service stamps runs and passes with the
@@ -207,7 +206,7 @@ export async function seedDemo(client: pg.Client) {
     await client.query('update live_edition set seq=$1', [live.seq])
     for (const table of ['retrieval_runs', 'retrieval_results'])
       await client.query(`alter table ${identifier(table)} enable trigger user`)
-    await linkRegressionGap(db, lastMonday)
+    await checkRegression(db, lastMonday)
     await client.query('commit')
   } catch (error) {
     await client.query('rollback')
@@ -281,15 +280,14 @@ async function weeklyRuns(
  * weekly run passes every question, but the newest Sales run fails the regression's question
  * on its note, after the run before passed it: the Sales note it expects ended, so it is no
  * longer delivered (other domains' notes with the same words still carry the caveat, as every
- * domain is served). Then links the open gap agents raised about the
- * same scope (gaps.ts) to that question, with the failing run as its evidence.
+ * domain is served).
  */
-async function linkRegressionGap(db: Queryable, lastMonday: string) {
+async function checkRegression(db: Queryable, lastMonday: string) {
   const runs = await db.query<{ id: string; area: string; day: string; summary: RunSummary }>(
     `select id::text,area_id as area,(finished_at at time zone 'UTC')::date::text as day,summary
        from eval_runs where kind='scheduled' order by finished_at,area_id`,
   )
-  let evidence: string | null = null
+  let failed = false
   for (const run of runs) {
     const card = run.summary.result?.scorecard
     const newest = run.area === 'area_sales' && run.day === lastMonday
@@ -309,14 +307,9 @@ async function linkRegressionGap(db: Queryable, lastMonday: string) {
       !question?.layers?.baseline.failedChecks.includes('delivered')
     )
       throw new Error(`The weekly run of ${run.day} does not show the regression on its note`)
-    evidence = run.id
+    failed = true
   }
-  const gap = gapFixtures.find((g) => g.topic.includes('metric:net_revenue|val:market/spain'))
-  if (!evidence || !gap) throw new Error('The demo has no failing run or gap to link')
-  await db.query(
-    `insert into gap_tests(gap_id,question_id,evidence_run,linked_hour) values($1,$2,$3,$4)`,
-    [gap.id, regression.question, evidence, at(shiftDate(lastMonday, 1), '09:00')],
-  )
+  if (!failed) throw new Error('The demo has no failing weekly run')
 }
 
 /** What `loadDemo` added. */

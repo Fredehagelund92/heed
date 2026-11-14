@@ -290,7 +290,7 @@ import {
 import { operationsOverviewSchema, runJobInputSchema, runJobSchema } from './operations.ts'
 import { refusals } from './refusals.ts'
 export * from './schemas.ts'
-export type { Gap, GapDetail, GapHistoryEntry, GapTest, TopicCounts } from './gaps.ts'
+export type { Gap, GapDetail, GapHistoryEntry, TopicCounts } from './gaps.ts'
 export type {
   AddSourceInput,
   ConnectorListing,
@@ -1229,8 +1229,7 @@ export const contract = {
         method: 'GET',
         path: '/gaps/{id}',
         tags: ['gaps'],
-        summary:
-          'One gap, whether it is verified by test, and for its owners and administrators its notes, linked tests and history',
+        summary: 'One gap, and for its owners and administrators its notes and history',
       })
       .input(gapIdInputSchema)
       .output(gapDetailSchema),

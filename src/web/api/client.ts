@@ -420,9 +420,13 @@ export interface HeedApi {
   applyBulk: (input: BulkChange) => Promise<{ done: string[]; failed: string[] } & Undoable>
   /**
    * A suggestion sent from the editor to the owners: `fact` is the version it suggests. It waits,
-   * visibly, until they decide.
+   * visibly, until they decide. `gap` is the Not found card it answers, as for `saveItem`.
    */
-  sendSuggestion: (input: { sent: Omit<Sent, 'id'>; fact: Fact }) => Promise<{ id: string }>
+  sendSuggestion: (input: {
+    sent: Omit<Sent, 'id'>
+    fact: Fact
+    gap?: string
+  }) => Promise<{ id: string }>
   withdrawSuggestion: (input: { id: string }) => Promise<void>
   /** Takes back exactly what one write changed, and nothing done since. */
   undo: (input: { token: string }) => Promise<void>

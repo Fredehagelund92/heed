@@ -193,14 +193,14 @@ beforeAll(async () => {
   await gap('italy', 'marketing')
   await gap('nordics', 'finance')
   await gap('late', 'finance')
-  // Poland: raised 5 October, an owner wrote a draft for it 8 October (its state changed).
+  // Poland: raised 5 October, an owner published context for it 8 October (its state changed).
   await raise('gap', gaps.poland!.id, ['finance'], '2026-10-05T06:00:00Z', {
     card: `gap:${gaps.poland!.id}`,
   })
   await client.query(
     `insert into audit_log (at, actor_id, actor_kind, action, area_id, subject_type, subject_id, details)
      values ('2026-10-08T09:00:00Z', $1, 'person', 'gap.status_changed', 'finance', 'gap', $2,
-             '{"from":"open","to":"proposal_made"}')`,
+             '{"from":"open","to":"resolved"}')`,
     [people.owner, gaps.poland!.ref],
   )
   // Spain: raised 1 October, closed 20 October: more than 14 days later, so not acted on.
@@ -217,31 +217,21 @@ beforeAll(async () => {
   await raise('gap', gaps.italy!.id, ['marketing'], '2026-10-07T06:00:00Z', {
     card: `gap:${gaps.italy!.id}`,
   })
-  const { rows: draft } = await client.query<{ id: string }>(
-    `insert into proposals (subject, action, state, area_id, proposer_id, channel, created_at, draft)
-     values ('item', 'create', 'draft', 'marketing', $1, 'form', '2026-10-09T10:00:00Z', '{}')
-     returning id::text`,
-    [people.admin],
+  await client.query(
+    `insert into proposals (subject, action, state, area_id, proposer_id, channel, created_at, draft, source_gap_id)
+     values ('item', 'create', 'draft', 'marketing', $1, 'form', '2026-10-09T10:00:00Z', '{}', $2)`,
+    [people.admin, gaps.italy!.id],
   )
-  await client.query(`insert into gap_proposals (gap_id, proposal_id) values ($1, $2)`, [
-    gaps.italy!.id,
-    draft[0]!.id,
-  ])
   // The Nordics, about two domains: someone who is no owner wrote a suggestion, which is not an
   // owner acting on it.
   await raise('gap', gaps.nordics!.id, ['finance', 'marketing'], '2026-10-12T06:00:00Z', {
     card: `gap:${gaps.nordics!.id}`,
   })
-  const { rows: suggestion } = await client.query<{ id: string }>(
-    `insert into proposals (subject, action, state, area_id, proposer_id, channel, created_at, draft)
-     values ('item', 'create', 'draft', 'finance', $1, 'form', '2026-10-13T10:00:00Z', '{}')
-     returning id::text`,
-    [people.author],
+  await client.query(
+    `insert into proposals (subject, action, state, area_id, proposer_id, channel, created_at, draft, source_gap_id)
+     values ('item', 'create', 'draft', 'finance', $1, 'form', '2026-10-13T10:00:00Z', '{}', $2)`,
+    [people.author, gaps.nordics!.id],
   )
-  await client.query(`insert into gap_proposals (gap_id, proposal_id) values ($1, $2)`, [
-    gaps.nordics!.id,
-    suggestion[0]!.id,
-  ])
   // Saved questions need a look in Finance on 20 October; an owner kept a new answer next day.
   await raise('saved', 'finance:2026-10-20T12:00:00.000Z', ['finance'], '2026-10-20T12:05:00Z', {
     card: 'look:finance',

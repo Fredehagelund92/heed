@@ -157,7 +157,7 @@ export function createCatalogueService(
          (select coalesce(json_agg(m), '[]') from mentions m) as mentions,
          (select coalesce(json_agg(t.metric_keys || t.value_keys || t.dimension_keys), '[]')
             from gaps g join topics t on t.id = g.topic_id
-           where g.status in ('open', 'proposal_made')) as gaps,
+           where g.status = 'open') as gaps,
          ${libraryIndexItems} as items`,
       [groups],
     )

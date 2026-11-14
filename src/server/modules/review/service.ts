@@ -8,6 +8,7 @@ import { shiftDate } from '../../../domain/validity.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { lockReleases, publishEdition } from '../editions/index.ts'
+import { createGapsService } from '../gaps/index.ts'
 import {
   insertVersion,
   openIssueDays,
@@ -278,16 +279,20 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         : { reason: 'proposal_accepted', serve: [version.id], close: replaced },
       version.version.areaId,
     )
-    return {
-      proposal: await moved(
-        p,
-        'accepted',
-        'decided',
-        { ...data, edition: edition.label },
-        recheck ? 'item.rechecked' : 'decision.accept',
-      ),
-      edition,
-    }
+    const proposal = await moved(
+      p,
+      'accepted',
+      'decided',
+      { ...data, edition: edition.label },
+      recheck ? 'item.rechecked' : 'decision.accept',
+    )
+    // Context written for a Not found card covers its gap once agents get it (FR-609).
+    const [written] = await tx.query<{ gap: string | null }>(
+      'select source_gap_id::text as gap from proposals where id=$1',
+      [p.id],
+    )
+    if (written?.gap) await createGapsService(tx).cover(written.gap, version.version.title)
+    return { proposal, edition }
   }
 
   async function decideRetirement(p: LoadedProposal, input: Decide) {

@@ -1099,10 +1099,6 @@ export async function seedDemoWeek(
       `update proposals set source_gap_id = $1, provenance = '{"by":"assistant","fields":{},"flags":[]}' where id = $2`,
       [gap!.id, ids['gap-spain']],
     )
-    await after.query('insert into gap_proposals (gap_id, proposal_id) values ($1, $2)', [
-      gap!.id,
-      ids['gap-spain'],
-    ])
     // The workspace finished its setup: agents asked through MCP, and someone used Ask.
     await after.query(
       `insert into mcp_requests (client_label, tool, status, app_family) values ('claude', 'get_context', 'ok', 'claude_code')`,

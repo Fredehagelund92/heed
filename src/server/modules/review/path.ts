@@ -28,6 +28,7 @@ import type { Queryable } from '../../db/database.ts'
 import { reachOfDraft, type BundleCache } from '../answer/index.ts'
 import { syncedOf } from '../connectors/index.ts'
 import { loadServingBundle, publishEdition, type ServingBundle } from '../editions/index.ts'
+import { createGapsService } from '../gaps/index.ts'
 import { forReader } from '../library/index.ts'
 import { draftChecks } from '../saved-questions/index.ts'
 import {
@@ -850,6 +851,12 @@ export function createReviewPath(
         await tx.query("update proposals set state='submitted',closed_at=null where id=$1", [p.id])
       } else if (p.state === 'accepted') {
         await tx.query("update proposals set state='submitted',closed_at=null where id=$1", [p.id])
+        // The gap its publish covered is open again (FR-609).
+        const [written] = await tx.query<{ gap: string | null }>(
+          'select source_gap_id::text as gap from proposals where id=$1',
+          [p.id],
+        )
+        if (written?.gap && d.servedAt) await createGapsService(tx).uncover(written.gap, d.servedAt)
         // A check undone is no suggestion to decide: it goes, and the item is due again.
         if (d.action === 'recheck')
           await tx.query(

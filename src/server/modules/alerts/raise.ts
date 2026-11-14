@@ -128,7 +128,7 @@ const rules: Record<AlertRuleId, (c: Context) => Raise[] | Promise<Raise[]>> = {
               coalesce((select w.reports - w.human_reports + w.no_item_calls from gap_weekly_counts w
                          where w.gap_id = g.id and w.week = date_trunc('week', now() at time zone 'UTC')::date), 0)::int as calls
          from gaps g join topics t on t.id = g.topic_id
-        where g.status in ('open', 'proposal_made')
+        where g.status = 'open'
         order by g.status_since, g.id`,
     )
     return rows.map((g) => ({

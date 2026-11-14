@@ -42,11 +42,9 @@ const columns = {
     'opened_by_case',
     'first_seen',
     'last_seen',
-    'verified_at',
     'created_at',
     'status_since',
     'resolved_edition_seq',
-    'verified_edition_seq',
   ],
   feedback: [
     'id',
@@ -221,8 +219,7 @@ it('lets anonymous tables reference only non-person tables, in every schema', as
     [anonymous],
   )
   // Outbound: editions, areas and each other. Inbound: each other, plus the remedy side, where a
-  // proposal or a linked test question names the gap it answers (it names its writer, never who
-  // asked).
+  // proposal names the gap it answers (it names its writer, never who asked).
   expect(references.rows).toEqual([
     { source: 'assistant_ratings', target: 'areas' },
     { source: 'deliveries', target: 'editions' },
@@ -230,12 +227,9 @@ it('lets anonymous tables reference only non-person tables, in every schema', as
     { source: 'feedback', target: 'areas' },
     { source: 'feedback', target: 'gaps' },
     { source: 'gap_notes', target: 'gaps' },
-    { source: 'gap_proposals', target: 'gaps' },
     { source: 'gap_report_keys', target: 'gaps' },
-    { source: 'gap_tests', target: 'gaps' },
     { source: 'gap_weekly_counts', target: 'gaps' },
-    // The editions that resolved it and verified it.
-    { source: 'gaps', target: 'editions' },
+    // The edition that covered it.
     { source: 'gaps', target: 'editions' },
     { source: 'gaps', target: 'topics' },
     { source: 'obs_caught_weekly', target: 'areas' },
@@ -253,7 +247,7 @@ it('keeps every time on an anonymous record to the hour, by constraint', async (
       where table_schema='public' and table_name = any($1) and data_type like 'timestamp%'`,
     [anonymous],
   )
-  expect(times.rows.length).toBe(10)
+  expect(times.rows.length).toBe(9)
   for (const { table_name: table, column_name: column } of times.rows) {
     const checks = await client.query<{ def: string }>(
       "select pg_get_constraintdef(oid) as def from pg_constraint where conrelid = $1::regclass and contype = 'c'",
@@ -339,19 +333,9 @@ it('lets the API role add a rating, never change or remove one, and no other rol
       await expect(as(role, sql), `${role}: ${sql}`).rejects.toMatchObject({ code: '42501' })
 })
 
-// FR-610 and FR-524: the links from a gap or a proposal to test questions are remedy records. Who
-// linked or attached a test is in the history log; the rows name nobody and keep only the hour.
+// FR-524: the links from a proposal to test questions are remedy records. Who attached a test is in
+// the history log; the rows name nobody and keep only the hour.
 const testLinks = {
-  gap_tests: [
-    'gap_id',
-    'question_id',
-    'evidence_run',
-    'linked_hour',
-    'passed_run',
-    'passed_edition_seq',
-    'passed_revision',
-    'passed_hour',
-  ],
   proposal_tests: ['proposal_id', 'question_id', 'attached_hour'],
 }
 it.each(Object.entries(testLinks))(

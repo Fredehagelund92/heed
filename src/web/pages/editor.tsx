@@ -511,6 +511,7 @@ function Editor({
       // It waits visibly: a line on the item, and a row under All in your Inbox.
       const { id } = await write('sendSuggestion', {
         fact: draft,
+        gap: query.get('gap') ?? undefined,
         sent: {
           factId: original?.id,
           title: form.title,

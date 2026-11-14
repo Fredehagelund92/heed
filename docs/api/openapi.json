@@ -42802,6 +42802,10 @@
                     "type": "string",
                     "maxLength": 500
                   },
+                  "gapId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
                   "relations": {
                     "type": "array",
                     "maxItems": 20,
@@ -54882,7 +54886,7 @@
     "/gaps/{id}": {
       "get": {
         "operationId": "gaps.get",
-        "summary": "One gap, whether it is verified by test, and for its owners and administrators its notes, linked tests and history",
+        "summary": "One gap, and for its owners and administrators its notes and history",
         "tags": [
           "gaps"
         ],
@@ -54990,7 +54994,6 @@
                     "status": {
                       "enum": [
                         "open",
-                        "proposal_made",
                         "wont_fix",
                         "resolved"
                       ],
@@ -55153,156 +55156,6 @@
                         }
                       ]
                     },
-                    "verifiedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "verifiedEdition": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "tests": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "question": {
-                                "type": "string"
-                              },
-                              "split": {
-                                "enum": [
-                                  "development",
-                                  "held_out"
-                                ],
-                                "type": "string"
-                              },
-                              "active": {
-                                "type": "boolean"
-                              },
-                              "linkedHour": {
-                                "type": "string"
-                              },
-                              "evidenceRun": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "passed": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "run": {
-                                        "type": "string"
-                                      },
-                                      "edition": {
-                                        "type": "string"
-                                      },
-                                      "revision": {
-                                        "type": "number"
-                                      },
-                                      "hour": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "run",
-                                      "edition",
-                                      "revision",
-                                      "hour"
-                                    ]
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "latest": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "run": {
-                                        "type": "string"
-                                      },
-                                      "kind": {
-                                        "enum": [
-                                          "scheduled",
-                                          "full"
-                                        ],
-                                        "type": "string"
-                                      },
-                                      "edition": {
-                                        "type": "string"
-                                      },
-                                      "finishedAt": {
-                                        "type": "string"
-                                      },
-                                      "verdict": {
-                                        "anyOf": [
-                                          {
-                                            "enum": [
-                                              "pass",
-                                              "fail",
-                                              "no_answer"
-                                            ],
-                                            "type": "string"
-                                          },
-                                          {
-                                            "type": "null"
-                                          }
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "run",
-                                      "kind",
-                                      "edition",
-                                      "finishedAt",
-                                      "verdict"
-                                    ]
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "question",
-                              "split",
-                              "active",
-                              "linkedHour",
-                              "evidenceRun",
-                              "passed",
-                              "latest"
-                            ]
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
                     "history": {
                       "anyOf": [
                         {
@@ -55312,13 +55165,7 @@
                             "properties": {
                               "action": {
                                 "enum": [
-                                  "gap.status_changed",
-                                  "gap.note_added",
-                                  "gap.draft_started",
-                                  "gap.test_linked",
-                                  "gap.test_unlinked",
-                                  "gap.verified",
-                                  "gap.verification_cleared"
+                                  "gap.status_changed"
                                 ],
                                 "type": "string"
                               },
@@ -55365,9 +55212,6 @@
                     "canManage",
                     "notes",
                     "resolvedEdition",
-                    "verifiedAt",
-                    "verifiedEdition",
-                    "tests",
                     "history"
                   ]
                 }
