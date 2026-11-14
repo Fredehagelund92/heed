@@ -334,9 +334,9 @@ export function ContextPage() {
             </span>
           </span>
         </td>
-        <td className="hidden w-50.5 max-w-50.5 min-w-50.5 px-1.5 align-middle text-sm text-muted-foreground @min-[60rem]/main:table-cell">
-          {/* The scope as the same tag chips as everywhere: two, then how many more. */}
-          <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+        <td className="hidden w-px min-w-50.5 px-1.5 align-middle text-sm text-muted-foreground @min-[60rem]/main:table-cell">
+          {/* The scope as the same tag chips as everywhere: two, then how many more. The column is as wide as the chips it holds, up to 20rem; past that the metric chip is cut first. */}
+          <span className="flex max-w-80 min-w-0 items-center gap-1 overflow-hidden">
             {f.where.slice(0, 2).map((w) => (
               <WhereChip key={w} w={w} label={<Highlight text={w} query={text} />} />
             ))}
@@ -647,7 +647,7 @@ export function ContextPage() {
                         <span className="sr-only">Kind</span>
                       </Th>
                       {sortTh('title', 'w-full px-1.5 @max-xl/main:px-3')}
-                      <Th className="hidden w-50.5 min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
+                      <Th className="hidden w-px min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
                         Scope
                       </Th>
                       <Th className="hidden w-18 min-w-18 px-1.5 @xl/main:table-cell">Status</Th>

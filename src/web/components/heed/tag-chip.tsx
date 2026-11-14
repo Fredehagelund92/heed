@@ -7,7 +7,8 @@ import { useDomains } from '@/lib/workspace'
 import type { DomainId } from '@/model/items'
 
 // The one chip: 24px, a 6px radius, tinted by what it names, with its type's icon. Tags in the
-// editor, Details, the list's Scope column and filters all use it.
+// editor, Details, the list's Scope column and filters all use it. A metric's name is the one that
+// gives way when a row is tight; a market, a domain or a dimension keeps its words (WhereChip).
 
 export function TagChip({
   tone = 'neutral',
@@ -89,6 +90,7 @@ export function WhereChip({
       onRemove={onRemove}
       removeLabel={onRemove ? `Remove ${w}` : undefined}
       title={w}
+      className={kind === 'metric' ? undefined : 'shrink-0'}
     >
       {label ?? w}
     </TagChip>

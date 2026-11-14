@@ -202,7 +202,7 @@ function RowMeta({ row, plain }: { row: InboxRow; plain: boolean }) {
     )
   const care = rowCare(row, reviews)
   return (
-    <span className="line-clamp-1 text-xs text-muted-foreground">
+    <span className="line-clamp-2 text-xs text-muted-foreground">
       {meta(
         row,
         reviews,
@@ -355,7 +355,7 @@ function InboxList({
                   data-row-open={id}
                   aria-current={isSelected || undefined}
                   onClick={(e) => sel.rowClick(id, e) || onSelect(id)}
-                  className="flex h-16 min-w-0 flex-1 items-center gap-3 px-4 text-left outline-none @md:pr-6 @md:pl-0"
+                  className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-4 py-2 text-left outline-none @md:pr-6 @md:pl-0"
                 >
                   <span
                     aria-hidden={!care}
@@ -375,6 +375,7 @@ function InboxList({
                   <span className="min-w-0 flex-1 space-y-1">
                     <TruncatedText
                       text={rowTitle(row)}
+                      lines={2}
                       className={cn(
                         'text-sm leading-snug',
                         done ? 'text-muted-foreground' : 'text-foreground',
