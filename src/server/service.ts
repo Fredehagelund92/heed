@@ -156,26 +156,6 @@ async function compose(
         error instanceof Error ? error.message : 'the login server could not start',
       )
     }
-    // A disconnect shortly before a restart still refuses that connection's access tokens. Until
-    // the list is read, tokens issued before the start are refused (revocations), so it is
-    // read again every 30 seconds until it works.
-    const loginServer = login
-    const loadRevocations = () =>
-      loginServer.loadRevocations(database).then(
-        () => true,
-        () => {
-          logger.warn('recent disconnects not read: the database is not reachable')
-          return false
-        },
-      )
-    if (!(await loadRevocations())) {
-      const retry = setInterval(() => {
-        void loadRevocations().then((done) => {
-          if (done) clearInterval(retry)
-        })
-      }, 30_000)
-      retry.unref()
-    }
   }
   // How people sign in (HEED_AUTH): the picker from a local file, or the company's OIDC provider.
   let signIn: SignIn

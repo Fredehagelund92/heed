@@ -1,4 +1,4 @@
-import type { Answer, AskInput, Thread } from './ask'
+import type { Answer, AskInput, Example, Thread } from './ask'
 import { isLive, type Turn } from './ask-turn'
 
 // Which chat a thread in Ask is, and whether it has joined the history. One value per mounted
@@ -59,9 +59,16 @@ export function openingAnswers(session: Session, first: Answer | undefined): Ans
   return first ? [first] : []
 }
 
-/** Whether the thread can show: a session that reads its first answer waits for it. */
-export const ready = (session: Session, first: Answer | undefined) =>
-  firstRead(session) === null || !!first
+/** The question a thread opens on when its first read failed: the chat's own, or the example's. */
+export function openingQuestion(
+  session: Session,
+  examples: readonly Pick<Example, 'id' | 'question'>[],
+) {
+  if (session.kind === 'history') return session.question
+  if (session.kind === 'example')
+    return examples.find((e) => e.id === session.example)?.question ?? ''
+  return ''
+}
 
 export type SessionEvent = {
   /** A turn was answered, whichever button asked it: the first question, Ask again, a follow-up. */

@@ -6,7 +6,7 @@ import {
   nextTurnId,
   openingAnswers,
   placeOf,
-  ready,
+  openingQuestion,
   reduce,
   sessionOf,
   type SessionEvent,
@@ -88,8 +88,10 @@ describe('what a thread is when it mounts', () => {
     const history = { kind: 'history', chat: 'a', question: 'Q?', answers: kept } as const
     expect(firstRead(history)).toBeNull()
     expect(openingAnswers(history, undefined)).toBe(kept)
-    expect(ready(history, undefined)).toBe(true)
-    expect(ready({ kind: 'example', example: 'e' }, undefined)).toBe(false)
+    expect(openingQuestion(history, [])).toBe(history.question)
+    expect(
+      openingQuestion({ kind: 'example', example: 'e' }, [{ id: 'e', question: 'Why E?' }]),
+    ).toBe('Why E?')
     expect(openingAnswers({ kind: 'example', example: 'e' }, answer('x', 'Q?'))).toHaveLength(1)
   })
 })

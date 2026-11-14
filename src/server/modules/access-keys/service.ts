@@ -213,16 +213,23 @@ export const servingKeyCheck =
   }
 
 /**
- * Which agent a person's connection signs in as, and its tools on, on the serving database through
- * the one function the serving role may call (FR-420).
+ * Whether a person's connection is open, which agent it signs in as and its tools on, on the
+ * serving database through the one function the serving role may call (FR-420).
  */
 export const servingAgentCheck =
   (database: Queryable): AgentCheck =>
   async (connection) => {
     if (!/^[0-9a-f-]{36}$/i.test(connection)) return null
-    const [row] = await database.query<{ agentId: string; tools: string[] }>(
-      `select agent_id::text as "agentId", tools from serving_agent_tools($1)`,
-      [connection],
-    )
-    return row ? { agentId: row.agentId, tools: known(row.tools) } : null
+    const [row] = await database.query<{
+      state: 'open' | 'revoked' | 'expired'
+      agentId: string | null
+      tools: string[] | null
+    }>(`select state, agent_id::text as "agentId", tools from serving_agent_tools($1)`, [
+      connection,
+    ])
+    if (!row) return null
+    return {
+      state: row.state,
+      agent: row.agentId ? { agentId: row.agentId, tools: known(row.tools ?? []) } : null,
+    }
   }

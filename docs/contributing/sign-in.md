@@ -51,9 +51,9 @@ administrator gives it.
   off for every agent.
 - **At the next request.** The MCP server asks the serving database at every request which tools
   the agent has on (`serving_agent_tools` for a connection, `serving_access_key` for a key), and
-  reads no agent row itself. A tool switched off is neither listed nor run, and a call to it is
-  refused with a plain sentence; an agent with every tool off gets nothing. Neither answer is a
-  scope challenge, so the app does not ask the person to sign in again for what an administrator
+  reads no agent row itself. Both also say whether the connection or key is still open. A tool
+  switched off is neither listed nor run, and a call to it is refused with a plain sentence; an
+  agent with every tool off gets nothing. Neither answer is a scope challenge, so the app does not ask the person to sign in again for what an administrator
   took away.
 - **Named on what it sends.** A suggestion an agent sends names the agent, by its name at the time,
   beside the person who said yes (`proposals.agent_id`, `proposals.agent_name`). The Inbox, the
@@ -265,12 +265,10 @@ Every setting, with its default, is on [Sign in your own agent](../ai-sign-in.md
 - **Errors.** Answers say what is wrong in general words (`invalid_grant`) and never why a
   specific token failed; logs carry reason codes, never tokens, codes, people or addresses.
 
-Known limits of the first build: disconnecting refuses access tokens at once only in the process
-that disconnected (one process today; several instances need a shared list, or they wait out the
-ten minutes); rate counts live in one process. Removing a person from the workspace ends their
-connections in the same step (`person_inactive`), so their access tokens are refused at once. After a restart the service reads the
-disconnects of the last eleven minutes; until it has, it refuses every access token issued before
-it started (apps get new ones with their refresh tokens), and it tries again every 30 seconds.
+Known limits of the first build: rate counts live in one process. Removing a person from the
+workspace ends their connections in the same step (`person_inactive`). A connection that has
+ended, or passed `expires_at`, is refused at the next request in every instance, since
+`serving_agent_tools` answers `open`, `revoked` or `expired` from the database on each one.
 
 ## Signing in to the web app with your company's provider (OIDC)
 
