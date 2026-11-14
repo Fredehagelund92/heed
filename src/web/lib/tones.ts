@@ -10,7 +10,7 @@ import type { Domains } from '@/model/people'
 export type Tone = 'neutral' | 'metric' | 'dimension' | 'market' | 'term' | 'domain' | 'warn'
 
 export const toneHue: Record<Exclude<Tone, 'neutral' | 'domain'>, number> = {
-  metric: 255,
+  metric: 110,
   dimension: 210,
   market: 165,
   term: 300,

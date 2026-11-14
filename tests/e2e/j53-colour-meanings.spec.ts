@@ -79,4 +79,16 @@ for (const theme of ['light', 'dark'] as const)
         expect(apart, `a domain dot at hue ${hue}, the accent is ${accent}`).toBeGreaterThan(30)
       }
     })
+
+    test('a metric chip is not the accent', async ({ page }) => {
+      await go(page, '/inbox')
+      const accent = await hueOf(page, 'var(--primary)')
+      const chips = page.locator('[style*="--chip-h: 110"]')
+      await expect(chips.first()).toBeVisible()
+      for (const chip of await chips.all()) {
+        const hue = await hueOf(page, await css(chip, 'background-color'))
+        const apart = Math.min(Math.abs(hue - accent), 360 - Math.abs(hue - accent))
+        expect(apart, `a metric chip at hue ${hue}, the accent is ${accent}`).toBeGreaterThan(30)
+      }
+    })
   })

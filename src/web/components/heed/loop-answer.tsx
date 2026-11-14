@@ -69,7 +69,7 @@ export function LoopProgress({ turn }: { turn: Turn }) {
       {steps.map((s, i) => (
         <li key={i} className="flex items-center gap-2">
           {s.done ? (
-            <P.CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <P.CheckIcon aria-hidden className="size-4 shrink-0 text-good" />
           ) : (
             <span aria-hidden className="size-4 shrink-0" />
           )}

@@ -471,7 +471,7 @@ function Outcome({
       >
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
           <span className="flex value-changed items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 font-semibold">
-            <CircleCheckIcon aria-hidden className="size-4 text-primary" />
+            <CircleCheckIcon aria-hidden className="size-4 text-good" />
             {o.chip}
           </span>
           <span className="min-w-0 flex-1 text-pretty">{o.line}</span>
