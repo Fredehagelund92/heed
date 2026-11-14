@@ -40,7 +40,9 @@ export const webWordsFiles = ['src/web/**/*.{ts,tsx}']
  */
 export const webNotProductFiles = [
   'src/web/components/ui/**',
+  // The editor's own labels are copy people read (DEFAULT_LABELS); the rest is the editor as it ships.
   'src/web/components/editor/**',
+  '!src/web/components/editor/labels.ts',
   'src/web/components/static-renderer/**',
   'src/web/**/*.gen.ts',
 ]
@@ -126,6 +128,11 @@ const codeNames = new Set([
   'value',
   'variant',
 ])
+/**
+ * Keys that name code when their value is one lowercase word, and text when it reads as a
+ * sentence or a label: a toast's `action`, an option's `value`.
+ */
+const wideKeys = new Set(['action', 'value'])
 const codeKey = (name) =>
   codeNames.has(name) ||
   name.startsWith('data-') ||
@@ -166,8 +173,10 @@ function calleeName(call) {
 /**
  * Whether a string sits where a person reads it, judged by the code around it. `errorsOnly`
  * keeps only the message of an error the server answers with (`new ORPCError(code, { message })`).
+ * `wide` also reads what the narrow reading takes for code: the body of a `switch` case, and a
+ * string under `action` or `value` that has a space or a capital (`text` says which).
  */
-function readsAsText(node, errorsOnly) {
+export function readsAsText(node, errorsOnly, wide = false, text = '') {
   let child = node
   let inMessage = false
   for (let parent = node.parent; parent; child = parent, parent = parent.parent) {
@@ -185,8 +194,11 @@ function readsAsText(node, errorsOnly) {
       case 'TSImportType':
       case 'TSExternalModuleReference':
       case 'TaggedTemplateExpression':
-      case 'SwitchCase':
         return false
+      case 'SwitchCase':
+        // Its test is a value to compare with; its body is where the sentences are.
+        if (!wide || parent.test === child) return false
+        break
       case 'ExpressionStatement': // a directive, such as 'use client'; a call's arguments are text
         if (child === node) return false
         break
@@ -200,7 +212,10 @@ function readsAsText(node, errorsOnly) {
       case 'PropertyDefinition':
       case 'MethodDefinition':
         if (parent.key === child) return false
-        if (codeKey(nameOf(parent.key) ?? '')) return false
+        if (codeKey(nameOf(parent.key) ?? '')) {
+          if (!(wide && wideKeys.has(nameOf(parent.key) ?? '') && /[\s\p{Lu}]/u.test(text)))
+            return false
+        }
         if (nameOf(parent.key) === 'message') inMessage = true
         break
       case 'JSXAttribute':
@@ -221,9 +236,13 @@ function readsAsText(node, errorsOnly) {
   return !errorsOnly
 }
 
-/** Text with no space that is all lowercase, or made of code's marks, is a key or an id. */
-const looksLikeCode = (text) => {
+/**
+ * Text with no space that is all lowercase, or made of code's marks, is a key or an id. `wide`
+ * reads one word that ends in an ellipsis ("Publishing…") as text.
+ */
+export const looksLikeCode = (text, wide = false) => {
   const trimmed = text.trim()
+  if (wide && /^\p{L}+…$/u.test(trimmed)) return false
   return (
     !/\p{L}/u.test(trimmed) ||
     (!/\s/.test(trimmed) && (!/\p{Lu}/u.test(trimmed) || /[^\p{L}\p{N}'’.,!?:;()-]/u.test(trimmed)))
@@ -231,17 +250,26 @@ const looksLikeCode = (text) => {
 }
 
 /** A key built from a kind and an id, such as `item ${id}`: one lowercase word, then the id. */
-const kindAndId = (node) =>
+export const kindAndId = (node) =>
   node.parent.type === 'TemplateLiteral' &&
   node.parent.quasis.length === 2 &&
   /^\p{Ll}+ $/u.test(node.parent.quasis[0].value.cooked ?? '') &&
   node.parent.quasis[1].value.cooked === ''
 
 /** A code sample in a string: JSON, a command line, markup or a function call. */
-const codeSample = (text) =>
+export const codeSample = (text) =>
   /[{[]\s*"[^"]*"\s*:|=>|<\/|\/>|^\s*(\$|npx|npm|claude|curl) /m.test(text)
 
-const plainWords = {
+/**
+ * The rule in three forms. `plain-words` is the one that has always run: the earlier glossary on
+ * the server's sentences, glossary v2 in the web app. `plain-words-wide` is glossary v2 on the
+ * text the narrow reading takes for code (a `switch` body, a toast's `action`, a one-word
+ * "Publishing…"). `plain-words-v2` is glossary v2 on what people read outside the web app:
+ * `src/domain`, the contract, the connectors' forms, the demo's fixtures and the server's errors.
+ * The last two are ratchets: scripts/check-plain-words.ts counts them in
+ * copy-checks.baseline.json and fails on a rise.
+ */
+const makePlainWords = (form) => ({
   meta: {
     type: 'suggestion',
     docs: { description: 'Write the words people read in the words of the glossary.' },
@@ -269,16 +297,20 @@ const plainWords = {
     const errorsOnly = context.options[0]?.errorsOnly ?? false
     const path = relative(context.cwd, context.filename)
     const toChange =
-      context.options[0]?.glossary === 'web'
+      context.options[0]?.glossary === 'web' || form !== 'plain-words'
         ? (text) => {
-            const places = webPlacesOf(path)
+            // A connector names its own tool in its own form.
+            const places = path.startsWith('src/connectors/') ? ['Integrations'] : webPlacesOf(path)
             return webWordsToChange(text, places).map((c) => ({ ...c, rule: 'webGlossary' }))
           }
         : (text) => wordsToChange(text, [])
     const check = (node, text, whole, isJsx) => {
       if (typeof text !== 'string' || !text.trim()) return
-      if (!isJsx && (looksLikeCode(whole) || codeSample(whole))) return
-      if (!readsAsText(node, errorsOnly)) return
+      const reads = (wide) =>
+        (isJsx || !(looksLikeCode(whole, wide) || codeSample(whole))) &&
+        readsAsText(node, errorsOnly, wide, text)
+      // The wide form reports only what the narrow reading leaves out, so no word counts twice.
+      if (form === 'plain-words-wide' ? reads(false) || !reads(true) : !reads(false)) return
       // Each word is reported where it stands, so a long text shows which words to change.
       const source = context.sourceCode.getText(node)
       let from = 0
@@ -302,9 +334,16 @@ const plainWords = {
       JSXText: (node) => check(node, node.value, node.value, true),
     }
   },
-}
+})
 
-const plugin = { rules: { 'plain-words': plainWords } }
+const plainWords = makePlainWords('plain-words')
+const plugin = {
+  rules: {
+    'plain-words': plainWords,
+    'plain-words-wide': makePlainWords('plain-words-wide'),
+    'plain-words-v2': makePlainWords('plain-words-v2'),
+  },
+}
 export default plugin
 
 /**
@@ -328,5 +367,42 @@ export const plainWordsConfigs = [
     ignores: webNotProductFiles,
     plugins: { heed: plugin },
     rules: { 'heed/plain-words': ['error', { glossary: 'web' }] },
+  },
+]
+
+/** What people read outside the web app, held to glossary v2 as a ratchet (copy-checks.baseline.json). */
+export const glossaryV2Files = [
+  'src/domain/**/*.ts',
+  'src/contract/**/*.ts',
+  'src/connectors/*/manifest.ts',
+  'db/seed/fixtures/**/*.ts',
+  'src/server/modules/notifications/**/*.ts',
+]
+/** The glossaries themselves list the banned words, and the text for models keeps its words. */
+export const glossaryV2Not = [
+  'src/domain/words.ts',
+  'src/domain/words-v1.ts',
+  'src/domain/mcp-text.ts',
+]
+
+/** The ratchets on copy that the plain-words check counts: see scripts/check-plain-words.ts. */
+export const copyRatchetConfigs = [
+  {
+    files: webWordsFiles,
+    ignores: webNotProductFiles,
+    plugins: { heed: plugin },
+    rules: { 'heed/plain-words-wide': ['warn', { glossary: 'web' }] },
+  },
+  {
+    files: glossaryV2Files,
+    ignores: glossaryV2Not,
+    plugins: { heed: plugin },
+    rules: { 'heed/plain-words-v2': ['warn'] },
+  },
+  {
+    files: errorMessageFiles,
+    ignores: [...glossaryV2Files, ...glossaryV2Not],
+    plugins: { heed: plugin },
+    rules: { 'heed/plain-words-v2': ['warn', { errorsOnly: true }] },
   },
 ]
