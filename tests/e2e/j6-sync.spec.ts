@@ -1,4 +1,4 @@
-import { expect, go, onServiceOnly, test } from './go.ts'
+import { expect, go, onMockOnly, onServiceOnly, test } from './go.ts'
 
 // J6: a read from a connected document arrives as a suggestion, and the owner publishes it.
 test('a suggestion from a document read is reviewed and published', async ({ page }) => {
@@ -14,4 +14,19 @@ test('a suggestion from a document read is reviewed and published', async ({ pag
   )
   await page.locator('#decision').getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(page.locator('#decision').getByRole('status')).toContainText('Published')
+})
+
+// A key Google refused does not pause the read: each read tries it again, and the page says so.
+test('a refused key is tried again at each read, and Integrations says when', async ({ page }) => {
+  await onMockOnly('refused key of the demo', async () => {
+    await go(page, '/settings/integrations?state=reauth')
+    const refused = page.getByRole('alert')
+    await expect(refused).toHaveText(
+      'Google Drive needs a new key. Google refused the service account key. Tried again at 06:00. Published context is not affected.Replace key',
+    )
+    await expect(page.getByText(/paused/i)).toHaveCount(0)
+    await go(page, '/settings/integrations/google-drive?state=reauth')
+    await expect(page.getByText('refused: it needs a new key')).toBeVisible()
+    await expect(page.getByText(/paused/i)).toHaveCount(0)
+  })
 })

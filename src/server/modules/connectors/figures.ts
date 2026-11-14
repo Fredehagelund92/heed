@@ -183,13 +183,13 @@ export function createFigureSources({
     row.contact_id ? { personId: row.contact_id, name: row.contact_name ?? 'Someone' } : null
 
   /**
-   * The sources that can answer figures. Those an admin paused are left out unless asked for: a
-   * paused source's figures are off in Ask, whatever its switch says.
+   * The sources that can answer figures, paused ones too: a paused source keeps its settings, which
+   * an admin can still change, though its figures are off in Ask whatever its switch says.
    */
-  async function rows(tx: Queryable, id?: string, lock = false, paused = false): Promise<Row[]> {
+  async function rows(tx: Queryable, id?: string, lock = false): Promise<Row[]> {
     const found = await tx.query<Row>(
       `select ${columns} from connectors c left join people p on p.id = c.data_contact_id
-        where c.kind = 'definition_source' and c.removed_at is null ${paused ? '' : 'and c.enabled'} ${id === undefined ? '' : 'and c.id = $1'}
+        where c.kind = 'definition_source' and c.removed_at is null ${id === undefined ? '' : 'and c.id = $1'}
         order by c.id collate "C"${lock ? ' for update of c' : ''}`,
       id === undefined ? [] : [id],
     )
@@ -482,7 +482,7 @@ export function createFigureSources({
             and d.visible_groups is null`,
         [metric.refs],
       )
-      const all = await rows(tx, undefined, false, true)
+      const all = await rows(tx)
       const sources = all.filter((row) => defined.some((d) => d.source === row.id))
       const owners = new Set(defined.map((d) => d.source))
       if (!sources.length) {
