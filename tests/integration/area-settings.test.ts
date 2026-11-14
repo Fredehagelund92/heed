@@ -148,6 +148,22 @@ describe('areas from settings', () => {
     expect(await audit('area.created')).toHaveLength(2)
   })
 
+  it('names no screen when a deleted domain holds the id or name', async () => {
+    await client.query(
+      "insert into areas (id, name, archived_at) values ('old_marketing','Old marketing',now())",
+    )
+    for (const taken of [
+      { ...payments, id: 'old_marketing', name: 'Marketing again' },
+      { ...payments, id: 'marketing_again', name: 'OLD MARKETING' },
+    ]) {
+      const response = await call('POST', '/areas', 'admin', taken)
+      expect(response.statusCode).toBe(409)
+      expect(response.json()).toMatchObject({
+        message: 'A deleted domain has this id or name. Choose another.',
+      })
+    }
+  })
+
   it('refuses invalid input, sensitive reasons and anyone but an administrator', async () => {
     const before = await audit('area.created')
     const fresh = { ...payments, id: 'payments_new', name: 'Payments new' }
