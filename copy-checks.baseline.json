@@ -147,11 +147,7 @@
       "plural": 1
     },
     "src/web/components/heed/conflict-view.tsx": {
-      "lowercased": 1,
       "plural": 1
-    },
-    "src/web/components/heed/context-bulk.tsx": {
-      "article": 1
     },
     "src/web/components/heed/definition-peek.tsx": {
       "lowercased": 1
@@ -177,9 +173,6 @@
     },
     "src/web/components/templates/comment-box/utils.ts": {
       "plural": 1
-    },
-    "src/web/lib/bulk.ts": {
-      "article": 2
     },
     "src/web/lib/connect.ts": {
       "lowercased": 1
@@ -599,9 +592,6 @@
     }
   },
   "copy/no-demo-in-shared-code": {
-    "src/web/components/error-boundary.tsx": {
-      "demo": 1
-    },
     "src/web/components/heed/answer.tsx": {
       "date": 1
     },
