@@ -458,8 +458,7 @@ export async function agentSignsIn(
     })
     const body = await answer.text()
     const json = body.startsWith('{') ? body : /^data: (.*)$/m.exec(body)![1]!
-    return (JSON.parse(json) as { result: { structuredContent: unknown } }).result
-      .structuredContent
+    return (JSON.parse(json) as { result: { structuredContent: unknown } }).result.structuredContent
   }
 }
 
