@@ -23,7 +23,11 @@ export type Autosave<T> = {
 }
 
 export type AutosaveEvent<T> =
-  { type: 'edit'; value: T } | { type: 'discard' } | { type: 'send' } | { type: 'answered' } | { type: 'failed' }
+  | { type: 'edit'; value: T }
+  | { type: 'discard' }
+  | { type: 'send' }
+  | { type: 'answered' }
+  | { type: 'failed' }
 
 /** Changes made close together are saved together: by default the newest stands for them all. */
 export type Merge<T> = (older: T, newer: T) => T
