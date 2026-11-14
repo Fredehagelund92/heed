@@ -24,7 +24,15 @@ export const sourceReads = ['scheduled', 'queued', 'reading'] as const
 export type SourceRead = (typeof sourceReads)[number]
 
 /** How the last read went; `refused` is a failure whose key was refused or is missing. */
-export type SourceLast = 'never' | 'ok' | 'partial' | 'failed' | 'refused'
+export const sourceLasts = ['never', 'ok', 'partial', 'failed', 'refused'] as const
+export type SourceLast = (typeof sourceLasts)[number]
+
+/**
+ * When an active source whose last read failed is tried again: a whole period on (`period`), or
+ * sooner, as a failure that clears by itself is (`backoff`). Null when the last read did not fail.
+ */
+export const sourceRetries = ['period', 'backoff'] as const
+export type SourceRetry = (typeof sourceRetries)[number] | null
 
 /**
  * The longest a read may run. A mark older than this is a job that died, so the source is queued
@@ -48,20 +56,30 @@ export interface SourceStateInput {
   nextReadAt: Date
   /** When the job took it, while a read is running. */
   readingSince: Date | null
-  /** Its last read; null before the first. */
-  lastRead: { status: 'ok' | 'partial' | 'failed'; keyRefused: boolean } | null
+  /** How often it is read, in seconds: a failure tried again sooner than this backs off. */
+  periodSeconds: number
+  /** Its last read, and when it ended; null before the first. */
+  lastRead: { at: Date; status: 'ok' | 'partial' | 'failed'; keyRefused: boolean } | null
 }
 
-export interface SourceState {
-  /** Null while paused: nothing is pending for a source that is not read. */
-  read: SourceRead | null
-  last: SourceLast
-  health: SourceHealth
-}
+/**
+ * How a source is, as one value: paused, with how its last read went; or active, with its pending
+ * read, when it is read next, how a failure is tried again, and how its last read went. Nothing is
+ * pending for a paused source, so it has no next read.
+ */
+export type SourceState =
+  | { intent: 'paused'; last: SourceLast }
+  | {
+      intent: 'active'
+      read: SourceRead
+      nextReadAt: Date
+      retry: SourceRetry
+      last: SourceLast
+    }
 
 export function sourceState(source: SourceStateInput, now: Date): SourceState {
   const last = lastOf(source.lastRead)
-  if (!source.enabled) return { read: null, last, health: 'paused' }
+  if (!source.enabled) return { intent: 'paused', last }
   const running =
     source.readingSince !== null &&
     now.getTime() - source.readingSince.getTime() < READ_MAY_RUN_SECONDS * 1000
@@ -70,16 +88,26 @@ export function sourceState(source: SourceStateInput, now: Date): SourceState {
     : isDue(source.nextReadAt, now)
       ? 'queued'
       : 'scheduled'
-  return { read, last, health: healthOf(last) }
+  const lastRead = source.lastRead
+  // A failure tried again before a whole period from it is backing off.
+  const retry: SourceRetry =
+    lastRead?.status === 'failed'
+      ? source.nextReadAt.getTime() - lastRead.at.getTime() < source.periodSeconds * 1000
+        ? 'backoff'
+        : 'period'
+      : null
+  return { intent: 'active', read, nextReadAt: source.nextReadAt, retry, last }
+}
+
+/** The flat value of a source's badge: paused, or how its last read went. */
+export function sourceHealth(state: Pick<SourceState, 'intent' | 'last'>): SourceHealth {
+  if (state.intent === 'paused') return 'paused'
+  if (state.last === 'refused') return 'reauth'
+  return state.last === 'failed' ? 'failed' : 'healthy'
 }
 
 function lastOf(read: SourceStateInput['lastRead']): SourceLast {
   if (!read) return 'never'
   if (read.status !== 'failed') return read.status
   return read.keyRefused ? 'refused' : 'failed'
-}
-
-function healthOf(last: SourceLast): SourceHealth {
-  if (last === 'refused') return 'reauth'
-  return last === 'failed' ? 'failed' : 'healthy'
 }

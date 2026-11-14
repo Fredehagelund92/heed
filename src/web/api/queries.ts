@@ -21,6 +21,7 @@ import {
 import { reportSignedOut } from '@/api/query-client'
 import type { AskInput } from '@/model/ask'
 import type { FigureAsk } from '@/model/figures'
+import type { Source } from '@/model/integrations'
 
 // Reads and writes as the screens use them: one query factory per read, keyed in one place, and
 // one table of what each write makes stale. A screen never names a cache itself.
@@ -242,6 +243,9 @@ export const integrationsQuery = () =>
 const READING_POLL_MS = 3_000
 /** A queued read waits for the job's next turn, up to five minutes: no need to ask as often. */
 const QUEUED_POLL_MS = 10_000
+/** A tool's pending read; none while it is paused. */
+const readOf = (source: Source | undefined) =>
+  source?.state.intent === 'active' ? source.state.read : null
 const pollFor = (reads: readonly (SourceRead | null | undefined)[]) =>
   reads.includes('reading') ? READING_POLL_MS : reads.includes('queued') ? QUEUED_POLL_MS : false
 
@@ -250,7 +254,7 @@ export const integrationsPageQuery = () =>
   queryOptions({
     queryKey: queryKeys.integrationsPage,
     queryFn: () => api.integrationsPage(),
-    refetchInterval: (query) => pollFor(query.state.data?.sources.map((s) => s.read) ?? []),
+    refetchInterval: (query) => pollFor(query.state.data?.sources.map(readOf) ?? []),
   })
 
 /** One connected tool's page. */
@@ -258,7 +262,7 @@ export const integrationPageQuery = (id: string) =>
   queryOptions({
     queryKey: queryKeys.integrationPage(id),
     queryFn: () => api.integrationPage({ id }),
-    refetchInterval: (query) => pollFor([query.state.data?.source.read]),
+    refetchInterval: (query) => pollFor([readOf(query.state.data?.source)]),
   })
 
 /** The connect flow's form: a tool to connect, or one connected whose settings change. */
@@ -616,7 +620,13 @@ export const invalidations: {
   // A content tool's open suggestions leave the Inbox with it.
   disconnectIntegration: () => [queryKeys.settings, ...integrations, ...inbox],
   readIntegration: () => integrations,
-  pauseIntegration: () => [...integrations, queryKeys.advancedPage],
+  // A paused tool's figures are held in Ask, and back once it is resumed.
+  pauseIntegration: () => [
+    ...integrations,
+    queryKeys.integrations,
+    queryKeys.figures,
+    queryKeys.advancedPage,
+  ],
   // A revoked app's policies end with it.
   revokeAgent: () => [
     queryKeys.agentConnections,

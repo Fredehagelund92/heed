@@ -5,8 +5,7 @@ import type { Agreement } from '../../../domain/golden-question.ts'
 import type { Queryable } from '../../db/database.ts'
 import { importQuestions } from './questions.ts'
 import {
-  commandKinds,
-  commandRunNotResumed,
+  canResume,
   planArea,
   resumeRun,
   runColumns,
@@ -291,12 +290,8 @@ export function createEvalsService(
             message:
               'Only the person who started this test run, an owner of the domain or an admin can resume it.',
           })
-        if (run.state !== 'incomplete')
-          throw new ORPCError('CONFLICT', {
-            message: 'Only a test run that stopped before it finished can be resumed.',
-          })
-        if (commandKinds.includes(run.kind))
-          throw new ORPCError('CONFLICT', { message: commandRunNotResumed })
+        const resumable = canResume(run)
+        if (!resumable.resume) throw new ORPCError('CONFLICT', { message: resumable.why })
         if (run.cost_ceiling_micros !== null)
           throw new ORPCError('CONFLICT', {
             message: `This test run was approved at the command line with a spending limit. Resume it there: npm run eval -- --resume ${id}`,

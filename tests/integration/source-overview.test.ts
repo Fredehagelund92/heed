@@ -250,7 +250,8 @@ describe('the sources an admin reads (CON-104)', () => {
     expect(cube).toMatchObject({
       type: 'cube',
       name: 'Cube model',
-      health: 'reauth',
+      // A refused key is tried again a whole period on: it is not backing off.
+      state: { intent: 'active', last: 'refused', retry: 'period' },
       schedule: 'PT1H',
       lastGoodAt: '2026-10-07T06:00:00.000Z',
       failures: 1,
@@ -279,7 +280,7 @@ describe('the sources an admin reads (CON-104)', () => {
       `insert into connector_snapshots (connector_id, status, fetched_at, warnings)
        values ('demo', 'failed', '2026-10-08T07:00:00Z', '[{"code": "unreachable", "target": "model"}]')`,
     )
-    expect((await row('demo')).health).toBe('failed')
+    expect((await row('demo')).state).toMatchObject({ intent: 'active', last: 'failed' })
   })
 
   it("lists a definitions source's reads newest first, each with what changed, and its views", async () => {
@@ -314,9 +315,8 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
     expect(await row(handbookId)).toMatchObject({
       type: 'git-markdown',
       kind: 'content',
-      health: 'healthy',
       // Queued for the job's first read, not "healthy and not yet": it is about to be read.
-      read: 'queued',
+      state: { intent: 'active', read: 'queued', last: 'never', retry: null },
       schedule: 'P1D',
       lastRead: null,
       lastGoodAt: null,
@@ -339,7 +339,7 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
     expect((await served()).rows).toEqual(before)
     const handbookRow = await row(handbookId)
     expect(handbookRow).toMatchObject({
-      health: 'healthy',
+      state: { intent: 'active', last: 'ok' },
       documents: { held: 3, waiting: 2, waitingDomains: 1, madeToday: 2, perDay: 5 },
     })
     expect(handbookRow.lastRead).toMatchObject({
@@ -349,7 +349,7 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
       documents: { seen: 3, suggested: 2, replaced: 0, withdrawn: 0, waiting: 0, skipped: 1 },
       warnings: [{ code: 'document_names_people', count: 1 }],
     })
-    expect(handbookRow.nextReadAt).not.toBeNull()
+    expect(handbookRow.state.intent === 'active' && handbookRow.state.nextReadAt).toBeTruthy()
 
     const { reads, groups, scopes, documents } = await activity(handbookId)
     expect(reads).toHaveLength(1)
@@ -389,12 +389,12 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
 
   it('says a source asked to read now is queued, then reading while the job has it, then scheduled', async () => {
     await queueReads(client, [handbookId])
-    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'queued' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'queued', last: 'ok' })
     await client.query('update connectors set reading_since = now() where id = $1', [handbookId])
-    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'reading' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'reading', last: 'ok' })
     await read()
     // The job ends the mark with the read, and the next read is a period away.
-    expect(await row(handbookId)).toMatchObject({ health: 'healthy', read: 'scheduled' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'scheduled', last: 'ok' })
     const [kept] = (
       await client.query<{ mark: Date | null }>(
         'select reading_since as mark from connectors where id = $1',
@@ -411,7 +411,7 @@ describe('a content source on its row and its page (CON-601 to CON-611)', () => 
       [handbookId],
     )
     await queueReads(client, [handbookId])
-    expect(await row(handbookId)).toMatchObject({ health: 'failed', read: 'queued' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'queued', last: 'failed' })
     await client.query('delete from connector_snapshots where connector_id = $1 and status = $2', [
       handbookId,
       'failed',
@@ -439,7 +439,7 @@ describe('Read again and Run now (CON-115)', () => {
 
   it('queues the source once the job runner answers', async () => {
     await inADay(handbookId)
-    expect(await row(handbookId)).toMatchObject({ read: 'scheduled' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'scheduled' })
     runner = { outcome: 'queued', id: 'job-1' }
     expect(await ok(call('POST', `/sources/${handbookId}/read`, 'admin'), 202)).toEqual({
       id: handbookId,
@@ -447,15 +447,16 @@ describe('Read again and Run now (CON-115)', () => {
     })
     const queued = await row(handbookId)
     // A refused key stays shown beside the retry that waits for the job.
-    expect(queued).toMatchObject({ read: 'queued' })
-    expect(new Date(queued.nextReadAt!).getTime()).toBeLessThanOrEqual(Date.now())
+    expect(queued.state).toMatchObject({ intent: 'active', read: 'queued' })
+    if (queued.state.intent !== 'active') return
+    expect(new Date(queued.state.nextReadAt).getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it('queues it too when a run is already waiting or running', async () => {
     await inADay(handbookId)
     runner = { outcome: 'already_queued' }
     await ok(call('POST', `/sources/${handbookId}/read`, 'admin'), 202)
-    expect((await row(handbookId)).read).toBe('queued')
+    expect((await row(handbookId)).state).toMatchObject({ read: 'queued' })
   })
 
   it('leaves the source as it was, and says so, when the job runner is down', async () => {
@@ -465,7 +466,7 @@ describe('Read again and Run now (CON-115)', () => {
     expect(asked.statusCode, asked.body).toBe(503)
     // No spinner left behind: it is still scheduled for the day it was.
     expect(await nextRead(handbookId)).toBe(before)
-    expect(await row(handbookId)).toMatchObject({ read: 'scheduled' })
+    expect((await row(handbookId)).state).toMatchObject({ read: 'scheduled' })
     // Asking again gives the same answer, not a source stuck reading.
     expect((await call('POST', `/sources/${handbookId}/read`, 'admin')).statusCode).toBe(503)
     expect(await nextRead(handbookId)).toBe(before)
@@ -479,7 +480,7 @@ describe('Read again and Run now (CON-115)', () => {
     expect(await nextRead(handbookId)).toBe(before)
     runner = { outcome: 'queued', id: 'job-2' }
     await ok(call('POST', '/operations/jobs/connectors.sync/run', 'admin'), 202)
-    expect((await row(handbookId)).read).toBe('queued')
+    expect((await row(handbookId)).state).toMatchObject({ read: 'queued' })
     // A source that is paused is not queued by it.
     await ok(
       call('PUT', `/sources/${handbookId}/paused`, 'admin', { paused: true, reason: 'Moving Git' }),
@@ -491,7 +492,7 @@ describe('Read again and Run now (CON-115)', () => {
     await ok(
       call('PUT', `/sources/${handbookId}/paused`, 'admin', { paused: false, reason: 'Moved' }),
     )
-    expect((await row(handbookId)).read).toBe('queued')
+    expect((await row(handbookId)).state).toMatchObject({ read: 'queued' })
   })
 })
 
@@ -507,7 +508,7 @@ describe('Pause reading (CON-115)', () => {
       }),
     )
     expect(paused).toEqual({ id: handbookId, paused: true })
-    expect(await row(handbookId)).toMatchObject({ health: 'paused', nextReadAt: null })
+    expect((await row(handbookId)).state).toEqual({ intent: 'paused', last: 'ok' })
     // A paused source is not read, by the job or by Read again.
     const job = await read()
     expect(job.connectors[handbookId]).toBeUndefined()
@@ -525,7 +526,7 @@ describe('Pause reading (CON-115)', () => {
         reason: 'The handbook moved',
       }),
     )
-    expect((await row(handbookId)).health).not.toBe('paused')
+    expect((await row(handbookId)).state.intent).toBe('active')
     const log = await client.query<{ action: string; reason: string }>(
       `select action, details->>'reason' as reason from audit_log
         where subject_type = 'source' and subject_id = $1 and action like 'source.%'
@@ -541,7 +542,7 @@ describe('Pause reading (CON-115)', () => {
 
   it('pauses a source of the server too, and refuses an unknown one or a reason with an address', async () => {
     await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: true, reason: 'Moving Git' }))
-    expect((await row('cube')).health).toBe('paused')
+    expect((await row('cube')).state.intent).toBe('paused')
     await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
     expect(
       (

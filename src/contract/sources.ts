@@ -2,7 +2,7 @@ import * as z from 'zod/mini'
 import { connectorIdPattern } from '../domain/connector-id.ts'
 import { connectorManifestSchema } from '../domain/connector-manifest.ts'
 import { checkStepSchema } from '../domain/connector-runtime.ts'
-import { sourceHealths, sourceReads } from '../domain/source-state.ts'
+import { sourceHealths, sourceLasts, sourceReads, sourceRetries } from '../domain/source-state.ts'
 
 export const staleLinkStatuses = [
   'retired',
@@ -261,10 +261,10 @@ export type LeftOut = z.infer<typeof leftOutSchema>
 // ---- the sources as Settings › Integrations shows them (CON-104, CON-115) ----
 
 /**
- * How a source is, as its row and its page say it: paused by an admin; its last read refused its
- * key; its last read failed for another reason; or read as it should be (also before its first
- * read). Whether a read is pending is a fact of its own, `read`, so a failure stays visible while
- * a retry is queued.
+ * How a source is, as its badge says it: paused by an admin; its last read refused its key; its
+ * last read failed for another reason; or read as it should be (also before its first read). It
+ * is drawn from the source's `state`, where a pending read is a fact of its own, so a failure
+ * stays visible while a retry is queued.
  */
 export { sourceHealths }
 export type { SourceHealth, SourceRead } from '../domain/source-state.ts'
@@ -298,6 +298,25 @@ export const sourceReadEntrySchema = z.object({
 })
 
 /**
+ * How a source is, as one value. Paused by an admin: nothing is pending, and its last read is kept.
+ * Active: its pending read, waiting for its time (`scheduled`), its time up or asked for and the
+ * job not there yet (`queued`), or being read now (`reading`); when it is read next, ISO 8601 in
+ * UTC; after a failed read, whether it is tried again a whole period on or sooner (`backoff`), null
+ * when the last read did not fail. Either way, how its last read went: never read, `ok`, in part
+ * (`partial`), `failed`, or failed because its key was refused (`refused`).
+ */
+export const sourceStateSchema = z.discriminatedUnion('intent', [
+  z.object({ intent: z.literal('paused'), last: z.enum(sourceLasts) }),
+  z.object({
+    intent: z.literal('active'),
+    read: z.enum(sourceReads),
+    nextReadAt: time,
+    retry: z.nullable(z.enum(sourceRetries)),
+    last: z.enum(sourceLasts),
+  }),
+])
+
+/**
  * A source as Integrations lists it: its connector, how it is, when it was read and is read next,
  * and what it holds now. The server's own sources are listed too: their settings are whoever runs
  * the server's, so the page offers no change to them.
@@ -310,19 +329,11 @@ export const sourceRowSchema = z.object({
   kind: z.enum(['definitions', 'content']),
   name: z.string(),
   origin: z.enum(['workspace', 'server']),
-  health: z.enum(sourceHealths),
-  /**
-   * Its pending read: waiting for its time (`scheduled`); its time is up, or an admin asked, or it
-   * was just connected or changed, and the job has not taken it (`queued`); or the job is reading
-   * it now (`reading`). Null while paused.
-   */
-  read: z.nullable(z.enum(sourceReads)),
+  state: sourceStateSchema,
   /** How often it is read, its own or its connector's default, as an ISO 8601 duration. */
   schedule: z.string(),
   /** How long it may go unread before its copy is out of date, as an ISO 8601 duration. */
   staleAfter: z.string(),
-  /** When it is read next, ISO 8601 in UTC; a time that has passed means queued. Null while paused. */
-  nextReadAt: z.nullable(time),
   /** Its last read, failed or not; and when it last read without failing. */
   lastRead: z.nullable(sourceReadEntrySchema),
   lastGoodAt: z.nullable(time),
@@ -420,6 +431,7 @@ export const pauseSourceSchema = z.strictObject({
 export const pausedSourceSchema = z.object({ id: z.string(), paused: z.boolean() })
 
 export type SourceRow = z.infer<typeof sourceRowSchema>
+export type SourceRowState = z.infer<typeof sourceStateSchema>
 export type SourceReadEntry = z.infer<typeof sourceReadEntrySchema>
 export type SourceActivity = z.infer<typeof sourceActivitySchema>
 export type SourceDocumentState = (typeof sourceDocumentStates)[number]

@@ -35,6 +35,7 @@ import {
   finishRun,
   headAt,
   modelsFor,
+  resumeRun,
   runColumns,
   sidesFor,
   sidesOfRun,
@@ -78,11 +79,16 @@ export type WorkSummary = {
   cells: number
   expired: number
   resumed: number
+  /** Held-out runs ended incomplete, as their command stopped renewing the lease. */
+  lapsed: number
 }
 
 /** How long a lease lasts without being renewed, and how often a working worker renews it. */
-const LEASE = '5 minutes'
-const HEARTBEAT_MS = 60_000
+export const LEASE = '5 minutes'
+export const HEARTBEAT_MS = 60_000
+/** What a held-out run whose command stopped renewing its lease says. */
+const heldOutLapsed =
+  'The command that worked it stopped before it finished. Run that command again.'
 /**
  * Each answer in flight holds room under a run's cost ceiling: its estimate times this margin,
  * since a real answer can read more and reason longer than the estimate.
@@ -110,7 +116,7 @@ export async function workEvaluations(
   deps: EvalDeps,
   options: WorkOptions,
 ): Promise<WorkSummary> {
-  const summary: WorkSummary = { runs: [], cells: 0, expired: 0, resumed: 0 }
+  const summary: WorkSummary = { runs: [], cells: 0, expired: 0, resumed: 0, lapsed: 0 }
   const worker = options.worker ?? randomUUID()
   if (options.only === undefined) await housekeeping(database, options, summary)
   while (Date.now() < options.deadline && !options.signal.aborted) {
@@ -152,19 +158,28 @@ async function housekeeping(database: Database, options: WorkOptions, summary: W
   summary.expired = expired.length
   // R6: a run the service started that stopped only because the provider kept failing is tried
   // again a while later, a few times. A run with a cost ceiling was approved at the command line,
-  // with its own models: it is resumed there.
-  const resumed = await database.query(
-    `update eval_runs set state='queued',finished_at=null,failure=null,
-            summary=summary||jsonb_build_object('resumes',coalesce((summary->>'resumes')::int,0)+1)
+  // with its own models: it is resumed there. `resumeRun` leaves a run only its command works.
+  const stopped = await database.query<{ id: string }>(
+    `select id::text from eval_runs
       where state='incomplete' and cost_ceiling_micros is null
-        and kind <> all($1::eval_kind[])
         and summary->'stopped'->>'reason'='infrastructure'
         and coalesce((summary->>'resumes')::int,0) < ${AUTO_RESUMES}
-        and finished_at < now() - interval '${AUTO_RESUME_AFTER}'
-      returning id`,
-    [commandKinds],
+        and finished_at < now() - interval '${AUTO_RESUME_AFTER}'`,
   )
-  summary.resumed = resumed.length
+  for (const run of stopped)
+    if (await database.transaction(null, (tx) => resumeRun(tx, run.id))) summary.resumed++
+  // A held-out run is worked by its command alone, under a lease the command renews. One whose
+  // lease ran out lost its command (a kill, a closed terminal, an error), and nothing else will
+  // end it.
+  const lapsed = await database.query<{ id: string }>(
+    `update eval_runs set state='incomplete',finished_at=now(),worker=null,lease_until=null,failure=$1
+      where kind='held_out' and state='running' and (lease_until is null or lease_until<now())
+      returning id::text`,
+    [heldOutLapsed],
+  )
+  for (const run of lapsed)
+    options.logger.warn({ run: run.id }, 'held-out run lost its command before it finished')
+  summary.lapsed = lapsed.length
 }
 
 type Options = WorkOptions & { worker: string }

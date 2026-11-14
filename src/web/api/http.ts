@@ -1839,6 +1839,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
             host: source.connection?.declaredHost ?? null,
             secretSet: source.connection?.tokenSet ?? false,
             contact: source.dataContact?.name ?? '',
+            state: source.state,
           },
         ]),
       ),

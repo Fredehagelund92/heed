@@ -234,16 +234,21 @@ and a secret pasted into another field. Changes are kept in the history log (`so
 each secret, only `set`, `replaced` or `removed`. A source added or changed is read at once: the
 change queues it (`next_read_at` is now), and the job runs once it commits.
 
-Settings › Integrations in the web app reads `sources.list` for its rows. A source has two
-facts beside each other. Its `health` is **Paused** when an admin paused it, **Needs a new key**
-when its last read failed because its key was refused or is missing, **Failed** when its last read
-failed for another reason, and **Healthy** otherwise (also before its first read). Its `read` is
-the read that is pending, null while paused: **Scheduled** while it waits for its time, **Queued**
-once its time has come (it was just added or changed, an admin asked for a read, or the period is
-up) and the job has not taken it, and **Reading** while the job has it. A failure stays shown
-while its retry is queued or running. Pausing a definitions source also switches off its figures
-in Ask, as the switch does: an answer links into the tool, and nothing is asked of it. What is
-published stays. A definitions source counts its metrics, dimensions and groups (a Cube
+Settings › Integrations in the web app reads `sources.list` for its rows. A source's `state` is
+one value (`sourceState` in `src/domain/source-state.ts`). Paused by an admin, it is `intent:
+'paused'` with its `last` read, and nothing is pending. Active, it adds its `read`: `scheduled`
+while it waits for its time, `queued` once its time has come (it was just added or changed, an
+admin asked for a read, or the period is up) and the job has not taken it, and `reading` while the
+job has it; its `nextReadAt`; and, after a failed read, `retry`: `backoff` when it is tried again
+sooner than its period, `period` otherwise. `last` is `never`, `ok`, `partial`, `failed`, or
+`refused` when its key was refused or is missing. A failure stays shown while its retry is queued
+or running. The page draws its badges, note and numbers from it in one pure function
+(`sourceView` in `src/web/model/source-view.ts`), so each of the 40 cells of kind, intent or read,
+and last read has words of its own. Pausing a definitions source also switches off its figures in
+Ask: an answer links into the tool, and nothing is asked of it. What is published stays. How a
+source's figures are is one value too (`figuresState` in `src/domain/figures-state.ts`), which Ask,
+`figures.list`, `figures.set`, the page and the mock all read: held while paused, and broken when
+the switch is on with no token or a data contact who left. A definitions source counts its metrics, dimensions and groups (a Cube
 view: a member's name up to its last dot) and the groups that map to no domain, and the live
 items a change to one of its definitions flagged; a content source counts the documents it
 holds, its suggestions waiting for owners, and its suggestions over the last 24 hours against

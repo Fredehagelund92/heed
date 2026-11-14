@@ -55681,27 +55681,79 @@
                         ],
                         "type": "string"
                       },
-                      "health": {
-                        "enum": [
-                          "healthy",
-                          "failed",
-                          "reauth",
-                          "paused"
-                        ],
-                        "type": "string"
-                      },
-                      "read": {
+                      "state": {
                         "anyOf": [
                           {
-                            "enum": [
-                              "scheduled",
-                              "queued",
-                              "reading"
-                            ],
-                            "type": "string"
+                            "type": "object",
+                            "properties": {
+                              "intent": {
+                                "const": "paused"
+                              },
+                              "last": {
+                                "enum": [
+                                  "never",
+                                  "ok",
+                                  "partial",
+                                  "failed",
+                                  "refused"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "intent",
+                              "last"
+                            ]
                           },
                           {
-                            "type": "null"
+                            "type": "object",
+                            "properties": {
+                              "intent": {
+                                "const": "active"
+                              },
+                              "read": {
+                                "enum": [
+                                  "scheduled",
+                                  "queued",
+                                  "reading"
+                                ],
+                                "type": "string"
+                              },
+                              "nextReadAt": {
+                                "type": "string"
+                              },
+                              "retry": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "period",
+                                      "backoff"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "last": {
+                                "enum": [
+                                  "never",
+                                  "ok",
+                                  "partial",
+                                  "failed",
+                                  "refused"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "intent",
+                              "read",
+                              "nextReadAt",
+                              "retry",
+                              "last"
+                            ]
                           }
                         ]
                       },
@@ -55710,16 +55762,6 @@
                       },
                       "staleAfter": {
                         "type": "string"
-                      },
-                      "nextReadAt": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
                       },
                       "lastRead": {
                         "anyOf": [
@@ -56009,11 +56051,9 @@
                       "kind",
                       "name",
                       "origin",
-                      "health",
-                      "read",
+                      "state",
                       "schedule",
                       "staleAfter",
-                      "nextReadAt",
                       "lastRead",
                       "lastGoodAt",
                       "failures",
@@ -89537,6 +89577,17 @@
                           "enabled": {
                             "type": "boolean"
                           },
+                          "state": {
+                            "enum": [
+                              "unavailable",
+                              "not_set_up",
+                              "off",
+                              "on",
+                              "held",
+                              "broken"
+                            ],
+                            "type": "string"
+                          },
                           "dataContact": {
                             "anyOf": [
                               {
@@ -89606,6 +89657,7 @@
                           "tool",
                           "name",
                           "enabled",
+                          "state",
                           "dataContact",
                           "connection"
                         ]
@@ -89948,6 +90000,17 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "state": {
+                      "enum": [
+                        "unavailable",
+                        "not_set_up",
+                        "off",
+                        "on",
+                        "held",
+                        "broken"
+                      ],
+                      "type": "string"
+                    },
                     "dataContact": {
                       "anyOf": [
                         {
@@ -90017,6 +90080,7 @@
                     "tool",
                     "name",
                     "enabled",
+                    "state",
                     "dataContact",
                     "connection"
                   ]

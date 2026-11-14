@@ -51,11 +51,9 @@ const row = (over: Partial<SourceRow> = {}): SourceRow => ({
   kind: 'definitions',
   name: 'Cube model',
   origin: 'server',
-  health: 'healthy',
-  read: 'scheduled',
+  state: { intent: 'active', read: 'scheduled', nextReadAt: at(23, 11), retry: null, last: 'ok' },
   schedule: 'PT1H',
   staleAfter: 'PT6H',
-  nextReadAt: at(23, 11),
   lastRead: read({ definitions: { seen: 27, added: 0, changed: 0, gone: 0 } }),
   lastGoodAt: at(23),
   failures: 0,
@@ -76,7 +74,7 @@ const drive = (over: Partial<SourceRow> = {}): SourceRow =>
     origin: 'workspace',
     schedule: 'P1D',
     staleAfter: 'P2D',
-    nextReadAt: at(24),
+    state: { intent: 'active', read: 'scheduled', nextReadAt: at(24), retry: null, last: 'ok' },
     lastRead: read({
       documents: { seen: 14, suggested: 3, replaced: 1, withdrawn: 0, waiting: 0, skipped: 1 },
       warnings: [{ code: 'document_names_people', count: 1 }],
@@ -114,18 +112,17 @@ describe('a source on its row', () => {
     expect(sourceOf(row(), now)).toEqual({
       id: 'cube',
       connector: 'cube',
-      health: 'healthy',
-      read: 'scheduled',
+      state: {
+        intent: 'active',
+        read: 'scheduled',
+        next: { day: 'Today', time: '11:00' },
+        retry: null,
+        last: 'ok',
+      },
       every: 'every hour',
       staleAfter: '6 hours',
-      last: {
-        at: { day: 'Today', time: '06:00', ago: '4 hours ago' },
-        complete: true,
-        seconds: 3,
-        seen: 27,
-      },
+      last: { at: { day: 'Today', time: '06:00', ago: '4 hours ago' }, seconds: 3, seen: 27 },
       lastGood: null,
-      next: { day: 'Today', time: '11:00' },
       failures: 0,
       failure: null,
       definitions: { metrics: 22, dimensions: 5, views: 7, noDomain: 2, flagged: 2 },
@@ -136,36 +133,49 @@ describe('a source on its row', () => {
     })
   })
 
-  it('carries a pending read beside its health, so a failure stays shown while a retry waits', () => {
-    expect(sourceOf(row({ read: 'queued' }), now)).toMatchObject({
-      health: 'healthy',
+  it('carries a pending read beside its last read, so a failure stays shown while a retry waits', () => {
+    const active = (over: Partial<Extract<SourceRow['state'], { intent: 'active' }>>) =>
+      ({
+        intent: 'active',
+        read: 'scheduled',
+        nextReadAt: at(23, 11),
+        retry: null,
+        last: 'ok',
+        ...over,
+      }) as const
+    expect(sourceOf(row({ state: active({ read: 'queued' }) }), now)?.state).toMatchObject({
       read: 'queued',
+      last: 'ok',
     })
     expect(
       sourceOf(
         row({
-          health: 'failed',
-          read: 'reading',
+          state: active({ read: 'reading', retry: 'backoff', last: 'failed' }),
           lastRead: read({ status: 'failed', warnings: [{ code: 'unreachable', count: 1 }] }),
         }),
         now,
       ),
     ).toMatchObject({
-      health: 'failed',
-      read: 'reading',
+      state: { read: 'reading', retry: 'backoff', last: 'failed' },
       failure: "it couldn't be reached (unreachable)",
     })
-    expect(sourceOf(row({ health: 'paused', read: null, nextReadAt: null }), now)).toMatchObject({
-      health: 'paused',
-      read: null,
-      next: null,
+    // Paused, nothing is pending: there is no next read to show.
+    expect(sourceOf(row({ state: { intent: 'paused', last: 'ok' } }), now)?.state).toEqual({
+      intent: 'paused',
+      last: 'ok',
     })
   })
 
   it('says why a read failed, and when the last good one was', () => {
     const failed = sourceOf(
       row({
-        health: 'failed',
+        state: {
+          intent: 'active',
+          read: 'scheduled',
+          nextReadAt: at(23, 11),
+          retry: 'period',
+          last: 'failed',
+        },
         failures: 3,
         lastRead: read({ status: 'failed', warnings: [{ code: 'unreachable', count: 1 }] }),
         lastGoodAt: at(21),
@@ -173,7 +183,6 @@ describe('a source on its row', () => {
       now,
     )!
     expect(failed).toMatchObject({
-      health: 'failed',
       failures: 3,
       failure: "it couldn't be reached (unreachable)",
       lastGood: { day: '21 Oct', time: '06:00' },
@@ -181,7 +190,13 @@ describe('a source on its row', () => {
     expect(
       sourceOf(
         row({
-          health: 'reauth',
+          state: {
+            intent: 'active',
+            read: 'scheduled',
+            nextReadAt: at(23, 11),
+            retry: 'period',
+            last: 'refused',
+          },
           lastRead: read({ status: 'failed', warnings: [{ code: 'unauthorized', count: 1 }] }),
         }),
         now,
@@ -435,7 +450,17 @@ describe('how a source is connected', () => {
 
   it('says a source just connected reads first soon, with nothing published', () => {
     const page = sourcePageOf(
-      drive({ lastRead: null, read: 'queued', nextReadAt: now.toISOString(), addedAt: at(23, 9) }),
+      drive({
+        lastRead: null,
+        state: {
+          intent: 'active',
+          read: 'queued',
+          nextReadAt: now.toISOString(),
+          retry: null,
+          last: 'never',
+        },
+        addedAt: at(23, 9),
+      }),
       { reads: [], groups: [], scopes: [], documents: [] },
       null,
       undefined,

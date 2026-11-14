@@ -13,6 +13,7 @@ import type {
   TryFigureInput,
 } from '../../../contract/figures.ts'
 import { noSecretStoreWords } from '../../../domain/connector-config.ts'
+import { figuresState, type FiguresState } from '../../../domain/figures-state.ts'
 import type {
   FigureQuery,
   FigureResult,
@@ -77,13 +78,16 @@ interface Row {
   enabled: boolean
   contact_id: string | null
   contact_name: string | null
+  /** Its data contact is still a member of the workspace. */
+  contact_active: boolean
   /** It reads every group (a view), or only those listed. */
   all_groups: boolean
   listed: string[]
 }
 
 const columns = `c.id, c.type, c.name, c.capabilities, c.enabled, c.data_contact_id::text as contact_id,
-  p.display_name as contact_name, c.all_groups,
+  p.display_name as contact_name, (p.id is not null and p.deactivated_at is null) as contact_active,
+  c.all_groups,
   array(select s->>'id' from jsonb_array_elements(c.scopes) s) as listed`
 
 /** Whether a source reads the view of a member, by its name up to the last dot. */
@@ -196,6 +200,20 @@ export function createFigureSources({
     return found.filter((row) => capable(row.type))
   }
 
+  /** How a source's figures in Ask are, with whether its token is kept (CON-612). */
+  const stateOf = (row: Row, token: boolean): FiguresState => {
+    const settings = row.capabilities.figures ?? {}
+    return figuresState({
+      capable: capable(row.type) !== undefined,
+      removed: false,
+      paused: !row.enabled,
+      switchOn: settings.enabled === true,
+      endpoint: settings.endpoint !== undefined,
+      token,
+      contactActive: row.contact_active,
+    })
+  }
+
   /** The token kept for a source's endpoint; null when none is set or the store lost it. */
   async function tokenOf(settings: FiguresSettings): Promise<string | null> {
     if (!settings.secretRef) return null
@@ -210,15 +228,17 @@ export function createFigureSources({
 
   async function sourceOf(row: Row, admin: boolean): Promise<FigureSource> {
     const settings = row.capabilities.figures ?? {}
+    const tokenSet = (await tokenOf(settings)) !== null
     return {
       ...refOf(row),
       enabled: settings.enabled === true,
+      state: stateOf(row, tokenSet),
       dataContact: contactOf(row),
       connection: admin
         ? {
             endpoint: settings.endpoint ?? null,
             declaredHost: hostOf(settings.endpoint),
-            tokenSet: (await tokenOf(settings)) !== null,
+            tokenSet,
           }
         : null,
     }
@@ -344,8 +364,8 @@ export function createFigureSources({
         const old = before.secretRef
         if (old) hooks.onCommit(() => secrets.remove(old))
       }
-      let contact: { id: string; name: string } | null = row.contact_id
-        ? { id: row.contact_id, name: row.contact_name ?? 'Someone' }
+      let contact: { id: string; name: string; active: boolean } | null = row.contact_id
+        ? { id: row.contact_id, name: row.contact_name ?? 'Someone', active: row.contact_active }
         : null
       if (input.dataContactId !== undefined) {
         if (input.dataContactId === null) contact = null
@@ -356,7 +376,7 @@ export function createFigureSources({
             [input.dataContactId],
           )
           if (!person) invalid('dataContactId', "This person isn't in the workspace.")
-          contact = person!
+          contact = { ...person!, active: true }
         }
         audit.dataContact = contact?.id ?? null
       }
@@ -371,6 +391,12 @@ export function createFigureSources({
           invalid(
             'enabled',
             'Name a data contact first: the person who hears about a figure that looks wrong.',
+          )
+        // Switched on with a contact who left, it would be broken from the start.
+        if (input.enabled && !contact!.active)
+          invalid(
+            'enabled',
+            `${contact!.name} has left the workspace. Name another data contact first.`,
           )
       }
       await tx.query(
@@ -390,6 +416,7 @@ export function createFigureSources({
           capabilities: { ...row.capabilities, figures: next },
           contact_id: contact?.id ?? null,
           contact_name: contact?.name ?? null,
+          contact_active: contact?.active ?? false,
         },
         true,
       )
@@ -513,7 +540,15 @@ export function createFigureSources({
       // Its view is not one the source reads, from its next read if not already.
       if (!reads(row, definition.name)) return { state: 'none', reason: 'not_read', source }
       const settings = row.capabilities.figures ?? {}
-      if (!row.enabled || !settings.enabled)
+      const token = settings.enabled ? await tokenOf(settings) : null
+      // Only a source whose figures are on is asked: off, held while paused, or broken, an answer
+      // links into the tool instead.
+      if (
+        stateOf(row, token !== null) !== 'on' ||
+        !settings.endpoint ||
+        !token ||
+        !settings.secretRef
+      )
         return {
           state: 'off',
           source,
@@ -522,9 +557,6 @@ export function createFigureSources({
               ? (URL.parse(settings.endpoint)?.origin ?? null)
               : null,
         }
-      const token = await tokenOf(settings)
-      if (!settings.endpoint || !token || !settings.secretRef)
-        return { state: 'none', reason: 'failed', source, failure: 'not_set_up' }
       // The date and the dimensions come from the metric's own view in the tool.
       const view = definition.name.slice(0, Math.max(definition.name.lastIndexOf('.'), 0))
       const members = await tx.query<{

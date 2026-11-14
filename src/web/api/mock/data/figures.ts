@@ -1,6 +1,6 @@
 import { DEMO_DEFINITIONS, demoTool, demoToolHome, figureConnections } from './integrations'
 import type { Figure, FigureTry, FigureView } from '@/model/figures'
-import type { FigureConnection } from '@/model/integrations'
+import type { FigureSetup } from '@/model/integrations'
 import { metrics } from './world'
 import {
   discountAfter,
@@ -125,7 +125,7 @@ export function figureFor(a: Asked, enabled: (id: string) => boolean): FigureVie
  * has nothing for it in the last 7 days, which still says the endpoint and its token work. With no
  * token set there is nothing to try.
  */
-export function figureTryFor(source: string, connection: FigureConnection | undefined): FigureTry {
+export function figureTryFor(source: string, connection: FigureSetup | undefined): FigureTry {
   if (!connection?.endpoint || !connection.secretSet)
     return { kind: 'failed', source, failure: 'not_set_up' }
   return {

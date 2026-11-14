@@ -259,10 +259,16 @@ export function createSourceOverview({
             enabled: row.enabled,
             nextReadAt: row.next_read_at,
             readingSince: row.reading_since,
-            lastRead: last && {
-              status: last.status,
-              keyRefused: last.warnings.some((warning) => KEY_REFUSED_CODES.has(warning.code)),
-            },
+            periodSeconds: period,
+            lastRead: lastRow
+              ? {
+                  at: lastRow.at,
+                  status: lastRow.status,
+                  keyRefused: lastRow.warnings.some((warning) =>
+                    KEY_REFUSED_CODES.has(warning.code),
+                  ),
+                }
+              : null,
           },
           row.now,
         )
@@ -276,11 +282,12 @@ export function createSourceOverview({
           kind: manifest.kind,
           name: row.name,
           origin: row.origin,
-          health: state.health,
-          read: state.read,
+          state:
+            state.intent === 'paused'
+              ? state
+              : { ...state, nextReadAt: state.nextReadAt.toISOString() },
           schedule: durationText(period),
           staleAfter: durationText(row.stale_seconds),
-          nextReadAt: row.enabled ? row.next_read_at.toISOString() : null,
           lastRead: last,
           lastGoodAt: goodOf.get(row.id)?.toISOString() ?? null,
           failures: row.failures,

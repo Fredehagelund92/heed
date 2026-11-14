@@ -193,7 +193,7 @@
       "plural": 1
     },
     "src/web/pages/integrations.tsx": {
-      "plural": 26
+      "plural": 22
     },
     "src/web/pages/observability/overview.tsx": {
       "lowercased": 3
@@ -358,6 +358,9 @@
     "src/web/model/inbox.ts": {
       "a read": 1
     },
+    "src/web/model/source-view.ts": {
+      "flagged": 2
+    },
     "src/web/pages/agent-policies.tsx": {
       "clashe": 1
     },
@@ -380,7 +383,7 @@
     },
     "src/web/pages/integrations.tsx": {
       "a read": 10,
-      "flagged": 4,
+      "flagged": 2,
       "needs checking": 2,
       "retry": 1
     },
@@ -592,15 +595,6 @@
     }
   },
   "copy/no-demo-in-shared-code": {
-    "src/web/components/heed/answer.tsx": {
-      "date": 1
-    },
-    "src/web/components/heed/context-bulk.tsx": {
-      "date": 1
-    },
-    "src/web/components/heed/fact-peek.tsx": {
-      "date": 1
-    },
     "src/web/components/view-as.tsx": {
       "demo": 1
     },
