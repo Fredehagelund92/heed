@@ -174,16 +174,17 @@ test("Settings leads back to the app, not to the workspace's name", async ({ pag
   await expect(page).toHaveURL(/\/inbox/)
 })
 
-test('a person picked on the sign-in page lands in their Inbox, and /signin leads back there', async ({
+test('a person picked on the sign-in page lands where the app opens for them, and /signin leads back there', async ({
   page,
 }) => {
   await go(page, '/inbox')
   await signOut(page)
+  // Ines's one suggestion waits on Jon, so nothing needs Ines: the app opens on Ask.
   await page.getByRole('button', { name: /Ines Duarte/ }).click()
-  await expect(page).toHaveURL(/\/inbox$/)
-  await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible()
+  await expect(page).toHaveURL(/\/ask$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Ask' })).toBeVisible()
   await expect(userMenu(page)).toContainText('Ines Duarte')
   await go(page, '/signin')
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/\/ask$/)
   await expect(userMenu(page)).toContainText('Ines Duarte')
 })

@@ -309,8 +309,8 @@ function Gate() {
     // a person who is not signed in to sign in there, and stays.
     if (!user && !['signin', 'docs', 'connect'].includes(route.parts[0] ?? '')) navigate('/signin')
     // Signed in, there is nobody to pick: a sign-in that just finished, or /signin opened again,
-    // lands in the Inbox.
-    if (user && route.parts[0] === 'signin') redirectTo('/inbox')
+    // lands where the app opens (routes/index.tsx).
+    if (user && route.parts[0] === 'signin') redirectTo('/')
     // Signed in again, so a later sign-out of the demo is a new one (lib/demo-profiles).
     if (user) rememberSignedOut(false)
   }, [user, route.parts])

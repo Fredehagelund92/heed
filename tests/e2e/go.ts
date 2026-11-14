@@ -241,13 +241,14 @@ export async function unfold(page: Page, section: string) {
 
 /**
  * Sign in as one of the demo's people, as a person does: sign out in the user menu, pick them on
- * the sign-in page, and land in their Inbox. A journey starts signed in, as Jon.
+ * the sign-in page, and land where the app opens for them: their Inbox, or Ask when nothing needs
+ * them. A journey starts signed in, as Jon.
  */
 export async function signInAs(page: Page, name: string) {
   await go(page, '/inbox')
   await signOut(page)
   await page.getByRole('button', { name: new RegExp(name) }).click()
-  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page).toHaveURL(/\/(inbox|ask)$/)
   await expect(userMenu(page)).toContainText(name)
 }
 
