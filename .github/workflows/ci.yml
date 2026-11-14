@@ -468,19 +468,7 @@ jobs:
     name: CI gate
     if: always()
     needs:
-      [
-        scope,
-        migrations,
-        check,
-        unit,
-        service,
-        seed,
-        own-data,
-        docker,
-        web,
-        golden-http,
-        security,
-      ]
+      [scope, migrations, check, unit, service, seed, own-data, docker, web, golden-http, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
