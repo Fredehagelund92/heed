@@ -54886,7 +54886,7 @@
     "/gaps/{id}": {
       "get": {
         "operationId": "gaps.get",
-        "summary": "One gap, whether it is verified by test, and for its owners and administrators its notes, linked tests and history",
+        "summary": "One gap, and for its owners and administrators its notes and history",
         "tags": [
           "gaps"
         ],
