@@ -323,14 +323,14 @@ One density. Rows are 36 px, the table header band is 36 px and sticky. There is
 
 Design B, at one density. A filter bar (Filter with a live count per value, Sort with its direction in words and both ways on offer, Group by domain or metric, and search on `/`), then a 36 px sticky header band, then rows.
 
-| Column  | Content                                                                          |
-| ------- | -------------------------------------------------------------------------------- |
-| Kind    | The kind as an icon before the title                                             |
-| Title   | The title alone                                                                  |
-| Scope   | Muted text, in its own 190 px column; it steps aside under 960 px of pane        |
-| Status  | A circle icon (dashed draft, check live, alert needs checking, minus archived)   |
-| When    | A glyph and a short date (infinity always, arrow ongoing, since, until, a range) |
-| Checked | One dot: filled up to 30 days, half up to 90, hollow after that                  |
+| Column  | Content                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Kind    | The kind as an icon before the title                                                                                                  |
+| Title   | The title alone                                                                                                                       |
+| Scope   | Tag chips in a column as wide as they are (up to 20rem), the metric cut first and a market never; it steps aside under 960 px of pane |
+| Status  | A circle icon (dashed draft, check live, alert needs checking, minus archived)                                                        |
+| When    | A glyph and a short date (infinity always, arrow ongoing, since, until, a range)                                                      |
+| Checked | One dot: filled up to 30 days, half up to 90, hollow after that                                                                       |
 
 Every mark gives its exact value on hover. The Context and Checked headers sort (Name and Context in Definitions, Topic and Asked in Observability's topics): a click on another column starts it its own way (A to Z, newest first, most first), a second click on the same column flips it, and the arrow and the header's sort state follow. A ranking (Best match, Coverage) has one way only. Observability's Overview keeps the sort and its direction in the address, as it keeps its filters. Filters that are on read as sentences under the bar ("Domain is any of Sales, Marketing") with Clear all. A totals row stays at the foot. Opening a peek keeps the search, filters, ticked rows and scroll. The peek steps with J and K, and Escape closes it first. Definitions rows show the type tile, the name with its other names as "Also called" tags (the first three, then +N), the domain at wide widths, the count of context, a flag only when something needs a look, and the source (a lock for read-only, the author's avatar for a term).
 
