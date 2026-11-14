@@ -119,8 +119,8 @@ export function ReactionPicker({
                 <Button
                   aria-label="Add a reaction"
                   variant="ghost"
-                  size="icon-xs"
-                  className={cn('size-6 rounded-full text-muted-foreground', className)}
+                  size="icon"
+                  className={cn('rounded-full text-muted-foreground', className)}
                 />
               }
             />
@@ -203,9 +203,9 @@ function Entry({
               render={
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon"
                   aria-label={`More for ${comment.author}'s comment`}
-                  className={cn('ml-auto size-6 text-muted-foreground', reveal)}
+                  className={cn('ml-auto text-muted-foreground', reveal)}
                 />
               }
             >
@@ -296,14 +296,13 @@ function Entry({
               onReact={(e) => actions.react(comment.id, e)}
             />
             {onReply && (
-              <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={onReply}>
+              <Button variant="ghost" className="text-muted-foreground" onClick={onReply}>
                 Reply
               </Button>
             )}
             {mine && actions.withdraw && (
               <Button
                 variant="ghost"
-                size="xs"
                 className="text-muted-foreground"
                 onClick={() => {
                   actions.withdraw!(comment.id, !comment.withdrew)

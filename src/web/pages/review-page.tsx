@@ -120,9 +120,8 @@ function QueueRail({ count, onShow }: { count: number; onShow: () => void }) {
           render={
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-lg"
               aria-label={`Show the queue, ${count} waiting`}
-              className="size-9"
               onClick={onShow}
             />
           }
@@ -286,7 +285,6 @@ function PublishReady({
   const button = (
     <Button
       variant="outline"
-      size="sm"
       className="w-full"
       disabled={!n || !sender.online}
       onClick={() => setConfirm(true)}
@@ -476,7 +474,7 @@ function ChangeSteps({
           render={
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label="Previous change"
               onClick={() => step(-1)}
             />
@@ -491,12 +489,7 @@ function ChangeSteps({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Next change"
-              onClick={() => step(1)}
-            />
+            <Button variant="ghost" size="icon" aria-label="Next change" onClick={() => step(1)} />
           }
         >
           <ChevronDownIcon />
@@ -819,7 +812,7 @@ function Clash({ r }: { r: Review }) {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setUnfold(true)}>
+            <Button variant="ghost" onClick={() => setUnfold(true)}>
               Show
             </Button>
             {folded.every((x) => answers[x.item.factId] === 'unrelated') ? (
@@ -830,7 +823,6 @@ function Clash({ r }: { r: Review }) {
             ) : (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => folded.forEach((x) => answer(x.item.factId, 'unrelated'))}
               >
                 Mark it unrelated
@@ -1147,7 +1139,7 @@ function Decision({
       </span>
       {/* A failed note retries beside its editor; a failed decision retries from the buttons below. */}
       {failed.action === 'return' && (
-        <Button variant="outline" size="sm" onClick={retry}>
+        <Button variant="outline" onClick={retry}>
           Try again
         </Button>
       )}
@@ -1193,18 +1185,18 @@ function Decision({
   const ReadyIcon = ready.ok ? CircleCheckIcon : CircleDashedIcon
 
   const returnButton = (
-    <Button variant="outline" size="sm" disabled={sending !== null} onClick={() => ask('return')}>
+    <Button size="lg" variant="outline" disabled={sending !== null} onClick={() => ask('return')}>
       Return<span className="max-sm:hidden"> with a note</span>
     </Button>
   )
   // The buttons, the same in the panel and in the phone's bar.
   const offered = r.drafted ? (
     <>
-      <Button variant="outline" size="sm" onClick={() => navigate('/context/new', { gap: r.id })}>
+      <Button size="lg" variant="outline" onClick={() => navigate('/context/new', { gap: r.id })}>
         Edit<span className="max-sm:hidden"> the draft</span>
       </Button>
       <Button
-        size="sm"
+        size="lg"
         className="ml-auto"
         disabled={held('publish')}
         loading={busy('publish')}
@@ -1217,8 +1209,8 @@ function Decision({
   ) : actions.primary === 'return' ? (
     <>
       <Button
+        size="lg"
         variant="outline"
-        size="sm"
         disabled={held('publish')}
         loading={busy('publish')}
         loadingLabel="Publishing…"
@@ -1227,7 +1219,7 @@ function Decision({
         Publish anyway
       </Button>
       <Button
-        size="sm"
+        size="lg"
         className="ml-auto"
         disabled={sending !== null}
         onClick={() => ask('return')}
@@ -1238,7 +1230,7 @@ function Decision({
   ) : (
     <>
       {actions.can.includes('archive') && withdrawn ? (
-        <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => ask('archive')}>
+        <Button size="lg" variant="outline" disabled={blockedBySend} onClick={() => ask('archive')}>
           Archive anyway
         </Button>
       ) : actions.can.includes('return') ? (
@@ -1246,7 +1238,7 @@ function Decision({
       ) : null}
       {actions.primary === 'close' ? (
         <Button
-          size="sm"
+          size="lg"
           className="ml-auto"
           disabled={held('close')}
           loading={busy('close')}
@@ -1257,7 +1249,7 @@ function Decision({
         </Button>
       ) : actions.primary === 'archive' ? (
         <Button
-          size="sm"
+          size="lg"
           className="ml-auto"
           disabled={held('archive')}
           loading={busy('archive')}
@@ -1268,7 +1260,7 @@ function Decision({
         </Button>
       ) : (
         <Button
-          size="sm"
+          size="lg"
           className="ml-auto"
           disabled={held('publish')}
           loading={busy('publish')}
@@ -1286,7 +1278,7 @@ function Decision({
     failed && failed.action !== 'return' ? (
       <>
         {actions.can.includes('return') && returnButton}
-        <Button size="sm" className="ml-auto" onClick={retry}>
+        <Button size="lg" className="ml-auto" onClick={retry}>
           Try again
         </Button>
       </>
@@ -1310,12 +1302,7 @@ function Decision({
       <p className="flex items-center gap-2 text-sm font-medium">
         <CircleCheckIcon className="size-4 text-primary" aria-hidden />
         {finished.message}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-7 pointer-coarse:h-10"
-          onClick={onUndo}
-        >
+        <Button variant="ghost" className="ml-auto pointer-coarse:h-10" onClick={onUndo}>
           <Undo2Icon data-icon="inline-start" />
           Undo
         </Button>
@@ -1324,7 +1311,7 @@ function Decision({
         <p className="line-clamp-1 text-sm text-muted-foreground">{finished.description}</p>
       )}
       {reduced ? (
-        <Button size="sm" className="self-end pointer-coarse:h-10" onClick={onNext}>
+        <Button className="self-end pointer-coarse:h-10" onClick={onNext}>
           {finished.next ? 'Next suggestion' : 'Back to the Inbox'}
         </Button>
       ) : (
@@ -1454,9 +1441,7 @@ function Decision({
           <div className="flex flex-col gap-2">
             {problem}
             {/* Desktop decisions are full size: 36px, 13px text. */}
-            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-sm">
-              {shownActions}
-            </div>
+            <div className="flex flex-wrap gap-2">{shownActions}</div>
             {draft && (
               <p className="text-xs text-muted-foreground">
                 Your note for {first} is kept. Return with a note opens it again.
@@ -1911,12 +1896,7 @@ export function ReviewPage({ id }: { id: string }) {
           }
         >
           {isMobile && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setQueueOpen(true)}
-            >
+            <Button variant="outline" className="gap-1.5" onClick={() => setQueueOpen(true)}>
               <ListIcon data-icon="inline-start" />
               Queue
             </Button>
@@ -1930,7 +1910,7 @@ export function ReviewPage({ id }: { id: string }) {
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label="Keyboard shortcuts"
                     className="pointer-coarse:hidden"
                     onClick={() => openOverlay('shortcuts')}
@@ -1959,7 +1939,7 @@ export function ReviewPage({ id }: { id: string }) {
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
                         aria-label="Previous suggestion"
                         disabled={at === 0}
                         onClick={() => go(reviews[at - 1]!.id)}
@@ -1977,7 +1957,7 @@ export function ReviewPage({ id }: { id: string }) {
                     render={
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
                         aria-label="Next suggestion"
                         disabled={at === reviews.length - 1}
                         onClick={() => go(reviews[at + 1]!.id)}

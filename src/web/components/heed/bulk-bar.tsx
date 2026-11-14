@@ -94,7 +94,7 @@ function NoteLine({ note }: { note: BulkNote }) {
             render={
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon"
                 aria-label="Why they were skipped"
                 className="text-background hover:bg-background/15 hover:text-background focus-visible:ring-background/60"
               />
@@ -140,7 +140,6 @@ export function BulkButton({
   const button = (
     <Button
       variant="ghost"
-      size="sm"
       aria-disabled={reason ? true : undefined}
       aria-description={reason}
       onClick={reason ? (e) => e.preventDefault() : onClick}

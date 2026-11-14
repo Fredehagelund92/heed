@@ -136,7 +136,7 @@ function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Find a value"
             aria-label="Find a value"
-            className="h-7 pl-8 text-sm md:text-sm pointer-coarse:h-11"
+            className="pl-8 text-sm md:text-sm pointer-coarse:h-11"
           />
         </div>
       </div>
@@ -172,8 +172,7 @@ function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
               {chip && (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="ml-auto h-6 px-1.5 text-xs font-normal"
+                  className="ml-auto"
                   onClick={() =>
                     onChange(
                       chips.filter((c) => c.key !== f.key),
@@ -235,7 +234,7 @@ function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
                 more={values.length - list.length}
                 next={values.length - list.length}
                 onClick={() => setMore((m) => [...m, f.key])}
-                className="-ml-2 h-7 w-fit text-xs"
+                className="-ml-3 w-fit"
               />
             )}
           </section>
@@ -276,7 +275,7 @@ function DimensionFacets({
     onPin && (
       <Button
         variant="ghost"
-        size="icon-xs"
+        size="icon"
         className="text-muted-foreground pointer-coarse:size-11"
         aria-label={`${on ? 'Pin' : 'Unpin'} ${d.name} for everyone`}
         title={on ? 'Pin for everyone: a facet of its own' : 'Unpin for everyone'}
@@ -435,8 +434,7 @@ function DimensionFacet({
           {chip && (
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-xs font-normal"
+
               onClick={() =>
                 onChange(
                   chips.filter((c) => c.key !== key),
@@ -456,12 +454,7 @@ function DimensionFacet({
       ) : read.isError ? (
         <p className="py-1 text-xs text-muted-foreground">
           Couldn’t load the values of {d.name}.{' '}
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-xs"
-            onClick={() => void read.refetch()}
-          >
+          <Button variant="link" className="h-auto p-0 text-xs" onClick={() => void read.refetch()}>
             Try again
           </Button>
         </p>
@@ -516,7 +509,7 @@ function DimensionFacet({
           more={values.length - list.length}
           next={values.length - list.length}
           onClick={() => setAll(true)}
-          className="-ml-2 h-7 w-fit text-xs"
+          className="-ml-3 w-fit"
         />
       )}
       {room > 0 && <FacetPlaces rows={room} shown={false} />}

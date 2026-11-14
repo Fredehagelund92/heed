@@ -705,7 +705,6 @@ function Editor({
           {long && (
             <Button
               variant="link"
-              size="sm"
               className="h-auto px-0 text-xs"
               aria-expanded={previewAll}
               onClick={() => setPreviewAll((v) => !v)}
@@ -801,10 +800,17 @@ function Editor({
             {/* Nothing is kept until Save, so a new page that holds nothing yet has nothing to say. */}
             {(mode !== 'new' || edited) && (
               <SaveStatus
-                saving={sendState === 'sending'}
-                offline={!online}
-                unsaved={edited}
-                failed={sendState === 'failed'}
+                status={
+                  sendState === 'failed'
+                    ? 'failed'
+                    : sendState === 'sending'
+                      ? 'saving'
+                      : !edited
+                        ? 'clean'
+                        : online
+                          ? 'dirty'
+                          : 'offline'
+                }
               />
             )}
             {/* Write or try it: the same draft, seen two ways, so a quiet toggle rather than tabs. */}
@@ -819,7 +825,6 @@ function Editor({
               <TooltipTrigger
                 render={
                   <Button
-                    size="sm"
                     data-primary
                     aria-disabled={!!held}
                     loading={sendState === 'sending'}
@@ -914,12 +919,7 @@ function Editor({
                   Couldn't {verb.toLowerCase()}
                   <span className="max-sm:hidden">. Your text is kept</span>.
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-foreground"
-                  onClick={() => send(publish)}
-                >
+                <Button variant="outline" className="text-foreground" onClick={() => send(publish)}>
                   <RefreshCwIcon data-icon="inline-start" />
                   Retry
                 </Button>
@@ -1214,7 +1214,6 @@ function Editor({
                       value={form.source}
                       onChange={(e) => set('source', e.target.value)}
                       placeholder="https://"
-                      className="h-9"
                     />
                     {problemAt('source') && (
                       <p className="text-xs text-destructive">{problemAt('source')}</p>

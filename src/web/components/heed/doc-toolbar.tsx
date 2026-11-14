@@ -45,11 +45,7 @@ function TextStyleMenu({ editor }: { editor: Editor | null }) {
     }) ?? '0'
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="sm" className="h-8 w-26 justify-between px-2 text-sm" />
-        }
-      >
+      <DropdownMenuTrigger render={<Button variant="ghost" className="w-26 justify-between" />}>
         {TEXT_STYLES.find((s) => s.value === value)?.label}
         <ChevronDownIcon className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
@@ -80,9 +76,7 @@ function TextStyleMenu({ editor }: { editor: Editor | null }) {
 function InsertMenu({ editor }: { editor: Editor | null }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-sm" />}
-      >
+      <DropdownMenuTrigger render={<Button variant="ghost" />}>
         <PlusIcon className="size-4" />
         Insert
         <ChevronDownIcon className="size-3.5 text-muted-foreground" />

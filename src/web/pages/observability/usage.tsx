@@ -71,10 +71,7 @@ function Usage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <a
-              href="/settings/agents"
-              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-            >
+            <a href="/settings/agents" className={cn(buttonVariants({ variant: 'outline' }))}>
               Agents and access
             </a>
           </EmptyContent>

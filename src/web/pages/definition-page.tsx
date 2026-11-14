@@ -36,7 +36,6 @@ export function DefinitionPage({ name }: { name: string }) {
           <>
             {subject.type === 'metric' && (
               <Button
-                size="sm"
                 nativeButton={false}
                 aria-label="Write context"
                 render={<a href={href('/context/new', { metric: d.name })} />}
@@ -47,7 +46,6 @@ export function DefinitionPage({ name }: { name: string }) {
             )}
             <Button
               variant="outline"
-              size="sm"
               nativeButton={false}
               aria-label="Open in source"
               render={<a href={sourceUrl(d)} target="_blank" rel="noreferrer" />}
@@ -57,10 +55,7 @@ export function DefinitionPage({ name }: { name: string }) {
             </Button>
           </>
         ) : (
-          <Button
-            size="sm"
-            onClick={() => navigate(`/definitions/${encodeURIComponent(d.name)}/edit`)}
-          >
+          <Button onClick={() => navigate(`/definitions/${encodeURIComponent(d.name)}/edit`)}>
             <PencilIcon data-icon="inline-start" />
             Edit
           </Button>

@@ -1,3 +1,4 @@
+import { DEMO_TODAY, today } from '@/lib/today'
 import type { LogEntry } from '@/model/items'
 // A context item's or a definition's versions as the app reads them (src/web/api): a number,
 // who, when and what changed. Pure types and the words a version list says them with.
@@ -61,22 +62,19 @@ export const VERB: Record<VersionKind, string> = {
   conflict: 'changed a conflict',
 }
 
-/**
- * The demo world's today, as the rest of the mock dates it, until the workspace's own today comes
- * from the service (the golden plan's P11).
- */
-export const TODAY = '2026-10-23'
+/** The demo world's today, as the mock dates its data; the app reads the service's (`today()`). */
+export const TODAY = DEMO_TODAY
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** "today", "yesterday", "4 days ago", "12 Oct", "3 Oct 2025". */
 export function relativeDate(iso: string) {
-  const days = Math.round((Date.parse(TODAY) - Date.parse(iso)) / 86400000)
+  const days = Math.round((Date.parse(today()) - Date.parse(iso)) / 86400000)
   if (days <= 0) return 'today'
   if (days === 1) return 'yesterday'
   if (days < 7) return `${days} days ago`
   const [y, m, d] = iso.split('-').map(Number)
-  return `${d} ${MONTHS[m! - 1]}${y === Number(TODAY.slice(0, 4)) ? '' : ` ${y}`}`
+  return `${d} ${MONTHS[m! - 1]}${y === Number(today().slice(0, 4)) ? '' : ` ${y}`}`
 }
 
 /** "October 2026": a version list's group header. */

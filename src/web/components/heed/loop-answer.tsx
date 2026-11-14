@@ -69,7 +69,7 @@ export function LoopProgress({ turn }: { turn: Turn }) {
       {steps.map((s, i) => (
         <li key={i} className="flex items-center gap-2">
           {s.done ? (
-            <P.CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <P.CheckIcon aria-hidden className="size-4 shrink-0 text-good" />
           ) : (
             <span aria-hidden className="size-4 shrink-0" />
           )}
@@ -352,11 +352,7 @@ function Disagree({ loop, maps }: { loop: LoopTurn; maps: ReturnType<typeof useM
             decide.
           </span>
         )}
-        <P.Button
-          size="sm"
-          variant="outline"
-          onClick={() => P.openDock('conflict', loop.conflict.join('.'))}
-        >
+        <P.Button variant="outline" onClick={() => P.openDock('conflict', loop.conflict.join('.'))}>
           <P.ArrowLeftRightIcon data-icon="inline-start" />
           Compare the two
         </P.Button>
@@ -527,7 +523,6 @@ function Next({
     const names = about.map((id) => nouns.get(id)!.name)
     return (
       <P.Button
-        size="sm"
         variant="outline"
         className="w-fit"
         nativeButton={false}
@@ -544,7 +539,6 @@ function Next({
     return (
       <div className="flex flex-wrap items-center gap-2">
         <P.Button
-          size="sm"
           variant="outline"
           onClick={() =>
             void write('editItem', {
@@ -560,7 +554,6 @@ function Next({
           Mark it still true
         </P.Button>
         <P.Button
-          size="sm"
           variant="ghost"
           nativeButton={false}
           render={<a href={P.href(`/context/${f.id}/edit`)} />}
@@ -846,14 +839,13 @@ function Stopped({ answer, onRetry }: { answer: Answer; onRetry?: () => void }) 
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {onRetry && (
-          <P.Button variant="outline" size="sm" onClick={onRetry}>
+          <P.Button variant="outline" onClick={onRetry}>
             <P.RefreshCwIcon data-icon="inline-start" />
             Ask again
           </P.Button>
         )}
         <P.Button
           variant="ghost"
-          size="sm"
           nativeButton={false}
           render={<a href={P.href('/search', { q: P.askedOf(answer) })} />}
         >
@@ -912,7 +904,7 @@ function AnswerOfLoop({ turn, docked, onRetry, onAsk, latest }: Props) {
               You stopped it before an answer. Nothing was shown.
             </span>
             {onRetry && (
-              <P.Button variant="outline" size="sm" onClick={onRetry}>
+              <P.Button variant="outline" onClick={onRetry}>
                 <P.RefreshCwIcon data-icon="inline-start" />
                 Ask again
               </P.Button>
@@ -1011,7 +1003,7 @@ function Finished({
             <div className="flex flex-wrap gap-2">
               {loop.choices.map((choice) =>
                 onAsk ? (
-                  <P.Button key={choice} variant="outline" size="sm" onClick={() => onAsk(choice)}>
+                  <P.Button key={choice} variant="outline" onClick={() => onAsk(choice)}>
                     {choice}
                   </P.Button>
                 ) : (

@@ -100,7 +100,7 @@ function Domains() {
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search domains"
               aria-label="Search domains"
-              className="h-8 w-56 max-w-full"
+              className="w-56 max-w-full"
             />
           )
         }
@@ -392,10 +392,10 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
         defaultOpen={page.history.length > 4}
         action={
           <>
-            <Button variant="outline" size="sm" onClick={checkChain}>
+            <Button variant="outline" onClick={checkChain}>
               Check the chain
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exported('exportHistory')}>
+            <Button variant="outline" onClick={() => exported('exportHistory')}>
               Export
             </Button>
           </>
@@ -476,7 +476,6 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
               value: (
                 <Button
                   variant="outline"
-                  size="sm"
                   aria-disabled
                   aria-description="Run it once from the command line first. A model key turns this on later."
                   title="Run it once from the command line first. A model key turns this on later."
@@ -499,7 +498,7 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
           </>
         }
         action={
-          <Button variant="outline" size="sm" onClick={() => exported('exportContext')}>
+          <Button variant="outline" onClick={() => exported('exportContext')}>
             Export context
           </Button>
         }
@@ -613,6 +612,7 @@ export function SettingsPage({
     return (
       <React.Suspense fallback={<Page title="Domain">{null}</Page>}>
         <DomainPage
+          key={sub}
           id={sub}
           crumbs={(name) => (
             <SettingsCrumbs

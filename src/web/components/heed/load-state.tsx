@@ -146,7 +146,7 @@ export function LoadError({
           Nothing is lost. Check the connection and try again.
         </p>
       </div>
-      <Button variant="outline" size="sm" onClick={onRetry}>
+      <Button variant="outline" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
         Retry
       </Button>
@@ -195,7 +195,7 @@ export function RefreshError({
         <span className="font-medium">Couldn't refresh {what}.</span>{' '}
         <span className="text-muted-foreground">What you see may be out of date.</span>
       </span>
-      <Button variant="ghost" size="sm" onClick={onRetry}>
+      <Button variant="ghost" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
         Try again
       </Button>

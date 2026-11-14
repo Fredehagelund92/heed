@@ -1,4 +1,3 @@
-import * as React from 'react'
 import type { ReactNode } from 'react'
 import {
   CheckIcon,
@@ -23,52 +22,37 @@ import { ThemeChoices } from '@/components/site-header'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { open } from '@/lib/events'
+import type { SaveState } from '@/lib/autosave'
 
 // An editor's header keeps to what matters: the way back, the title, whether the draft is saved,
 // one Write / Try it toggle and the one primary action. Everything else sits in one More menu.
 
+const words: Record<SaveState, string> = {
+  clean: 'Saved',
+  dirty: 'Not saved yet',
+  saving: 'Saving',
+  saved: 'Saved',
+  failed: 'Not saved',
+  offline: 'Offline, not saved yet',
+}
+const icons = {
+  clean: CheckIcon,
+  dirty: CircleDashedIcon,
+  saving: Loader2Icon,
+  saved: CheckIcon,
+  failed: CircleAlertIcon,
+  offline: CloudOffIcon,
+} satisfies Record<SaveState, unknown>
+
 /**
- * Whether what is written is saved, said only when it is true: Saving while a save is on its way,
- * Not saved yet while words wait for Save, Not saved when the last try failed, and Saved when the
- * page holds nothing that is not saved. Offline, nothing is kept anywhere, and it says so.
+ * Whether what is written is saved, said only when it is true: Saved when the page holds nothing
+ * that is not stored (`saved` just now, `clean` as it opened), Not saved yet while words wait,
+ * Saving while a save is on its way, and Not saved when the last try failed, with Try again when
+ * the page can try. Offline, nothing is kept anywhere, and it says so.
  */
-export function SaveStatus({
-  saving,
-  offline,
-  unsaved,
-  failed,
-}: {
-  saving: boolean
-  offline?: boolean
-  unsaved?: boolean
-  failed?: boolean
-}) {
-  const waiting = !saving && !!unsaved
-  const Icon = failed
-    ? CircleAlertIcon
-    : offline && unsaved
-      ? CloudOffIcon
-      : saving
-        ? Loader2Icon
-        : waiting
-          ? CircleDashedIcon
-          : CheckIcon
-  // Just saved: the check grows in once, so the change is seen; it is simply there on first show.
-  const [was, setWas] = React.useState(saving)
-  const [justSaved, setJustSaved] = React.useState(false)
-  if (was !== saving) {
-    setWas(saving)
-    setJustSaved(!saving)
-  }
-  const words = failed
-    ? 'Not saved'
-    : offline && unsaved
-      ? 'Offline, not saved yet'
-      : saving
-        ? 'Saving'
-        : waiting
-          ? 'Not saved yet'
-          : 'Saved'
+export function SaveStatus({ status, retry }: { status: SaveState; retry?: () => void }) {
+  const Icon = icons[status]
+  const failed = status === 'failed'
   return (
     <span
       className={cn(
@@ -78,15 +62,21 @@ export function SaveStatus({
       aria-live="polite"
     >
       <Icon
-        key={saving ? 'saving' : 'saved'}
+        // Just saved: the check grows in once, so the change is seen; it is simply there on first show.
+        key={status}
         className={cn(
           'size-3.5',
-          saving && 'animate-spin',
-          justSaved && !unsaved && 'animate-in duration-(--dur-2) fade-in-0 zoom-in-60',
+          status === 'saving' && 'animate-spin',
+          status === 'saved' && 'animate-in duration-(--dur-2) fade-in-0 zoom-in-60',
         )}
         aria-hidden
       />
-      <span className="max-sm:sr-only">{words}</span>
+      <span className="max-sm:sr-only">{words[status]}</span>
+      {failed && retry && (
+        <Button variant="link" className="h-auto p-0 text-xs" onClick={retry}>
+          Try again
+        </Button>
+      )}
     </span>
   )
 }
@@ -96,7 +86,7 @@ export function HeaderMore({ children }: { children?: ReactNode }) {
   const mobile = useIsMobile()
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="More" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More" />}>
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

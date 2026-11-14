@@ -67,7 +67,6 @@ export function SaveQuestion({
           render={
             <Button
               variant="outline"
-              size="sm"
               aria-disabled={reason ? true : undefined}
               aria-description={reason}
               title={reason}
@@ -154,12 +153,10 @@ export function SaveQuestion({
             passing, it is checked again. It checks what agents get, not how an agent words it.
           </p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Save question
-            </Button>
+            <Button type="submit">Save question</Button>
           </div>
         </form>
       </PopoverContent>

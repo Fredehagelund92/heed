@@ -129,7 +129,6 @@ function PlaceThread({
           {resolved && (
             <Button
               variant="ghost"
-              size="xs"
               className="text-muted-foreground"
               aria-expanded={shown}
               onClick={() => setShown((s) => !s)}
@@ -137,7 +136,7 @@ function PlaceThread({
               {shown ? 'Hide the thread' : n === 1 ? 'Show the comment' : `Show the ${n} comments`}
             </Button>
           )}
-          <Button variant="outline" size="xs" onClick={() => onResolve(!resolved)}>
+          <Button variant="outline" onClick={() => onResolve(!resolved)}>
             {resolved ? 'Reopen' : 'Resolve'}
           </Button>
         </span>
