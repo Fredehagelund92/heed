@@ -154,7 +154,7 @@ export function LoadError({
 }
 
 /**
- * A refresh that failed on a page already on screen: one quiet line above it, with Retry. The page
+ * A refresh that failed on a page already on screen: one quiet line above it, with Try again. The page
  * stays as it was, with what was typed in it.
  */
 export function RefreshError({
@@ -181,7 +181,7 @@ export function RefreshError({
       </span>
       <Button variant="ghost" size="sm" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
-        Retry
+        Try again
       </Button>
     </div>
   )

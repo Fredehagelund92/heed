@@ -3,7 +3,7 @@ import { expect, go, mode, test } from './go.ts'
 
 // J49, a page that is on screen when the service stops answering: the tab comes back after its reads
 // went stale, the refresh fails, and the page stays as it was, with what was typed in it, and says
-// the refresh failed. Retry reads again and the line goes. The mock answers a read it has answered
+// the refresh failed. Try again reads the page again and the line goes. The mock answers a read it has answered
 // once as it did, and can fail only a page's first load (?state=failed), so this runs on the
 // service (http mode), where the reads can be refused.
 
@@ -48,9 +48,9 @@ test('a refresh that fails keeps the page and the half-written comment, and says
   await expect(box).toContainText('Half a comment, not posted yet')
   await expect(page.getByRole('alert').filter({ hasText: "Couldn't load" })).toHaveCount(0)
 
-  // The service is back: Retry reads again, the line goes, and the words are still there.
+  // The service is back: Try again reads the page again, the line goes, and the words are still there.
   down = false
-  await line.getByRole('button', { name: 'Retry' }).click()
+  await line.getByRole('button', { name: 'Try again' }).click()
   await expect(line).toHaveCount(0)
   await expect(heading).toHaveText(title)
   await expect(box).toContainText('Half a comment, not posted yet')
