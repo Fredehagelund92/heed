@@ -10,8 +10,12 @@ export interface JobContext {
   signal: AbortSignal
 }
 
-/** A summary of one run, kept on the job record and in the log. Counts and ids, never content. */
-export type JobSummary = Record<string, unknown>
+/**
+ * A summary of one run, kept on the job record and in the log. Counts and ids, never content.
+ * `backingOff` says the run did nothing because an earlier failure is still waiting out its wait:
+ * it is not a success, so that failure stands and the watchdog sees the job late.
+ */
+export type JobSummary = Record<string, unknown> & { backingOff?: true }
 
 /**
  * A job that runs on a schedule, keeps a heartbeat and is watched for missed runs (NFR-073).
