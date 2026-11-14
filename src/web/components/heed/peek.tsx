@@ -53,7 +53,7 @@ export function PeekTitle({
   return (
     <div className="flex items-center gap-3">
       {lead}
-      <h2 className="min-w-0 text-lg leading-6 font-bold tracking-tight text-pretty break-words">
+      <h2 className="min-w-0 text-xl font-bold tracking-tight text-pretty break-words">
         {children}
       </h2>
     </div>
@@ -62,7 +62,7 @@ export function PeekTitle({
 
 /** The words themselves, the largest text in the peek. */
 export function PeekMeaning({ children }: { children: React.ReactNode }) {
-  return <div className="mt-3 text-reading leading-6">{children}</div>
+  return <div className="mt-3 text-base leading-6">{children}</div>
 }
 
 /**
@@ -88,14 +88,14 @@ export function PeekAttention({
         // As tall as the line with its button that usually takes the place.
         checking
           ? 'min-h-11.5 border-border bg-muted/60 text-muted-foreground'
-          : 'border-caution/45 bg-caution/8 dark:border-warn/45 dark:bg-caution/12',
+          : 'border-caution/45 bg-caution/8 dark:border-caution/45 dark:bg-caution/8',
       )}
     >
       <Icon
         aria-hidden
         className={cn(
           'size-4 shrink-0',
-          checking ? 'animate-spin text-muted-foreground' : 'text-caution-text dark:text-warn',
+          checking ? 'animate-spin text-muted-foreground' : 'text-caution dark:text-caution',
         )}
       />
       <span className="min-w-0 flex-1 text-pretty break-words">{children}</span>
@@ -122,7 +122,7 @@ export function PeekFact({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-2 text-dense leading-5 text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
+    <div className="flex items-start gap-2 text-xs leading-5 text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
       <Icon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
       <div className="min-w-0 break-words">{children}</div>
     </div>
@@ -166,7 +166,7 @@ export function PeekDetails({
       <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
         {rows.map(([k, v]) => (
           <React.Fragment key={k}>
-            <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
+            <dt className="text-xs leading-5.5 font-medium text-muted-foreground">{k}</dt>
             <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
           </React.Fragment>
         ))}
@@ -204,7 +204,7 @@ export function PeekLink({
   className?: string
 }) {
   const cls = cn(
-    "-ml-1.5 h-7 gap-1.5 px-1.5 text-dense font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-11 [&_svg:not([class*='size-'])]:size-3.5",
+    "-ml-1.5 h-7 gap-1.5 px-1.5 text-sm font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-11 [&_svg:not([class*='size-'])]:size-3.5",
     className,
   )
   if (href)

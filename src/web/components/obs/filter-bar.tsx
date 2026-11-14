@@ -203,7 +203,7 @@ export function FilterBar({
         aria-haspopup="dialog"
         aria-expanded={!!at && !at.fromChip}
         aria-keyshortcuts="F"
-        className="h-7 gap-1.5 px-2 text-dense font-normal @max-2xl/main:h-11 pointer-coarse:h-11"
+        className="h-7 gap-1.5 px-2 text-sm font-normal @max-2xl/main:h-11 pointer-coarse:h-11"
         onClick={(e) => (at ? close() : open(null, e.currentTarget))}
       >
         <ListFilterIcon />
@@ -563,7 +563,7 @@ function ChipItem({
           className={cn(part, 'min-w-0 shrink font-medium')}
           onClick={edit}
         >
-          {old && <TriangleAlertIcon className="size-3 shrink-0 text-warn" />}
+          {old && <TriangleAlertIcon className="size-3 shrink-0 text-caution" />}
           <span className={cn('truncate', anyValue(c) && 'font-normal')}>{values}</span>
         </button>
         <button

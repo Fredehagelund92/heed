@@ -31,7 +31,7 @@ function ResizableHandle({
       )}
       {...props}
     >
-      {withHandle && <div className="z-raised flex h-6 w-1 shrink-0 rounded-lg bg-border" />}
+      {withHandle && <div className="z-raised flex h-6 w-1 shrink-0 rounded-md bg-border" />}
     </ResizablePrimitive.Separator>
   )
 }

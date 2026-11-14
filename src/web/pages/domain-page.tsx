@@ -308,7 +308,7 @@ export function DomainPage({
             id={fieldId('name')}
             aria-label="Name"
             rows={1}
-            className="field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 sm:text-3xl"
+            className="field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground sm:text-3xl"
             placeholder="Name the domain"
             readOnly={!canEdit}
             value={name}

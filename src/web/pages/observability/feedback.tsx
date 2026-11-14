@@ -149,7 +149,7 @@ function Feedback() {
                   aria-selected={tab === k}
                   onClick={() => setTab(k)}
                   className={cn(
-                    '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+                    '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
                     tab === k && 'border-foreground font-medium text-foreground',
                   )}
                 >
@@ -192,7 +192,7 @@ function Feedback() {
                       <span
                         className={cn(
                           'inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-2 text-xs whitespace-nowrap',
-                          r.state === 'inbox' && 'border-warn/45 text-foreground',
+                          r.state === 'inbox' && 'border-caution/45 text-foreground',
                           r.state === 'looked' && 'text-foreground',
                           r.state === 'fine' && 'text-muted-foreground',
                         )}

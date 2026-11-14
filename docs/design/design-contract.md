@@ -16,8 +16,8 @@
 **The three radius rules.**
 
 1. **Containers are square.** Cards, dialogs, popovers, the palette, empty states, alerts, items, panels, tables, callouts, sheets and the editor frame use `--radius-frame` (0).
-2. **Conversational surfaces are soft.** A question bubble, a suggestion chip and the comment box use `--radius-surface` (10 px). The Ask composer, the one box a chat is typed in, uses `--radius-composer` (14 px).
-3. **Small controls are round** on shadcn's scale from `--radius` 0.625rem: sm 6, md 8, lg 10, xl 14 px. That is buttons, inputs, selects, toggles, checkboxes, switches, badges, chips, avatars, logo tiles, keys, tooltips and menus.
+2. **Conversational surfaces are a control's corner.** A question bubble, a suggestion chip and the comment box use `--radius-surface` (8 px). The Ask composer, the one box a chat is typed in, uses `--radius-composer` (14 px), the one soft thing.
+3. **Small controls are round** on four corners: 4 px (`rounded-xs`) for the smallest marks, a checkbox and a review mark; 6 px (`rounded-sm`) for a chip, a key, a logo tile and a switch's segment; 8 px (`rounded-md`) for buttons, inputs, selects, toggles, menus, tooltips and badges; the pill (`rounded-full`) for avatars, switches and dots. Nothing lies between them.
 
 **The numbers to remember.**
 
@@ -29,6 +29,8 @@
 | Shell     | Sidebar 16rem, resizable from 200 to 360 px, rail 3rem. Dock 480, 560 or 720 px, resizable from 400 to 960                                                                  |
 | Scroll    | One scroll owner per view                                                                                                                                                   |
 | Chip      | One chip: 24 px, 6 px radius, the type's icon, tinted by what it names                                                                                                      |
+| Type      | Six sizes, one line height each: 12/16, 14/20, 16/24, 20/28, 24/30 and 30/38 px. Two greys of text, ink and muted                                                           |
+| Colour    | One colour per meaning: blue to act, green checked, amber look at this, red broken. A soft fill is the colour at 8 percent                                                  |
 | Switching | No tabs anywhere. Four small components, one per job (section 5.9)                                                                                                          |
 | Focus     | A border in the ring colour plus a 3 px ring at 50 percent                                                                                                                  |
 | Touch     | Every target under a finger is 44 px                                                                                                                                        |
@@ -61,10 +63,16 @@ The theme is shadcn's neutral theme with these changes only:
 - muted text is `#666666` in light and `#a3a3a3` in dark, so it keeps 4.5:1 on the muted surface;
 - input borders are `#8f8f8f` in light and `#6b6b6b` in dark, so fields, checkboxes and radios keep 3:1 on the page.
 
-Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`, `--mark-fmt`, `--mark-link`, `--mark-move`, each with a `-line` colour), and `--ok`, `--warn` and `--idle` for freshness and the list's trust ring. The chips' hues come from one place (section 5.7). `--caution-soft` is a soft caution fill (`oklch(0.978 0.024 80)` in light, `oklch(0.23 0.035 75)` in dark) used in one place only: behind a Conflict answer in the quick view's answers (section 5.3), where the answer line, the words and the caution ink keep their contrast on it.
+**Two greys of text.** Text is the ink (`--foreground`) or muted (`--muted-foreground`). shadcn's other text colours (card, popover, secondary, accent, sidebar and sidebar accent) are the ink. Text never fades by opacity: only a switched-off control does, with `opacity-50`.
+
+**One colour per meaning.** `--destructive` is red: broken, removed, cannot be undone. `--good` is green: checked and in force. `--caution` is amber: look at this. Each is text at 4.5:1 on every surface, so one colour draws the words, the icon, the rule and the line of its meaning: the review marks' added, removed and link lines and the Text diff's inks are these three. A soft fill behind one is the colour at 8 percent, by rule and never a second name (`bg-caution/8`, `bg-good/8`): a Conflict answer in the quick view's answers sits on `bg-caution/8` (section 5.3), where the answer line, the words and the caution ink keep their contrast.
+
+**One band.** `--band` (`#fafafa` in light, `#171717` in dark) is the sidebar, table heads, captions and bars. The row under the pointer and a selected place are `--muted`.
+
+Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`, `--mark-fmt`, `--mark-link`, `--mark-move`, each with a `-line` colour). The chips' hues come from one place (section 5.7).
 
 ```css
-/* tokens.css v2: values from the approved mockup */
+/* tokens.css: the values from the approved mockup, folded to one grey of ink and one colour per meaning */
 :root {
   color-scheme: light;
   --background: oklch(1 0 0);
@@ -76,39 +84,39 @@ Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`,
   --primary: #2c5dbd;
   --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: #666666; /* 4.5:1 on muted */
   --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.5 0.2 27); /* red */
+  --good: oklch(0.5 0.14 150); /* green */
+  --caution: oklch(0.501 0.133 49.7); /* amber */
   --border: oklch(0.922 0 0);
   --input: #8f8f8f; /* 3:1 for field borders */
   --ring: #2c5dbd;
   --mark-add: oklch(0.94 0.06 150);
-  --mark-add-line: oklch(0.55 0.15 150);
+  --mark-add-line: var(--good);
   --mark-del: oklch(0.94 0.04 25);
-  --mark-del-line: oklch(0.56 0.19 25);
+  --mark-del-line: var(--destructive);
   --mark-fmt: oklch(0.95 0.04 300);
   --mark-fmt-line: oklch(0.5 0.2 295);
   --mark-link: oklch(0.95 0.07 85);
-  --mark-link-line: oklch(0.62 0.15 70);
+  --mark-link-line: var(--caution);
   --mark-move: oklch(0.96 0.01 250);
   --mark-move-line: oklch(0.55 0.03 250);
-  --ok: oklch(0.5 0.14 150);
-  --warn: oklch(0.55 0.15 60);
-  --idle: oklch(0.58 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.985 0 0);
+  --band: oklch(0.985 0 0);
+  --sidebar: var(--band);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #2c5dbd;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: #2c5dbd;
 }
@@ -128,24 +136,20 @@ Beyond shadcn's set, the file adds the review marks (`--mark-add`, `--mark-del`,
   --muted-foreground: #a3a3a3;
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: oklch(0.8 0.13 22);
+  --good: oklch(0.78 0.15 150);
+  --caution: oklch(0.8 0.13 75);
   --border: oklch(1 0 0 / 10%);
   --input: #6b6b6b;
   --ring: #7aa2f0;
   --mark-add: oklch(0.34 0.07 150);
-  --mark-add-line: oklch(0.72 0.15 150);
   --mark-del: oklch(0.34 0.07 25);
-  --mark-del-line: oklch(0.7 0.17 25);
   --mark-fmt: oklch(0.33 0.07 300);
   --mark-fmt-line: oklch(0.72 0.14 295); /* lifted from the mockup's 0.5 0.2 295, see below */
   --mark-link: oklch(0.36 0.07 80);
-  --mark-link-line: oklch(0.78 0.14 80);
   --mark-move: oklch(0.3 0.015 250);
   --mark-move-line: oklch(0.7 0.03 250);
-  --ok: oklch(0.78 0.15 150);
-  --warn: oklch(0.78 0.14 70);
-  --idle: #8a8a8a;
-  --sidebar: oklch(0.205 0 0);
+  --band: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: #7aa2f0;
   --sidebar-primary-foreground: #0a0a0a;
@@ -170,40 +174,45 @@ The chart tokens are the same in light and dark. One value differs from the mock
 
   | Role               | Used for                                  | Looks                                                   |
   | ------------------ | ----------------------------------------- | ------------------------------------------------------- |
-  | Needs you          | The one thing to do or look at            | Amber ink (`--caution-text`), a triangle, semibold      |
-  | Differs or changed | Words that differ between two texts       | Semibold with a 2 px amber underline (`--caution-icon`) |
-  | Wrong              | Something that failed                     | Destructive ink, an icon, and the word Failed           |
-  | Good               | Something that worked, where that is news | A check and the word, in `--good-ink`                   |
+  | Needs you          | The one thing to do or look at            | Amber ink (`--caution`), a triangle, semibold           |
+  | Differs or changed | Words that differ between two texts       | Semibold with a 2 px amber underline (`--caution`)      |
+  | Wrong              | Something that failed                     | Red ink (`--destructive`), an icon, and the word Failed |
+  | Good               | Something that worked, where that is news | A check and the word, in `--good`                       |
 
-  In an Ask answer, the sentences from two items that disagree are not marked word by word: they sit together behind a 2 px amber rule (`--caution-icon`) at their start, the words plain. The rule says nothing alone: the answer's Conflict badge names the two items in its card, and a screen reader hears that each sentence says something different from another item.
+  In an Ask answer, the sentences from two items that disagree are not marked word by word: they sit together behind a 2 px amber rule (`--caution`) at their start, the words plain. The rule says nothing alone: the answer's Conflict badge names the two items in its card, and a screen reader hears that each sentence says something different from another item.
 
   A name or a term is a chip, not a mark. Edits in a review keep their own marks (added, removed, formatting). Mark only text the app wrote from a known place, never words found by searching a person's text; never a document body or anything agents read; never kinds, domains, counts or badges. Mark the exceptions: one Needs you per card or row, about three marks in a block at most, and none when every row of a list would carry the same one. A number's move says its direction with an arrow and words; amber there means "look here", not "worse".
 
-- A raw palette colour (`bg-red-500`), a numeric z-index and an arbitrary colour are reported by lint.
+- A raw palette colour (`bg-red-500`), a numeric z-index, an arbitrary colour, a faded grey of text (`text-foreground/75`) and a soft fill at any strength but 8 percent are reported by lint. The token test finds every amber, green and red in the token file and fails on a second one.
 
 ### 2.2 Radius
 
 ```css
---radius: 0.625rem; /* the scale: sm 6, md 8, lg 10, xl 14 px */
 --radius-frame: 0px; /* containers */
---radius-surface: var(--radius); /* conversational surfaces, 10 px */
---radius-composer: var(--radius-xl); /* the Ask composer, 14 px */
+--radius-xs: 4px; /* a checkbox, a review mark */
+--radius-sm: 6px; /* a chip, a key, a logo tile, a switch's segment */
+--radius-md: 8px; /* buttons, fields, menus, tooltips, badges */
+--radius-full: calc(infinity * 1px); /* avatars, switches, dots */
+--radius-surface: var(--radius-md); /* conversational surfaces */
+--radius-composer: 14px; /* the Ask composer, the one soft thing */
 ```
 
-One token per rule, so the whole app can change a rule in one line. The chip is the one exception to the scale: 6 px.
+Five corners and nothing between them: the token file clears Tailwind's own scale (`--radius-*: initial`), so `rounded-lg` is not a class, and lint names the five. The hand-written stylesheets use the same tokens. One token per rule, so the whole app can change a rule in one line.
 
 ### 2.3 Type
 
-The font is Nunito Sans (variable) for all text. The wordmark is outlined in the logo's SVG, so no second font loads. Sizes are Tailwind's scale, used as roles:
+The font is Nunito Sans (variable) for all text. The wordmark is outlined in the logo's SVG, so no second font loads. There are six sizes, each a role with its own line height:
 
-| Role                                           | Class                 | Size      |
-| ---------------------------------------------- | --------------------- | --------- |
-| Meta, captions, chips, hints                   | `text-xs`             | 12 px     |
-| Interface text, controls, rows, titles in bars | `text-sm`             | 14 px     |
-| Prose in a document, card titles               | `text-base`           | 16 px     |
-| A lead paragraph in the docs                   | `text-lg`             | 18 px     |
-| A document or review heading                   | `text-xl`, `text-2xl` | 20, 24 px |
-| A document title from `sm` up                  | `text-3xl`            | 30 px     |
+| Role                                                              | Class       | Size / line |
+| ----------------------------------------------------------------- | ----------- | ----------- |
+| Meta: captions, chips, counts, hints, table heads, code in a row  | `text-xs`   | 12 / 16 px  |
+| Interface: controls, rows, the sidebar, fields, titles in bars    | `text-sm`   | 14 / 20 px  |
+| Reading: prose in a document, a docs page, card titles            | `text-base` | 16 / 24 px  |
+| A section: a dialog, a pane heading, a lead paragraph in the docs | `text-xl`   | 20 / 28 px  |
+| A page: a document or review heading, a big figure                | `text-2xl`  | 24 / 30 px  |
+| A document title from `sm` up, a docs page title                  | `text-3xl`  | 30 / 38 px  |
+
+Nothing lies between them: the token file clears Tailwind's own scale (`--text-*: initial`), so `text-lg` or a 13 px size is not a class, and lint names the six. The hand-written stylesheets use the same six. Code is a step below the text around it: 12 px in a row or a comment, 14 px in a document.
 
 Weights are 400 (text), 500 (labels, buttons), 600 (titles, headings) and 700 (document titles). The page title in the header is 14 px. Prose is set at a 60ch measure.
 
@@ -233,7 +242,7 @@ Motion tokens are in [Motion](motion.md). **Focus** is shadcn's: the control's b
 
 Icons come from Lucide at its default stroke (2), through one module. No Heed marks for kinds or states, and no second icon set. The kinds are Event (lightning), Warning (triangle), Rule (ruler) and Guide (route). The definition types are sigma (metric), split (dimension), whole-word (term) and equals (synonym).
 
-Avatars are a soft pastel tint picked from the person's name (dark initials, 6.4:1 or better, the same in dark mode). Sizes are 16, 20, 28 and 32 px (28 in lists). The Ask chat has no avatars: a question is its bubble on the right, and an answer starts with its state. The hash input in the real app stays the person's id.
+Avatars are a soft pastel tint picked from the person's name (dark initials, 6.4:1 or better, the same in dark mode). Sizes are 16, 20, 28 and 32 px (28 in lists). Initials are 12 px, at 28 and 32 px; a 16 or 20 px avatar has no room for them and shows its tint, with the name in its title. The Ask chat has no avatars: a question is its bubble on the right, and an answer starts with its state. The hash input in the real app stays the person's id.
 
 ## 3. Shell and layout
 
@@ -333,7 +342,7 @@ One selection model for every list with checkboxes (`hooks/use-selection.ts`, ru
 
 ### 5.3 The review
 
-The quick view, in the Inbox pane and the dock, opens on the card's head: its state as the chip (Suggestion, Conflict, Not found and the other card kinds), the domain, the title at the review heading's size (24 px, 600; 20 px in a pane under 448 px), the summary, then a short line on who sent it. Under it the quick view shows Try it before and after: a band with the question (for a Not found card, what agents asked about and how often, never their words), then **Agents say today** and **After you publish** (**If you publish as it is** for a suggestion that clashes with live context, **After you archive** for one that archives an item), each with its answer line. The after side has a 3 px rule in its state's colour, a Conflict answer sits on `--caution-soft`, and the words that change carry the Differs mark. The pair is the suggestion's Try it; a Not found card's after answer comes from its draft. Then what needs care, never folded, and the evidence folded until it is wanted: What changes (what moved and the most important change) and the sender's note. A card with no Try it pair (an alert, a check date, a report, a Not found card with no draft yet) keeps the same head and foot, with its point and its evidence folded. The context item such a card is about folds to the Context list's row: its kind, its title and what it is in words, then its status, when and freshness from 560 px of pane; opened, what it applies to, its text, what not to conclude, and Open the context item to its page, left out where the card's decision already says it. The foot holds one primary button named for the decision it opens (Review, Decide how they relate, Check the draft) with Enter beside it, the card's other decisions as labelled buttons beside it, and a few words that say what follows ("12 questions a week would get the new answer", "Publishing waits until you say how they relate"), never with a zero count. Previous and next sit in the pane's 48 px bar with where you are in the list. It never publishes. The review shows:
+The quick view, in the Inbox pane and the dock, opens on the card's head: its state as the chip (Suggestion, Conflict, Not found and the other card kinds), the domain, the title at the review heading's size (24 px, 600; 20 px in a pane under 448 px), the summary, then a short line on who sent it. Under it the quick view shows Try it before and after: a band with the question (for a Not found card, what agents asked about and how often, never their words), then **Agents say today** and **After you publish** (**If you publish as it is** for a suggestion that clashes with live context, **After you archive** for one that archives an item), each with its answer line. The after side has a 3 px rule in its state's colour, a Conflict answer sits on `bg-caution/8`, and the words that change carry the Differs mark. The pair is the suggestion's Try it; a Not found card's after answer comes from its draft. Then what needs care, never folded, and the evidence folded until it is wanted: What changes (what moved and the most important change) and the sender's note. A card with no Try it pair (an alert, a check date, a report, a Not found card with no draft yet) keeps the same head and foot, with its point and its evidence folded. The context item such a card is about folds to the Context list's row: its kind, its title and what it is in words, then its status, when and freshness from 560 px of pane; opened, what it applies to, its text, what not to conclude, and Open the context item to its page, left out where the card's decision already says it. The foot holds one primary button named for the decision it opens (Review, Decide how they relate, Check the draft) with Enter beside it, the card's other decisions as labelled buttons beside it, and a few words that say what follows ("12 questions a week would get the new answer", "Publishing waits until you say how they relate"), never with a zero count. Previous and next sit in the pane's 48 px bar with where you are in the list. It never publishes. The review shows:
 
 - the **queue** of waiting suggestions, grouped by sender, with a dot for where you are, a tick when done and a warning when it needs care;
 - the **change** in the middle: one sentence on what changes, then what must be decided or known (a withdrawal, the item to archive, a synced document, the claim check, the clash gate), which no view ever hides, then the **source**, which is the review: a **Fields** table (title, kind, domain, owner, applies to, when, check date, source, don't conclude), each row changed or the same with its value now and suggested and the unchanged rows folded into one line, and a **Text** diff of the stored text in the app's own font, with line numbers, removed lines before added ones, the changed words marked across a changed block (a paragraph split, joined or reworded keeps its unchanged words plain) only when at least half of the block's shorter side stays, and unchanged stretches folded with three lines kept around each change. N and P step through the changes. A quiet "Preview" toggle shows the suggested version as the item's Context page will show it once published (the same item view, with the day it was checked saying it is set when you publish); an archive has no suggested version, so it says so. Publishing takes the whole change;
@@ -428,19 +437,19 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 ## 9. Guard rails
 
-| Guard              | Checks                                                                                                                                                                                                                   | Fails when                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| Golden job specs   | The app's Playwright specs in `tests/e2e`. Every spec runs on the mock build, and those whose screens are wired also run against the real service. They are the acceptance specification of this contract                | A job fails in a mode it runs in     |
-| Unit tests         | Copy rules read through the TypeScript syntax tree (no product name by hand, banned words, the six labels, the four kinds), the motion guard rails, agent reply, bulk, selection, connect timers, observability sums     | A rule is broken                     |
-| Class rules (lint) | Raw palette colours, numeric z-index, raw durations, `transition-all`, `ease-in`, `scale-0`, `ease-[...]`, arbitrary values outside the allowlist; viewport variants are banned inside anything that can sit in the dock | Any violation                        |
-| Token test         | Every token exists in light and dark; every pair meets 4.5:1 for text and 3:1 for controls and marks                                                                                                                     | A token is missing or a ratio is low |
-| Plain words        | The glossary in `src/domain/words.ts` (v2) and the product-name rule. The old-words baseline starts at zero for the web app                                                                                              | A banned word or a hand-written name |
-| axe                | `@axe-core/playwright` on every route at 390 and 1440 px, light and dark                                                                                                                                                 | A serious or critical violation      |
-| Lighthouse         | Accessibility 100 on the audited screens (by hand per slice until it is automated)                                                                                                                                       | A score under 100                    |
-| Layout             | The left edges of the header, toolbar and content are equal; no horizontal page scroll at any width, including 360                                                                                                       | An edge or a width rule is broken    |
-| Screenshots        | Baselines are taken once from the web app, in CI, at 1440, 1024 and 390 px, light and dark, and reviewed by eye. A baseline changes only in a pull request that says why                                                 | A difference above the threshold     |
-| Bundle             | First load within the recorded budget; the editor, the review, charts and integrations load on demand                                                                                                                    | The budget is exceeded               |
-| Dependencies       | No Radix, `vaul` or animation library; the icon import rule                                                                                                                                                              | A banned import                      |
+| Guard              | Checks                                                                                                                                                                                                                                                                                                                                  | Fails when                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Golden job specs   | The app's Playwright specs in `tests/e2e`. Every spec runs on the mock build, and those whose screens are wired also run against the real service. They are the acceptance specification of this contract                                                                                                                               | A job fails in a mode it runs in                              |
+| Unit tests         | Copy rules read through the TypeScript syntax tree (no product name by hand, banned words, the six labels, the four kinds), the motion guard rails, agent reply, bulk, selection, connect timers, observability sums                                                                                                                    | A rule is broken                                              |
+| Class rules (lint) | A text size, a grey of text or a corner off the lists of section 2, a soft fill at any strength but 8 percent, raw palette colours, numeric z-index, raw durations, `transition-all`, `ease-in`, `scale-0`, `ease-[...]`, arbitrary values outside the allowlist; viewport variants are banned inside anything that can sit in the dock | Any violation                                                 |
+| Token test         | Every token exists in light and dark; every pair meets 4.5:1 for text and 3:1 for controls and marks; six text sizes, two greys of text, five corners and one amber, green and red, in the token file and the hand-written stylesheets                                                                                                  | A token is missing, a ratio is low or a value is off the list |
+| Plain words        | The glossary in `src/domain/words.ts` (v2) and the product-name rule. The old-words baseline starts at zero for the web app                                                                                                                                                                                                             | A banned word or a hand-written name                          |
+| axe                | `@axe-core/playwright` on every route at 390 and 1440 px, light and dark                                                                                                                                                                                                                                                                | A serious or critical violation                               |
+| Lighthouse         | Accessibility 100 on the audited screens (by hand per slice until it is automated)                                                                                                                                                                                                                                                      | A score under 100                                             |
+| Layout             | The left edges of the header, toolbar and content are equal; no horizontal page scroll at any width, including 360                                                                                                                                                                                                                      | An edge or a width rule is broken                             |
+| Screenshots        | Baselines are taken once from the web app, in CI, at 1440, 1024 and 390 px, light and dark, and reviewed by eye. A baseline changes only in a pull request that says why                                                                                                                                                                | A difference above the threshold                              |
+| Bundle             | First load within the recorded budget; the editor, the review, charts and integrations load on demand                                                                                                                                                                                                                                   | The budget is exceeded                                        |
+| Dependencies       | No Radix, `vaul` or animation library; the icon import rule                                                                                                                                                                                                                                                                             | A banned import                                               |
 
 **The pull request checklist.** Every answer must be yes.
 
@@ -467,7 +476,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 | #   | Draft 1 said                                                                                                                      | v2 says                                                                                                 |
 | --- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 1   | Controls and cards are 4 px (squared R4); badges and dialogs 6; the docked panel 0                                                | Containers 0, conversational surfaces 10 px, small controls on the 6, 8, 10, 14 scale; the chip 6 px    |
+| 1   | Controls and cards are 4 px (squared R4); badges and dialogs 6; the docked panel 0                                                | Containers 0; marks 4, chips 6, controls and conversational surfaces 8, the pill; the Ask composer 14   |
 | 2   | Heed blue in dark mode used the brand ink `#94b8f8` as the ring                                                                   | Primary and ring `#7aa2f0` in dark                                                                      |
 | 3   | A custom neutral set (`--ink`, `--selected`, `--scrim`, `--border-subtle`)                                                        | shadcn's neutral set; muted text, input border and marks as in section 2.1                              |
 | 4   | Five kinds (Event, Note, Guide, Example, Issue) each with its own hue and a drawn mark                                            | Four kinds (Event, Warning, Rule, Guide), icon only, neutral                                            |

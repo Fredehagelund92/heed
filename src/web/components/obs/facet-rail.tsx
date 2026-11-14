@@ -136,7 +136,7 @@ function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Find a value"
             aria-label="Find a value"
-            className="h-7 pl-8 text-dense md:text-dense pointer-coarse:h-11"
+            className="h-7 pl-8 text-sm md:text-sm pointer-coarse:h-11"
           />
         </div>
       </div>
@@ -207,7 +207,7 @@ function Facets({ chips, onChange, fields, facet, words, dims }: FacetsProps) {
                     <label
                       htmlFor={id}
                       className={cn(
-                        'flex min-w-0 flex-1 items-center gap-1.5 truncate text-dense',
+                        'flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm',
                         !v.topics && !on && f.key !== 'agent' && 'text-muted-foreground',
                       )}
                     >
@@ -485,7 +485,7 @@ function DimensionFacet({
                     onChange(toggled(chips, key, v.key), `${on ? 'Removed' : 'Added'} ${v.name}`)
                   }
                 />
-                <label htmlFor={id} className="flex min-w-0 flex-1 truncate text-dense">
+                <label htmlFor={id} className="flex min-w-0 flex-1 truncate text-sm">
                   <span className="truncate">{v.name}</span>
                 </label>
                 {read50.some((x) => x.key === v.key) ? (

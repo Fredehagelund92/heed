@@ -235,9 +235,9 @@ function Quality({ first }: { first: SavedCheck }) {
       {failed && (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-3 border-t bg-warn/8 px-4 py-3 text-sm md:px-5"
+          className="flex flex-wrap items-center gap-3 border-t bg-caution/8 px-4 py-3 text-sm md:px-5"
         >
-          <WifiOffIcon className="size-4 shrink-0 text-[var(--warn)]" aria-hidden />
+          <WifiOffIcon className="size-4 shrink-0 text-caution" aria-hidden />
           <span className="min-w-0 flex-1">
             The check did not finish. It stopped after {status.checked} of {status.total} questions.
             Nothing was changed, and agents still get what was published.
@@ -327,7 +327,7 @@ function Quality({ first }: { first: SavedCheck }) {
               <p className="font-medium">
                 Check the wording, with and without context, and compare models
               </p>
-              <p className="text-dense text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Needs a model key. The free check above already runs after every change.
               </p>
             </div>
@@ -382,7 +382,9 @@ function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean })
     </Button>
   )
   return (
-    <li className={cn('flex gap-3 border-b px-4 py-3 md:px-5', q.result === 'look' && 'bg-warn/5')}>
+    <li
+      className={cn('flex gap-3 border-b px-4 py-3 md:px-5', q.result === 'look' && 'bg-caution/8')}
+    >
       <ResultIcon result={q.result} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">

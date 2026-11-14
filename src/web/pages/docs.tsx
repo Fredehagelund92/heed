@@ -155,7 +155,7 @@ function DocsHeader({ slug, onSearch }: { slug?: string; onSearch: () => void })
         >
           <Logo className="h-5" />
           <span className="h-4 w-px bg-border" aria-hidden />
-          <span className="text-sm font-medium text-foreground/75">Docs</span>
+          <span className="text-sm font-medium text-foreground">Docs</span>
         </a>
         <nav aria-label="Documentation" className="ml-2 flex items-center gap-1 max-sm:hidden">
           {tabs.map((t) => (
@@ -248,7 +248,7 @@ function Code({ label, text }: { label: string; text: string }) {
           {copied ? 'Copied' : 'Copy'}
         </button>
       </figcaption>
-      <pre className="overflow-x-auto px-4 py-3.5 font-mono text-dense leading-6 whitespace-pre-wrap">
+      <pre className="overflow-x-auto px-4 py-3.5 font-mono text-xs leading-6 whitespace-pre-wrap">
         {text}
       </pre>
     </figure>
@@ -263,7 +263,7 @@ function Steps({ items }: { items: React.ReactNode[] }) {
           <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs text-muted-foreground tabular-nums">
             {j + 1}
           </span>
-          <span className="min-w-0 text-pretty text-foreground/85">{it}</span>
+          <span className="min-w-0 text-pretty text-foreground">{it}</span>
         </li>
       ))}
     </ol>
@@ -274,7 +274,7 @@ function List({ items }: { items: React.ReactNode[] }) {
   return (
     <ul className="flex list-disc flex-col gap-2 pl-5 marker:text-muted-foreground">
       {items.map((it, j) => (
-        <li key={j} className="text-pretty text-foreground/85">
+        <li key={j} className="text-pretty text-foreground">
           {it}
         </li>
       ))}
@@ -283,7 +283,7 @@ function List({ items }: { items: React.ReactNode[] }) {
 }
 
 function Paragraph({ children }: { children: React.ReactNode }) {
-  return <p className="text-pretty text-foreground/85">{children}</p>
+  return <p className="text-pretty text-foreground">{children}</p>
 }
 
 /** One of the app's own lists, where a page names it, drawn from its source. */
@@ -332,7 +332,7 @@ function Include({ block }: { block: Extract<DocBlock, { type: 'include' }> }) {
           {AGENT_TOOLS.map((tool) => (
             <section key={tool.name} className="border-t px-4 py-3.5 first:border-t-0">
               <h3 className="font-mono text-sm font-medium">{tool.name}</h3>
-              <p className="mt-0.5 text-sm leading-6 text-foreground/85">{tool.what}</p>
+              <p className="mt-0.5 text-sm leading-6 text-foreground">{tool.what}</p>
               <dl className="mt-2 grid grid-cols-(--cols-lead-18) gap-x-3 gap-y-1 text-sm leading-6">
                 <dt className="text-muted-foreground">Takes</dt>
                 <dd>{tool.takes}</dd>
@@ -367,7 +367,7 @@ function Include({ block }: { block: Extract<DocBlock, { type: 'include' }> }) {
 
 function ArticleBody({ blocks }: { blocks: readonly DocBlock[] }) {
   return (
-    <div className="flex flex-col gap-4 text-reading leading-7">
+    <div className="flex flex-col gap-4 text-base leading-7">
       {blocks.map((b, i) => {
         switch (b.type) {
           case 'heading':
@@ -412,7 +412,7 @@ function ArticleBody({ blocks }: { blocks: readonly DocBlock[] }) {
             return (
               <aside key={i} className="rounded-frame border bg-band px-4 py-3 text-sm leading-6">
                 <strong className="font-medium">{b.title}. </strong>
-                <span className="text-foreground/85">
+                <span className="text-foreground">
                   <ItemBody blocks={b.children} />
                 </span>
               </aside>
@@ -497,9 +497,7 @@ function Article({ page }: { page: DocPage }) {
             <span>{page.group}</span>
           </nav>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-hero leading-hero font-bold tracking-hero text-balance">
-              {page.title}
-            </h1>
+            <h1 className="text-3xl font-bold tracking-hero text-balance">{page.title}</h1>
             {page.open && (
               <a
                 href={appHref(page.open.href)}
@@ -511,7 +509,7 @@ function Article({ page }: { page: DocPage }) {
               </a>
             )}
           </div>
-          <p className="mt-3 mb-8 text-lg leading-7 text-pretty text-muted-foreground">
+          <p className="mt-3 mb-8 text-xl text-pretty text-muted-foreground">
             <Inline nodes={page.lead} />
           </p>
           {/* On a phone the right-hand list folds into one row under the title. */}
@@ -591,10 +589,8 @@ function Landing({ onSearch }: { onSearch: () => void }) {
     <div className="min-w-0">
       <div className="px-4 py-10 md:px-10 md:py-14 lg:px-14">
         <div className="max-w-2xl">
-          <h1 className="text-hero-lg leading-hero-lg font-bold tracking-tight text-balance">
-            Documentation
-          </h1>
-          <p className="mt-3 text-lg leading-7 text-pretty text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-balance">Documentation</h1>
+          <p className="mt-3 text-xl text-pretty text-muted-foreground">
             How to write context, connect your agents and review suggestions, and how agents read
             what you wrote.
           </p>
@@ -708,8 +704,8 @@ function Changelog() {
   return (
     <article className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
       <div className="mx-auto max-w-176">
-        <h1 className="text-hero leading-hero font-bold tracking-hero">{CHANGES.title}</h1>
-        <p className="mt-3 mb-8 text-lg leading-7 text-muted-foreground">{CHANGES.line}</p>
+        <h1 className="text-3xl font-bold tracking-hero">{CHANGES.title}</h1>
+        <p className="mt-3 mb-8 text-xl text-muted-foreground">{CHANGES.line}</p>
         <ol className="border-l">
           {CHANGES.changes.map((c) => (
             <li key={c.id} id={c.id} className="relative scroll-mt-20 pb-8 pl-6 last:pb-0">
@@ -721,7 +717,7 @@ function Changelog() {
                 {day(c.date)}
               </time>
               <h2 className="text-base font-semibold">{c.title}</h2>
-              <div className="mt-1 text-reading leading-7 text-foreground/85">
+              <div className="mt-1 text-base leading-7 text-foreground">
                 <ItemBody blocks={c.children} />
               </div>
             </li>

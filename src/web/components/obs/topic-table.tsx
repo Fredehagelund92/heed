@@ -260,7 +260,7 @@ function TopicLine({
             aria-expanded={expand ? expand.open : undefined}
             className={cn(
               'block min-w-0 truncate text-left outline-none hover:underline',
-              month ? 'text-dense' : 'font-medium',
+              month ? 'text-sm' : 'font-medium',
             )}
             onClick={(e) => {
               e.stopPropagation()
@@ -302,7 +302,7 @@ function TopicLine({
           )}
         </span>
       </td>
-      <td className="hidden px-2 text-dense whitespace-nowrap text-muted-foreground @5xl/main:table-cell">
+      <td className="hidden px-2 text-sm whitespace-nowrap text-muted-foreground @5xl/main:table-cell">
         {!month && (
           <span className="flex items-center gap-1.5">
             {g.domain && <DomainDot id={g.domain} />}
@@ -374,7 +374,7 @@ function TopicLine({
             <span
               className={cn(
                 'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs whitespace-nowrap',
-                st.tone === 'warn' && 'border-warn/45',
+                st.tone === 'warn' && 'border-caution/45',
               )}
             >
               <Swatch
@@ -486,7 +486,7 @@ function Flags({
               <span
                 className={cn(
                   'inline-flex h-5 cursor-help items-center rounded-md border px-1.5 text-xs whitespace-nowrap text-muted-foreground',
-                  f.warn && 'border-warn/45 text-foreground',
+                  f.warn && 'border-caution/45 text-foreground',
                 )}
               />
             }

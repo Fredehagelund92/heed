@@ -411,7 +411,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
             id="term-word"
             aria-label="The word"
             rows={1}
-            className="field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 sm:text-3xl"
+            className="field-sizing-content w-full resize-none overflow-hidden bg-transparent text-2xl leading-tight font-bold tracking-tight outline-none placeholder:text-muted-foreground sm:text-3xl"
             placeholder="The word people use"
             value={title}
             onChange={(e) => {
