@@ -329,7 +329,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
               <span
                 className={cn(
                   'relative z-raised flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground',
-                  s.key === 'checked' && run.answer.state === 'grounded' && 'text-primary',
+                  s.key === 'checked' && run.answer.state === 'grounded' && 'text-good',
                   s.key === 'checked' &&
                     (run.answer.state === 'conflict' || run.answer.state === 'stale') &&
                     'text-caution',

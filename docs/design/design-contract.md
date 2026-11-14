@@ -11,7 +11,7 @@
 
 ## 0. One page summary
 
-**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, checked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
+**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, ticked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
 
 **The three radius rules.**
 
@@ -167,9 +167,9 @@ The chart tokens are the same in light and dark. One value differs from the mock
 **Colour rules.**
 
 - Colour is never the only sign. Every mark has an icon, a shape or a word as well (section 5 of [Accessibility](accessibility.md)).
-- The logo, the chrome's surfaces, counts and badges never take the accent.
+- The logo, the chrome's surfaces, counts and badges never take the accent. Nor does a state: a Checked answer is green in its chip, its bars and their legend, a card not opened yet has a dot in the ink, and a domain's dot and a metric chip keep 35 degrees of hue away from Heed blue (`lib/tones.ts`). A done step and a settled value are marked with a green check, never a blue one.
 - Kinds have no hue. A kind shows as a neutral icon.
-- Charts: blue for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
+- Charts: green for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
 - Marked text uses one component (`components/heed/mark.tsx`) and four roles. The colour rides on the ink, the weight and an underline, never on a fill:
 
   | Role               | Used for                                  | Looks                                                   |
@@ -469,7 +469,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 1. **Tiptap in the first load.** The editor loads on demand (the comment box, the Ask composer and the document editors). Whether the Ask composer's editor can load later still, and what the first-load budget becomes if it does, is decided when the bundle is measured.
 2. **Virtual lists.** The mockup renders whole lists. The app virtualises past 200 rows against the pane scroller. This changes no pixels, and the rows and the keyboard cursor must behave the same.
-3. **Chip hues as tokens.** Settled: the chip tint and its ink are `bg-chip` and `text-chip-foreground`, drawn from the chip's own `--chip-h`. The hues of metric, dimension, market, term and warn are `--chip-h-*` tokens; a domain's hue is its data. The token test checks every hue from 0 to 359 at 4.5:1 in both themes, so any domain hue is safe.
+3. **Chip hues as tokens.** Settled: the chip tint and its ink are `bg-chip` and `text-chip-foreground`, drawn from the chip's own `--chip-h`. The hues of metric (110), dimension, market, term and warn are `--chip-h-*` tokens, and none is within 35 degrees of Heed blue; a domain's hue is its data. The token test checks every hue from 0 to 359 at 4.5:1 in both themes, so any domain hue is safe.
 4. **Right-to-left and other languages.** Out of scope for v1. Every vocabulary lives in one place per list so a later translation is possible.
 
 ## 11. Rules of Draft 1 that v2 withdraws

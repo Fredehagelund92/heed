@@ -85,7 +85,7 @@ export function StateLine({
  * quiet tint per state, the words in the text colour so they keep 4.5:1 in both themes.
  */
 const stateTone: Record<AnswerState, string> = {
-  grounded: 'bg-primary/8 [&>svg]:text-primary',
+  grounded: 'bg-good/8 [&>svg]:text-good',
   partial: 'bg-muted [&>svg]:text-muted-foreground',
   missing: 'border border-dashed border-input [&>svg]:text-muted-foreground',
   conflict: 'bg-caution/8 ring-1 ring-caution/45 ring-inset [&>svg]:text-caution',
