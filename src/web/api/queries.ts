@@ -11,6 +11,7 @@ import type { SourceRead } from '@domain/source-state'
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
 import {
   isPageRead,
+  type readMethods,
   type Library,
   type ObsFilterView,
   type ObsPageInput,
@@ -464,64 +465,7 @@ export const useAgentConnections = () =>
 /* ---------- writes ---------- */
 
 type Method<K extends HeedApiMethod> = HeedApi[K]
-/** The reads: every other method is a write. */
-type Read =
-  | 'getSession'
-  | 'listSignInPeople'
-  | 'getWorkspace'
-  | 'getVocabulary'
-  | 'getActivity'
-  | 'getSignInMethod'
-  | 'readInvite'
-  | 'getLibrary'
-  | 'searchAll'
-  | 'searchScope'
-  | 'contextPage'
-  | 'itemPage'
-  | 'conflicts'
-  | 'conflict'
-  | 'getItemHistory'
-  | 'getRelated'
-  | 'draftFromText'
-  | 'getComments'
-  | 'getDefinitions'
-  | 'definitionsPage'
-  | 'definitionPage'
-  | 'getDefinitionHistory'
-  | 'getInbox'
-  | 'inboxPage'
-  | 'getReviews'
-  | 'getNames'
-  | 'getSavedQuestions'
-  | 'getSavedCheck'
-  | 'getAlerts'
-  | 'getSavedViews'
-  | 'readQuestion'
-  | 'ask'
-  | 'getAskExamples'
-  | 'askedThisWeek'
-  | 'listChats'
-  | 'getMyReports'
-  | 'getSettings'
-  | 'advancedPage'
-  | 'getIntegrations'
-  | 'integrationsPage'
-  | 'integrationPage'
-  | 'connectForm'
-  | 'testIntegration'
-  | 'integrationLeftOut'
-  | 'readFigure'
-  | 'tryFigure'
-  | 'listAgentConnections'
-  | 'getAutoPublish'
-  | 'getDomainPolicies'
-  | 'checkConnect'
-  | 'getConnectReview'
-  | 'getConnectRequest'
-  | 'observabilityPage'
-  | 'obsDimensions'
-  | 'obsValues'
-  | 'replayTopic'
+type Read = (typeof readMethods)[number]
 export type WriteOperation = Exclude<HeedApiMethod, Read>
 export type WriteInput<K extends WriteOperation> = Parameters<Method<K>>[0]
 export type WriteResult<K extends WriteOperation> = Awaited<ReturnType<Method<K>>>

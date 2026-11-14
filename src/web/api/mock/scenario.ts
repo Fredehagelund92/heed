@@ -8,7 +8,7 @@ import type { ObsState } from '@/model/observability'
 //
 // - ?state=loading keeps a page's own load waiting until the address changes.
 // - ?state=failed makes a page's load fail on its first try, so Retry brings it back, and each kind
-//   of send (Publish, Save, a decision) fail on its first try too.
+//   of write (Publish, Save, a decision, a toggle) fail on its first try too.
 // - ?state=offline takes the app offline: nothing is sent. The browser going offline counts too.
 // - ?slow=1, or the Slow network switch in Help, makes each page's first load wait 900ms and every
 //   send take 1.5s instead of 0.6s.
@@ -27,7 +27,7 @@ export type Fault = 'loading' | 'failed' | 'offline' | null
 export const SLOW_LOAD = 900
 /** A load tried again after it failed: the round trip the person sees. */
 export const RETRY_TIME = 700
-/** How long a send (Publish, Save, a decision) takes: a little longer with Slow network on. */
+/** How long a write (Publish, Save, a decision) takes: a little longer with Slow network on. */
 export const sendTime = (slow: boolean) => (slow ? 1500 : 600)
 
 export type Address = { path: string; query: Record<string, string | undefined> }
@@ -154,15 +154,17 @@ export function createScenario() {
 
     /**
      * A send as the scenario plays it: refused offline, as long as a send takes, and with a fault
-     * flag the first one of its kind fails (`key` names the kind: a card for ?decide=fail).
+     * flag the first one of its kind fails (`key` names the kind: a card for ?decide=fail). A quick
+     * send takes no time unless a flag plays sends.
      */
     async send<T>(
       method: HeedApiMethod,
       run: () => T,
-      options: { key?: string; flag?: 'decide' | 'bulk' } = {},
+      options: { key?: string; flag?: 'decide' | 'bulk'; quick?: boolean } = {},
     ): Promise<T> {
       if (offline()) throw new ApiError('unanswered', "You're offline.")
-      await wait(sendTime(slow()))
+      // A quick write (a toggle, a mark) answers at once unless a flag asks to see sends play.
+      if (!options.quick || slow() || fault !== null) await wait(sendTime(slow()))
       const kind = `${method}:${options.key ?? ''}`
       const flagged =
         fault === 'failed' || (options.flag !== undefined && address.query[options.flag] === 'fail')
