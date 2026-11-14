@@ -234,7 +234,7 @@ export function ContextBulk({
     if (stale) close()
   })
 
-  const owners = people.filter((p) => !p.invited && (p.admin || p.owns.length))
+  const owners = people.filter((p) => p.admin || p.owns.length)
   const domainChoices = movableTo(who, domains)
 
   return (

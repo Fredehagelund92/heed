@@ -589,7 +589,7 @@ export function SettingsPage({
 }) {
   const me = useMe()
   const admins = usePeople()
-    .filter((p) => p.admin && !p.invited && p.name !== me.name)
+    .filter((p) => p.admin && p.name !== me.name)
     .map((p) => p.name)
   const current = section && TITLES[section] ? section : me.admin ? 'general' : 'domains'
   // Owners who aren't admins use two places here: their domains and the people list.
@@ -613,6 +613,7 @@ export function SettingsPage({
     return (
       <React.Suspense fallback={<Page title="Domain">{null}</Page>}>
         <DomainPage
+          key={sub}
           id={sub}
           crumbs={(name) => (
             <SettingsCrumbs

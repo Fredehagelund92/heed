@@ -150,6 +150,7 @@ export const wiredMethods = [
   'setAdmin',
   'invite',
   'resendInvite',
+  'revokeInvite',
   'removePerson',
   'getActivity',
   'updateDomain',
@@ -1000,15 +1001,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
 
   /* ---------- people ---------- */
 
-  /** A member of the workspace by name, as People names them. */
+  /** A member of the workspace by name, as the integrations page names a data contact. */
   async function memberNamed(name: string) {
     const member = (await read(() => client.members.list())).find((m) => m.name === name)
     if (!member) throw new ApiError('not-found', `${name} isn't in the workspace any more.`)
     return member
   }
-  /** An open invite by its address, which People names it by. */
-  const inviteTo = async (email: string) =>
-    (await read(() => client.invites.list())).find((i) => i.email === email)
 
   /** Sets a domain's owners by id; false when it would leave the domain without one. */
   async function setOwnerIds(areaId: string, personIds: string[]) {
@@ -1078,24 +1076,15 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
 
   const wired: Pick<HeedApi, (typeof wiredMethods)[number]> = {
     // Owners set their own domain's owners, admins any (areas.setOwners). Someone invited owns the
-    // domains of their invite once they sign in, so their ownership is the invite's.
-    setOwner: async ({ name, domain, own }) => {
-      if (await inviteTo(name))
-        throw new ApiError(
-          'invalid',
-          `${name} owns the domains of their invite once they sign in. Take the invite back to change it.`,
-        )
-      const member = await memberNamed(name)
+    // domains of their invite once they sign in: an invite is never named here.
+    setOwner: async ({ id, domain, own }) => {
       const current = await ownerIdsOf(domain)
-      const next = own ? [...current, member.id] : current.filter((id) => id !== member.id)
+      const next = own ? [...current, id] : current.filter((o) => o !== id)
       if (!next.length && current.length) return { done: false, last: true }
       return (await setOwnerIds(domain, next)) ? { done: true } : { done: false, last: true }
     },
-    setAdmin: async ({ name, admin }) => {
-      const input = {
-        personId: (await memberNamed(name)).id,
-        role: admin ? 'admin' : 'member',
-      } as const
+    setAdmin: async ({ id, admin }) => {
+      const input = { personId: id, role: admin ? 'admin' : 'member' } as const
       await write('members.setRole', input, (o) => client.members.setRole(input, o))
     },
     // Each new invite's link goes back to whoever invites: Heed sends no email yet.
@@ -1115,12 +1104,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         ),
       }
     },
-    resendInvite: async ({ name }) => {
-      const invite = await inviteTo(name)
-      if (!invite) throw new ApiError('not-found', `${name} has no open invite any more.`)
-      const sent = await write('invites.resend', { id: invite.id }, (o) =>
-        client.invites.resend({ id: invite.id }, o),
-      )
+    resendInvite: async ({ id }) => {
+      const sent = await write('invites.resend', { id }, (o) => client.invites.resend({ id }, o))
       return { link: sent.link }
     },
     // What someone did lately: the context they checked last, of what the person may read. An
@@ -1131,23 +1116,21 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const { entries } = await read(() => client.members.activity({ personId: member.id }))
       return entries.map((e) => ({ what: `Checked ${e.title}`, when: dateLabel(e.on) }))
     },
-    // Removing waits while a domain has them as its only owner: those domains come back to hand
-    // over first. Undo brings the person back with the roles the removal ended, or invites again.
-    removePerson: async ({ name }) => {
-      const invite = await inviteTo(name)
-      if (invite) {
-        await write('invites.revoke', { id: invite.id }, (o) =>
-          client.invites.revoke({ id: invite.id }, o),
-        )
-        const again = { emails: [invite.email], role: invite.role, areaIds: invite.areaIds }
-        return {
-          removed: true,
-          undo: rememberUndo(() =>
-            write('invites.create', again, (o) => client.invites.create(again, o)),
-          ),
-        }
+    // Undo invites them again, as the invite had them.
+    revokeInvite: async ({ id }) => {
+      const invite = (await read(() => client.invites.list())).find((i) => i.id === id)
+      if (!invite) throw new ApiError('not-found', 'This invite is not open any more.')
+      await write('invites.revoke', { id }, (o) => client.invites.revoke({ id }, o))
+      const again = { emails: [invite.email], role: invite.role, areaIds: invite.areaIds }
+      return {
+        undo: rememberUndo(() =>
+          write('invites.create', again, (o) => client.invites.create(again, o)),
+        ),
       }
-      const personId = (await memberNamed(name)).id
+    },
+    // Removing waits while a domain has them as its only owner: those domains come back to hand
+    // over first. Undo brings the person back with the roles the removal ended.
+    removePerson: async ({ id: personId }) => {
       // The domains they own alone are the refusal's answer, not a failure.
       const alone = await write('members.remove', { personId }, async (o) => {
         try {
@@ -1304,7 +1287,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         read(() => client.invites.list()),
         read(() => client.workspace.get()),
       ])
-      const { people, domains } = peopleOf({
+      const { people, invites: invited } = peopleOf({
         members,
         invites,
         domains: workspace.domains,
@@ -1312,8 +1295,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       })
       return {
         name: named.name,
-        domains,
+        domains: workspace.domains,
         people,
+        invites: invited,
         about: about?.text ?? '',
         aboutTemplate: ABOUT_BUSINESS_STARTER,
         setup: { done: Object.fromEntries(setup.steps.map((s) => [s.id, s.done])) },

@@ -6,6 +6,7 @@ import {
   FlaskConicalIcon,
   ListChecksIcon,
   LockIcon,
+  MailIcon,
   NotebookTextIcon,
   PanelRightIcon,
   ShieldCheckIcon,
@@ -55,7 +56,8 @@ import { savedCounts } from '@/model/saved-questions'
 import { plainText } from '@/lib/mentions'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useSideChoice } from '@/lib/side-panel'
-import { useDomains, useFacts, useMe, usePeople } from '@/lib/workspace'
+import { useAutosave } from '@/lib/autosave'
+import { useDomains, useFacts, useInvites, useMe, usePeople } from '@/lib/workspace'
 import { InviteDialog } from '@/pages/people'
 import { DomainPoliciesField } from '@/pages/agent-policies'
 
@@ -63,6 +65,9 @@ import { DomainPoliciesField } from '@/pages/agent-policies'
 // as the large title, its owners and quiet counts as properties, then its text in the shared editor
 // (what it covers, then its house rules). It saves itself. A new domain is created with one button.
 // Only an empty domain can be deleted; the sandbox, which never reaches agents, can't be.
+
+/** What an edit changes: the name, the owners or the text. */
+type Patch = { name?: string; owners?: string[]; text?: string }
 
 const GUIDE =
   'One or two sentences on what the domain covers, then its house rules: which calendar, currency or definitions to assume, and what not to mix up.'
@@ -76,6 +81,7 @@ export function DomainPage({
 }) {
   const domains = useDomains()
   const people = usePeople()
+  const invited = useInvites().filter((i) => i.willOwn.includes(id))
   const write = useWrite()
   const me = useMe()
   const { query } = useRoute()
@@ -86,24 +92,8 @@ export function DomainPage({
   const [name, setName] = React.useState(d?.name ?? '')
   const [owners, setOwners] = React.useState<string[]>(d?.owners ?? [me.name])
   const [text, setText] = React.useState(isNew ? '' : (d?.text ?? ''))
-  const [saving, setSaving] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
   const [inviting, setInviting] = React.useState(false)
-  const timer = React.useRef(0)
-  const pending = React.useRef<{ name?: string; owners?: string[]; text?: string }>({})
-  // Leaving the page saves what is still waiting, so a quick change is never lost.
-  React.useEffect(
-    () => () => {
-      window.clearTimeout(timer.current)
-      if (Object.keys(pending.current).length && !isNew)
-        void write('updateDomain', { id, ...pending.current }).catch((e: unknown) =>
-          toast("Couldn't save the domain", { description: toApiError(e).message }),
-        )
-    },
-    // Only when the page closes or moves to another domain.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id],
-  )
   const [paneRef, wide] = useWide<HTMLDivElement>()
   const [helpChoice, setHelp] = useSideChoice('domain-side')
   const savedAll = useSavedQuestions()
@@ -112,26 +102,16 @@ export function DomainPage({
   const fieldId = (n: string) => `${ids}-${n}`
   usePrimaryKey()
 
-  // An existing domain saves itself a moment after each change.
-  const save = (patch: { name?: string; owners?: string[]; text?: string }) => {
-    if (isNew) return
-    // Changes made close together are saved together.
-    pending.current = { ...pending.current, ...patch }
-    setSaving(true)
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => {
-      const patch = pending.current
-      pending.current = {}
-      void write('updateDomain', { id, ...patch }).then(
-        () => setSaving(false),
-        (e: unknown) => {
-          // What could not be saved waits for the next change, which sends it again.
-          pending.current = { ...patch, ...pending.current }
-          setSaving(false)
-          toast("Couldn't save the domain", { description: toApiError(e).message })
-        },
-      )
-    }, 600)
+  // An existing domain saves itself a moment after each change; changes made close together are
+  // saved together.
+  const autosave = useAutosave({
+    save: (patch: Patch) => write('updateDomain', { id, ...patch }),
+    onError: (e) => toast("Couldn't save the domain", { description: toApiError(e).message }),
+    merge: (older, newer) => ({ ...older, ...newer }),
+    delay: 600,
+  })
+  const save = (patch: Patch) => {
+    if (!isNew) autosave.change(patch)
   }
 
   // Its owners and admins change a domain; everyone else reads it.
@@ -237,7 +217,7 @@ export function DomainPage({
               </TooltipContent>
             </Tooltip>
           ) : canEdit ? (
-            <SaveStatus saving={saving} />
+            <SaveStatus status={autosave.status} retry={autosave.retry} />
           ) : (
             // Read only: say who changes it instead of a Saved that means nothing here.
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -365,6 +345,17 @@ export function DomainPage({
                 }
               />
             </PropertyRow>
+            {invited.length > 0 && (
+              <PropertyRow id={fieldId('invited')} label="Invited" icon={<MailIcon />}>
+                {/* Not owners yet: each owns it once they sign in with their invite. */}
+                <StaticField>
+                  <span role="group" aria-labelledby={fieldId('invited')} className="min-w-0">
+                    {invited.map((i) => i.email).join(', ')},{' '}
+                    {invited.length === 1 ? 'owner' : 'owners'} once they sign in
+                  </span>
+                </StaticField>
+              </PropertyRow>
+            )}
             {!isNew && (
               <>
                 <PropertyRow id={fieldId('context')} label="Context" icon={<NotebookTextIcon />}>
