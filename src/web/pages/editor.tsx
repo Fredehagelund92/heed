@@ -801,10 +801,17 @@ function Editor({
             {/* Nothing is kept until Save, so a new page that holds nothing yet has nothing to say. */}
             {(mode !== 'new' || edited) && (
               <SaveStatus
-                saving={sendState === 'sending'}
-                offline={!online}
-                unsaved={edited}
-                failed={sendState === 'failed'}
+                status={
+                  sendState === 'failed'
+                    ? 'failed'
+                    : sendState === 'sending'
+                      ? 'saving'
+                      : !edited
+                        ? 'clean'
+                        : online
+                          ? 'dirty'
+                          : 'offline'
+                }
               />
             )}
             {/* Write or try it: the same draft, seen two ways, so a quiet toggle rather than tabs. */}
