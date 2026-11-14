@@ -97,7 +97,8 @@ export function CommandPalette() {
   // has sorted them.
   const [selected, setSelected] = React.useState(NONE)
   const list = React.useRef<HTMLDivElement>(null)
-  // Set once the person moves the selection themselves, so the automatic first-row pick yields.
+  // Set once the person moves the selection themselves, and kept until the words change: the
+  // service's rows can arrive after the move, and the row moved to stays while it is shown.
   const moved = React.useRef(false)
   const results = hits
     ? [
@@ -128,10 +129,11 @@ export function CommandPalette() {
   }
   React.useLayoutEffect(() => {
     moved.current = false
-  }, [open, q, results])
+  }, [open, q])
   React.useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      if (!moved.current) setSelected(firstRow(list.current))
+      const shown = list.current?.querySelector('[cmdk-item][aria-selected="true"]')
+      if (!moved.current || !shown) setSelected(firstRow(list.current))
     })
     return () => cancelAnimationFrame(frame)
   }, [open, q, results])
