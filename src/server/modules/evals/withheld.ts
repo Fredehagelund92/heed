@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { APICallError } from '@ai-sdk/provider'
 import type { Logger } from 'pino'
 import {
@@ -26,7 +27,7 @@ import { cellEstimateMicros } from './plan.ts'
 import { armTools, insertRun, liveHead, modelsFor, sidesFor, type EvalDeps } from './runs.ts'
 import { readEvalSettings } from './settings.ts'
 import { capReached, formatUsd } from './spend.ts'
-import { CEILING_MARGIN } from './worker.ts'
+import { CEILING_MARGIN, HEARTBEAT_MS, LEASE } from './worker.ts'
 
 /*
   An area run of questions held in memory, of which nothing is kept (FR-525): the sealed held-out
@@ -38,6 +39,10 @@ import { CEILING_MARGIN } from './worker.ts'
   cells and no transcripts, and the run is recorded only for its model calls and cost (kind
   `held_out`, no area, no question ids), with counts in words. The caller gets a verdict per
   question, in the order given, and says nothing more than counts.
+
+  No worker takes such a run, so the runner holds a lease on it, as a worker does, and renews it
+  while it works. It starts no answer once the run is no longer its own (cancelled, or ended by
+  the job's housekeeping when the lease ran out), and then leaves the run as it was ended.
 */
 
 export type WithheldOptions = {
@@ -56,8 +61,11 @@ export type WithheldOptions = {
 
 export type WithheldRun = {
   runId: string
-  /** `incomplete` when an answer could not be made, or the run stopped at a cap or its ceiling. */
-  state: 'finished' | 'incomplete'
+  /**
+   * `incomplete` when an answer could not be made, the run stopped at a cap or its ceiling, or its
+   * lease ran out; `cancelled` when someone cancelled it.
+   */
+  state: 'finished' | 'incomplete' | 'cancelled'
   /** One per question, in the order given; `no_answer` for one that was not answered. */
   verdicts: Verdict[]
   judging: Judging
@@ -91,6 +99,7 @@ export async function runWithheld(
   options: WithheldOptions,
 ): Promise<WithheldRun> {
   const { questions, person, signal } = options
+  const worker = randomUUID()
   const rule = options.passRule ?? 'majority'
   const prepared = await database.transaction(person, async (tx) => {
     const head = await liveHead(tx)
@@ -123,6 +132,10 @@ export async function runWithheld(
       requestedBy: person,
       costCeilingMicros: options.ceilingMicros,
     })
+    await tx.query(
+      `update eval_runs set started_at=now(),worker=$2,lease_until=now()+interval '${LEASE}' where id=$1`,
+      [run.id, worker],
+    )
     return { run, settings, models, tools, bundle }
   })
   const { run, settings, models, tools, bundle } = prepared
@@ -151,8 +164,24 @@ export async function runWithheld(
     ),
   )
   const total = queue.length
+  /** Renews the lease; false once the run is no longer this runner's to work. */
+  const renew = async () =>
+    (
+      await database.query(
+        `update eval_runs set lease_until=now()+interval '${LEASE}'
+          where id=$1 and worker=$2 and state='running' returning id`,
+        [run.id, worker],
+      )
+    ).length > 0
+  const heartbeat = setInterval(() => {
+    renew().catch((error: unknown) =>
+      options.logger.warn({ err: errorCode(error), run: run.id }, 'lease not renewed'),
+    )
+  }, HEARTBEAT_MS)
+  heartbeat.unref()
 
   async function makeTry(question: number, wording: number) {
+    if (!(await renew())) throw new Halt('It was ended before it finished.')
     if (await capReached(database, settings, estimate, person))
       throw new Halt('A spending cap stopped it.')
     const hold = Math.ceil(estimate * CEILING_MARGIN)
@@ -233,6 +262,7 @@ export async function runWithheld(
       }),
     )
   } finally {
+    clearInterval(heartbeat)
     for (const arm of arms.values()) await (await arm.catch(() => null))?.close()
   }
 
@@ -257,26 +287,35 @@ export async function runWithheld(
   const words =
     `Held-out questions: ${count('pass')} passed, ${count('fail')} failed, ` +
     `${count('no_answer')} without an answer, of ${questions.length}.`
-  const state = stopped ? 'incomplete' : 'finished'
-  const [row] = await database.transaction(person, (tx) =>
-    tx.query<{ cost: string }>(
+  const ended = stopped ? 'incomplete' : 'finished'
+  // Only a run still this runner's: one cancelled or ended meanwhile keeps how it was ended.
+  const [row] = await database.transaction(person, async (tx) => {
+    const [own] = await tx.query<{ state: WithheldRun['state']; cost: string }>(
       `update eval_runs set state=$2,finished_at=now(),worker=null,lease_until=null,failure=$3,
          summary=summary||jsonb_build_object('judging',$4::jsonb)
-       where id=$1 returning actual_cost_micros::text as cost`,
+       where id=$1 and worker=$5 and state='running' returning state::text,actual_cost_micros::text as cost`,
       [
         run.id,
-        state,
+        ended,
         `${stopped ? `${stopped} ` : ''}${words}`.slice(0, 500),
         JSON.stringify(judging),
+        worker,
       ],
-    ),
-  )
+    )
+    return own
+      ? [own]
+      : tx.query<{ state: WithheldRun['state']; cost: string }>(
+          'select state::text,actual_cost_micros::text as cost from eval_runs where id=$1',
+          [run.id],
+        )
+  })
+  const state = row?.state ?? ended
   return {
     runId: run.id,
     state,
     verdicts,
     judging,
     costMicros: Number(row?.cost ?? spent),
-    stopped,
+    stopped: state === ended ? stopped : (stopped ?? 'It was ended before it finished.'),
   }
 }
