@@ -61,6 +61,23 @@ export function useLeavingRows() {
   return React.useSyncExternalStore(subscribe, () => snapshot)
 }
 
+/**
+ * Something that is there while `active` and lingers for LEAVE_MS after it, so it can leave the way
+ * it came: draw it while `present`, mark it data-leaving while `leaving`. With reduced motion it
+ * goes at once.
+ */
+export function useLinger(active: boolean) {
+  const [lingering, setLingering] = React.useState(active)
+  if (active && !lingering) setLingering(true)
+  React.useEffect(() => {
+    if (active) return
+    const timer = window.setTimeout(() => setLingering(false), LEAVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [active])
+  const leaving = !active && lingering && !reduced()
+  return { present: active || leaving, leaving }
+}
+
 /** On a list: from the frame after it first shows, rows added to it open instead of appearing. */
 export function arriveRef(el: HTMLElement | null) {
   if (el && !el.hasAttribute('data-arrive'))

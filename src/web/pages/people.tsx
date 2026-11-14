@@ -144,6 +144,24 @@ export function InviteDialog({
   onOpenChange: (o: boolean) => void
   preset?: DomainId
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <InviteBody onOpenChange={onOpenChange} preset={preset} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// The form lives inside the dialog's content, which is mounted only while the dialog is open (and
+// while it leaves), so every opening starts empty and the dialog itself keeps its motion.
+function InviteBody({
+  onOpenChange,
+  preset,
+}: {
+  onOpenChange: (o: boolean) => void
+  preset?: DomainId
+}) {
   const me = useMe()
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
@@ -153,7 +171,6 @@ export function InviteDialog({
     wasnt: 'Nobody was invited.',
     done: (invited) => {
       toastInvited(invited)
-      setText('')
       onOpenChange(false)
     },
   })
@@ -165,108 +182,106 @@ export function InviteDialog({
     .filter(Boolean)
   const bad = emails.filter((e) => !valid(e))
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Invite people</DialogTitle>
-          <DialogDescription>
-            They can read, ask, flag and suggest from the start. Owners publish and check their
-            domain's context.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          id="invite-form"
-          className="flex flex-col gap-5"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!emails.length || bad.length) return
-            inviting.act(() => write('invite', { emails, admin, owns }))
-          }}
-        >
-          <Field>
-            <FieldLabel htmlFor="invite-emails">Email addresses</FieldLabel>
-            <Textarea
-              id="invite-emails"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="maria@larchwood.example, kofi@larchwood.example"
-              aria-invalid={bad.length > 0}
-              className="min-h-20"
-            />
-            <FieldDescription>
-              {bad.length
-                ? `Not an address: ${bad.join(', ')}`
-                : 'Separate several with commas or new lines.'}
-            </FieldDescription>
-          </Field>
-          <FieldSet>
-            <FieldLegend variant="label">Role</FieldLegend>
-            <RadioGroup
-              value={admin ? 'admin' : 'member'}
-              onValueChange={(v) => setAdminRole(v === 'admin')}
-              className="gap-2"
-            >
+    <>
+      <DialogHeader>
+        <DialogTitle>Invite people</DialogTitle>
+        <DialogDescription>
+          They can read, ask, flag and suggest from the start. Owners publish and check their
+          domain's context.
+        </DialogDescription>
+      </DialogHeader>
+      <form
+        id="invite-form"
+        className="flex flex-col gap-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!emails.length || bad.length) return
+          inviting.act(() => write('invite', { emails, admin, owns }))
+        }}
+      >
+        <Field>
+          <FieldLabel htmlFor="invite-emails">Email addresses</FieldLabel>
+          <Textarea
+            id="invite-emails"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="maria@larchwood.example, kofi@larchwood.example"
+            aria-invalid={bad.length > 0}
+            className="min-h-20"
+          />
+          <FieldDescription>
+            {bad.length
+              ? `Not an address: ${bad.join(', ')}`
+              : 'Separate several with commas or new lines.'}
+          </FieldDescription>
+        </Field>
+        <FieldSet>
+          <FieldLegend variant="label">Role</FieldLegend>
+          <RadioGroup
+            value={admin ? 'admin' : 'member'}
+            onValueChange={(v) => setAdminRole(v === 'admin')}
+            className="gap-2"
+          >
+            <Field orientation="horizontal">
+              <RadioGroupItem value="member" id="invite-member" />
+              <FieldLabel htmlFor="invite-member" className="font-normal">
+                Member
+              </FieldLabel>
+            </Field>
+            <Locked reason={me.admin ? undefined : 'Only an admin can invite an admin'}>
               <Field orientation="horizontal">
-                <RadioGroupItem value="member" id="invite-member" />
-                <FieldLabel htmlFor="invite-member" className="font-normal">
-                  Member
+                <RadioGroupItem value="admin" id="invite-admin" disabled={!me.admin} />
+                <FieldLabel htmlFor="invite-admin" className="font-normal">
+                  Admin, who also changes Settings
                 </FieldLabel>
               </Field>
-              <Locked reason={me.admin ? undefined : 'Only an admin can invite an admin'}>
-                <Field orientation="horizontal">
-                  <RadioGroupItem value="admin" id="invite-admin" disabled={!me.admin} />
-                  <FieldLabel htmlFor="invite-admin" className="font-normal">
-                    Admin, who also changes Settings
-                  </FieldLabel>
-                </Field>
-              </Locked>
-            </RadioGroup>
-          </FieldSet>
-          <FieldSet>
-            <FieldLegend variant="label">Owner of</FieldLegend>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Domains they own">
-              {domainIds.map((d) => {
-                const on = owns.includes(d)
-                const allowed = me.admin || me.owns.includes(d)
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    aria-pressed={on}
-                    disabled={!allowed}
-                    title={allowed ? undefined : 'Only its owners and admins add owners'}
-                    onClick={() => setOwns(on ? owns.filter((x) => x !== d) : [...owns, d])}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-sm border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
-                  >
-                    <DomainDot id={d} />
-                    {domains[d]?.name}
-                  </button>
-                )
-              })}
-            </div>
-          </FieldSet>
-          {inviting.problem && (
-            <p role="alert" className="text-sm text-destructive">
-              {inviting.problem}
-            </p>
-          )}
-        </form>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button
-            type="submit"
-            form="invite-form"
-            disabled={!emails.length || bad.length > 0 || inviting.state === 'sending'}
-          >
-            {inviting.state === 'sending'
-              ? 'Inviting…'
-              : emails.length > 1
-                ? `Invite ${emails.length} people`
-                : 'Invite'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            </Locked>
+          </RadioGroup>
+        </FieldSet>
+        <FieldSet>
+          <FieldLegend variant="label">Owner of</FieldLegend>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Domains they own">
+            {domainIds.map((d) => {
+              const on = owns.includes(d)
+              const allowed = me.admin || me.owns.includes(d)
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!allowed}
+                  title={allowed ? undefined : 'Only its owners and admins add owners'}
+                  onClick={() => setOwns(on ? owns.filter((x) => x !== d) : [...owns, d])}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-sm border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
+                >
+                  <DomainDot id={d} />
+                  {domains[d]?.name}
+                </button>
+              )
+            })}
+          </div>
+        </FieldSet>
+        {inviting.problem && (
+          <p role="alert" className="text-sm text-destructive">
+            {inviting.problem}
+          </p>
+        )}
+      </form>
+      <DialogFooter>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+        <Button
+          type="submit"
+          form="invite-form"
+          disabled={!emails.length || bad.length > 0 || inviting.state === 'sending'}
+        >
+          {inviting.state === 'sending'
+            ? 'Inviting…'
+            : emails.length > 1
+              ? `Invite ${emails.length} people`
+              : 'Invite'}
+        </Button>
+      </DialogFooter>
+    </>
   )
 }
 
@@ -677,7 +692,7 @@ export function People() {
           </p>
         )}
       </FrameSection>
-      <InviteDialog key={String(inviting)} open={inviting} onOpenChange={setInviting} />
+      <InviteDialog open={inviting} onOpenChange={setInviting} />
       <PersonSheet p={current} onOpenChange={(o) => !o && close()} />
     </Frame>
   )

@@ -6,6 +6,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Skip } from '@/lib/bulk'
 import { countLine } from '@/lib/selection'
+import { useLinger } from '@/lib/presence'
 
 // The one bar for rows picked in a list (Context, Definitions, the Inbox): the count, Clear, and the
 // list's actions, on the ink surface the Heed app uses. It takes a band of its own under the list,
@@ -39,6 +40,10 @@ export function BulkBar({
 }) {
   // A status line that stays mounted: a screen reader hears each count and each note. One that
   // appears with its text is often not read.
+  // The bar leaves the way it came: it stays for its exit, still showing the count it had.
+  const { present, leaving } = useLinger(count > 0)
+  const [shown, setShown] = React.useState(count)
+  if (count > 0 && count !== shown) setShown(count)
   const [said, setSaid] = React.useState('')
   const before = React.useRef({ count, note: note?.text })
   React.useEffect(() => {
@@ -51,8 +56,12 @@ export function BulkBar({
       <span role="status" className="sr-only">
         {said}
       </span>
-      {count > 0 && (
-        <div className="flex shrink-0 animate-in flex-col items-center gap-1.5 border-t bg-background px-4 py-2.5 duration-(--dur-3) fade-in-0 slide-in-from-bottom-2 max-md:gap-0 max-md:border-t-0 max-md:bg-foreground max-md:p-0 max-md:pb-safe-area">
+      {present && (
+        <div
+          data-leaving={leaving ? '' : undefined}
+          inert={leaving}
+          className="flex shrink-0 bar-motion flex-col items-center gap-1.5 border-t bg-background px-4 py-2.5 max-md:gap-0 max-md:border-t-0 max-md:bg-foreground max-md:p-0 max-md:pb-safe-area"
+        >
           {note && <NoteLine note={note} />}
           <div
             role="region"
@@ -60,9 +69,9 @@ export function BulkBar({
             className="flex h-11 max-w-full items-center gap-1 rounded-md bg-foreground pr-2 pl-4 text-sm text-background shadow-md max-md:h-auto max-md:min-h-14 max-md:w-full max-md:rounded-none max-md:px-2 max-md:shadow-none"
           >
             <span className="px-1 font-semibold whitespace-nowrap tabular-nums">
-              {count} selected
+              {shown} selected
             </span>
-            {matching && matching.count > count && (
+            {matching && matching.count > shown && (
               <BulkButton
                 onClick={matching.onSelect}
                 className="underline-offset-4 hover:underline max-md:hidden"
