@@ -42,6 +42,8 @@ import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { useAfter } from '@/lib/loading'
 import { MentionText } from '@/components/heed/mention-chip'
+import { today } from '@/lib/today'
+import { dateLabel } from '@/model/validity'
 import type { Fact } from '@/model/items'
 
 // The context quick view: the note, one closed Details and a toolbar under it. Title once, the
@@ -191,7 +193,7 @@ export function FactPeek({ id }: { id: string }) {
                 patch: {
                   status: 'Live',
                   outOfDate: undefined,
-                  checkedOn: '23 Oct 2026',
+                  checkedOn: dateLabel(today()),
                   checkedBy: me.name,
                 },
               }).then(() =>

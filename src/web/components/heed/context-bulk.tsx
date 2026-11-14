@@ -25,6 +25,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { dateLabel } from '@/model/validity'
 import { today } from '@/lib/today'
 import { leaveAllThen } from '@/lib/presence'
 import { APP_URL } from '@/lib/brand'
@@ -386,7 +387,7 @@ export function ContextBulk({
                       status: f.status === 'Needs checking' ? 'Live' : f.status,
                       outOfDate: undefined,
                       checkedBy: me.name,
-                      checkedOn: '22 Oct 2026',
+                      checkedOn: dateLabel(today()),
                     }),
                     {},
                   )
