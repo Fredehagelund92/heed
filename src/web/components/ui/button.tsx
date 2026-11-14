@@ -16,13 +16,13 @@ const buttonVariants = cva(
         default:
           'bg-primary text-primary-foreground hover:bg-primary/80 disabled:border-border disabled:bg-muted aria-disabled:border-border aria-disabled:bg-muted aria-disabled:hover:bg-muted',
         outline:
-          'border-border bg-background hover:bg-muted hover:text-foreground aria-disabled:hover:bg-transparent aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/10 dark:hover:bg-input/20 dark:aria-disabled:bg-transparent dark:aria-disabled:hover:bg-transparent',
+          'border-border bg-background hover:bg-muted hover:text-foreground aria-disabled:hover:bg-transparent aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/10 dark:hover:bg-input/20 dark:disabled:bg-transparent dark:aria-disabled:bg-transparent dark:aria-disabled:hover:bg-transparent',
         secondary:
           'bg-secondary text-secondary-foreground hover:bg-secondary-hover aria-disabled:hover:bg-transparent aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
         ghost:
           'hover:bg-muted hover:text-foreground aria-disabled:hover:bg-transparent aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
         destructive:
-          'bg-destructive/8 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 aria-disabled:hover:bg-transparent dark:bg-destructive/8 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40 dark:aria-disabled:bg-transparent dark:aria-disabled:hover:bg-transparent',
+          'bg-destructive/8 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 aria-disabled:hover:bg-transparent dark:bg-destructive/8 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40 dark:disabled:bg-transparent dark:aria-disabled:bg-transparent dark:aria-disabled:hover:bg-transparent',
         link: 'text-primary underline-offset-4 hover:underline aria-disabled:hover:no-underline',
       },
       size: {
