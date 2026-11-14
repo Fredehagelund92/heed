@@ -724,6 +724,15 @@ const nextWords = (next: When) =>
 /** A day as it reads inside a sentence: "today", "21 Oct". */
 const inSentence = (day: string) => (/^[A-Z][a-z]+$/.test(day) ? day.toLowerCase() : day)
 
+/**
+ * When a source whose key was refused was last tried, in words: "Tried again at 11:00", or "Tried
+ * on 21 Oct at 06:00" after one refusal. It is not paused: each read tries the key again.
+ */
+const triedWords = ({ day, time }: When, failures: number) => {
+  const on = day === 'Today' ? '' : inSentence(day) === day ? `on ${day} ` : `${inSentence(day)} `
+  return `${failures > 1 ? 'Tried again' : 'Tried'} ${on}at ${time}`
+}
+
 /** What a connected tool holds, in one line on its row. */
 function RowDetail({ source }: { source: Source }) {
   const { definitions: d, documents: docs } = source
@@ -971,8 +980,8 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
           <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
           <p className="min-w-0 flex-1">
             <span className="font-medium">{refusedTool.name} needs a new key.</span>{' '}
-            {sentence(refused.failure ?? 'the key was refused')}
-            {refused.last ? ` on ${refused.last.at.day}` : ''}. Reading is paused; published context
+            {sentence(refused.failure ?? 'the key was refused')}.
+            {refused.last && ` ${triedWords(refused.last.at, refused.failures)}.`} Published context
             is not affected.
           </p>
           <Button
@@ -1621,8 +1630,10 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                   h === 'reauth'
                     ? {
                         label: 'Last read',
-                        value: source.last?.at.day ?? 'Not yet',
-                        sub: 'paused: needs a new key',
+                        value: source.last
+                          ? `${source.last.at.day}, ${source.last.at.time}`
+                          : 'Not yet',
+                        sub: 'refused: it needs a new key',
                         tone: 'warn',
                       }
                     : {

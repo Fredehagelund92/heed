@@ -1,9 +1,10 @@
-import { expect, go, onMockOnly, test } from './go.ts'
+import { expect, go, inHttpOnly, onMockOnly, test } from './go.ts'
 
 // J11, figures in Ask: off by default, an answer links into the tool; an admin switches figures on
 // for Cube and the answer shows one figure with its source and freshness; a figure that doesn't
 // fit a context item shows both; a metric nobody defines gets no figure. Figures are no integration
-// of their own: Cube's page shows them as its second connection, where an admin tries a figure.
+// of their own: Cube's page shows them as its second connection, where an admin tries a figure, and
+// keeps them while Cube is paused.
 
 test('off by default, an answer links into the tool', async ({ page }) => {
   await go(page, '/ask?example=grounded')
@@ -74,4 +75,25 @@ test("Cube's page shows figures as its second connection, where an admin tries o
   await expect(dialog).toBeHidden()
   // Trying switched nothing on.
   await expect(page.getByRole('switch', { name: 'Show figures in Ask' })).not.toBeChecked()
+})
+
+test("paused, Cube's page keeps its figures connection, and its switch still works", async ({
+  page,
+}) => {
+  await go(page, '/settings/integrations/cube')
+  await page.getByRole('button', { name: 'Pause reading' }).click()
+  await expect(page.getByText('Reading paused for Cube')).toBeVisible()
+  const figures = page.getByRole('switch', { name: 'Show figures in Ask' })
+  await figures.click()
+  await expect(page.getByText('Figures from Cube are on')).toBeVisible()
+  await expect(figures).toBeChecked()
+  await expect(page.getByText(/Reading Cube is paused, so figures are off in Ask/)).toBeVisible()
+  await inHttpOnly('pause, kept over a reload', async () => {
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Figures connection' })).toBeVisible()
+    await expect(figures).toBeChecked()
+  })
+  await figures.click()
+  await expect(page.getByText('Figures from Cube are off')).toBeVisible()
+  await expect(figures).not.toBeChecked()
 })
