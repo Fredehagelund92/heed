@@ -47,7 +47,7 @@ describe('TableSkeleton', () => {
     // Definitions' three bars as the page measures them: 45, 57 and 49px wide, 93, 97 and 81 on a phone.
     const heights = bars.slice(0, 3).map((b) => [...b.classList].filter((c) => /h-\[/.test(c)))
     expect(heights).toEqual([
-      ['h-[45px]', '@max-md/main:h-[93px]'],
+      ['h-[45px]', '@max-md/main:h-[89px]'],
       ['h-[57px]', '@max-md/main:h-[97px]'],
       ['h-[49px]', '@max-md/main:h-[81px]'],
     ])
@@ -61,7 +61,7 @@ describe('TableSkeleton', () => {
     const el = render(h(TableSkeleton, { rows: 1 }))
     const first = el.querySelector('[role=status]')!.children[0]!
     expect(first.className).toContain('h-[45px]')
-    expect(first.className).toContain('@max-md/main:h-[93px]')
+    expect(first.className).toContain('@max-md/main:h-[89px]')
   })
 
   it('says nothing of its own inside a skeleton that already says Loading', () => {

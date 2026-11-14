@@ -413,7 +413,7 @@ export function DefinitionsPage() {
           )}
         </td>
         <td className="w-8 px-1 align-middle">{source}</td>
-        <td className="w-10 pr-2 align-middle md:pr-4" onClick={(e) => e.stopPropagation()}>
+        <td className="w-11 pr-2 align-middle md:pr-4" onClick={(e) => e.stopPropagation()}>
           <RowMenu
             title={d.name}
             page={href(`/definitions/${encodeURIComponent(d.name)}`)}
@@ -727,7 +727,7 @@ export function DefinitionsPage() {
                   <Th className="w-8 min-w-7 px-1">
                     <span className="sr-only">Source</span>
                   </Th>
-                  <Th className="w-10 min-w-8 pr-2 md:min-w-10 md:pr-4">
+                  <Th className="w-11 min-w-9 pr-2 md:min-w-11 md:pr-4">
                     <span className="sr-only">Actions</span>
                   </Th>
                 </tr>
