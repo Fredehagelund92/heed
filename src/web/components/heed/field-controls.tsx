@@ -111,7 +111,7 @@ export function PropertyRow({
       <dd className="min-w-0 pl-1.5 max-sm:pb-1.5">
         {children}
         {problem && (
-          <p data-problem className="pt-0.5 pb-1 text-xs text-destructive-ink">
+          <p data-problem className="pt-0.5 pb-1 text-xs text-destructive">
             {problem}
           </p>
         )}

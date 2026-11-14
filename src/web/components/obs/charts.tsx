@@ -13,8 +13,8 @@ const fillOf = (state: Shown, hatch: string) =>
   ({
     grounded: 'var(--primary)',
     partial: 'var(--chart-1)',
-    conflict: 'var(--warn)',
-    stale: 'color-mix(in oklab, var(--warn) 45%, var(--background))',
+    conflict: 'var(--caution)',
+    stale: 'color-mix(in oklab, var(--caution) 45%, var(--background))',
     missing: `url(#${hatch})`,
   })[state]
 
@@ -605,7 +605,7 @@ export function StackedBars({
         // On the side away from its bar, so it never covers what it describes.
         <div
           className={cn(
-            'pointer-events-none absolute top-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md',
+            'pointer-events-none absolute top-2 z-raised min-w-48 rounded-md border bg-popover px-3 py-2 text-xs shadow-md',
             tipAt !== null && tipAt >= bars.length / 2 ? 'left-10' : 'right-2',
           )}
         >
@@ -782,7 +782,7 @@ export function BarRows({
           const inner = (
             <>
               <span
-                className="w-36 min-w-0 shrink-0 truncate text-dense @max-md/main:w-28"
+                className="w-36 min-w-0 shrink-0 truncate text-xs @max-md/main:w-28"
                 title={r.label}
               >
                 {r.name}
@@ -809,7 +809,7 @@ export function BarRows({
                   </svg>
                 )}
               </span>
-              <span className="min-w-10 shrink-0 text-right text-dense whitespace-nowrap text-muted-foreground tabular-nums">
+              <span className="min-w-10 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                 {r.display ?? r.value}
               </span>
               {!!r.hatch && (
@@ -982,7 +982,7 @@ export function LineChart({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-3xs tabular-nums"
+              className="fill-muted-foreground text-xs tabular-nums"
             >
               {format(Math.round(max * f))}
             </text>
@@ -1045,7 +1045,7 @@ export function LineChart({
               x={x(i)}
               y={H - 6}
               textAnchor="middle"
-              className="fill-muted-foreground text-3xs"
+              className="fill-muted-foreground text-xs"
             >
               {l}
             </text>
@@ -1119,7 +1119,7 @@ export function Bars({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-3xs tabular-nums"
+              className="fill-muted-foreground text-xs tabular-nums"
             >
               {Math.round(max * f)}
             </text>
@@ -1139,7 +1139,7 @@ export function Bars({
                 x={pad.l + slot * i + slot / 2}
                 y={H - 6}
                 textAnchor="middle"
-                className="fill-muted-foreground text-3xs"
+                className="fill-muted-foreground text-xs"
               >
                 {labels[i]}
               </text>

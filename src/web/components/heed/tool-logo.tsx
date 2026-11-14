@@ -39,9 +39,9 @@ export function ToolLogo({
       className={cn(
         'inline-flex shrink-0 items-center justify-center border',
         c?.logo ? 'bg-logo-plate' : 'bg-muted text-muted-foreground',
-        size === 'sm' && 'size-5 rounded-tile p-0.75',
+        size === 'sm' && 'size-5 rounded-sm p-0.75',
         size === 'md' && 'size-8 rounded-md p-1.5',
-        size === 'lg' && 'size-11 rounded-lg p-2',
+        size === 'lg' && 'size-11 rounded-md p-2',
         className,
       )}
     >

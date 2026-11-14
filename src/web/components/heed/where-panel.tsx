@@ -116,7 +116,7 @@ export function WherePanel({ id }: { id: string }) {
           </>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-reading leading-relaxed">{sentence.text}</p>
+            <p className="text-base leading-relaxed">{sentence.text}</p>
             <p className="rounded-md border border-dashed px-3 py-2.5 text-sm text-muted-foreground">
               No context item is behind this sentence. It is Ask&apos;s own wording: it joins what
               the items say, or says what they leave out.
@@ -185,7 +185,7 @@ function Chain({
           }
         >
           {fact.quote ? (
-            <blockquote className="border-l-2 pl-3 text-sm leading-relaxed text-foreground/90 italic">
+            <blockquote className="border-l-2 pl-3 text-sm leading-relaxed text-foreground italic">
               “<Marked segments={markShared(fact.quote, [summary])} />”
             </blockquote>
           ) : (
@@ -240,7 +240,7 @@ function Node({
 
 function Mark({ children }: { children: React.ReactNode }) {
   return (
-    <mark className="rounded-mark bg-primary/12 px-0.5 text-foreground not-italic dark:bg-primary/25">
+    <mark className="rounded-xs bg-primary/12 px-0.5 text-foreground not-italic dark:bg-primary/25">
       {children}
     </mark>
   )

@@ -133,7 +133,7 @@ export function AnswerPanel({ id }: { id: string }) {
       >
         <div className="mt-2 flex flex-wrap items-center gap-2 px-4 @md:px-5">
           <StateLine state={countedState(now.answer)} className="text-xs" />
-          <span className="text-dense text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Asked {asked === null && t.atLeast ? `${t.atLeast}+` : shownCount(asked)} times{' '}
             {view.label}.
             {counts.missing === null
@@ -200,7 +200,7 @@ function OverviewTab({ t }: { t: Topic }) {
   const same = strip(now.answer.text) === strip(before.answer.text)
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-lg bg-muted/60 px-3.5 py-3 text-sm">
+      <div className="rounded-md bg-muted/60 px-3.5 py-3 text-sm">
         <p className="font-medium">What an agent gets now</p>
         <p className="mt-1 text-pretty">{strip(now.answer.text)}</p>
       </div>
@@ -267,7 +267,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="max-w-caption-wide text-dense text-muted-foreground">
+        <p className="max-w-caption-wide text-xs text-muted-foreground">
           This is a replay: it runs the same steps an agent's request runs, with no model. It takes
           about {run.ms} ms.
         </p>
@@ -289,7 +289,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
               aria-checked={when === k}
               onClick={() => setQuery({ when: k === 'now' ? undefined : k })}
               className={cn(
-                'rounded-tile px-2.5 text-dense text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+                'rounded-sm px-2.5 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
                 when === k && 'bg-muted font-medium text-foreground',
               )}
             >
@@ -299,7 +299,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
         </div>
       </div>
       {when === 'before' && !changed.length && (
-        <p className="text-dense text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           The same steps as now: nothing it reads was published since.
         </p>
       )}
@@ -319,7 +319,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
                   s.key === 'checked' && run.answer.state === 'grounded' && 'text-primary',
                   s.key === 'checked' &&
                     (run.answer.state === 'conflict' || run.answer.state === 'stale') &&
-                    'text-[var(--warn)]',
+                    'text-caution',
                 )}
               >
                 <Icon className="size-3.5" aria-hidden />
@@ -329,7 +329,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
                   <span>
                     {s.title}
                     {isChanged && (
-                      <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary">
+                      <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                         Changed since
                       </span>
                     )}
@@ -350,13 +350,13 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
                     ))}
                   </p>
                 )}
-                <p className="mt-1 text-dense text-pretty text-muted-foreground">
+                <p className="mt-1 text-xs text-pretty text-muted-foreground">
                   {s.key === 'said' ? `“${s.text}”` : s.text}
                 </p>
                 {s.items && s.items.length > 0 && (
                   <ul className="mt-1.5 flex flex-col gap-1">
                     {s.items.map((it) => (
-                      <li key={it.id} className="text-dense">
+                      <li key={it.id} className="text-sm">
                         <a
                           href={href(`/context/${it.id}`)}
                           className="rounded-md border px-1.5 py-0.5 underline-offset-4 hover:underline"
@@ -417,7 +417,7 @@ function WarningsTab({
   if (!kinds.length)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CircleCheckIcon className="size-4 text-[var(--ok)]" aria-hidden />
+        <CircleCheckIcon className="size-4 text-good" aria-hidden />
         Nothing to look at: every answer was based on checked context.
       </p>
     )
@@ -430,9 +430,9 @@ function WarningsTab({
               <StateLine state={s} className="px-1.5 py-0.5 text-xs" />
               <span className="text-muted-foreground">{times(counts[s])}</span>
             </div>
-            <p className="text-dense text-muted-foreground">{why[s]}</p>
+            <p className="text-xs text-muted-foreground">{why[s]}</p>
             {s === 'conflict' && pair && (
-              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-dense">
+              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-sm">
                 <span className="flex-1">
                   “{pair.holder.title ?? 'An item you cannot read'}” and “
                   {pair.other.title ?? 'An item you cannot read'}”.
@@ -449,7 +449,7 @@ function WarningsTab({
               </p>
             )}
             {s === 'missing' && t.gap && (
-              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-dense">
+              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-sm">
                 <LightbulbIcon className="size-3.5 shrink-0" aria-hidden />
                 <span className="flex-1">
                   {t.gap.label === 'Draft ready'

@@ -2,17 +2,16 @@
  * The class merge helper's extension, teaching it the app's named tokens (styles/tokens.css) that
  * stand for a number or an arbitrary value, so a named value gives way to
  * another of its kind exactly as that value did: `cn('z-raised', 'z-overlay')` keeps `z-overlay`,
- * and `cn('text-muted-foreground', 'text-dense')` keeps both, a colour and a size.
+ * and `cn('rounded-md', 'rounded-composer')` keeps `rounded-composer`.
  * `npm run cn:generate` compiles it into cn-tables.gen.ts, so the app ships the compiled tables
  * and not the config compiler.
  */
 export default {
   extend: {
     theme: {
-      text: ['dense', 'reading', 'code', 'code-sm', 'control-sm', 'hero', 'hero-lg'],
-      leading: ['chat', 'hero', 'hero-lg'],
+      leading: ['chat'],
       tracking: ['hero'],
-      radius: ['composer', 'mark', 'tile', 'inset', 'inset-sm'],
+      radius: ['composer'],
       shadow: [
         'hairline',
         'hairline-top',

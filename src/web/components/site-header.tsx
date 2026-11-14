@@ -192,13 +192,13 @@ export function SiteHeader({
             </Tooltip>
           )}
           {typeof title === 'string' ? (
-            <h1 className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
+            <h1 className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground [&>svg]:size-3.5 [&>svg]:shrink-0">
               {icon}
               {/* A long title is cut with an ellipsis and shown in full on hover or focus. */}
               <TruncatedText text={title} className="min-w-0" />
             </h1>
           ) : (
-            <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
+            <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground [&>svg]:size-3.5 [&>svg]:shrink-0">
               {icon}
               <span className="min-w-0 truncate">{title}</span>
             </div>

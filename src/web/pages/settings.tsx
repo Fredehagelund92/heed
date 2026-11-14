@@ -143,7 +143,7 @@ function Domains() {
                       <PersonAvatar key={o} name={o} />
                     ))}
                     {domains[id]!.owners.length > 4 && (
-                      <span className="grid size-7 place-items-center rounded-full bg-muted text-2xs font-medium">
+                      <span className="grid size-7 place-items-center rounded-full bg-muted text-xs font-medium">
                         +{domains[id]!.owners.length - 4}
                       </span>
                     )}
@@ -156,8 +156,8 @@ function Domains() {
                         !items.length
                           ? 'border border-muted-foreground'
                           : due
-                            ? 'bg-due'
-                            : 'bg-ready',
+                            ? 'bg-caution'
+                            : 'bg-good',
                       )}
                     />
                     {items.length} {items.length === 1 ? 'item' : 'items'}
@@ -280,7 +280,7 @@ function SettingsTable({ groups }: { groups: AdvancedPage['settings'] }) {
         </thead>
         {groups.map((g) => (
           <tbody key={g.group}>
-            <tr className="border-t bg-band-soft">
+            <tr className="border-t bg-band">
               <th
                 scope="rowgroup"
                 colSpan={columns.length}
@@ -565,11 +565,9 @@ export function SettingsCrumbs({ trail }: { trail: { label: string; href?: strin
                   <BreadcrumbPage className="font-medium">{t.label}</BreadcrumbPage>
                 </h1>
               ) : t.href ? (
-                <BreadcrumbLink href={t.href} className="text-foreground/75 hover:text-foreground">
-                  {t.label}
-                </BreadcrumbLink>
+                <BreadcrumbLink href={t.href}>{t.label}</BreadcrumbLink>
               ) : (
-                <span className="text-foreground/75">{t.label}</span>
+                <span>{t.label}</span>
               )}
             </BreadcrumbItem>
           </React.Fragment>
