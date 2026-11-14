@@ -1,5 +1,4 @@
 import { generateKeyPairSync, type KeyObject } from 'node:crypto'
-import { createLoginServer } from '../../src/server/modules/oauth/index.ts'
 import { SignJWT, UnsecuredJWT } from 'jose'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { people } from './fixtures.ts'
@@ -647,38 +646,33 @@ describe('the MCP server checks every token itself', () => {
   })
 })
 
-describe('after a restart', () => {
-  it('refuses tokens from before it until it has read the recent disconnects', async () => {
+describe('a connection another instance ended', () => {
+  const sidOf = (accessToken: string) => {
+    const [, payload] = accessToken.split('.')
+    return (JSON.parse(Buffer.from(payload!, 'base64url').toString()) as { sid: string }).sid
+  }
+
+  it('is refused at the next request, with only the database changed', async () => {
     const clientId = await registered()
     const kept = await signInFlow(clientId)
     const keptTokens = await exchange(clientId, kept.code!, kept.verifier)
     const gone = await signInFlow(clientId)
     const goneTokens = await exchange(clientId, gone.code!, gone.verifier)
-    const [, payload] = goneTokens.body.access_token!.split('.')
-    const sid = (JSON.parse(Buffer.from(payload!, 'base64url').toString()) as { sid: string }).sid
-    await gone.person.api(`/connections/${sid}/disconnect`, {})
-    // The same keys and settings in a new process, a second later.
-    harness.advance(1)
-    const restarted = createLoginServer({
-      config: harness.login.config,
-      resource,
-      keys: harness.keys,
-      nodeEnv: 'test',
-      now: harness.now,
-    })
-    const accepts = async (token: string) =>
-      restarted.verifier.verify(token).then(
-        () => true,
-        () => false,
-      )
-    expect(await accepts(keptTokens.body.access_token!)).toBe(false)
-    expect(await accepts(goneTokens.body.access_token!)).toBe(false)
-    await restarted.loadRevocations({
-      query: async <Row extends object>(text: string, values?: unknown[]) =>
-        (await admin.query(text, values)).rows as Row[],
-    })
-    expect(await accepts(keptTokens.body.access_token!)).toBe(true)
-    expect(await accepts(goneTokens.body.access_token!)).toBe(false)
+    const lapsed = await signInFlow(clientId)
+    const lapsedTokens = await exchange(clientId, lapsed.code!, lapsed.verifier)
+    expect(await mcpStatus(goneTokens.body.access_token!)).toBe(200)
+    // Another instance handled the disconnect: this one's memory never heard of it.
+    await admin.query(
+      "update auth.oauth_grants set revoked_at=now(), revoked_reason='disconnected' where id=$1",
+      [sidOf(goneTokens.body.access_token!)],
+    )
+    await admin.query(
+      "update auth.oauth_grants set expires_at=now() - interval '1 second' where id=$1",
+      [sidOf(lapsedTokens.body.access_token!)],
+    )
+    expect(await mcpStatus(goneTokens.body.access_token!)).toBe(401)
+    expect(await mcpStatus(lapsedTokens.body.access_token!)).toBe(401)
+    expect(await mcpStatus(keptTokens.body.access_token!)).toBe(200)
   })
 })
 
