@@ -67,7 +67,7 @@ export function SaveStatus({ status, retry }: { status: SaveState; retry?: () =>
         className={cn(
           'size-3.5',
           status === 'saving' && 'animate-spin',
-          status === 'saved' && 'animate-in duration-(--dur-2) fade-in-0 zoom-in-60',
+          status === 'saved' && 'tick-motion',
         )}
         aria-hidden
       />

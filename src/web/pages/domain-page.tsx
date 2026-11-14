@@ -434,14 +434,7 @@ export function DomainPage({
         <RichTextEditor.Content className="text-base [&_.ProseMirror]:min-h-48! [&_.ProseMirror]:max-w-reading [&_.ProseMirror]:p-0!" />
       </Paper>
       {helpOpen && !wide && <div className="border-t bg-background">{help}</div>}
-      {!isNew && (
-        <InviteDialog
-          key={String(inviting)}
-          open={inviting}
-          onOpenChange={setInviting}
-          preset={id}
-        />
-      )}
+      {!isNew && <InviteDialog open={inviting} onOpenChange={setInviting} preset={id} />}
       <Dialog open={deleting} onOpenChange={setDeleting}>
         <DialogContent>
           <DialogHeader>

@@ -59,8 +59,9 @@
 }
 
 /* The sidebar folding because a dock opened, or unfolding as it closes, is instant: the page reflows
-   once. A person's own fold keeps its motion. */
-[data-fold='auto'] [data-slot^='sidebar'] {
+   once. A person's own fold keeps its motion. Everything inside the rail goes with it (the user button
+   in the foot shrinks with the rail), but not the page, which the sidebar's wrapper also holds. */
+[data-fold='auto'] :is([data-slot^='sidebar'], [data-slot='sidebar-container'] *) {
   transition-duration: 0ms !important;
 }
 
@@ -384,6 +385,43 @@
 
   &[data-ending-style] {
     transition-duration: var(--dur-2);
+  }
+}
+
+/* The bulk bar: it comes up from 8px below in 220ms and goes back down in 150ms, one step shorter. It
+   stays mounted while it leaves (data-leaving), and a transition turns round where it is if the
+   count goes to zero and back. */
+@utility bar-motion {
+  transition-property: opacity, translate;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-out);
+
+  &[data-leaving] {
+    opacity: 0;
+    translate: 0 var(--dist-2);
+    transition-duration: var(--dur-2);
+  }
+
+  :root[data-ready] & {
+    @starting-style {
+      opacity: 0;
+      translate: 0 var(--dist-2);
+    }
+  }
+}
+
+/* The editor's Saved tick, when a save lands: it fades in from 97% in 150ms, as every other icon swap
+   starts. It is simply there on first show. */
+@utility tick-motion {
+  transition-property: opacity, scale;
+  transition-duration: var(--dur-2);
+  transition-timing-function: var(--ease-out);
+
+  :root[data-ready] & {
+    @starting-style {
+      opacity: 0;
+      scale: 0.97;
+    }
   }
 }
 
