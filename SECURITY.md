@@ -45,7 +45,7 @@ Heed's releases are on [GitHub Releases](https://github.com/Fredehagelund92/heed
 each one names its version (`docs/releasing.md`). Before 1.0, a release is for trying Heed on one
 computer, not for production use.
 
-- **The newest release**, now 0.1.0 <!-- x-release-please-version -->: we fix security problems in a
+- **The newest release**, now 0.2.0 <!-- x-release-please-version -->: we fix security problems in a
   new patch release.
 - **An older release**: no fixes. Move to the newest release.
 - **`main`**: fixes land here first.
