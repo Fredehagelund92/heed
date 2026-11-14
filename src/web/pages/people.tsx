@@ -34,6 +34,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { domainHue } from '@/lib/tones'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { href, setQuery, useRoute } from '@/lib/router'
+import { useReported } from '@/lib/reported'
 import { useQuery } from '@tanstack/react-query'
 import type { Invited } from '@/api/client'
 import { toApiError } from '@/api/errors'
@@ -141,6 +142,14 @@ export function InviteDialog({
   const domainIds = useDomainList().map((d) => d.id)
   const write = useWrite()
   const [text, setText] = React.useState('')
+  const inviting = useReported<Invited>({
+    wasnt: 'Nobody was invited.',
+    done: (invited) => {
+      toastInvited(invited)
+      setText('')
+      onOpenChange(false)
+    },
+  })
   const [admin, setAdminRole] = React.useState(false)
   const [owns, setOwns] = React.useState<DomainId[]>(preset ? [preset] : [])
   const emails = text
@@ -164,9 +173,7 @@ export function InviteDialog({
           onSubmit={(e) => {
             e.preventDefault()
             if (!emails.length || bad.length) return
-            void write('invite', { emails, admin, owns }).then(toastInvited)
-            setText('')
-            onOpenChange(false)
+            inviting.act(() => write('invite', { emails, admin, owns }))
           }}
         >
           <Field>
@@ -231,11 +238,24 @@ export function InviteDialog({
               })}
             </div>
           </FieldSet>
+          {inviting.problem && (
+            <p role="alert" className="text-sm text-destructive">
+              {inviting.problem}
+            </p>
+          )}
         </form>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button type="submit" form="invite-form" disabled={!emails.length || bad.length > 0}>
-            {emails.length > 1 ? `Invite ${emails.length} people` : 'Invite'}
+          <Button
+            type="submit"
+            form="invite-form"
+            disabled={!emails.length || bad.length > 0 || inviting.state === 'sending'}
+          >
+            {inviting.state === 'sending'
+              ? 'Inviting…'
+              : emails.length > 1
+                ? `Invite ${emails.length} people`
+                : 'Invite'}
           </Button>
         </DialogFooter>
       </DialogContent>

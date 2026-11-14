@@ -5,6 +5,7 @@ import { webClassRules, webClassRulesExcept } from './eslint.class-rules.js'
 import motion from './eslint.motion.js'
 import { plainWordsConfigs } from './eslint.plain-words.js'
 import productName from './eslint.product-name.js'
+import reportedWrites, { writesStillToReport } from './eslint.reported-writes.js'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
@@ -173,6 +174,13 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // A write the screen lets go of says what happens when it fails (eslint.reported-writes.js).
+    files: webFiles,
+    ignores: writesStillToReport,
+    plugins: { writes: reportedWrites },
+    rules: { 'writes/reported': 'error' },
   },
   {
     // The api folder binds the mock binding behind HeedApi, so it may import it.
