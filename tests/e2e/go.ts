@@ -266,7 +266,7 @@ export async function signOut(page: Page) {
 async function httpRoute(
   page: Page,
   route: string,
-): Promise<{ route: string; after?: () => Promise<void>; load?: boolean }> {
+): Promise<{ route: string; after?: () => Promise<unknown>; load?: boolean }> {
   const url = new URL(route, 'http://app')
   // A domain's page names it by the service's id, area_ and the mock's; a new one has no id yet.
   const domainPage = /^\/settings\/domains\/(?!new$)([a-z_]+)$/.exec(url.pathname)
