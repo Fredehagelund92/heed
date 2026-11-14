@@ -52,8 +52,8 @@ administrator gives it.
 - **At the next request.** The MCP server asks the serving database at every request which tools
   the agent has on (`serving_agent_tools` for a connection, `serving_access_key` for a key), and
   reads no agent row itself. Both also say whether the connection or key is still open. A tool
-  switched off is neither listed nor run, and a call to it is refused with a plain sentence; an agent with every tool off gets nothing. Neither answer is a
-  scope challenge, so the app does not ask the person to sign in again for what an administrator
+  switched off is neither listed nor run, and a call to it is refused with a plain sentence; an
+  agent with every tool off gets nothing. Neither answer is a scope challenge, so the app does not ask the person to sign in again for what an administrator
   took away.
 - **Named on what it sends.** A suggestion an agent sends names the agent, by its name at the time,
   beside the person who said yes (`proposals.agent_id`, `proposals.agent_name`). The Inbox, the
