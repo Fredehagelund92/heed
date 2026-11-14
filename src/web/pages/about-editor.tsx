@@ -88,7 +88,6 @@ export function AboutPage({
           {status}
           {setup && (
             <Button
-              size="sm"
               data-primary
               disabled={tooLong || length === 0}
               onClick={() => {
@@ -160,7 +159,6 @@ export function AboutPage({
         {length === 0 && (
           <Button
             variant="outline"
-            size="sm"
             className="mt-4"
             onClick={() => {
               editor.commands.setContent(aboutTemplate, { contentType: 'markdown' })

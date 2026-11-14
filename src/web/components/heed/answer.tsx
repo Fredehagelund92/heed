@@ -112,12 +112,12 @@ function IconButton({
         render={
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label={label}
             aria-pressed={active}
             onClick={onClick}
             className={cn(
-              'size-7 text-muted-foreground hover:text-foreground pointer-coarse:size-9',
+              'text-muted-foreground hover:text-foreground pointer-coarse:size-9',
               active && 'bg-accent text-foreground',
             )}
           />
@@ -589,8 +589,7 @@ function SourceCard({ fact }: { fact: Fact }) {
       <SourceLinks fact={fact} />
       <Button
         variant="ghost"
-        size="sm"
-        className="-ml-2 w-fit text-primary"
+        className="-ml-3 w-fit text-primary"
         {...ahead(fact.id)}
         onClick={() => openDock('context', fact.id)}
       >
@@ -1157,7 +1156,6 @@ export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {owns && (
           <Button
-            size="sm"
             variant="outline"
             nativeButton={false}
             render={
@@ -1193,7 +1191,6 @@ export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
     return owns ? (
       <div className="flex flex-wrap gap-2">
         <Button
-          size="sm"
           variant="outline"
           onClick={() =>
             void write('editItem', {
@@ -1214,7 +1211,6 @@ export function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
           Mark it still true
         </Button>
         <Button
-          size="sm"
           variant="ghost"
           nativeButton={false}
           render={<a href={href(`/context/${f.id}/edit`)} />}
@@ -1390,7 +1386,7 @@ function Unanswered({ error, onRetry }: { error: string; onRetry?: () => void })
         {error}
       </span>
       {onRetry && (
-        <Button variant="outline" size="sm" onClick={onRetry}>
+        <Button variant="outline" onClick={onRetry}>
           <RefreshCwIcon data-icon="inline-start" />
           Ask again
         </Button>
@@ -1628,7 +1624,7 @@ function ContextAnswerBody({
         <div className="flex flex-wrap gap-2">
           {answer.choices.map((choice) =>
             onAsk ? (
-              <Button key={choice} variant="outline" size="sm" onClick={() => onAsk(choice)}>
+              <Button key={choice} variant="outline" onClick={() => onAsk(choice)}>
                 {choice}
               </Button>
             ) : (
@@ -1672,7 +1668,7 @@ function ContextAnswerBody({
             Stopped{answered ? '. This is not a finished answer.' : ' before an answer.'}
           </span>
           {onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry}>
+            <Button variant="outline" onClick={onRetry}>
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
             </Button>
@@ -1682,7 +1678,7 @@ function ContextAnswerBody({
       {finished && (
         <div className="flex animate-in flex-col gap-4 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
           {(answer.state === 'failed' || answer.stopped) && onRetry && (
-            <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
+            <Button variant="outline" className="w-fit" onClick={onRetry}>
               <RefreshCwIcon data-icon="inline-start" />
               Ask again
             </Button>
@@ -1852,9 +1848,9 @@ export function AnswerActions({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon"
                       aria-label="More"
-                      className="size-7 text-muted-foreground hover:text-foreground pointer-coarse:size-9"
+                      className="text-muted-foreground hover:text-foreground pointer-coarse:size-9"
                     />
                   }
                 />
@@ -1924,7 +1920,7 @@ function ConflictNextStep({ pairKey }: { pairKey: string }) {
     <div className="flex flex-col gap-3">
       <ConflictPairCompact pair={pair} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" variant="outline" onClick={() => openDock('conflict', pair.key)}>
+        <Button variant="outline" onClick={() => openDock('conflict', pair.key)}>
           <ArrowLeftRightIcon data-icon="inline-start" />
           {can ? 'Compare and decide' : 'Compare the two'}
         </Button>

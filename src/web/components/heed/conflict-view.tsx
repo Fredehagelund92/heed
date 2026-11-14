@@ -471,7 +471,7 @@ function Outcome({
             {o.chip}
           </span>
           <span className="min-w-0 flex-1 text-pretty">{o.line}</span>
-          <Button variant="ghost" size="sm" onClick={onUndo}>
+          <Button variant="ghost" onClick={onUndo}>
             <Undo2Icon data-icon="inline-start" />
             Undo
           </Button>
@@ -508,12 +508,12 @@ function Outcome({
           {next ? ` Next: ${next.topic}, ${next.asked} questions.` : ' Nothing else disagrees.'}
         </span>
         {next ? (
-          <Button variant="outline" size="sm" onClick={onNext}>
+          <Button variant="outline" onClick={onNext}>
             <ChevronRightIcon data-icon="inline-start" />
             Next conflict
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
+          <Button variant="outline" onClick={() => navigate(CONFLICTS_LIST)}>
             All conflicts
           </Button>
         )}
@@ -765,7 +765,7 @@ export function ConflictView({
               <p className="font-medium">These two no longer disagree.</p>
               <p className="text-muted-foreground">There is nothing left to decide.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate(CONFLICTS_LIST)}>
+            <Button variant="outline" onClick={() => navigate(CONFLICTS_LIST)}>
               All conflicts
             </Button>
           </div>
@@ -1116,7 +1116,7 @@ function ConflictBody({
               The buttons are held until you have seen what changed.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={onSeenChange}>
+          <Button variant="outline" onClick={onSeenChange}>
             <EyeIcon data-icon="inline-start" />
             Show what changed
           </Button>

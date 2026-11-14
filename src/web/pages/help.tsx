@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { hasSlowNetwork, setSlowNetwork, useSlowNetwork } from '@/lib/loading'
 import { Page } from '@/components/site-header'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
 import { open } from '@/lib/events'
 import { pageKey } from '@/lib/keys'
@@ -75,7 +76,7 @@ function HelpSearch({ q, onChange }: { q: string; onChange: (q: string) => void 
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden
       />
-      <input
+      <Input
         ref={input}
         type="search"
         value={q}
@@ -83,7 +84,7 @@ function HelpSearch({ q, onChange }: { q: string; onChange: (q: string) => void 
         onKeyDown={(e) => e.key === 'Escape' && q && (e.stopPropagation(), onChange(''))}
         placeholder="Search help"
         aria-label="Search help"
-        className="h-10 w-full rounded-md border border-input bg-background pr-16 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+        className="pr-16 pl-9 text-sm [&::-webkit-search-cancel-button]:hidden"
       />
       {q ? (
         <button
@@ -308,18 +309,18 @@ export function HelpPage() {
                     <a
                       href={supportHref()}
                       {...supportTarget}
-                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                      className={cn(buttonVariants({ variant: 'outline' }))}
                     >
                       Contact support
                     </a>
-                    <Button variant="outline" size="sm" onClick={() => open('report')}>
+                    <Button variant="outline" onClick={() => open('report')}>
                       Report a problem
                     </Button>
                     <a
                       href={DOCS_HOME}
                       target="_blank"
                       rel="noreferrer"
-                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                      className={cn(buttonVariants({ variant: 'outline' }))}
                     >
                       Documentation
                       <ArrowUpRightIcon />

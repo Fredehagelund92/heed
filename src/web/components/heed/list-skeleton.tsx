@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
  * bar takes two rows and its lines wrap) and wide. A list's bar alone; Definitions' bar, the line
  * saying where they come from, and its coverage line.
  */
-const LIST_LEAD = ['h-[41px] @max-md/main:h-[89px]']
+const LIST_LEAD = ['h-[45px] @max-md/main:h-[89px]']
 export const DEFINITIONS_LEAD = [
   ...LIST_LEAD,
   'h-[57px] @max-md/main:h-[97px]',

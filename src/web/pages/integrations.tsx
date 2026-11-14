@@ -702,12 +702,11 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-3 md:px-5">
-        <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
+        <Button variant="outline" onClick={() => setConnecting(true)}>
           {conn.secretSet ? 'Replace token' : 'Set up figures'}
         </Button>
         <Button
           variant="outline"
-          size="sm"
           aria-disabled={!ready || undefined}
           aria-describedby={`${switchId}-try`}
           onClick={() => {
@@ -891,7 +890,6 @@ function ConnectedRow({
       </div>
       <Button
         variant="outline"
-        size="sm"
         className="col-start-3 row-start-1 @3xl/main:col-start-4"
         onClick={() =>
           navigate(`/settings/integrations/${source.id}`, state ? { state } : undefined)
@@ -951,7 +949,7 @@ export function IntegrationsPage() {
           href={CONNECTOR_REQUEST_URL}
           target="_blank"
           rel="noreferrer"
-          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+          className={cn(buttonVariants({ variant: 'outline' }))}
         >
           <PlusIcon data-icon="inline-start" />
           <span className="max-sm:sr-only">Request a connector</span>
@@ -1011,7 +1009,6 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
             is not affected.
           </p>
           <Button
-            size="sm"
             onClick={() => navigate(`/settings/integrations/${refused.id}/connect`, { step: '2' })}
           >
             Replace key
@@ -1029,7 +1026,7 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Search integrations"
             aria-label="Search integrations"
-            className="h-8 pl-8 text-sm"
+            className="pl-8 text-sm"
           />
         </div>
       </div>
@@ -1192,7 +1189,7 @@ function ConnectorMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="icon-sm" aria-label={`More for ${c.name}`} />}
+        render={<Button variant="outline" size="icon" aria-label={`More for ${c.name}`} />}
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>
@@ -1236,7 +1233,6 @@ function PauseButton({ source, c }: { source: Source; c: Connector }) {
   return (
     <Button
       variant="outline"
-      size="sm"
       title={!paused && figures.on ? `Also switches off figures from ${c.name} in Ask` : undefined}
       onClick={() => pause(!paused)}
     >
@@ -1303,7 +1299,6 @@ function ReadAgain({ source, c }: { source: Source; c: Connector }) {
   return (
     <Button
       variant="outline"
-      size="sm"
       loading={asking || source.read === 'reading'}
       loadingLabel="Reading…"
       disabled={source.health === 'paused'}
@@ -1452,7 +1447,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const disconnect = own ? null : (
     <Button
       variant="outline"
-      size="sm"
       className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
       onClick={() => setLeaving(true)}
     >
@@ -1546,7 +1540,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               <ReadAgain source={source} c={c} />
               {!own && (
                 <Button
-                  size="sm"
                   onClick={() =>
                     navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
                   }
@@ -1593,7 +1586,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
               ))}
             </ul>
             {source.inbox && (
-              <Button size="sm" className="mt-3" onClick={() => navigate(source.inbox!)}>
+              <Button className="mt-3" onClick={() => navigate(source.inbox!)}>
                 Open the Inbox
               </Button>
             )}
@@ -1728,7 +1721,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                   {!own && (
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={() =>
                         navigate(`/settings/integrations/${source.id}/connect`, { step: '4' })
                       }
@@ -1762,7 +1754,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                     {!own && (
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={() =>
                           navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
                         }
@@ -1884,7 +1875,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                     <>
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={() =>
                           navigate(`/settings/integrations/${source.id}/connect`, { step: '3' })
                         }
@@ -1893,7 +1883,6 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                       </Button>
                       <Button
                         variant={h === 'reauth' ? 'default' : 'outline'}
-                        size="sm"
                         onClick={() =>
                           navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
                         }
@@ -2055,11 +2044,7 @@ function DomainPick({
         render={
           <Button
             variant="outline"
-            size="sm"
-            className={cn(
-              'w-40 justify-between font-normal',
-              !value && 'border-caution/60 text-caution',
-            )}
+            className={cn('w-40 justify-between', !value && 'border-caution/60 text-caution')}
           />
         }
       >
@@ -2133,7 +2118,7 @@ function Recipe({ recipe }: { recipe: NonNullable<ConnectOption['recipe']> }) {
         <span className="min-w-0">{recipe.lead}</span>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           aria-label="Copy the commands"
           className="-my-1 -mr-1.5 shrink-0"
           onClick={() => {
@@ -2492,7 +2477,6 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                 <div className="flex flex-col gap-4">
                   <Button
                     variant="ghost"
-                    size="sm"
                     className="w-fit"
                     aria-expanded={more}
                     onClick={() => setMore((m) => !m)}
@@ -2714,7 +2698,7 @@ function ScopeChooser({
               onChange={(e) => setFind(e.target.value)}
               placeholder={`Search ${plural(rows.length, noun)}`}
               aria-label={`Search ${noun}s`}
-              className="h-8 pl-8 text-sm"
+              className="pl-8 text-sm"
             />
           </div>
         )}
@@ -2727,7 +2711,6 @@ function ScopeChooser({
         >
           <Button
             variant="ghost"
-            size="sm"
             disabled={!matching.length || ticked === matching.length}
             onClick={() => pick.select([...new Set([...pick.ids, ...shownIds])])}
           >
@@ -2735,7 +2718,6 @@ function ScopeChooser({
           </Button>
           <Button
             variant="ghost"
-            size="sm"
             disabled={!ticked}
             onClick={() => {
               onLeaveOut()
@@ -3245,7 +3227,7 @@ function ChoiceSteps({
             {stops.isError && !stops.data && (
               <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
                 Not checked: what it stops reading.
-                <Button variant="outline" size="sm" onClick={() => void stops.refetch()}>
+                <Button variant="outline" onClick={() => void stops.refetch()}>
                   Retry
                 </Button>
               </p>

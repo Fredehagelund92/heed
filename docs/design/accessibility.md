@@ -40,7 +40,7 @@ Every mark has an icon, a shape or a word as well.
 
 - On a touch screen (`pointer: coarse`) every control can be hit with a finger: its tap area grows to **44 px** around it, while the control keeps the size it is drawn. Header actions are spaced so two 44 px areas never overlap.
 - Nothing on the review or the quick view is under 44 px under a finger. On a phone the decision bar's actions are 44 px.
-- On a desktop pointer, 24 px is the floor for any target, 28 px for row buttons, 32 px for default controls.
+- On a desktop pointer, 24 px is the floor for any target. A button is 28 px high, or 36 px for the one decision a pane or a page is for; a field is 32 px.
 - Lists on a phone use Select, and a tap then ticks a row.
 
 ## 5. Names, structure, forms

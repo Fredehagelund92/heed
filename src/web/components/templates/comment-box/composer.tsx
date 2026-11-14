@@ -159,11 +159,11 @@ export function Composer({
                 <Kbd>Enter</Kbd>
               </KbdGroup>
               {onCancel && (
-                <Button variant="ghost" size="sm" onClick={cancel}>
+                <Button variant="ghost" onClick={cancel}>
                   Cancel
                 </Button>
               )}
-              <Button size="sm" disabled={empty || postDisabled || sending} onClick={post}>
+              <Button disabled={empty || postDisabled || sending} onClick={post}>
                 {submitLabel}
               </Button>
             </div>

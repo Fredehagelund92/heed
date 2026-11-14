@@ -1005,7 +1005,7 @@ function Setup() {
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon"
           aria-label="Ask in the side panel"
           onClick={() => openDock('ask')}
         >
@@ -1061,7 +1061,6 @@ function Setup() {
                         {(!isDone || (step.id === 'definitions' && !!names?.length)) && (
                           <Button
                             variant={first?.id === step.id ? 'default' : 'outline'}
-                            size="sm"
                             onClick={() => go(step.id)}
                           >
                             {step.id === 'definitions' && names?.length
@@ -1127,7 +1126,7 @@ function AllDone({ waitingCount }: { waitingCount: number }) {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" onClick={() => navigate('/ask')}>
+        <Button variant="outline" onClick={() => navigate('/ask')}>
           <MessageSquareIcon data-icon="inline-start" />
           Ask a question
         </Button>
@@ -1412,7 +1411,7 @@ export function InboxPage() {
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
         <Button
           variant="outline"
-          size="icon-sm"
+          size="icon"
           aria-label="Ask in the side panel"
           onClick={() => openDock('ask')}
         >
@@ -1457,7 +1456,7 @@ function AlertPair({ pair: key }: { pair: string | undefined }) {
     <div className="flex flex-col gap-3">
       <ConflictPairCompact pair={pair} />
       <div>
-        <Button size="sm" onClick={() => openDock('conflict', pair.key)}>
+        <Button onClick={() => openDock('conflict', pair.key)}>
           <ArrowLeftRightIcon data-icon="inline-start" />
           {row.canSettle ? 'Compare and decide' : 'Compare the two'}
         </Button>

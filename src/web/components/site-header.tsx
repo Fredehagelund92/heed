@@ -85,7 +85,7 @@ function ThemeMenu() {
               render={
                 <Button
                   variant="outline"
-                  size="icon-sm"
+                  size="icon"
                   aria-label={`Theme: ${theme[0]!.toUpperCase()}${theme.slice(1)}`}
                 />
               }
@@ -179,7 +179,7 @@ export function SiteHeader({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label={back.label}
                     nativeButton={false}
                     render={<a href={back.href} />}
@@ -209,7 +209,7 @@ export function SiteHeader({
           {isMobile && !bare && (
             <Button
               variant="outline"
-              size="icon-sm"
+              size="icon"
               aria-label="Search"
               onClick={() => open('palette')}
             >
