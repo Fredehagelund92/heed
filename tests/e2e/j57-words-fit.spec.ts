@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, go, test } from './go.ts'
 
-// J53: a word is cut only when the room is gone. An Inbox title that fits in two lines is not cut
+// J57: a word is cut only when the room is gone. An Inbox title that fits in two lines is not cut
 // to one, and a Context row's scope chips keep their words (a market or a domain is data) while
 // the room allows: when the column is tight the metric chip gives way first.
 
