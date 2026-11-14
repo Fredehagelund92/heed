@@ -38,11 +38,19 @@ export class ApiError extends Error {
   readonly findings: Finding[]
   /** For a 409 that is a word's refusal (FR-138): the word is taken. */
   readonly refusal: boolean
+  /** The id the service gave the request that failed (`x-request-id`), which an admin can look up. */
+  readonly requestId: string | undefined
 
   constructor(
     kind: ApiErrorKind,
     message: string,
-    details: { status?: number; clashes?: Clash[]; findings?: Finding[]; refusal?: boolean } = {},
+    details: {
+      status?: number
+      clashes?: Clash[]
+      findings?: Finding[]
+      refusal?: boolean
+      requestId?: string
+    } = {},
   ) {
     super(message)
     this.name = 'ApiError'
@@ -51,6 +59,7 @@ export class ApiError extends Error {
     this.clashes = details.clashes ?? []
     this.findings = details.findings ?? []
     this.refusal = details.refusal ?? false
+    this.requestId = details.requestId
   }
 
   /**
@@ -101,6 +110,15 @@ const findingsOf = (data: unknown): Finding[] =>
 
 const refusalOf = (data: unknown) => isRecord(data) && isRecord(data.refusal)
 
+/** The request id of each failure the service answered, by the error the client threw for it. */
+const requestIds = new WeakMap<object, string>()
+
+/** Notes the id the service gave the request an error is about, for `toApiError` to carry. */
+export function answeredAs<E>(error: E, requestId: string | null | undefined): E {
+  if (requestId && typeof error === 'object' && error !== null) requestIds.set(error, requestId)
+  return error
+}
+
 /**
  * Reads an error from either binding: an `ApiError` passes through; an answer with a status is
  * mapped by it; anything else (a failed fetch, a thrown string) means no answer, said in a
@@ -114,6 +132,7 @@ export function toApiError(error: unknown): ApiError {
       clashes: clashesOf(error.data),
       findings: findingsOf(error.data),
       refusal: refusalOf(error.data),
+      requestId: requestIds.get(error),
     })
   return new ApiError('unanswered', "The service didn't reply.")
 }
