@@ -44,7 +44,7 @@ describe("the web reads the service's day", () => {
     }
     const api = createHttpApi({ baseUrl: 'https://heed.example/api/v1', fetch })
     expect(today()).toBe(DEMO_TODAY)
-    await api.contextPage({})
+    await api.contextPage()
     expect(today()).toBe('2027-01-20')
     expect(relativeDate('2027-01-19')).toBe('yesterday')
     // What a recheck stamps as checked on: the service's day, not a literal.
