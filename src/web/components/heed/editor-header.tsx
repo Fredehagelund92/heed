@@ -73,7 +73,7 @@ export function SaveStatus({ status, retry }: { status: SaveState; retry?: () =>
       />
       <span className="max-sm:sr-only">{words[status]}</span>
       {failed && retry && (
-        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={retry}>
+        <Button variant="link" className="h-auto p-0 text-xs" onClick={retry}>
           Try again
         </Button>
       )}

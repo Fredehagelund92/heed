@@ -53,7 +53,7 @@ export function InviteLine({ token }: { token: string }) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
         Couldn't load this invite.{' '}
-        <Button variant="link" size="sm" className="h-auto p-0" onClick={read.retry}>
+        <Button variant="link" className="h-auto p-0" onClick={read.retry}>
           Try again
         </Button>
       </p>
