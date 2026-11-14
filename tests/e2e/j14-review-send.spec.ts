@@ -48,3 +48,20 @@ test("offline, the quick view's actions wait too", async ({ page }) => {
   await go(page, '/inbox?state=offline&card=check-margin')
   await expect(page.getByText("Offline: changes wait until you're back.")).toBeVisible()
 })
+
+test('Try again after a failed return sends the note as it stands now', async ({ page }) => {
+  await go(page, '/inbox/sug-ines/review?state=failed')
+  const decide = page.getByRole('complementary', { name: 'Try it and decide' })
+  await decide.getByRole('button', { name: 'Return with a note' }).click()
+  const note = page.getByRole('textbox', { name: 'A note for Ines Duarte' })
+  await note.pressSequentially('Which page says 340?')
+  await decide.getByRole('button', { name: 'Return to Ines' }).click()
+  await expect(decide.getByRole('alert')).toContainText("Couldn't return it")
+  // The editor stays open after a failure: a clearer note is what Try again must send.
+  await note.click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await note.pressSequentially(' Please link the page.')
+  await decide.getByRole('button', { name: 'Try again' }).click()
+  await expect(decide.getByText('Returned to Ines Duarte')).toBeVisible()
+  await expect(page.getByText('Which page says 340? Please link the page.')).toBeVisible()
+})

@@ -34,3 +34,14 @@ test('Return with a note is not offered on a suggestion to archive', async ({ pa
   await expect(page.getByRole('button', { name: 'Archive anyway' })).toHaveCount(2)
   await expect(page.getByRole('button', { name: /^Return/ })).toHaveCount(0)
 })
+
+test('on a phone, asking to archive opens one dialog, not one for each place', async ({ page }) => {
+  await go(page, '/inbox/sug-lars-retire/review')
+  const archive = page.getByRole('button', { name: 'Archive anyway' })
+  await expect(archive).toHaveCount(2)
+  await archive.last().click()
+  // Counted by attribute: two modals on top of each other hide one another from the role query.
+  await expect(page.locator('[data-slot=dialog-content]')).toHaveCount(1)
+  await expect(page.locator('[data-slot=dialog-overlay]')).toHaveCount(1)
+  await expect(page.getByRole('dialog', { name: 'Archive the context item?' })).toBeVisible()
+})
