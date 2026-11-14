@@ -936,6 +936,8 @@ export function createMockApi() {
       }),
     replayTopic: ({ topic, when }) =>
       now(() => {
+        if (scenario.failsOnce('replay', topic))
+          throw new ApiError('failed', "Couldn't load this.", { status: 500 })
         const t = obsData('normal').topics.find((x) => x.id === topic)
         if (!t) return null
         const pool = factsOf(state)

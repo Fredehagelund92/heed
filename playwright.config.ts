@@ -14,6 +14,8 @@ export default defineConfig({
   testDir: 'tests/e2e',
   outputDir: 'test-results/e2e',
   fullyParallel: true,
+  // The runner has four cores, and Playwright's default takes half of them.
+  workers: ci ? 4 : undefined,
   forbidOnly: ci,
   retries: ci ? 1 : 0,
   reporter: ci
@@ -29,9 +31,10 @@ export default defineConfig({
     { name: 'reduced-motion', testMatch: /j29-motion/, use: { reducedMotion: 'reduce' } },
   ],
   // A production build served as is: no module is compiled on first visit, so a journey never
-  // waits on the dev server under parallel load.
+  // waits on the dev server under parallel load. Types are checked by the check job, so the build
+  // here is vite alone.
   webServer: {
-    command: `npm run build && npm run preview -- --port ${port}`,
+    command: `vite build && npm run preview -- --port ${port}`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !ci,
     timeout: 120_000,

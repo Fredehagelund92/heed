@@ -14,6 +14,8 @@ import type { ObsState } from '@/model/observability'
 //   send take 1.5s instead of 0.6s.
 // - ?loop=1 answers a typed question in Ask as Ask's loop does, so the chat is kept with its answers.
 // - ?decide=fail fails each Inbox card's first save, ?bulk=fail the first change to many rows.
+// - ?replay=fail fails each Observability topic's first replay, so the answer panel's failed read
+//   can be seen, and Retry brings it back.
 //
 // Integrations keep their own ?state for a sync, and Observability its own for its data, so only
 // offline counts there. Only the reads a screen's loading state shows (pageReads) wait or fail;
@@ -143,7 +145,7 @@ export function createScenario() {
     },
 
     /** Whether a ?<flag>=fail address fails this kind of change: once, on its first try. */
-    failsOnce(flag: 'decide' | 'bulk', key = ''): boolean {
+    failsOnce(flag: 'decide' | 'bulk' | 'replay', key = ''): boolean {
       const kind = `${flag}:${key}`
       if (address.query[flag] !== 'fail' || failedOnce.has(kind)) return false
       failedOnce.add(kind)

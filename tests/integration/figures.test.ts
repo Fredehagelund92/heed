@@ -366,6 +366,19 @@ describe('reading a figure (FR-716)', () => {
       source: { id: 'cube' },
     })
     expect(cube.requests).toHaveLength(asked)
+    // Paused, it is still listed with its settings, which an admin can still change.
+    const listed = await ok<FigureSources>(call('GET', '/figures', 'admin'))
+    expect(listed.sources).toMatchObject([
+      { id: 'cube', enabled: true, connection: { endpoint: cube.endpoint, tokenSet: true } },
+    ])
+    expect(
+      await ok<FigureSource>(setFigures('admin', { enabled: false, reason: 'Off while paused' })),
+    ).toMatchObject({ id: 'cube', enabled: false })
+    expect(
+      await ok<FigureSource>(setFigures('admin', { enabled: true, reason: 'On for the resume' })),
+    ).toMatchObject({ id: 'cube', enabled: true })
+    expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'off' })
+    expect((await tryFigure('admin')).statusCode).toBe(200)
     await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
     expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'figure' })
   })

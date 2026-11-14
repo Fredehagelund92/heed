@@ -44,6 +44,7 @@ import {
 } from '@/lib/connect'
 import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
+import { useReported } from '@/lib/reported'
 import { cn } from '@/lib/utils'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
 import { agentNameProblem, type AgentToolName } from '@domain/agents'
@@ -111,7 +112,8 @@ function RevokeDialog({
 
 /**
  * Names an access key: a new one, or one an admin renames. The name is what Connected agents, the
- * history log and a suggestion's review call it. Each opening starts afresh (`seq`).
+ * history log and a suggestion's review call it. A new key is shown here, once, until the dialog
+ * is closed. Each opening starts afresh (`seq`).
  */
 function KeyNameDialog({
   naming,
@@ -120,17 +122,19 @@ function KeyNameDialog({
 }: {
   naming: Naming
   onClose: () => void
-  onSave: (name: string) => Promise<boolean>
+  /** Saves the name: a new key's secret, or nothing for a rename. */
+  onSave: (name: string) => Promise<string | undefined>
 }) {
+  const [sending, setSending] = React.useState(false)
   return (
-    <Dialog open={naming.open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={naming.open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <KeyNameForm
           key={naming.seq}
+          onSending={setSending}
           {...(naming.renaming ? { renaming: naming.renaming } : {})}
-          onSave={async (name) => {
-            if (await onSave(name)) onClose()
-          }}
+          onSave={onSave}
+          onClose={onClose}
         />
       </DialogContent>
     </Dialog>
@@ -143,24 +147,40 @@ type Naming = { seq: number; open: boolean; renaming?: Connected }
 function KeyNameForm({
   renaming,
   onSave,
+  onClose,
+  onSending,
 }: {
   renaming?: Connected
-  onSave: (name: string) => Promise<void>
+  onSending: (sending: boolean) => void
+  onSave: (name: string) => Promise<string | undefined>
+  onClose: () => void
 }) {
   const [name, setName] = React.useState(renaming?.agent ?? '')
   const [problem, setProblem] = React.useState<string | null>(null)
-  const [saving, setSaving] = React.useState(false)
-  const save = async (event: React.FormEvent) => {
+  const saving = useReported<string | undefined>({
+    wasnt: renaming ? "The access key wasn't renamed." : 'No access key was created.',
+    done: (secret) => {
+      if (secret !== undefined) return
+      toast(`Renamed to ${name.trim()}`)
+      onClose()
+    },
+  })
+  const sending = saving.state === 'sending'
+  React.useEffect(() => {
+    onSending(sending)
+    return () => onSending(false)
+  }, [sending, onSending])
+  const save = (event: React.FormEvent) => {
     event.preventDefault()
     const found = agentNameProblem(name)
     setProblem(found)
     if (found) return
-    setSaving(true)
-    await onSave(name.trim())
-    setSaving(false)
+    saving.act(() => onSave(name.trim()))
   }
+  if (saving.state === 'done' && saving.result !== undefined)
+    return <NewKey secret={saving.result} onClose={onClose} />
   return (
-    <form onSubmit={(e) => void save(e)} noValidate>
+    <form onSubmit={save} noValidate>
       <DialogHeader>
         <DialogTitle>{renaming ? 'Rename the access key' : 'Create an access key'}</DialogTitle>
         <DialogDescription>
@@ -191,13 +211,54 @@ function KeyNameForm({
           </p>
         )}
       </div>
+      {saving.problem && (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          {saving.problem}
+        </p>
+      )}
       <DialogFooter className="mt-6">
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-        <Button type="submit" disabled={saving}>
+        <DialogClose render={<Button type="button" variant="outline" disabled={sending} />}>
+          Cancel
+        </DialogClose>
+        <Button type="submit" disabled={sending}>
           {renaming ? 'Rename' : 'Create'}
         </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+/** A new access key, shown once: it stays until the dialog is closed, so it can be copied. */
+function NewKey({ secret, onClose }: { secret: string; onClose: () => void }) {
+  const copy = () =>
+    void navigator.clipboard?.writeText(secret).then(
+      () => toast('Copied'),
+      () => toast("Couldn't copy it. Select the key and copy it from the box."),
+    )
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Your new access key</DialogTitle>
+        <DialogDescription>Copy it now: it is shown once.</DialogDescription>
+      </DialogHeader>
+      <div className="mt-4 flex gap-2">
+        <Input
+          aria-label="Access key"
+          readOnly
+          value={secret}
+          className="font-mono"
+          onFocus={(e) => e.target.select()}
+        />
+        <Button type="button" variant="outline" onClick={copy}>
+          Copy
+        </Button>
+      </div>
+      <DialogFooter className="mt-6">
+        <Button type="button" onClick={onClose}>
+          Done
+        </Button>
+      </DialogFooter>
+    </>
   )
 }
 
@@ -542,27 +603,10 @@ export function Agents() {
   const [naming, setNaming] = React.useState<Naming>({ seq: 0, open: false })
   const openNaming = (renaming?: Connected) =>
     setNaming((n) => ({ seq: n.seq + 1, open: true, ...(renaming ? { renaming } : {}) }))
-  const nameKey = async (name: string) => {
-    const renaming = naming.renaming
-    try {
-      if (renaming) {
-        await write('renameAccessKey', { id: renaming.id, name })
-        toast(`Renamed to ${name}`)
-        return true
-      }
-      const { key } = await write('createAccessKey', { name })
-      toast(`Access key ${name} created`, {
-        description: 'Copy it now: it is shown once.',
-        action: { label: 'Copy', onClick: () => void navigator.clipboard?.writeText(key) },
-      })
-      return true
-    } catch (e) {
-      toast(renaming ? "Couldn't rename the access key" : "Couldn't create an access key", {
-        description: toApiError(e).message,
-      })
-      return false
-    }
-  }
+  const nameKey = (name: string) =>
+    naming.renaming
+      ? write('renameAccessKey', { id: naming.renaming.id, name }).then(() => undefined)
+      : write('createAccessKey', { name }).then(({ key }) => key)
   const setAgentTool = (r: Connected, tool: AgentToolName, on: boolean) =>
     void write('setAgentTool', { id: r.id, tool, on })
       .then(() => toast(`${tool} ${on ? 'on' : 'off'} for ${r.agent}`))

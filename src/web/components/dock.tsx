@@ -81,3 +81,15 @@ export function PeekBar({ children, onExpand }: { children?: ReactNode; onExpand
 export function DockMissing({ children }: { children: ReactNode }) {
   return <p className="p-4 text-sm text-muted-foreground md:p-5">{children}</p>
 }
+
+/**
+ * A dock while its code loads: its frame at once, with its title and Close, so it is never an
+ * empty strip. Its read's own states are DockRead's (dock-read.tsx), which stays off the first load.
+ */
+export function DockWaiting({ title }: { title: string }) {
+  return (
+    <DockFrame title={title}>
+      <div role="status" aria-busy="true" aria-label="Loading" className="min-h-24" />
+    </DockFrame>
+  )
+}
