@@ -205,7 +205,11 @@ test('a By facet switches between dimensions, and an admin pins one for everyone
   ])
   await page.keyboard.press('Escape')
   await go(page, '/settings/advanced')
-  await expect(page.getByText('Dimensions pinned on Observability’s Overview')).toBeVisible()
+  await expect(
+    page
+      .getByRole('table', { name: 'Tuning settings' })
+      .getByText('Dimensions pinned on Observability’s Overview'),
+  ).toBeVisible()
   await go(page, '/observability?range=30')
   await pinned.getByRole('button', { name: 'Unpin Market for everyone' }).click()
   await expect(pinned).toHaveCount(0)

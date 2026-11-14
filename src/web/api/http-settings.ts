@@ -14,7 +14,7 @@ import type { Agent, AgentPolicy, DomainPolicies as ServedPolicies } from '@cont
 import type { Connected } from '@/lib/connect'
 import type { DomainPolicies, Policy } from '@/lib/policies'
 import { logLine } from '@/model/history'
-import { settingGroups } from '@/model/settings'
+import { settingGroups, settingWhat } from '@/model/settings'
 import type { Advanced, Settings } from './client'
 import { whenWords } from './http-inbox'
 
@@ -276,7 +276,7 @@ export function historyLine(
     : (SUBJECTS[noun] ?? SUBJECTS[e.subjectType ?? ''] ?? noun.replace(/_/g, ' '))
   const detail =
     noun === 'setting' && e.subjectId
-      ? `: ${e.subjectId}`
+      ? `: ${settingWords(e.subjectId)}`
       : noun === 'area' && e.areaId
         ? `: ${domain(e.areaId)}`
         : e.areaId && !e.subjectTitle
@@ -347,6 +347,12 @@ export function historyOf(
     .map(({ at: _at, ...row }) => row)
 }
 
+/** A setting in a history line: what it does first, the exact key in brackets after it. */
+const settingWords = (key: string) => {
+  const what = settingWhat(key)
+  return what ? `${what} (${key})` : key
+}
+
 /** The jobs that run on their own, in the screens' words. */
 const JOBS: Record<string, string> = {
   'gaps.detect': 'Count what is not covered',
@@ -357,7 +363,7 @@ const JOBS: Record<string, string> = {
   'evals.retrieval': 'Check what the answer tests find',
   'observability.rollup': 'Keep the weekly counts for good',
   'observability.snapshot': "Keep each month's summary",
-  'retention.run': 'Clear what is kept for a while only',
+  'retention.run': 'Delete old records',
   'partitions.ensure': 'Make room for the next weeks',
 }
 

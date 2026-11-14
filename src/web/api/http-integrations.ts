@@ -106,7 +106,7 @@ const FAILURES: Record<string, string> = {
 const failureWords = (warnings: readonly { code: string }[]) => {
   for (const warning of warnings) {
     const words = FAILURES[warning.code]
-    if (words) return words
+    if (words) return `${words} (${warning.code})`
   }
   return "it couldn't be read"
 }

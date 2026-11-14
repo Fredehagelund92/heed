@@ -14,3 +14,15 @@ export declare function webPlacesOf(path: string): Place[]
 export declare const plainWordsConfigs: Linter.Config[]
 declare const plugin: ESLint.Plugin
 export default plugin
+export declare const glossaryV2Files: string[]
+export declare const glossaryV2Not: string[]
+export declare const copyRatchetConfigs: Linter.Config[]
+export declare function readsAsText(
+  node: unknown,
+  errorsOnly: boolean,
+  wide?: boolean,
+  text?: string,
+): boolean
+export declare function looksLikeCode(text: string, wide?: boolean): boolean
+export declare function codeSample(text: string): boolean
+export declare function kindAndId(node: unknown): boolean
