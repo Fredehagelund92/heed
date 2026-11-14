@@ -239,6 +239,7 @@ describe('figures settings (CON-612)', () => {
         tool: 'Cube',
         name: 'Cube',
         enabled: false,
+        state: 'not_set_up',
         dataContact: null,
         connection: null,
       },
@@ -274,7 +275,7 @@ describe('figures settings (CON-612)', () => {
       declaredHost: '127.0.0.1',
       tokenSet: true,
     })
-    expect(set.enabled).toBe(false)
+    expect(set).toMatchObject({ enabled: false, state: 'off' })
     const noContact = await setFigures('admin', { enabled: true, reason: 'Show figures' })
     expect(noContact.statusCode).toBe(422)
     expect(noContact.body).toContain('Name a data contact first')
@@ -296,6 +297,7 @@ describe('figures settings (CON-612)', () => {
     )
     expect(on).toMatchObject({
       enabled: true,
+      state: 'on',
       dataContact: { personId: people.stranger, name: 'stranger' },
     })
     expect(cube.requests).toEqual([])
@@ -369,7 +371,12 @@ describe('reading a figure (FR-716)', () => {
     // Paused, it is still listed with its settings, which an admin can still change.
     const listed = await ok<FigureSources>(call('GET', '/figures', 'admin'))
     expect(listed.sources).toMatchObject([
-      { id: 'cube', enabled: true, connection: { endpoint: cube.endpoint, tokenSet: true } },
+      {
+        id: 'cube',
+        enabled: true,
+        state: 'held',
+        connection: { endpoint: cube.endpoint, tokenSet: true },
+      },
     ])
     expect(
       await ok<FigureSource>(setFigures('admin', { enabled: false, reason: 'Off while paused' })),
@@ -380,6 +387,23 @@ describe('reading a figure (FR-716)', () => {
     expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'off' })
     expect((await tryFigure('admin')).statusCode).toBe(200)
     await ok(call('PUT', '/sources/cube/paused', 'admin', { paused: false, reason: 'Moved' }))
+    expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'figure' })
+  })
+
+  it('gets no figure once the data contact leaves, and cannot be switched on with them', async () => {
+    const asked = cube.requests.length
+    await client.query('update people set deactivated_at = now() where id = $1', [people.stranger])
+    try {
+      const listed = await ok<FigureSources>(call('GET', '/figures', 'admin'))
+      expect(listed.sources).toMatchObject([{ id: 'cube', enabled: true, state: 'broken' }])
+      expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'off' })
+      expect(cube.requests).toHaveLength(asked)
+      const again = await setFigures('admin', { enabled: true, reason: 'On again' })
+      expect(again.statusCode).toBe(422)
+      expect(again.body).toContain('stranger has left the workspace.')
+    } finally {
+      await client.query('update people set deactivated_at = null where id = $1', [people.stranger])
+    }
     expect(await readFigure('owner', { ...orders, ...august })).toMatchObject({ state: 'figure' })
   })
 

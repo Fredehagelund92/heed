@@ -1337,10 +1337,12 @@ export function describeHeedApi(
           const tool = connectorById(s.connector)
           expect(tool, s.id).toBeDefined()
           expect(tool!.soon, s.id).toBeFalsy()
-          expect(['healthy', 'failed', 'reauth', 'paused'], s.id).toContain(s.health)
+          expect(['never', 'ok', 'partial', 'failed', 'refused'], s.id).toContain(s.state.last)
           // A paused tool has no read pending; any other waits for its time, the job or its turn.
-          expect(s.read === null, s.id).toBe(s.health === 'paused')
-          if (s.read) expect(['scheduled', 'queued', 'reading'], s.id).toContain(s.read)
+          if (s.state.intent === 'active') {
+            expect(['scheduled', 'queued', 'reading'], s.id).toContain(s.state.read)
+            expect(s.state.next.time, s.id).toMatch(/^\d{2}:\d{2}$/)
+          } else expect(s.state, s.id).toEqual({ intent: 'paused', last: s.state.last })
           expect(s.every, s.id).toMatch(/^(every [a-z0-9 ]+|when asked)$/)
           expect(s.staleAfter, s.id).toMatch(/^\d+ (minute|hour|day)s?$/)
           if (s.last) expect(s.last.at.time, s.id).toMatch(/^\d{2}:\d{2}$/)
@@ -1397,15 +1399,16 @@ export function describeHeedApi(
         const cube = (await live.integrationsPage()).sources.find((s) => s.connector === 'cube')!
         await live.readIntegration({ id: cube.id })
         // Asked to read: queued for the job, or already being read.
-        expect(['queued', 'reading']).toContain((await source(cube.id)).read)
+        const asked = (await source(cube.id)).state
+        expect(asked.intent === 'active' ? asked.read : null).toMatch(/^(queued|reading)$/)
         await live.pauseIntegration({ id: cube.id, paused: true })
         const paused = await source(cube.id)
-        expect(paused).toMatchObject({ health: 'paused', read: null, next: null })
+        expect(paused.state.intent).toBe('paused')
         await expect(live.readIntegration({ id: cube.id })).rejects.toMatchObject({
           kind: 'conflict',
         })
         await live.pauseIntegration({ id: cube.id, paused: false })
-        expect((await source(cube.id)).health).not.toBe('paused')
+        expect((await source(cube.id)).state.intent).toBe('active')
         await expect(live.readIntegration({ id: 'no-such-tool' })).rejects.toMatchObject({
           kind: 'not-found',
         })

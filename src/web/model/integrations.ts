@@ -1,6 +1,7 @@
 import { fieldVisible } from '@domain/connector-config'
 import type { ConnectorManifest, ManifestField } from '@domain/connector-manifest'
-import type { SourceHealth, SourceRead } from '@domain/source-state'
+import type { FiguresState } from '@domain/figures-state'
+import type { SourceHealth, SourceLast, SourceRead, SourceRetry } from '@domain/source-state'
 import cube from '@/assets/logos/cube.svg'
 import dbt from '@/assets/logos/dbt.svg'
 import googledrive from '@/assets/logos/googledrive.svg'
@@ -110,27 +111,38 @@ export type IntegrationState =
   'normal' | 'nothing' | 'syncing' | 'failed' | 'reauth' | 'suggestions'
 
 /**
- * How a connected tool is, from its intent and its last read: read as it should be (also before its
- * first read); its last read failed; its key was refused; or paused by an admin. Whether a read is
- * pending is `Source.read`, so a failure stays shown while a retry is queued.
+ * How a connected tool's badge says it is, from its intent and its last read: read as it should be
+ * (also before its first read); its last read failed; its key was refused; or paused by an admin.
  */
 export type Health = SourceHealth
 
 /**
  * A tool's pending read: waiting for its time; queued (its time is up, an admin asked, or it was
- * just connected or changed) for the job's next turn; or being read now. Null while paused.
+ * just connected or changed) for the job's next turn; or being read now.
  */
 export type Read = SourceRead
 
-/** When a source not yet read is read first, in words: "running now", "queued", "at 07:00". */
-export const firstReadWords = (source: { read: Read | null; next: When | null }) =>
-  source.read === 'reading'
-    ? 'running now'
-    : source.read === 'queued'
-      ? 'queued'
-      : source.next
-        ? `at ${source.next.time}`
-        : 'soon'
+/**
+ * How a connected tool is, as one value, as the service sends it: paused, with how its last read
+ * went; or active, with its pending read, when it is read next, whether a failed read is tried again
+ * a period on or sooner (`backoff`), and how its last read went.
+ */
+export type SourceStatus =
+  | { intent: 'paused'; last: SourceLast }
+  | { intent: 'active'; read: Read; next: When; retry: SourceRetry; last: SourceLast }
+
+/**
+ * When a source not yet read is read first, in words: "running now", "queued", "at 07:00", or
+ * "once it is resumed" while paused.
+ */
+export const firstReadWords = (state: SourceStatus) =>
+  state.intent === 'paused'
+    ? 'once it is resumed'
+    : state.read === 'reading'
+      ? 'running now'
+      : state.read === 'queued'
+        ? 'queued'
+        : `at ${state.next.time}`
 
 /** A moment as the integrations' pages say it: a day ("Today", "Tomorrow", "21 Oct") and a time. */
 export type When = {
@@ -174,18 +186,15 @@ export type Source = {
   id: string
   /** The tool it reads, as the catalog has it (its name, logo and kind): its connector's id. */
   connector: string
-  health: Health
-  read: Read | null
+  state: SourceStatus
   /** How often it is read: "every hour", "every day". */
   every: string
   /** How long it may go unread before what it read is out of date: "6 hours". */
   staleAfter: string
-  /** Its last read; null before the first. Complete, how long it took, what it looked at. */
-  last: { at: When; complete: boolean; seconds: number | null; seen: number } | null
+  /** Its last read; null before the first. How long it took, and what it looked at. */
+  last: { at: When; seconds: number | null; seen: number } | null
   /** Its last read that did not fail, when the last one did. */
   lastGood: When | null
-  /** When it is read next; null before its first read is planned, and while paused. */
-  next: When | null
   /** How far a read that runs now has got, where the tool says. */
   progress?: { done: number; total: number }
   /** Reads in a row that failed, and why the last one did, in words. */
@@ -247,9 +256,17 @@ export type FigureConnection = {
   host: string | null
   secretSet: boolean
   contact: string
+  /**
+   * How its figures in Ask are: off, on, held while it is paused, or broken (switched on with no
+   * token, or with nobody to ask).
+   */
+  state: FiguresState
   /** When the integration last refreshed its data, when known. */
   asOf?: string
 }
+
+/** How a figure-capable integration is set up, before its state is worked out. */
+export type FigureSetup = Omit<FigureConnection, 'state'>
 
 /* ---------- the connect flow (Pick, Connect, Choose, Map, Schedule) and Change settings ---------- */
 

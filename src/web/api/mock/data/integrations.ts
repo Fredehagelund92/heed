@@ -7,7 +7,7 @@ import {
   type DefinitionsView,
   type DriveDocument,
   type DriveFolder,
-  type FigureConnection,
+  type FigureSetup,
   type IntegrationState,
   type Source,
   type SourcePage,
@@ -169,7 +169,7 @@ export const integrationState = (flag: string | null): IntegrationState =>
     : 'normal'
 
 /** How each figure-capable integration is reached. The secret is never shown in full. */
-export const figureConnections: Record<string, FigureConnection> = {
+export const figureConnections: Record<string, FigureSetup> = {
   [DEMO_DEFINITIONS]: {
     endpoint: 'https://cube.larchwood.example/cubejs-api/v1/load',
     host: 'cube.larchwood.example',
@@ -186,6 +186,12 @@ const handbookFolders: DriveFolder[] = [
 ]
 
 const quiet = { failures: 0, failure: null, lastGood: null, created: null }
+
+/** A demo tool's state, which is active: each tool of the demo world is read. */
+const active = (source: Source) => {
+  if (source.state.intent !== 'active') throw new Error(`${source.id} is paused in the demo`)
+  return source.state
+}
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /**
@@ -209,12 +215,16 @@ export const demoTools: Record<string, DemoTool> = {
     source: {
       id: DEMO_DEFINITIONS,
       connector: DEMO_DEFINITIONS,
-      health: 'healthy',
-      read: 'scheduled',
+      state: {
+        intent: 'active',
+        read: 'scheduled',
+        next: { day: 'Today', time: '07:00' },
+        retry: null,
+        last: 'ok',
+      },
       every: 'every hour',
       staleAfter: '6 hours',
-      last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 3, seen: 27 },
-      next: { day: 'Today', time: '07:00' },
+      last: { at: { day: 'Today', time: '06:00' }, seconds: 3, seen: 27 },
       ...quiet,
       definitions: { metrics: 22, dimensions: 5, views: 7, noDomain: 2, flagged: 2 },
       documents: null,
@@ -265,17 +275,27 @@ export const demoTools: Record<string, DemoTool> = {
     states: {
       syncing: (page) => ({
         ...page,
-        source: { ...page.source, read: 'reading', progress: { done: 19, total: 27 } },
+        source: {
+          ...page.source,
+          state: { ...active(page.source), read: 'reading' },
+          progress: { done: 19, total: 27 },
+        },
       }),
       failed: (page) => ({
         ...page,
         source: {
           ...page.source,
-          health: 'failed',
+          // Three failures in a row: it backs off, tried again sooner than its period.
+          state: {
+            intent: 'active',
+            read: 'scheduled',
+            next: { day: 'Today', time: '07:00' },
+            retry: 'backoff',
+            last: 'failed',
+          },
           failures: 3,
           failure: 'the repository refused the token (401)',
           lastGood: { day: '21 Oct', time: '06:00', ago: '24 hours ago' },
-          next: { day: 'Today', time: '07:00' },
           definitions: { ...page.source.definitions!, flagged: 0 },
         },
       }),
@@ -285,12 +305,16 @@ export const demoTools: Record<string, DemoTool> = {
     source: {
       id: DEMO_CONTEXT,
       connector: DEMO_CONTEXT,
-      health: 'healthy',
-      read: 'scheduled',
+      state: {
+        intent: 'active',
+        read: 'scheduled',
+        next: { day: 'Tomorrow', time: '06:00' },
+        retry: null,
+        last: 'ok',
+      },
       every: 'every day',
       staleAfter: '2 days',
-      last: { at: { day: 'Today', time: '06:00' }, complete: true, seconds: 4, seen: 14 },
-      next: { day: 'Tomorrow', time: '06:00' },
+      last: { at: { day: 'Today', time: '06:00' }, seconds: 4, seen: 14 },
       ...quiet,
       definitions: null,
       documents: { held: 14, waiting: 3, domains: 2, madeToday: 3, perDay: 5 },
@@ -331,11 +355,11 @@ export const demoTools: Record<string, DemoTool> = {
         ...page,
         source: {
           ...page.source,
-          health: 'reauth',
-          // Not paused: each day's read tries the key again.
+          // Not paused: each day's read tries the key again, a whole period on.
+          state: { ...active(page.source), retry: 'period', last: 'refused' },
           failures: 2,
           failure: 'Google refused the service account key',
-          last: { at: { day: 'Today', time: '06:00' }, complete: false, seconds: null, seen: 0 },
+          last: { at: { day: 'Today', time: '06:00' }, seconds: null, seen: 0 },
           lastGood: { day: '20 Oct', time: '06:00' },
         },
         activity: [
@@ -372,13 +396,17 @@ export const demoTools: Record<string, DemoTool> = {
     source: {
       id: DEMO_HANDBOOK,
       connector: DEMO_HANDBOOK,
-      health: 'healthy',
       // Connected this visit and not read yet: queued for the job's first read.
-      read: 'queued',
+      state: {
+        intent: 'active',
+        read: 'queued',
+        next: { day: 'Today', time: '07:00' },
+        retry: null,
+        last: 'never',
+      },
       every: 'every day',
       staleAfter: '2 days',
       last: null,
-      next: { day: 'Today', time: '07:00' },
       ...quiet,
       definitions: null,
       documents: { held: 0, waiting: 0, domains: 0, madeToday: 0, perDay: 5 },

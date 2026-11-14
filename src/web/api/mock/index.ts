@@ -1063,7 +1063,7 @@ export function createMockApi() {
       }),
     getIntegrations: () =>
       now(() => ({
-        figureConnections: settings.connections(),
+        figureConnections: settings.connections(scenario.address(), integrations.paused),
       })),
     integrationsPage: () =>
       read('integrationsPage', '', () => integrations.page(scenario.address())),
@@ -1073,10 +1073,14 @@ export function createMockApi() {
     pauseIntegration: ({ id, paused }) => now(() => integrations.pause(id, paused)),
     readFigure: (asked) =>
       now(() => {
-        const on = settings.read(scenario.address()).figures
-        return figureFor(asked, (id) => on[id] ?? false)
+        // As the service: only a tool whose figures are on is asked, never one paused or broken.
+        const shown = settings.connections(scenario.address(), integrations.paused)
+        return figureFor(asked, (id) => shown[id]?.state === 'on')
       }),
-    tryFigure: ({ source }) => now(() => figureTryFor(source, settings.connections()[source])),
+    tryFigure: ({ source }) =>
+      now(() =>
+        figureTryFor(source, settings.connections(scenario.address(), integrations.paused)[source]),
+      ),
     listAgentConnections: () =>
       now(() =>
         settings

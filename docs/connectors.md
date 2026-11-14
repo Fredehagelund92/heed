@@ -86,7 +86,9 @@ Beside its status, a source that is waiting to be read says **Queued**: it was j
 
 Pausing a source also switches off its figures in Ask, whatever the Show figures in Ask switch says: an answer links into the tool instead. Its figures settings stay on its page, and an admin can still change them. What is published stays. Resume it and it is queued for a read.
 
-A source whose key was refused is not paused: it is tried again at its usual time, so a key fixed in the tool works again by itself. Until then Integrations says it needs a new key, and when it was last tried, with **Replace key**.
+Figures that are switched on also go off in Ask when the data contact leaves the workspace or the token is gone. The tool's page says which, so you can name another contact or set the token again.
+
+A source whose key was refused is not paused: it is tried again at its usual time, so a key fixed in the tool works again by itself. Until then Integrations says it needs a new key and when it was last tried, its page says when it is tried again, and both offer **Replace key**.
 
 **Read again** reads one source at the job's next turn, and a change to its settings does the same. To read the server's own sources from the command line, the ones its settings name or the demo when they name none, run the command below. It never reads a source an admin added.
 
