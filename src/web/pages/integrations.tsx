@@ -88,6 +88,7 @@ import {
   type ConnectValues,
   firstReadWords,
   type DocState,
+  type FigureConnection,
   type Health,
   type IntegrationsView,
   type LeftOutView,
@@ -95,6 +96,8 @@ import {
   type SourcePage,
   type When,
 } from '@/model/integrations'
+import { readEndedWords, sourceView, type SourceBanner } from '@/model/source-view'
+import { sourceHealth } from '@domain/source-state'
 import type { DomainId } from '@/model/items'
 import type { FigureTry } from '@/model/figures'
 import { useConnectActions } from '@/lib/integrations'
@@ -169,8 +172,11 @@ const readLook = {
   },
 }
 
-/** Whether a source's read is queued or running, the two a page waits on. */
-const pending = (source: Source) => source.read === 'queued' || source.read === 'reading'
+/** A source's read that is queued or running, the two a page waits on; null for none. */
+const pendingOf = (source: Source) =>
+  source.state.intent === 'active' && source.state.read !== 'scheduled' ? source.state.read : null
+/** Whether an admin paused reading a source. */
+const isPaused = (source: Source) => source.state.intent === 'paused'
 
 function ReadBadge({ read }: { read: 'queued' | 'reading' }) {
   const look = readLook[read]
@@ -532,20 +538,28 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
     (d) => d.type === 'metric' && d.synced && d.tool === c.name,
   ).length
   // Shown only for an integration that can answer figures, which says how it is reached.
-  const conn = figureConnections[c.id] ?? {
+  const conn: FigureConnection = figureConnections[c.id] ?? {
     endpoint: null,
     host: null,
     secretSet: false,
     contact: '',
+    state: 'not_set_up',
   }
   const on = f.enabled(c.id)
+  // Switched on, but there is no token to read with or nobody to ask: say what to fix.
+  const broken =
+    conn.state !== 'broken'
+      ? ''
+      : !conn.secretSet || conn.endpoint === null
+        ? ' Figures are off in Ask: its token is gone. Set up the connection again.'
+        : ' Figures are off in Ask: its data contact has left. Name another data contact.'
   const switchId = `figures-${c.id}`
   const notSet = <span className="text-muted-foreground">Not set</span>
   const ready = conn.endpoint !== null && conn.secretSet
   return (
     <PanelSection
       title="Figures connection"
-      description={`The second of ${c.name}'s two connections, with its own address and key, for figures. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}`}
+      description={`The second of ${c.name}'s two connections, with its own address and key, for figures. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.${paused ? ` Reading ${c.name} is paused, so figures are off in Ask until it is resumed, whatever this switch says.` : ''}${broken}`}
       action={
         <span className="flex items-center gap-2">
           <label htmlFor={switchId} className="text-sm">
@@ -772,7 +786,10 @@ function RowDetail({ source }: { source: Source }) {
     )
   if (!source.last)
     return (
-      <>First read {firstReadWords(source)}. Suggestions go to the owners of each folder's domain</>
+      <>
+        First read {firstReadWords(source.state)}. Suggestions go to the owners of each folder's
+        domain
+      </>
     )
   return (
     <>
@@ -795,7 +812,10 @@ function RowDetail({ source }: { source: Source }) {
 }
 
 /** The tools whose row is marked: a read that failed, and a key to replace. */
-const markedHealth = (s: Source) => s.health === 'failed' || s.health === 'reauth'
+const markedHealth = (s: Source) => {
+  const h = sourceHealth(s.state)
+  return h === 'failed' || h === 'reauth'
+}
 
 /**
  * A row's state when it is not healthy. A failed read and a refused key are the exceptions, marked
@@ -803,7 +823,7 @@ const markedHealth = (s: Source) => s.health === 'failed' || s.health === 'reaut
  * badge of its own, beside this.
  */
 function RowHealth({ source, plain }: { source: Source; plain: boolean }) {
-  const h = source.health
+  const h = sourceHealth(source.state)
   if (!markedHealth(source)) return <HealthBadge health={h} />
   const words = healthLook[h].label
   return (
@@ -832,7 +852,9 @@ function ConnectedRow({
   plain: boolean
 }) {
   const c = connectorById(source.connector)!
-  const h = source.health
+  const h = sourceHealth(source.state)
+  const pending = pendingOf(source)
+  const next = source.state.intent === 'active' ? source.state.next : null
   return (
     <li className="grid grid-cols-(--cols-around) items-center gap-x-3 gap-y-1 border-t px-4 py-3 first:border-t-0 md:px-5 @3xl/main:grid-cols-(--cols-source)">
       <ToolLogo c={c} />
@@ -848,9 +870,9 @@ function ConnectedRow({
         </p>
       </div>
       <div className="col-span-3 col-start-2 row-start-2 text-xs @3xl/main:col-span-1 @3xl/main:col-start-auto @3xl/main:row-start-auto">
-        {pending(source) ? (
+        {pending ? (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <ReadBadge read={source.read as 'queued' | 'reading'} />
+            <ReadBadge read={pending} />
             {h === 'healthy' ? (
               <span className="text-muted-foreground">
                 {source.last
@@ -868,17 +890,13 @@ function ConnectedRow({
               {source.last ? (
                 <>
                   Read {inSentence(source.last.at.day)}, {source.last.at.time}
-                  {source.next && (
-                    <span className="text-muted-foreground">, next {nextWords(source.next)}</span>
-                  )}
+                  {next && <span className="text-muted-foreground">, next {nextWords(next)}</span>}
                 </>
               ) : (
                 <>
                   Not read yet
-                  {source.next && (
-                    <span className="text-muted-foreground">
-                      , first read at {source.next.time}
-                    </span>
+                  {next && (
+                    <span className="text-muted-foreground">, first read at {next.time}</span>
                   )}
                 </>
               )}
@@ -987,7 +1005,7 @@ function IntegrationsBody({ view }: { view: IntegrationsView }) {
   const connected = new Set(sources.map((s) => s.connector))
   const rows = sources.filter((s) => matches(connectorById(s.connector)!))
   const cells = connectors.filter((c) => matches(c) && !connected.has(c.id))
-  const refused = sources.find((s) => s.health === 'reauth')
+  const refused = sources.find((s) => sourceHealth(s.state) === 'reauth')
   const refusedTool = refused && connectorById(refused.connector)
   // Nothing connected starts with definitions: the first definitions tool that can be connected.
   const firstTool = connectors.find(
@@ -1183,7 +1201,7 @@ function ConnectorMenu({
 }) {
   const pause = usePauseReading(source, c)
   const figures = useFiguresOff(c)
-  const paused = source.health === 'paused'
+  const paused = isPaused(source)
   // Whoever runs the server set its own tools up: their settings are theirs to change.
   const own = source.added === null
   return (
@@ -1229,7 +1247,7 @@ function ConnectorMenu({
 function PauseButton({ source, c }: { source: Source; c: Connector }) {
   const pause = usePauseReading(source, c)
   const figures = useFiguresOff(c)
-  const paused = source.health === 'paused'
+  const paused = isPaused(source)
   return (
     <Button
       variant="outline"
@@ -1299,9 +1317,9 @@ function ReadAgain({ source, c }: { source: Source; c: Connector }) {
   return (
     <Button
       variant="outline"
-      loading={asking || source.read === 'reading'}
+      loading={asking || pendingOf(source) === 'reading'}
       loadingLabel="Reading…"
-      disabled={source.health === 'paused'}
+      disabled={isPaused(source)}
       onClick={() => {
         setAsking(true)
         write('readIntegration', { id: source.id })
@@ -1319,39 +1337,58 @@ function ReadAgain({ source, c }: { source: Source; c: Connector }) {
 
 /** The read Read again asked for has ended: says what it found, once. */
 function useReadDone(page: SourcePage | null | undefined, name: string) {
-  const read = page?.source.read
+  const state = page?.source.state
+  const read = state?.intent === 'active' ? state.read : null
   const was = React.useRef(read)
   React.useEffect(() => {
     if ((was.current === 'reading' || was.current === 'queued') && read === 'scheduled' && page) {
-      const latest = page.activity[0]
-      toast(`Read ${name}`, latest ? { description: `${latest.detail}.` } : undefined)
+      const { title, description } = readEndedWords(
+        name,
+        page.source.state.last,
+        page.activity[0]?.detail,
+      )
+      toast(title, description ? { description } : undefined)
     }
     was.current = read
   }, [read, page, name])
 }
 
-/** "Read 1 Oct", "3 s": how a read went, under its number. */
-const readSub = (source: Source) =>
-  source.last
-    ? source.definitions
-      ? `${source.last.complete ? 'complete' : 'in part'}${source.last.seconds === null ? '' : `, ${source.last.seconds} s`}`
-      : `${plural(source.last.seen, 'document')} looked at`
-    : `first read ${firstReadWords(source)}`
-
 /**
- * When it reads next, as a number of the page: "07:00", "every hour"; "Tomorrow", "06:00, every
- * day"; "Queued" once its time is up; "Now" while it is read.
+ * A tool whose key was refused: it is not paused, and each read tries the key again, so the page
+ * says when, and offers to replace it.
  */
-const nextNumber = (source: Source, label = 'Next read') => {
-  if (source.read === 'reading') return { label, value: 'Now', sub: 'being read' }
-  if (source.read === 'queued') return { label, value: 'Queued', sub: 'waiting for the job' }
-  return source.next
-    ? {
-        label,
-        value: source.next.day === 'Today' ? source.next.time : source.next.day,
-        sub: source.next.day === 'Today' ? source.every : `${source.next.time}, ${source.every}`,
-      }
-    : { label, value: 'Paused', sub: source.every }
+function RefusedBanner({
+  banner,
+  source,
+  c,
+  own,
+}: {
+  banner: Extract<SourceBanner, { kind: 'refused' }>
+  source: Source
+  c: Connector
+  own: boolean
+}) {
+  return (
+    <div role="alert" className="border-t bg-caution/8 px-4 py-4 text-sm md:px-5">
+      <p className="flex items-start gap-2">
+        <KeyRoundIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution" />
+        <span>
+          <span className="font-medium">It needs a new key.</span>{' '}
+          {sentence(source.failure ?? `${c.name} refused the key`)}. {banner.retry} Published
+          context is not affected.
+        </span>
+      </p>
+      {!own && (
+        <div className="mt-3 flex gap-2 pl-6">
+          <Button
+            onClick={() => navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })}
+          >
+            Replace key
+          </Button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function NotConnected({ id }: { id: string }) {
@@ -1407,7 +1444,8 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const [leaving, setLeaving] = React.useState(false)
   const { figureConnections } = useIntegrations()
   const { source, views, folders, documents, activity, connection } = page
-  const h = source.health
+  const view = sourceView(c.kind, source, page.changedOn)
+  const h = view.health
   const figures = useFiguresOff(c)
   const isDefinitions = c.kind === 'definitions'
   // A tool read with a key file someone uploads shares folders with an account of its own: its
@@ -1466,7 +1504,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                 {kindName[c.kind]}
               </Badge>
               <HealthBadge health={h} />
-              {pending(source) && <ReadBadge read={source.read as 'queued' | 'reading'} />}
+              {view.pending && <ReadBadge read={view.pending} />}
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {c.lead ??
@@ -1481,7 +1519,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           </div>
         </header>
 
-        {source.read === 'queued' && (
+        {view.pending === 'queued' && (
           <div className="border-t px-4 py-4 md:px-5" role="status">
             <p className="flex items-center gap-2 text-sm font-medium">
               <ClockIcon aria-hidden className="size-4 text-muted-foreground" />
@@ -1493,7 +1531,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             </p>
           </div>
         )}
-        {source.read === 'reading' && (
+        {view.pending === 'reading' && (
           <div className="border-t px-4 py-4 md:px-5" role="status">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">
@@ -1518,7 +1556,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             </p>
           </div>
         )}
-        {h === 'failed' && (
+        {view.banner?.kind === 'failed' && (
           <div role="alert" className="border-t bg-destructive/8 px-4 py-4 text-sm md:px-5">
             <p className="flex items-start gap-2">
               <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
@@ -1550,12 +1588,15 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             </div>
           </div>
         )}
-        {h === 'paused' && (
+        {view.banner?.kind === 'refused' && (
+          <RefusedBanner banner={view.banner} source={source} c={c} own={own} />
+        )}
+        {view.banner?.kind === 'paused' && (
           <div role="status" className="border-t bg-muted/40 px-4 py-4 text-sm md:px-5">
             <p className="flex items-start gap-2">
               <PauseIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <span>
-                <span className="font-medium">Reading is paused.</span>{' '}
+                <span className="font-medium">{view.banner.words}</span>{' '}
                 {figures.on
                   ? `Figures from ${c.name} are off in Ask, and nothing is read until an admin resumes it. What's published stays.`
                   : "Agents keep getting what's published, and nothing is read until an admin resumes it."}
@@ -1593,89 +1634,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
           </div>
         )}
 
-        <Numbers
-          items={
-            d
-              ? h === 'failed'
-                ? [
-                    {
-                      label: 'Last good read',
-                      value: source.lastGood?.day ?? 'None',
-                      sub: source.lastGood
-                        ? `${source.lastGood.time}${source.lastGood.ago ? `, ${source.lastGood.ago}` : ''}`
-                        : 'not read yet',
-                      tone: 'bad',
-                    },
-                    {
-                      ...nextNumber(source, 'Next try'),
-                      ...(source.read === 'scheduled' ? { sub: 'backing off' } : {}),
-                    },
-                    {
-                      label: 'Definitions',
-                      value: String(d.metrics + d.dimensions),
-                      sub: 'as last read',
-                    },
-                    {
-                      label: 'Context affected',
-                      value: String(d.flagged),
-                      sub: d.flagged ? 'flagged' : 'none flagged',
-                    },
-                  ]
-                : [
-                    {
-                      label: 'Last read',
-                      value: source.last
-                        ? `${source.last.at.day}, ${source.last.at.time}`
-                        : 'Not yet',
-                      sub: readSub(source),
-                    },
-                    nextNumber(source),
-                    {
-                      label: 'Definitions',
-                      value: String(d.metrics + d.dimensions),
-                      sub: `${plural(d.metrics, 'metric')}, ${plural(d.dimensions, 'dimension')}`,
-                    },
-                    {
-                      label: 'Context to check',
-                      value: String(d.flagged),
-                      sub: d.flagged
-                        ? page.changedOn
-                          ? `after the ${page.changedOn} changes`
-                          : 'after a change'
-                        : 'none flagged',
-                    },
-                  ]
-              : [
-                  h === 'reauth'
-                    ? {
-                        label: 'Last read',
-                        value: source.last
-                          ? `${source.last.at.day}, ${source.last.at.time}`
-                          : 'Not yet',
-                        sub: 'refused: it needs a new key',
-                        tone: 'warn',
-                      }
-                    : {
-                        label: 'Last read',
-                        value: source.last
-                          ? `${source.last.at.day}, ${source.last.at.time}`
-                          : 'Not yet',
-                        sub: readSub(source),
-                      },
-                  nextNumber(source),
-                  {
-                    label: 'Suggestions waiting',
-                    value: String(docs?.waiting ?? 0),
-                    sub: docs?.waiting ? `for ${plural(docs.domains, 'domain')}` : 'none yet',
-                  },
-                  {
-                    label: 'Drafts today',
-                    value: `${docs?.madeToday ?? 0} of ${docs?.perDay ?? 0}`,
-                    sub: 'the daily cap',
-                  },
-                ]
-          }
-        />
+        <Numbers items={view.numbers} />
 
         {isDefinitions && (
           <>

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockApi } from '@/api/mock'
 import { figureFor, figureTryFor } from '@/api/mock/data/figures'
 import { figureConnections } from '@/api/mock/data/integrations'
 
@@ -104,5 +105,35 @@ describe('figures in an answer', () => {
       source: 'cube',
       failure: 'not_set_up',
     })
+  })
+})
+
+// The mock asks what the service asks (figuresState): a paused tool keeps its switch, and Ask
+// reads no figure from it until it is resumed.
+describe('figures of a paused tool in the mock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const settled = async <T>(answer: Promise<T>) => {
+    await vi.advanceTimersByTimeAsync(2_000)
+    return answer
+  }
+
+  it('are held while it is paused, and on again once it is resumed', async () => {
+    const { api, controls } = createMockApi()
+    controls.setAddress({ path: '/ask', query: { figures: 'on' } })
+    const ask = () => settled(api.readFigure({ ...norway, values: [], sources: [] }))
+    expect((await ask())?.kind).toBe('line')
+    await settled(api.pauseIntegration({ id: 'cube', paused: true }))
+    expect(await ask()).toMatchObject({ kind: 'link', source: 'cube' })
+    const { figureConnections: held } = await settled(api.getIntegrations())
+    expect(held.cube).toMatchObject({ state: 'held', secretSet: true })
+    await settled(api.pauseIntegration({ id: 'cube', paused: false }))
+    expect((await ask())?.kind).toBe('line')
+    expect((await settled(api.getIntegrations())).figureConnections.cube?.state).toBe('on')
   })
 })

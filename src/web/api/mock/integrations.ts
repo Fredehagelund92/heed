@@ -377,22 +377,25 @@ function keptPage(id: string, kept: Kept | undefined, connectedAt: string): Sour
   const source: Source = {
     id,
     connector: id,
-    health: 'healthy',
     // A tool read as it is connected has its next read to wait for; one not read yet is queued.
-    read: definitions ? 'scheduled' : 'queued',
+    state: {
+      intent: 'active',
+      read: definitions ? 'scheduled' : 'queued',
+      next: definitions
+        ? readAfter(connectedAt, manifest.schedule.default)
+        : { day: 'Today', time: '07:00' },
+      retry: null,
+      last: definitions ? 'ok' : 'never',
+    },
     every: form?.every ?? 'every day',
     staleAfter: form?.staleAfter ?? '1 day',
     last: definitions
       ? {
           at: { day: 'Today', time: connectedAt },
-          complete: true,
           seconds: 1,
           seen: metrics + dimensions,
         }
       : null,
-    next: definitions
-      ? readAfter(connectedAt, manifest.schedule.default)
-      : { day: 'Today', time: '07:00' },
     failures: 0,
     failure: null,
     lastGood: null,
@@ -505,14 +508,16 @@ export function createIntegrations(
     if (!page) return null
     const until = reading.get(id)
     if (until !== undefined && until <= Date.now()) reading.delete(id)
-    const stopped = paused.has(id)
+    const { state } = page.source
     return {
       ...page,
       source: {
         ...page.source,
-        health: stopped ? 'paused' : page.source.health,
-        read: stopped ? null : reading.has(id) ? 'reading' : page.source.read,
-        next: stopped ? null : page.source.next,
+        state: paused.has(id)
+          ? { intent: 'paused', last: state.last }
+          : state.intent === 'active' && reading.has(id)
+            ? { ...state, read: 'reading' }
+            : state,
       },
       activity: [...(reads.get(id) ?? []), ...page.activity],
     }
@@ -562,5 +567,8 @@ export function createIntegrations(
       if (on) paused.add(id)
       else paused.delete(id)
     },
+
+    /** Whether an admin paused reading a tool. */
+    paused: (id: string) => paused.has(id),
   }
 }

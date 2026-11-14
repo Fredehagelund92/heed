@@ -4,7 +4,8 @@ import { MCP_URL } from '@/lib/brand'
 import { toolsFor, type AgentToolName } from '@domain/agents'
 import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
 import { connectorById, connectors } from '@/model/catalogue'
-import type { FigureConnection } from '@/model/integrations'
+import { figuresState } from '@domain/figures-state'
+import type { FigureConnection, FigureSetup } from '@/model/integrations'
 import type { ConnectRequest } from '@contract/connections'
 import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents, toolRows } from './data/agents'
 import { demoConnected, demoTool, figureConnections } from './data/integrations'
@@ -29,7 +30,7 @@ export function createSettings() {
     Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
   )
   let connected: string[] = [...demoConnected]
-  let connections: Record<string, FigureConnection> = { ...figureConnections }
+  let connections: Record<string, FigureSetup> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
   let made = 0
   /** Whether the demo's waiting agent sign-in was answered on the consent page. */
@@ -111,14 +112,31 @@ export function createSettings() {
     setContact(id: string, name: string) {
       contacts = { ...contacts, [id]: name }
     },
-    /** How each figure-capable integration is reached, with its data contact as it stands. */
-    connections: (): Record<string, FigureConnection> =>
-      Object.fromEntries(
-        Object.entries(connections).map(([id, c]) => [
-          id,
-          { ...c, contact: contacts[id] ?? c.contact },
-        ]),
-      ),
+    /**
+     * How each figure-capable integration is reached, with its data contact as it stands, and how
+     * its figures in Ask are, as the service works it out: a paused tool's are held.
+     */
+    connections(
+      address: Address,
+      paused: (id: string) => boolean,
+    ): Record<string, FigureConnection> {
+      const on = this.read(address).figures
+      return Object.fromEntries(
+        Object.entries(connections).map(([id, c]) => {
+          const contact = contacts[id] ?? c.contact
+          const state = figuresState({
+            capable: FIGURE_SOURCES.includes(id),
+            removed: false,
+            paused: paused(id),
+            switchOn: on[id] ?? false,
+            endpoint: c.endpoint !== null,
+            token: c.secretSet,
+            contactActive: contact !== '',
+          })
+          return [id, { ...c, contact, state }]
+        }),
+      )
+    },
     /** A new data endpoint and token: the token is set, and shown nowhere. */
     setConnection(id: string, endpoint: string) {
       const was = connections[id]

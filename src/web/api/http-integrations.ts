@@ -140,6 +140,13 @@ const skipsOf = (read: SourceReadEntry) =>
       : [],
   )
 
+/** How a source is, with its next read as the pages say a moment. */
+function statusOf(state: SourceRow['state'], now: Date): Source['state'] {
+  if (state.intent === 'paused') return state
+  const { nextReadAt, ...active } = state
+  return { ...active, next: whenOf(nextReadAt, now) }
+}
+
 /** A source as the integrations' rows show it; null for a tool the app has no cell for. */
 export function sourceOf(row: SourceRow, now: Date): Source | null {
   const connector = inCatalog(row.type)?.id
@@ -158,21 +165,18 @@ export function sourceOf(row: SourceRow, now: Date): Source | null {
   return {
     id: row.id,
     connector,
-    health: row.health,
-    read: row.read,
+    state: statusOf(row.state, now),
     every: everyWords(row.schedule),
     staleAfter: durationWords(row.staleAfter),
     last: last
       ? {
           at: whenOf(last.at, now),
-          complete: last.status === 'ok',
           seconds:
             last.durationMs === null ? null : Math.max(1, Math.round(last.durationMs / 1000)),
           seen: last.definitions?.seen ?? last.documents?.seen ?? 0,
         }
       : null,
     lastGood: failed && row.lastGoodAt ? whenOf(row.lastGoodAt, now) : null,
-    next: row.nextReadAt ? whenOf(row.nextReadAt, now) : null,
     failures: row.failures,
     failure: failed ? failureOf(last) : null,
     definitions: row.definitions
@@ -402,7 +406,7 @@ export function sourcePageOf(
   if (!source) return null
   const changed = activity.reads.find((r) => !r.first && (r.definitions?.changed ?? 0) > 0)
   const reads = activity.reads.map((read) => activityOf(read, row.tool, now))
-  const firstAt = firstReadWords(source)
+  const firstAt = firstReadWords(source.state)
   const connected =
     !reads.length && source.added
       ? [

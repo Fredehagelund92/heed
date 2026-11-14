@@ -4,7 +4,7 @@ import { expect, go, inHttpOnly, onMockOnly, test } from './go.ts'
 // for Cube and the answer shows one figure with its source and freshness; a figure that doesn't
 // fit a context item shows both; a metric nobody defines gets no figure. Figures are no integration
 // of their own: Cube's page shows them as its second connection, where an admin tries a figure, and
-// keeps them while Cube is paused.
+// keeps them while Cube is paused, when an answer gets no figure from it until it is resumed.
 
 test('off by default, an answer links into the tool', async ({ page }) => {
   await go(page, '/ask?example=grounded')
@@ -97,4 +97,28 @@ test("paused, Cube's page keeps its figures connection, and its switch still wor
   await figures.click()
   await expect(page.getByText('Figures from Cube are off')).toBeVisible()
   await expect(figures).not.toBeChecked()
+})
+
+test('paused, Cube gives an answer no figure, and its figures are back once it is resumed', async ({
+  page,
+}) => {
+  await go(page, '/settings/integrations/cube')
+  await page.getByRole('switch', { name: 'Show figures in Ask' }).click()
+  await expect(page.getByText('Figures from Cube are on')).toBeVisible()
+  await go(page, '/ask?example=grounded')
+  const log = page.getByRole('log')
+  await expect(log.getByText('€43,600')).toBeVisible()
+  await go(page, '/settings/integrations/cube')
+  await page.getByRole('button', { name: 'Pause reading' }).click()
+  await expect(page.getByText('Reading paused for Cube')).toBeVisible()
+  await go(page, '/ask?example=grounded')
+  await expect(
+    page.getByRole('link', { name: /See the figure in Cube: Orders in Norway, 1 to 31 Aug 2026/ }),
+  ).toBeVisible()
+  await expect(log.getByText('€43,600')).toHaveCount(0)
+  await go(page, '/settings/integrations/cube')
+  await page.getByRole('button', { name: 'Resume reading' }).click()
+  await expect(page.getByText('Reading resumed for Cube')).toBeVisible()
+  await go(page, '/ask?example=grounded')
+  await expect(log.getByText('€43,600')).toBeVisible()
 })

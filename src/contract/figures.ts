@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { figuresStates } from '../domain/figures-state.ts'
 
 /**
  * Figures in Ask on the API (FR-716, CON-612; docs/product.md, sections 9 and 12). A definitions
@@ -35,6 +36,11 @@ export const figureSourceSchema = z.object({
   ...figureSourceRefSchema.shape,
   /** Show figures in Ask: off until an administrator switches it on. */
   enabled: z.boolean(),
+  /**
+   * How its figures in Ask are: not set up, off, on, held while the source is paused, or broken
+   * because the switch is on with no endpoint or token, or with a data contact who left.
+   */
+  state: z.enum(figuresStates),
   dataContact: z.nullable(dataContactSchema),
   /**
    * Where figures are read, for administrators only: the data endpoint, the host it is the only
