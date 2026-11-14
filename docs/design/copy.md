@@ -147,7 +147,7 @@ The answers in a suggestion's quick view (the Inbox pane and the dock) carry one
 
 ### Roles and people
 
-**Admin** and **Member**. A page is **People**, never Users. Owning is shown as domain chips, not as a role. Actions: Invite people, Resend, Revoke, Remove from the workspace.
+**Admin** and **Member**. A page is **People**, never Users. Owning is shown as domain chips, not as a role. Actions: Invite people, Make a new link, Revoke, Remove from the workspace.
 
 ### Reactions
 

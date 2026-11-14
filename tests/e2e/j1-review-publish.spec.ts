@@ -12,5 +12,8 @@ test('an owner reviews and publishes a suggestion', async ({ page }) => {
   await expect(
     page.getByRole('complementary', { name: 'Try it and decide' }).getByText('Agents now say'),
   ).toBeVisible()
+  // The outcome appears under the still pointer, and a pointer on it holds the wait (so Undo is never a race).
+  // Leave it, as someone moving on would, so the wait runs out.
+  await page.mouse.move(0, 0)
   await expect(page).not.toHaveURL(new RegExp(`${cardIn('sug-ines')}/review`), { timeout: 6000 })
 })

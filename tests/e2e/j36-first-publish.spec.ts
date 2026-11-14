@@ -34,7 +34,7 @@ test('a new item starts in a real domain and names what it still needs', async (
   await expect(domain).not.toContainText('Choose a domain')
   await expect(publish(page)).toHaveAttribute('aria-disabled', 'true')
   await expect(publish(page)).toHaveAccessibleDescription(
-    'Add a title, what agents should know, where it applies, a source first.',
+    'Add a title, what agents should know, where it applies, when it happened, a source first.',
   )
 
   await write(page, 'Orders are counted when they ship')
@@ -42,7 +42,7 @@ test('a new item starts in a real domain and names what it still needs', async (
   // A source needs a sentence copied from it, and the item a place it applies: the service
   // refuses one without either, so Publish says so before it is pressed.
   await expect(publish(page)).toHaveAccessibleDescription(
-    'Add where it applies, a sentence copied from the source first.',
+    'Add where it applies, when it happened, a sentence copied from the source first.',
   )
   await expect(page.getByText('Not ready: add where it applies')).toBeVisible()
   // Pressed anyway, it goes to the first thing missing.
@@ -57,6 +57,10 @@ async function writeComplete(page: Page) {
   await write(page, 'Orders are counted when they ship')
   await page.locator('#fact-quote').fill('An order counts on the day it ships.')
   await page.keyboard.press('Escape')
+  // An event asks when it happened: this rule of thumb holds at any date.
+  await page.getByRole('button', { name: /^When/ }).click()
+  await page.getByRole('radio', { name: 'Always' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: /^Applies to/ }).click()
   await page.getByRole('combobox', { name: 'Search Applies to' }).fill('Orders')
   await page
@@ -83,6 +87,54 @@ async function readsInBothThemes(page: Page) {
   }
   await page.evaluate(() => document.documentElement.classList.remove('dark'))
 }
+
+/** The side panel, opened from the More menu when it is not open already (it opens by itself only for an overlap). */
+async function sidePanel(page: Page) {
+  const panel = page.getByRole('complementary', { name: 'What agents get' })
+  if (!(await panel.isVisible())) {
+    await page.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Show what agents get' }).click()
+  }
+  return panel
+}
+
+test('a first paragraph over the limit is not ready: the button, the footer and the side panel agree', async ({
+  page,
+}) => {
+  await writeComplete(page)
+  const footer = page.getByText('Ready', { exact: true })
+  await expect(footer).toBeVisible()
+  // Lengthen the first paragraph past what agents read first.
+  await page.getByRole('textbox', { name: 'What agents should know' }).click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.insertText(` ${'It counts every order that has shipped. '.repeat(8)}`)
+  await expect(page.getByText(/^Summary \d{3} of 280$/)).toHaveClass(/text-destructive/)
+  // Not "Ready" beside a red count: the button waits, and says why.
+  await expect(page.getByText('Not ready: shorten the first paragraph')).toBeVisible()
+  await expect(footer).toHaveCount(0)
+  await expect(publish(page)).toHaveAttribute('aria-disabled', 'true')
+  await expect(publish(page)).toHaveAccessibleDescription(
+    'Shorten the first paragraph to 280 characters first.',
+  )
+  // The side panel says the same.
+  const panel = await sidePanel(page)
+  await expect(panel).toContainText('Not ready yet.')
+  await expect(panel).toContainText('Shorten the first paragraph to 280 characters first.')
+  await expect(panel.getByText('Ready.', { exact: true })).toHaveCount(0)
+})
+
+test('an item opened to edit and left alone is not ready, in the footer and the side panel', async ({
+  page,
+}) => {
+  await go(page, '/context/itm_norway_stop/edit')
+  await expect(page.getByText('No changes yet')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveAccessibleDescription(
+    'Nothing has changed yet.',
+  )
+  const panel = await sidePanel(page)
+  await expect(panel).toContainText('Not ready yet.')
+  await expect(panel.getByText('Ready.', { exact: true })).toHaveCount(0)
+})
 
 test('a refused publish says why, and its clash is answered in place', async ({ page }) => {
   await writeComplete(page)

@@ -116,6 +116,20 @@ const readFigure = (who: Who, input: object) =>
   ok<FigureRead>(call('POST', '/figures/read', who, input))
 const setFigures = (who: Who, input: object) => call('PUT', '/figures/cube', who, input)
 const tryFigure = (who: Who) => call('POST', '/figures/cube/try', who, {})
+/**
+ * The loads Cube heard after `asked` requests, by the first day they ask for. A figure and the
+ * period before it are read at once, so the order Cube hears them in is not the figure's to keep.
+ */
+const loadsAfter = (asked: number) =>
+  cube.requests
+    .slice(asked)
+    .filter((r) => r.path === '/cubejs-api/v1/load')
+    .sort((a, b) => dateRangeOf(a.query)[0]!.localeCompare(dateRangeOf(b.query)[0]!))
+const dateRangeOf = (query: unknown) =>
+  (query as { timeDimensions: { dateRange: string[] }[] }).timeDimensions[0]!.dateRange
+/** Waits until Cube has heard `n` loads after `asked`: a read that failed may return before the rest arrive. */
+const heardLoads = (asked: number, n: number) =>
+  vi.waitFor(() => expect(loadsAfter(asked)).toHaveLength(n))
 
 beforeAll(async () => {
   await admin.connect()
@@ -324,8 +338,8 @@ describe('reading a figure (FR-716)', () => {
       ])
       expect(JSON.stringify(request.headers)).not.toMatch(/example\.test|heed_session/)
     }
-    const loads = cube.requests.filter((r) => r.path === '/cubejs-api/v1/load')
-    expect(loads[0]!.query).toEqual({
+    const [, days] = loadsAfter(0)
+    expect(days!.query).toEqual({
       measures: ['orders.orders'],
       timeDimensions: [{ dimension: 'orders.order_day', dateRange: ['2026-08-01', '2026-08-31'] }],
       filters: [{ member: 'orders.market', operator: 'equals', values: ['Norway', 'Norge'] }],
@@ -424,10 +438,11 @@ describe('reading a figure (FR-716)', () => {
         queryInWords:
           'Orders, added up for Norway from 1 to 30 Aug 2026 by order day, and the same for 1 to 30 Jul 2026 to compare.',
       })
-      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
-      expect(loads.map((r) => (r.query as { timeDimensions: unknown[] }).timeDimensions)).toEqual([
-        [{ dimension: 'orders.order_day', dateRange: ['2026-08-01', '2026-08-30'] }],
+      expect(
+        loadsAfter(asked).map((r) => (r.query as { timeDimensions: unknown[] }).timeDimensions),
+      ).toEqual([
         [{ dimension: 'orders.order_day', dateRange: ['2026-07-01', '2026-07-30'] }],
+        [{ dimension: 'orders.order_day', dateRange: ['2026-08-01', '2026-08-30'] }],
       ])
       // Nothing names Marketing's: no figure, and no date picked for it.
       const before = cube.requests.length
@@ -480,13 +495,7 @@ describe('reading a figure (FR-716)', () => {
         queryInWords:
           "Marketing spend for Norway as of 31 Aug 2026. It can't be added up over a period, so this is its value on the last day, and the same as of 31 Jul 2026 to compare.",
       })
-      const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
-      expect(
-        loads
-          .map((r) => (r.query as { timeDimensions: { dateRange: string[] }[] }).timeDimensions)
-          .map((t) => t[0]!.dateRange)
-          .sort(),
-      ).toEqual([
+      expect(loadsAfter(asked).map((r) => dateRangeOf(r.query))).toEqual([
         ['2026-07-31', '2026-07-31'],
         ['2026-08-31', '2026-08-31'],
       ])
@@ -538,35 +547,45 @@ describe('reading a figure (FR-716)', () => {
     expect(
       await readFigure('author', { ...orders, from: '2026-08-02', to: '2026-08-31' }),
     ).toMatchObject({ state: 'figure', value: 30400 })
+    // One planned 401 for each of the two loads. The read gives up on the first, so it may return
+    // before Cube hears the other, which must not take a failure planned for a later read.
     const asked = cube.requests.length
     cube.fail(401, 401)
-    expect(await readFigure('author', { ...orders, from: '2026-08-03', to: '2026-08-31' })).toEqual(
-      {
+    try {
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-03', to: '2026-08-31' }),
+      ).toEqual({
         state: 'none',
         reason: 'failed',
         source: { id: 'cube', type: 'cube', tool: 'Cube', name: 'Cube' },
         failure: 'unauthorized',
-      },
-    )
-    // The read gives up on the first 401; the days before are asked beside it and may land later,
-    // and must not take a failure planned for a later read.
-    await vi.waitFor(() => expect(cube.requests.length - asked).toBeGreaterThanOrEqual(2))
+      })
+      await heardLoads(asked, 2)
+    } finally {
+      cube.fail()
+    }
     // A measure the model's access policy hides from the token is not allowed, not unreachable.
+    const hidden = cube.requests.length
     cube.hide('orders.orders')
     try {
       expect(
         await readFigure('author', { ...orders, from: '2026-08-05', to: '2026-08-31' }),
       ).toMatchObject({ state: 'none', reason: 'failed', failure: 'not_allowed' })
+      await heardLoads(hidden, 2)
     } finally {
       cube.hide()
     }
+    // Slow, as every load is until it is put back: a failed step must not leave the rest slow.
     cube.slow(FIGURE_TIMEOUT_MS + 1_000)
-    const started = Date.now()
-    expect(
-      await readFigure('author', { ...orders, from: '2026-08-04', to: '2026-08-31' }),
-    ).toMatchObject({ state: 'none', reason: 'failed', failure: 'timed_out' })
-    expect(Date.now() - started).toBeLessThan(FIGURE_TIMEOUT_MS + 2_000)
-    cube.slow(0)
+    try {
+      const started = Date.now()
+      expect(
+        await readFigure('author', { ...orders, from: '2026-08-04', to: '2026-08-31' }),
+      ).toMatchObject({ state: 'none', reason: 'failed', failure: 'timed_out' })
+      expect(Date.now() - started).toBeLessThan(FIGURE_TIMEOUT_MS + 2_000)
+    } finally {
+      cube.slow(0)
+    }
   }, 20_000)
 })
 

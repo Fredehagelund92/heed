@@ -25,19 +25,17 @@ test('an owner scopes an item to one campaign, searched on the server', async ({
   await expect(chip('Orders')).toBeVisible()
   await expect(chip('Market: Norway')).toBeVisible()
 
-  // Until something is typed, only what the person chose lately (Jon's drafts on the service; none
-  // yet in the mock): a dimension can hold thousands of values.
+  // Until something is typed: what the person chose lately (Jon's drafts on the service; none yet
+  // in the mock), the busiest metrics, and each dimension with how many values it has, never the
+  // values themselves: a dimension can hold thousands of them.
   await field.click()
   const search = page.getByRole('combobox', { name: 'Search Applies to' })
   await expect(search).toBeFocused()
   const list = page.getByRole('listbox', { name: 'Applies to' })
-  await expect(
-    list
-      .getByRole('group', { name: 'Recent', exact: true })
-      .or(list.getByText('Type to find a metric, a dimension or one of its values.')),
-  ).toBeVisible()
-  expect(await list.getByRole('group').count()).toBeLessThanOrEqual(1)
-  expect(await list.getByRole('option').count()).toBeLessThanOrEqual(6)
+  await expect(list.getByRole('group', { name: 'Metrics' })).toBeVisible()
+  await expect(list.getByRole('option', { name: 'Campaign: any value' })).toBeVisible()
+  await expect(list.getByRole('option', { name: /^All [\d,]+ values of Campaign$/ })).toBeVisible()
+  expect(await list.getByRole('option').count()).toBeLessThan(40)
 
   // Words find a few values per dimension, with how many match, never the whole dimension.
   await search.fill('spring sale 2026')
@@ -55,11 +53,10 @@ test('an owner scopes an item to one campaign, searched on the server', async ({
   const inside = page.getByRole('combobox', { name: 'Search the values of Campaign' })
   await inside.fill('norway spring sale 2026 email')
   await values.getByRole('option', { name: 'Norway Spring Sale 2026 Email' }).click()
-  await expect(
-    values.getByRole('option', { name: 'Norway Spring Sale 2026 Email' }),
-  ).toHaveAttribute('aria-selected', 'true')
+  // The pick is made and the box is empty for the next one, still inside the dimension.
+  await expect(chip('Campaign: Norway Spring Sale 2026 Email')).toBeVisible()
+  await expect(inside).toHaveValue('')
   // Backspace in the empty box leaves the dimension.
-  await inside.fill('')
   await inside.press('Backspace')
   await expect(search).toBeFocused()
 

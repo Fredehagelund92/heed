@@ -228,8 +228,7 @@ export function DefinitionsPage() {
   const order = visible.map((d) => d.name)
   usePublishOrder('definitions', order)
   const table = React.useRef<HTMLTableElement>(null)
-  const [deleting, setDeleting] = React.useState(false)
-  const sel = useSelection(order, { scope: table, onDeleteKey: () => setDeleting(true) })
+  const sel = useSelection(order, { scope: table })
 
   const peeked = dock?.kind === 'def' ? dock.id : undefined
   // What can have context of its own: metrics and terms with their own meaning.
@@ -831,7 +830,7 @@ export function DefinitionsPage() {
         </Loadable>
       </div>
       {/* Picked rows get their bar in a band of its own under the list, never over a row. */}
-      <DefinitionsBulk sel={sel} defs={all} deleting={deleting} setDeleting={setDeleting} />
+      <DefinitionsBulk sel={sel} defs={all} />
     </div>
   )
 }

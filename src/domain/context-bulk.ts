@@ -145,7 +145,7 @@ function whyNot(
         return ['archived', 'archived', 'It is archived, so it keeps its kind.']
       if (input.kind === row.kind) {
         const name = kindName(row.kind)
-        return ['same_kind', `already a ${name}`, `It is a ${name} already.`]
+        return ['same_kind', `already ${name}`, `Its kind is ${name} already.`]
       }
       return
     }
@@ -195,7 +195,7 @@ export function changeSummary(
     case 'domain':
       return `Moved ${which} to ${domainName(input.areaId ?? '')}.`
     case 'kind':
-      return `Made ${which} a ${kindName(input.kind ?? 'note')}.`
+      return `Changed the kind of ${which} to ${kindName(input.kind ?? 'note')}.`
     case 'owner_add':
       return `Added ${input.person?.name ?? 'an owner'} as an owner of ${which}.`
     case 'owner_set':

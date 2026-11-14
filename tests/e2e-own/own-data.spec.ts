@@ -156,6 +156,10 @@ test('from an own semantic manifest to a Checked answer', async ({ page }) => {
     .first()
     .click()
   await page.keyboard.press('Escape')
+  // An event is dated by the writer: no day is picked for them. This one holds at any date.
+  await page.getByRole('button', { name: /^When/ }).click()
+  await page.getByRole('radio', { name: 'Always' }).click()
+  await page.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: /Add a source/ }).click()
   await page.locator('#fact-source').fill('https://finance.example/returns-change')
   await page.locator('#fact-quote').fill('Returns are part of net revenue from 1 March 2026 on.')

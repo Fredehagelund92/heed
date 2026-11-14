@@ -106,7 +106,8 @@ function Alerts() {
         </ul>
         {!me.admin && (
           <p className="border-b px-4 py-3 text-dense text-muted-foreground md:px-5">
-            Four more rules go only to admins: about spend, failed calls and the whole workspace.
+            {all.length - rules.length} more rules go only to admins: about spend, failed calls and
+            the whole workspace.
           </p>
         )}
       </section>

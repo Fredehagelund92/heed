@@ -12,6 +12,7 @@ import type {
 import type { LibraryIndex } from '../../src/contract/index.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { Draft } from '../../src/domain/draft.ts'
+import { anyDate } from '../../src/domain/validity.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -252,6 +253,19 @@ describe('publishing in one step (FR-137)', () => {
     expect(relations.rows).toEqual([{ item_id: there, relation: 'disagrees' }])
   })
 
+  it('finds the clash of an item that holds from the beginning, as it does for one that starts today', async () => {
+    // What the editor sends for "always": the service keeps a start for every item.
+    const { scope } = draft()
+    const there = await live({ scope })
+    const waits = await call('POST', '/items/publish', 'owner', {
+      draft: draft({ scope, validity: { start: anyDate.start, end: null } }),
+    })
+    expect(waits.statusCode).toBe(422)
+    expect(
+      waits.json<{ data: { clashes: { itemId: string }[] } }>().data.clashes.map((c) => c.itemId),
+    ).toEqual([there])
+  })
+
   it('refuses a draft the checks refuse, and keeps nothing', async () => {
     const before = await client.query('select count(*)::int as n from proposals')
     const r = await call('POST', '/items/publish', 'owner', {
@@ -391,7 +405,10 @@ describe('a change to many items at once (FR-139)', () => {
     })
     expect(page.history.at(-1)).toMatchObject({ version: 1, kind: 'published', restorable: true })
     const same = await bulk('owner', { action: 'kind', rows: [item], kind: 'guide' })
-    expect(same.skipped[0]).toMatchObject({ code: 'same_kind', message: 'It is a Guide already.' })
+    expect(same.skipped[0]).toMatchObject({
+      code: 'same_kind',
+      message: 'Its kind is Guide already.',
+    })
     expect((await undo('owner', r.undo!)).statusCode).toBe(200)
     expect(await served(item)).toMatchObject({ n: 1, kind: 'note' })
   })

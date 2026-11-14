@@ -714,7 +714,7 @@ function SyncedFrom({ r }: { r: Review }) {
         <dt className="text-muted-foreground">Set by the document</dt>
         <dd>The title, what agents should know, where and when it applies</dd>
         <dt className="text-muted-foreground">Not set by it</dt>
-        <dd>Who owns it and who it's for: the owners of Sales decide when they publish</dd>
+        <dd>Who owns it: you decide that when you publish</dd>
       </dl>
       <p className="text-xs text-muted-foreground">
         Only a link, the title and this quote are kept, never the document. If the document changes,

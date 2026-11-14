@@ -45,6 +45,7 @@ import { ResizableAside } from '@/components/resizable-aside'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
 import { useWrite } from '@/api/queries'
+import { holdLine, readinessOf } from '@/model/editor-readiness'
 import type { DomainId } from '@/model/items'
 import {
   typeLabel,
@@ -182,9 +183,9 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
     original.definition === draft.definition &&
     original.sameAs === draft.sameAs &&
     original.domain === draft.domain
-  const blocked = missing.length
-    ? `Add ${missing.join(' and ')} first.`
-    : taken || (unchanged ? 'Nothing has changed yet.' : '')
+  // One answer for the button, the footer and the side panel.
+  const readiness = readinessOf({ missing, taken, unchanged })
+  const blocked = holdLine(readiness, ' and ')
 
   const commit = async () => {
     await write('saveTerm', { previous: original?.name, term: draft })
@@ -238,20 +239,26 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
       </SideSection>
       <SideSection
         title={
-          missing.length || taken ? 'Not ready yet' : conflict ? 'Ready, with a conflict' : 'Ready'
+          readiness.state === 'ready'
+            ? conflict
+              ? 'Ready, with a conflict'
+              : 'Ready'
+            : 'Not ready yet'
         }
         description={
-          missing.length
-            ? `Add ${missing.join(' and ')}.`
-            : taken
+          readiness.state === 'missing'
+            ? `Add ${readiness.missing.join(' and ')}.`
+            : readiness.state === 'taken'
               ? 'This word already means something. Try another word.'
-              : conflict
-                ? conflict.asks
-                  ? 'It saves, and agents ask which one until the conflict is settled.'
-                  : "It saves, but agents don't use it until the conflict is settled."
-                : synonym
-                  ? `It never changes ${targetDef?.name}; it only teaches agents another word for it.`
-                  : 'Agents can use it from the next question.'
+              : readiness.state === 'unchanged'
+                ? 'Nothing has changed yet.'
+                : conflict
+                  ? conflict.asks
+                    ? 'It saves, and agents ask which one until the conflict is settled.'
+                    : "It saves, but agents don't use it until the conflict is settled."
+                  : synonym
+                    ? `It never changes ${targetDef?.name}; it only teaches agents another word for it.`
+                    : 'Agents can use it from the next question.'
         }
         className="border-b-0"
       />
@@ -340,7 +347,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
       footer={
         <DocFooter
           status={
-            taken ? (
+            readiness.state === 'taken' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 <span>
@@ -369,14 +376,15 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
                   Retry
                 </Button>
               </span>
-            ) : missing.length ? (
+            ) : readiness.state === 'missing' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 <span>
-                  Not ready<span className="hidden sm:inline">: add {missing.join(' and ')}</span>
+                  Not ready
+                  <span className="hidden sm:inline">: add {readiness.missing.join(' and ')}</span>
                 </span>
               </>
-            ) : unchanged ? (
+            ) : readiness.state === 'unchanged' ? (
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 No changes yet
