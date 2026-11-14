@@ -80,8 +80,35 @@ for (const theme of ['light', 'dark'] as const)
       }
     })
 
+    test('a settled conflict is green, and its countdown is neutral', async ({ page }) => {
+      await go(page, '/context?show=conflicts')
+      await page
+        .locator('tbody')
+        .getByRole('link', { name: /^Conflict with “/ })
+        .first()
+        .click()
+      const dock = page.getByRole('region', { name: 'Conflict', exact: true })
+      await dock.getByRole('button', { name: 'Keep both' }).click()
+      const box = page.getByRole('dialog', { name: 'Keep both' })
+      await box.getByLabel('Why do both stay?').fill('Both hold until Finance rules on it.')
+      await box.getByRole('button', { name: 'Keep both' }).click()
+      const outcome = page.getByRole('status').filter({ hasText: 'Kept both.' })
+      await expect(outcome).toBeVisible()
+
+      const good = await token(page, '--good')
+      expect(await css(outcome, 'border-top-color')).toBe(good)
+      expect(await css(outcome.locator('svg').first(), 'color')).toBe(good)
+      expect(await hueOf(page, await css(outcome.locator('svg').first(), 'color'))).not.toBe(
+        await hueOf(page, 'var(--primary)'),
+      )
+      const bar = outcome.locator('span[aria-hidden] > span')
+      if (await bar.count()) {
+        expect(await css(bar, 'background-color')).toBe(await token(page, '--muted-foreground'))
+      }
+    })
+
     test('a metric chip is not the accent', async ({ page }) => {
-      await go(page, '/inbox')
+      await go(page, '/context')
       const accent = await hueOf(page, 'var(--primary)')
       const chips = page.locator('[style*="--chip-h: 110"]')
       await expect(chips.first()).toBeVisible()
