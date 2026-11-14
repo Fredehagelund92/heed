@@ -15,9 +15,9 @@ import type { ScopeTerm } from '@/model/items'
 
 // "Applies to" (FR-107, FR-126): the item's metrics, dimensions and values as chips, and one picker
 // that searches the vocabulary on the server. A dimension can hold thousands of values, so nothing
-// lists them all: before anything is typed the picker offers the person's recent terms; typing
-// finds a few metrics and, per dimension, how many values match, the first few and the dimension
-// itself as "any value". "All 2,400 values" searches inside one dimension, in a list that draws
+// lists them all: before anything is typed the picker offers the person's recent terms, the busiest
+// metrics and the dimensions without their values; typing finds a few metrics and, per dimension,
+// how many values match, the first few and the dimension itself as "any value". "All 2,400 values" searches inside one dimension, in a list that draws
 // only the rows in view and reads them a page at a time. Arrows move, Enter adds or takes out,
 // Right arrow opens a dimension, Backspace in the empty box leaves it, Esc closes.
 
@@ -87,7 +87,9 @@ function ScopePicker({
   const result = within ? undefined : found.data
   if (result && !q && result.recent.length)
     sections.push({ id: 'recent', heading: 'Recent', rows: result.recent.map((h) => termRow(h)) })
-  if (result && q) {
+  // The metrics and the dimensions come with words and without: before any, the busiest metrics and
+  // each dimension with a count, so the box never opens on nothing.
+  if (result) {
     if (result.metrics.length)
       sections.push({
         id: 'metrics',
@@ -140,7 +142,13 @@ function ScopePicker({
   const total = within ? (pageOf(0)?.count ?? 0) : flat.length
   const valueAt = (i: number) => pageOf(Math.floor(i / PAGE))?.values[i % PAGE]
   const current = Math.min(active, Math.max(0, total - 1))
-  const loading = within ? pages[0]?.isPending : found.isPending && !!q
+  const typed = query.trim()
+  // A read is open while one is on its way, and while the last letters wait to be sent: "Nothing
+  // called" is only said once the answer for these very letters is in.
+  const waiting = typed !== '' && typed !== debounced
+  const loading = within
+    ? pages[0]?.isPending || pages[0]?.isFetching || waiting
+    : found.isPending || found.isFetching || waiting
 
   React.useLayoutEffect(() => {
     const list = listRef.current
@@ -188,16 +196,24 @@ function ScopePicker({
     setActive(0)
     inputRef.current?.focus()
   }
+  // A pick is done with the letters that found it: the box is empty for the next one.
+  const picked = (term: ScopeTerm) => {
+    onToggle(term)
+    setQuery('')
+    setActive(0)
+    setScrollTop(0)
+    if (listRef.current) listRef.current.scrollTop = 0
+  }
   const pickAt = (i: number) => {
     if (within) {
       const hit = valueAt(i)
-      if (hit) onToggle(termOfHit(hit))
+      if (hit) picked(termOfHit(hit))
       return
     }
     const row = flat[i]
     if (!row) return
     if (row.type === 'within') enter(row.dimension, row.named)
-    else onToggle(row.term)
+    else picked(row.term)
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -275,7 +291,6 @@ function ScopePicker({
   }
 
   const empty = !loading && total === 0
-  const typed = query.trim()
   const status = announcement || spoken
 
   return (

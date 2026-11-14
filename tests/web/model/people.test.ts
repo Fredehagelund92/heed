@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, toApiError } from '@/api/errors'
-import { homeDomain, listOf, type Domain } from '@/model/people'
+import { homeDomain, listOf, soleOwnerOf, type Domain, type Domains } from '@/model/people'
 
-// Where a person's new context starts, and how a list of names reads in a sentence; a refusal
+// Where a person's new context starts, how a list of names reads in a sentence, and which domains
+// someone owns alone; a refusal
 // that names the live items a publish has to say it relates to; and a request that got no reply.
 
 const domain = (id: string, owners: string[] = [], sandbox = false): Domain => ({
@@ -29,6 +30,28 @@ describe('where new context starts', () => {
 
   it('is nothing in a workspace with no domains', () => {
     expect(homeDomain({ owns: ['sales'] }, [])).toBeUndefined()
+  })
+})
+
+describe('the only owner of a domain', () => {
+  // Omar is invited as an owner of Paid media: his address sits in its owners beside Priya's name.
+  const paidMedia = domain('paid_media', ['Priya Nair', 'omar@larchwood.example'])
+  const domains: Domains = { paid_media: paidMedia, sales }
+  const people = [
+    { name: 'Priya Nair' },
+    { name: 'Jon Abara' },
+    { name: 'omar@larchwood.example', invited: true },
+  ]
+
+  it('is still the one member who owns it, whoever is invited there too', () => {
+    expect(soleOwnerOf('Priya Nair', domains, people)).toEqual(['paid_media'])
+    expect(soleOwnerOf('Jon Abara', domains, people)).toEqual(['sales'])
+  })
+
+  it('is never an invite, so taking one back never waits on a hand-over', () => {
+    expect(soleOwnerOf('omar@larchwood.example', domains, people)).toEqual([])
+    const onlyInvited = { paid_media: domain('paid_media', ['omar@larchwood.example']) }
+    expect(soleOwnerOf('omar@larchwood.example', onlyInvited, people)).toEqual([])
   })
 })
 
@@ -65,6 +88,45 @@ describe('a refused publish', () => {
   it('names none when the service gave no list', () => {
     expect(toApiError({ status: 422, message: 'Choose an active domain.' }).clashes).toEqual([])
     expect(new ApiError('failed', 'No answer.').clashes).toEqual([])
+  })
+})
+
+describe('a refusal for what is in the draft', () => {
+  // The answer the real service gave for a source that is words, not a link (P04).
+  const body = {
+    status: 422,
+    message: 'Fix the problems shown before you send it for review.',
+    data: {
+      findings: [
+        { code: 'format', field: 'evidence.0.url', message: 'Invalid URL', severity: 'error' },
+        {
+          code: 'format',
+          field: 'evidence.0.url',
+          message: 'Invalid string: must match pattern /^https?:\\/\\//',
+          severity: 'error',
+        },
+        {
+          code: 'domain_mismatch',
+          field: 'areaId',
+          message: 'Cube puts Orders in Sales',
+          severity: 'warning',
+        },
+      ],
+    },
+  }
+
+  it('keeps each problem with its field, and leaves the warnings out', () => {
+    const refused = toApiError(body)
+    expect(refused.kind).toBe('invalid')
+    expect(refused.findings.map((f) => [f.field, f.message])).toEqual([
+      ['evidence.0.url', 'Invalid URL'],
+      ['evidence.0.url', 'Invalid string: must match pattern /^https?:\\/\\//'],
+    ])
+  })
+
+  it('names none when the service gave none', () => {
+    expect(toApiError({ status: 422, message: 'Choose an active domain.' }).findings).toEqual([])
+    expect(new ApiError('failed', 'No answer.').findings).toEqual([])
   })
 })
 

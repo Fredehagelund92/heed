@@ -130,6 +130,60 @@ test("What someone can't change is skipped and said, and stays ticked with the r
   await expect(bar(page)).toContainText('1 selected')
 })
 
+test("The Delete key asks like the Delete button: a selection that can't be deleted opens nothing", async ({
+  page,
+}) => {
+  await go(page, '/definitions')
+  const rows = page.locator('tbody [data-row-open]')
+  await expect(rows.first()).toBeVisible()
+  const names = await rows.allInnerTexts()
+  // The row above "Test account" is a metric synced from Cube: it can't be deleted here.
+  const synced = boxes(page).nth(names.findIndex((t) => t.startsWith('Test account')) - 1)
+  await synced.click()
+  await page.keyboard.press('Delete')
+  await expect(
+    bar(page, 'Selected definitions').getByRole('button', { name: /^Delete/ }),
+  ).toHaveAccessibleDescription(/read-only here/)
+  await expect(page.getByText(/read-only here/).first()).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Unticking it leaves nothing open, and never a "Delete 0 terms?" with a live button.
+  await synced.click()
+  await expect(bar(page, 'Selected definitions')).toHaveCount(0)
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('The confirmation is for the rows it was opened with: later ticks and a lost connection never open it', async ({
+  page,
+}) => {
+  // Offline, the key opens nothing; back online, nothing opens by itself.
+  await go(page, '/context')
+  await onlyDrafts(page)
+  await boxes(page).nth(0).click()
+  await page.context().setOffline(true)
+  await page.keyboard.press('Delete')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.context().setOffline(false)
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // The key on rows that are not his opens nothing for Tomas; ticking one of his own later opens nothing unasked.
+  await signInAs(page, 'Tomas Eriksen')
+  await go(page, '/context')
+  await boxes(page).nth(0).click()
+  await page.keyboard.press('Delete')
+  await expect(
+    page.getByText(/^Only owners of .* and admins can change these\.$/).first(),
+  ).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const all = await titles(page).allInnerTexts()
+  const at = all.findIndex((t) => t.includes('New VAT rate applied in Norway'))
+  await boxes(page)
+    .nth(at - 1)
+    .click()
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
 test('A partial failure says what went through, keeps what failed, and Retry finishes it', async ({
   page,
 }) => {

@@ -25,7 +25,8 @@ test('offline, the app says so and Publish waits', async ({ page }) => {
   await expect(page.getByText("You're offline.")).toBeVisible()
   const save = page.getByRole('button', { name: 'Save', exact: true })
   await expect(save).toHaveAttribute('aria-disabled', 'true')
-  await expect(page.getByText('Saved on this device')).toBeVisible()
+  // Nothing is kept anywhere while offline, so it never says it is saved on this device.
+  await expect(page.getByText('Saved on this device')).toHaveCount(0)
 })
 
 test('a Publish that fails keeps the text, and Retry publishes it', async ({ page }) => {
