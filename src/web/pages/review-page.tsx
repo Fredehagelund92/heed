@@ -43,6 +43,7 @@ import { lookOf } from '@/model/integrations'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogClose,
@@ -84,6 +85,7 @@ import {
   reasonOf,
   sendingOf,
   writingReturn,
+  type AskedAction,
   type DecisionEvent,
   type DecisionState,
 } from '@/model/review-decision'
@@ -1001,8 +1003,8 @@ type DecisionProps = {
   actions: ReviewActions
   /** Offline nothing is sent. */
   online: boolean
-  /** Asks to archive (a dialog first) or opens the note. */
-  ask: (action: 'archive' | 'return') => void
+  /** Asks to archive or to close with a reason (a dialog first), or opens the note. */
+  ask: (action: AskedAction) => void
   /** Closes the dialog or the note, keeping what was written. */
   cancel: () => void
   /** Publish, close, and the confirmed archive. */
@@ -1014,6 +1016,9 @@ type DecisionProps = {
   onUndo: () => void
   /** The note being written, kept when it closes, so Esc never loses it. */
   draft?: JSONContent
+  /** The reason a Close is given, kept the same way; a withdrawn suggestion to archive needs none. */
+  closeReason: string
+  onCloseReason: (reason: string) => void
   onDraft: (d: JSONContent | null) => void
   /** Previous and next, for the phone bar (the header keeps them on wider screens). */
   onStep?: (d: 1 | -1) => void
@@ -1062,6 +1067,48 @@ function ArchiveDialog({
               onClick={() => press('archive')}
             >
               Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  )
+}
+
+/**
+ * A suggestion to archive its sender did not take back closes with the owner's reason: the
+ * decision keeps it. Nothing changes for agents. One dialog for the whole page, as Archive's.
+ */
+function CloseDialog({
+  r,
+  flow,
+  cancel,
+  press,
+  closeReason,
+  onCloseReason,
+}: Pick<DecisionProps, 'r' | 'flow' | 'cancel' | 'press' | 'closeReason' | 'onCloseReason'>) {
+  return (
+    r.retire && (
+      <Dialog open={flow.kind === 'confirmingClose'} onOpenChange={(open) => !open && cancel()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close the suggestion?</DialogTitle>
+            <DialogDescription>
+              Nothing changes for agents: “{r.title}” is not archived by it. Say why you close it;
+              the reason is kept with the decision.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            aria-label="Why you close it"
+            placeholder="Why you close it"
+            rows={3}
+            value={closeReason}
+            onChange={(e) => onCloseReason(e.target.value)}
+          />
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button disabled={!closeReason.trim()} onClick={() => press('close')}>
+              Close the suggestion
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1162,6 +1209,7 @@ function Decision({
       if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || !keyAction || isTyping(e.target)) return
       e.preventDefault()
       if (keyAction === 'archive') ask('archive')
+      else if (keyAction === 'close' && !withdrawn) ask('close')
       else press(keyAction)
     }
     window.addEventListener('keydown', onKey)
@@ -1172,7 +1220,7 @@ function Decision({
   const drift = checkDraft(r, useSavedQuestions(), itemOfReview(r, state.cards))
   const base = readiness(r, settled ? { hint: settled } : null)
   const ready =
-    drift?.look && !r.retire?.withdrawn
+    drift?.look && !r.retire?.withdrawn && !r.stale
       ? r.retire
         ? {
             ok: false,
@@ -1238,6 +1286,11 @@ function Decision({
         <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => ask('archive')}>
           Archive anyway
         </Button>
+      ) : actions.primary === 'archive' && actions.can.includes('close') ? (
+        // An owner who does not want it archived closes it, with a reason.
+        <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => ask('close')}>
+          Don't archive
+        </Button>
       ) : actions.can.includes('return') ? (
         returnButton
       ) : null}
@@ -1248,7 +1301,7 @@ function Decision({
           disabled={held('close')}
           loading={busy('close')}
           loadingLabel="Closing…"
-          onClick={() => press('close')}
+          onClick={() => (withdrawn ? press('close') : ask('close'))}
         >
           Close the suggestion
         </Button>
@@ -1560,6 +1613,7 @@ export function ReviewPage({ id }: { id: string }) {
     [mainRef, roomyRef],
   )
   const [drafts, setDrafts] = React.useState<Record<string, JSONContent>>({})
+  const [closeReasons, setCloseReasons] = React.useState<Record<string, string>>({})
   // One decision for the panel and the phone bar; a new suggestion starts clean.
   const online = useOnline()
   const [flow, step] = React.useReducer(
@@ -1732,56 +1786,59 @@ export function ReviewPage({ id }: { id: string }) {
     })
   const first = r.from.split(' ')[0]
   // What each action writes, and what it says it did.
-  const commits: Record<ReviewAction, (note?: JSONContent) => Promise<Finished>> = {
-    publish: async () => {
-      const { undo } = await write('publishReview', {
-        id: r.id,
-        ...(r.clash ? { relations: answers } : {}),
-        saveQuestion: savesQuestion(r.id),
-      })
-      return {
-        undo,
-        outcome: 'Published',
-        message: 'Published',
-        description: publishedWords(r, answers),
-        now: r.tryIt.after.text,
-      }
-    },
-    archive: async () => {
-      const { undo } = await write('archiveReview', { id: r.id })
-      return {
-        undo,
-        outcome: 'Archived',
-        message: 'Archived',
-        description: 'Agents stop getting it from the next question.',
-      }
-    },
-    // A withdrawn retirement closes: nothing changes, and the context item stays live.
-    close: async () => {
-      const { undo } = await write('closeReview', { id: r.id })
-      return {
-        undo,
-        outcome: 'Closed',
-        message: 'Closed',
-        description: 'Nothing changes: the context item stays live.',
-      }
-    },
-    return: async (words) => {
-      // The note becomes the first comment; if the return fails, it stays in the editor. The
-      // decision sends a Return only with its note.
-      const note = words!
-      const { undo } = await write('returnReview', { id: r.id, note })
-      onDraft(null)
-      return {
-        undo,
-        outcome: 'Returned',
-        message: `Returned to ${r.from}`,
-        description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
-        // Undo takes the note back out of the comments and keeps it as a draft.
-        afterUndo: () => onDraft(note),
-      }
-    },
-  }
+  const commits: Record<ReviewAction, (note?: JSONContent, reason?: string) => Promise<Finished>> =
+    {
+      publish: async () => {
+        const { undo } = await write('publishReview', {
+          id: r.id,
+          ...(r.clash ? { relations: answers } : {}),
+          saveQuestion: savesQuestion(r.id),
+        })
+        return {
+          undo,
+          outcome: 'Published',
+          message: 'Published',
+          description: publishedWords(r, answers),
+          now: r.tryIt.after.text,
+        }
+      },
+      archive: async () => {
+        const { undo } = await write('archiveReview', { id: r.id })
+        return {
+          undo,
+          outcome: 'Archived',
+          message: 'Archived',
+          description: 'Agents stop getting it from the next question.',
+        }
+      },
+      // A withdrawn retirement closes as it is, any other with the owner's reason: nothing changes.
+      close: async (_, reason) => {
+        const { undo } = await write('closeReview', { id: r.id, ...(reason ? { reason } : {}) })
+        return {
+          undo,
+          outcome: 'Closed',
+          message: 'Closed',
+          description: reason
+            ? 'Nothing changes for agents.'
+            : 'Nothing changes: the context item stays live.',
+        }
+      },
+      return: async (words) => {
+        // The note becomes the first comment; if the return fails, it stays in the editor. The
+        // decision sends a Return only with its note.
+        const note = words!
+        const { undo } = await write('returnReview', { id: r.id, note })
+        onDraft(null)
+        return {
+          undo,
+          outcome: 'Returned',
+          message: `Returned to ${r.from}`,
+          description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
+          // Undo takes the note back out of the comments and keeps it as a draft.
+          afterUndo: () => onDraft(note),
+        }
+      },
+    }
   const actions = actionsOf(r, answers)
   // One way to start a write, whichever panel asked: the reducer says whether it may, and holds
   // the action and its note, so a failure is retried as itself.
@@ -1789,7 +1846,7 @@ export function ReviewPage({ id }: { id: string }) {
     const next = decide(flow, event)
     if (!online || next === flow || next.kind !== 'sending') return
     step(event)
-    commits[next.action](next.note).then(onDone, (error: unknown) => {
+    commits[next.action](next.note, next.reason).then(onDone, (error: unknown) => {
       const { kind } = toApiError(error)
       step({ type: 'error', id: r.id, failure: kind, reason: reasonOf(toApiError(error)) })
     })
@@ -1816,7 +1873,7 @@ export function ReviewPage({ id }: { id: string }) {
     flow,
     actions,
     online,
-    ask: (action: 'archive' | 'return') => {
+    ask: (action: AskedAction) => {
       const asked: DecisionEvent<Finished> = { type: 'ask', action, actions }
       if (decide(flow, asked) === flow) return
       step(asked)
@@ -1829,13 +1886,22 @@ export function ReviewPage({ id }: { id: string }) {
         )
     },
     cancel: () => step({ type: 'cancel' }),
-    press: (action: ReviewAction) => send({ type: 'press', action, actions }),
+    press: (action: ReviewAction) =>
+      send({
+        type: 'press',
+        action,
+        actions,
+        ...(action === 'close' ? { reason: closeReasons[r.id] ?? '' } : {}),
+      }),
     sendNote: (note: JSONContent) => send({ type: 'press', action: 'return', actions, note }),
     // A failed note goes again as the editor holds it now, so an edit made after the failure is sent.
-    retry: () => send({ type: 'retry', actions, note: drafts[r.id] }),
+    retry: () =>
+      send({ type: 'retry', actions, note: drafts[r.id], reason: closeReasons[r.id] ?? '' }),
     onUndo: undo,
     draft: drafts[r.id],
     onDraft,
+    closeReason: closeReasons[r.id] ?? '',
+    onCloseReason: (reason: string) => setCloseReasons((all) => ({ ...all, [r.id]: reason })),
     paused,
     reduced,
     onNext: moveOn,
@@ -2068,6 +2134,7 @@ export function ReviewPage({ id }: { id: string }) {
             : `Suggestion ${at + 1} of ${reviews.length}: ${r.title}`}
         </p>
         <ArchiveDialog {...decision} />
+        <CloseDialog {...decision} />
         <Sheet open={queueOpen} onOpenChange={setQueueOpen}>
           <SheetContent side="left" className="w-popover-phone gap-0 bg-background p-0">
             <SheetHeader className="border-b">

@@ -298,6 +298,8 @@ const cardActions: Record<string, CardAction> = {
 const isUuid = (id: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
 const isItemId = (id: string) => /^itm_[a-z0-9]{8,16}$/.test(id)
+/** A suggestion its writer edits in the editor: a draft, or one an owner returned with a note. */
+const editable = (state: string) => state === 'draft' || state === 'changes_requested'
 
 /** A change to many items in the service's words, by the bar's action. */
 const bulkActions = {
@@ -669,8 +671,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   }
 
   /**
-   * A published item's page, or a draft's; null for anything else. The item is asked for beside
-   * the names and words it is read with, not after them.
+   * A published item's page, or a draft's, or a suggestion an owner returned to its sender, which
+   * the editor opens to send again; null for anything else. The item is asked for beside the names
+   * and words it is read with, not after them.
    */
   async function itemPage(id: string) {
     if (isItemId(id)) {
@@ -687,7 +690,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       readNames(),
       readWords(),
     ])
-    return proposal?.subject === 'item' && proposal.state === 'draft'
+    return proposal?.subject === 'item' && editable(proposal.state)
       ? { item: factOfDraft(proposal, names, vocabulary), history: [] as Version[] }
       : null
   }
@@ -721,10 +724,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     return write('items.publish', input, (o) => client.items.publish(input, o))
   }
 
-  /** A draft of a context item, by its proposal; not found once it was sent or deleted. */
+  /**
+   * A draft of a context item, or a suggestion returned to its sender, by its proposal; not found
+   * once it was sent or deleted.
+   */
   async function readDraft(id: string) {
     const proposal = await read(() => client.proposals.get({ id }))
-    if (proposal.subject !== 'item' || proposal.state !== 'draft')
+    if (proposal.subject !== 'item' || !editable(proposal.state))
       throw new ApiError('not-found', 'This draft was sent or deleted.')
     return proposal
   }
@@ -743,7 +749,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     const name = new Map(listed.people.map((p) => [p.id, p.name]))
     const shown = inboxOf(feed, who.name, byId, new Date(), (id) => name.get(id) ?? 'Someone')
     // What this visit sent waits as it was sent, until an owner decides; the rest as the feed says.
-    const waits = new Set(feed.waiting.map((w) => w.proposalId))
+    const waits = new Set(feed.waiting.filter((w) => !w.returned).map((w) => w.proposalId))
     sent = sent.filter((x) => waits.has(x.id))
     const mine = new Set(sent.map((x) => `waiting:${x.id}`))
     return { ...shown, waiting: shown.waiting.filter((w) => !mine.has(w.id)), sent }
@@ -1723,9 +1729,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       refs.delete(id)
       return { undo: done.undo }
     },
-    closeReview: async ({ id }) => {
+    closeReview: async ({ id, reason }) => {
       const ref = await refFor(id)
-      const input = { id: ref.proposalId, revision: ref.revision }
+      const input = { id: ref.proposalId, revision: ref.revision, ...(reason ? { reason } : {}) }
       const done = await write('review.close', input, (o) => client.review.close(input, o))
       refs.delete(id)
       return { undo: done.undo }

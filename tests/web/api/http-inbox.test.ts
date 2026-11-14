@@ -447,6 +447,7 @@ describe('the Inbox', () => {
             areaId: 'area_sales',
             sentAt: at(20),
             waitingFor: ['Jon Abara', 'Sofia Brandt'],
+            returned: null,
           },
         ],
       }),
@@ -465,6 +466,31 @@ describe('the Inbox', () => {
         card: 'p5',
       },
     ])
+  })
+
+  it('says who returned a suggestion the person sent, so it waits on them', () => {
+    const inbox = inboxOf(
+      feed([], {
+        waiting: [
+          {
+            proposalId: 'p6',
+            title: 'Units sold excludes test accounts',
+            areaId: 'area_sales',
+            sentAt: at(20),
+            waitingFor: ['Jon Abara'],
+            returned: { by: 'Jon Abara', at: at(21, 14, 5) },
+          },
+        ],
+      }),
+      'Ines Duarte',
+      domains,
+      now,
+    )
+    expect(inbox.waiting[0]).toMatchObject({
+      id: 'waiting:p6',
+      card: 'p6',
+      returned: { by: 'Jon Abara', when: '21 Oct' },
+    })
   })
 
   it('passes the week’s counts on, hidden ones as they are', () => {
@@ -556,12 +582,28 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
   },
   reach: { questions: 12, week: '2026-10-19' },
   saved: [],
+  standing: 'current',
   canPublish: true,
   whyNot: null,
   ...patch,
 })
 
 describe('the review', () => {
+  it('says a stale suggestion is not sent out as it is, and what to do instead', () => {
+    const r = reviewOf(
+      sheet({ standing: 'stale', canPublish: false, whyNot: 'It was written earlier.' }),
+      'sug-1',
+    )
+    expect(r.stale).toBe(true)
+    expect(r.ready).toEqual({
+      ok: false,
+      bulk: false,
+      title: 'Written against an earlier version',
+      text: 'It was written against an earlier version of this item. Return it, so its sender writes it against the version agents get now.',
+    })
+    expect(reviewOf(sheet(), 'sug-1').stale).toBeUndefined()
+  })
+
   it('reads the sheet under its card’s id, with the service’s Ready line and read time', () => {
     const r = reviewOf(
       sheet(

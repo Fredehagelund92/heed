@@ -820,10 +820,14 @@ export function createContextService(
     }
   }
 
-  /** The person's own draft, with the words they finished it with: only its writer sends a draft. */
+  /**
+   * The person's own draft, or their suggestion an owner returned, with the words they finished it
+   * with: only its writer sends it.
+   */
   async function finish(id: string, draft: Draft, reason: string | undefined) {
     const [row] = await tx.query<{ revision: number }>(
-      `select revision from proposals where id = $1 and subject = 'item' and state = 'draft'`,
+      `select revision from proposals where id = $1 and subject = 'item'
+          and state in ('draft','changes_requested')`,
       [id],
     )
     if (!row) throw new ORPCError('NOT_FOUND', { message: "This draft isn't here any more." })

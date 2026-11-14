@@ -101,6 +101,11 @@ export type Review = {
   on: string
   note?: string
   mode: 'edit' | 'new' | 'retire'
+  /**
+   * Written against an earlier version of its item (src/domain/suggestion-standing.ts): a change
+   * is returned and a suggestion to archive closed, not sent out as it is.
+   */
+  stale?: true
   /** Drafted for a Not found card: how many questions it answers, and what it was drafted from. Nobody wrote it. */
   drafted?: { questions: number; scope: string; from: string }
   /** A suggestion a sync created from a document: where it came from, and the quote Heed kept. */

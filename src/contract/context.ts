@@ -198,8 +198,9 @@ export const publishItemInputSchema = z.strictObject({
   /** The item it changes; left out for a new item. */
   itemId: z.optional(itemIdSchema),
   /**
-   * The person's own draft it finishes: the draft takes these words and is sent as itself, instead
-   * of a new suggestion beside it. Its item, when it changes one, is the draft's own.
+   * The person's own draft it finishes, or their suggestion an owner returned: it takes these
+   * words and is sent as itself, instead of a new suggestion beside it. Its item, when it changes
+   * one, is its own.
    */
   draftId: z.optional(z.string().check(z.uuid())),
   /** What is wrong with the current version, for a suggested change. */

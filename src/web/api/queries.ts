@@ -511,8 +511,13 @@ const integrations: QueryKey[] = [
   queryKeys.integrationPages,
   queryKeys.connectForms,
 ]
+/**
+ * What a new live version of an item makes stale besides the items: the reviews, since a suggestion
+ * written against the version before is stale now (src/domain/suggestion-standing.ts).
+ */
+const live: QueryKey[] = [...items, queryKeys.reviews]
 /** What a decision on a suggestion makes stale: the Inbox, the items it changed, the saved questions. */
-const decision: QueryKey[] = [...inbox, ...items, queryKeys.savedQuestions, queryKeys.comments]
+const decision: QueryKey[] = [...inbox, ...live, queryKeys.savedQuestions, queryKeys.comments]
 
 /**
  * What each write makes stale. A screen never names caches itself: a write goes through
@@ -541,14 +546,14 @@ export const invalidations: {
   editItem: () => items,
   restoreAsDraft: () => items,
   // A published item may answer a Not found card, and be the setup checklist's first item.
-  saveItem: () => [...items, ...inbox, ...workspace, queryKeys.session, queryKeys.scopeSearches],
-  applyBulk: () => [...items, queryKeys.advancedPage],
+  saveItem: () => [...live, ...inbox, ...workspace, queryKeys.session, queryKeys.scopeSearches],
+  applyBulk: () => [...live, queryKeys.advancedPage],
   sendSuggestion: () => [...inbox, queryKeys.scopeSearches],
   withdrawSuggestion: () => inbox,
   undo: () => everything,
   // Settling archives an item, publishes a version or keeps both: the items, the Inbox's alert and
   // the comment that tells the other owners all move.
-  settleConflict: () => [...items, ...inbox, ...comments, queryKeys.savedQuestions],
+  settleConflict: () => [...live, ...inbox, ...comments, queryKeys.savedQuestions],
   suggestArchiving: () => inbox,
   postComment: () => comments,
   reactToComment: () => [queryKeys.comments],

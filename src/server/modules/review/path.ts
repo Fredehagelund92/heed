@@ -13,6 +13,7 @@ import { docDiff, docMarkdown, plainText, type DocSide } from '../../../domain/d
 import type { ItemVersion } from '../../../domain/item-version.ts'
 import { anyDate, shiftDate } from '../../../domain/validity.ts'
 import { sourceDiff } from '../../../domain/source-diff.ts'
+import { staleWords, standingOf, type Standing } from '../../../domain/suggestion-standing.ts'
 import {
   readiness,
   readinessWords,
@@ -213,10 +214,9 @@ export function createReviewPath(
     const gapId = await gapOf(p)
     if (p.action === 'retire') {
       // Once archived, the item is no longer live: the review shows the version it archived.
-      const live = p.itemId
-        ? ((await liveVersionId(tx, p.itemId)) ?? (await lastServedId(p.itemId)))
-        : null
-      const version = live ? await stored(live) : null
+      const live = p.itemId ? await liveVersionId(tx, p.itemId) : null
+      const shownId = live ?? (p.itemId ? await lastServedId(p.itemId) : null)
+      const version = shownId ? await stored(shownId) : null
       if (!version) throw new ORPCError('NOT_FOUND')
       const without: ServingBundle = {
         ...bundle,
@@ -233,6 +233,7 @@ export function createReviewPath(
         scope: ownScope(bundle, version.itemId),
         clashes: [] as string[],
         gapId,
+        standing: waits(p) ? standingOf({ written: p.itemVersionId, live }) : 'current',
       }
     }
     if (!p.itemVersionId) throw new ORPCError('NOT_FOUND')
@@ -269,9 +270,15 @@ export function createReviewPath(
             .items.map((item) => item.id)
             .filter((id) => !named.has(id))
         : []
+    const mode = before ? ('edit' as const) : ('new' as const)
+    // A rescue (FR-814) changes an item agents get none of: it is written against what the Bin kept.
+    const standing: Standing =
+      waits(p) && mode === 'edit' && !(await rescues(p.id))
+        ? standingOf({ written: baseId, live: await liveVersionId(tx, after.itemId) })
+        : 'current'
     return {
       p,
-      mode: before ? ('edit' as const) : ('new' as const),
+      mode,
       before,
       after,
       bundle,
@@ -280,8 +287,18 @@ export function createReviewPath(
       scope,
       clashes,
       gapId,
+      standing,
     }
   }
+  /** Only a suggestion that waits for a decision has a standing: a decided one is what it is. */
+  const waits = (p: LoadedProposal) => ['submitted', 'in_review'].includes(p.state)
+  const rescues = async (id: string) =>
+    (
+      await tx.query(
+        'select 1 from item_bin b join areas a on a.id=b.area_id where b.rescue_proposal=$1',
+        [id],
+      )
+    ).length > 0
   type Reading = Awaited<ReturnType<typeof reading>>
 
   /**
@@ -477,8 +494,15 @@ export function createReviewPath(
         r.mode === 'new'
           ? []
           : await draftChecks(tx, today, r.itemId, { live: r.bundle, draft: r.candidate }),
-      canPublish: whyNot === null && ready.publishable,
-      whyNot: whyNot ?? (ready.publishable ? null : words.text),
+      standing: r.standing,
+      canPublish: whyNot === null && r.standing === 'current' && ready.publishable,
+      whyNot:
+        whyNot ??
+        (r.standing === 'stale'
+          ? staleWords[r.mode === 'retire' ? 'retire' : 'edit']
+          : ready.publishable
+            ? null
+            : words.text),
     }
   }
 
@@ -650,7 +674,7 @@ export function createReviewPath(
    * context item stays live. The review service checks who may (an owner or an admin, as for a
    * decision) and that it was taken back.
    */
-  async function close(input: { id: string; revision: number }) {
+  async function close(input: { id: string; revision: number; reason?: string | undefined }) {
     const closed = await review.close(input)
     return { proposal: closed.proposal, undo: `decision:${closed.decision}` }
   }

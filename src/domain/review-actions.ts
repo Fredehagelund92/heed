@@ -4,9 +4,11 @@
   each working it out again from the same fields.
 
   The rules follow what the service allows:
-  - a suggestion to archive is archived or closed, never returned and never published; it closes
-    only once its sender took it back in the comments;
+  - a suggestion to archive is archived or closed, never returned and never published; an owner
+    may close one they do not want, with a reason, and Close leads once its sender took it back;
   - anything else is published or returned;
+  - a suggestion written against an earlier version of its item (`standingOf`) is not published
+    or archived as it is: a change is returned, a suggestion to archive is closed;
   - Publish waits while a live item it clashes with has no answer (FR-225); a claim to check or a
     withdrawn retirement does not hold it back;
   - a draft for a Not found card is published or edited: nobody wrote a note to answer.
@@ -18,12 +20,14 @@ export const reviewActionNames = ['publish', 'archive', 'close', 'return'] as co
 export type ReviewAction = (typeof reviewActionNames)[number]
 
 /** Why an offered action is held. */
-export type ReviewBlock = 'clash'
+export type ReviewBlock = 'clash' | 'stale'
 
 export type ReviewActionsInput = {
   mode: 'new' | 'edit' | 'retire'
   /** A retirement its sender took back in the comments. */
   withdrawn: boolean
+  /** Written against an earlier version of its item (src/domain/suggestion-standing.ts). */
+  stale: boolean
   /** Live items it clashes with that still have no answer, given or chosen. */
   clashes: number
   /** Claims the copied sentence does not plainly say. */
@@ -44,25 +48,27 @@ export type ReviewActions = {
 }
 
 export function reviewActions(input: ReviewActionsInput): ReviewActions {
-  const { mode, withdrawn, clashes, claimsToCheck, drafted } = input
+  const { mode, withdrawn, stale, clashes, claimsToCheck, drafted } = input
   const can: ReviewAction[] =
-    mode === 'retire'
-      ? withdrawn
-        ? ['archive', 'close']
-        : ['archive']
-      : drafted
-        ? ['publish']
-        : ['publish', 'return']
+    mode === 'retire' ? ['archive', 'close'] : drafted ? ['publish'] : ['publish', 'return']
   const primary: ReviewAction =
     mode === 'retire'
-      ? withdrawn
+      ? withdrawn || stale
         ? 'close'
         : 'archive'
-      : !drafted && claimsToCheck
+      : !drafted && (claimsToCheck || stale)
         ? 'return'
         : 'publish'
   const blockedBy: ReviewActions['blockedBy'] =
-    mode !== 'retire' && clashes > 0 ? { publish: 'clash' } : {}
+    mode === 'retire'
+      ? stale
+        ? { archive: 'stale' }
+        : {}
+      : stale
+        ? { publish: 'stale' }
+        : clashes > 0
+          ? { publish: 'clash' }
+          : {}
   return { can, primary, blockedBy, ready: primary !== 'return' && !blockedBy[primary] }
 }
 

@@ -826,13 +826,18 @@ export function createMockApi() {
             dispatch({ type: 'editFact', id: r.retire.factId, patch: { status: 'Archived' } })
         }),
       ),
-    closeReview: ({ id }) =>
+    closeReview: ({ id, reason }) =>
       now(() => {
         const r = reviews.find((x) => x.id === id)
-        if (!r || !reviewNow(r).retire?.withdrawn || state.done[id])
+        if (!r?.retire || state.done[id])
           throw new ApiError(
             'conflict',
-            'Only a suggestion to archive that its sender took back in the comments is closed. Decide this one instead.',
+            'Only a suggestion to archive is closed. Decide this one instead.',
+          )
+        if (!reviewNow(r).retire?.withdrawn && !reason?.trim())
+          throw new ApiError(
+            'invalid',
+            'Write why you close it. The reason is kept with the decision.',
           )
         return decideReview(id, 'Closed', () => {})
       }),

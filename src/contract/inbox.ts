@@ -138,13 +138,18 @@ export const cardSchema = z.union([
 ])
 export type Card = z.infer<typeof cardSchema>
 
-/** A suggestion the person sent that waits on an owner. */
+/** A suggestion the person sent that waits on an owner, or that an owner returned to them. */
 export const waitingSchema = z.object({
   proposalId: z.string(),
   title: z.string(),
   areaId: z.nullable(z.string()),
   sentAt: z.nullable(z.string()),
   waitingFor: z.array(z.string()),
+  /**
+   * Returned with a note, by whom and when: it waits on the person, who edits it and sends it
+   * again. The note is the first comment of its discussion. Null while it waits on an owner.
+   */
+  returned: z.nullable(z.object({ by: z.nullable(z.string()), at: z.string() })),
 })
 
 export const feedInputSchema = z.object({

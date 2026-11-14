@@ -149,7 +149,10 @@ function rowCare(row: InboxRow, reviews: Review[]) {
  */
 function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.ReactNode {
   if (row.kind === 'mention') return `Mentioned by ${row.note.from}`
-  if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
+  if (row.kind === 'waiting')
+    return row.item.returned
+      ? `Returned by ${row.item.returned.by}`
+      : `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
   if (done) return `${done.label}, ${midSentence(done.at)}`
   if (card.names) return card.line
@@ -281,9 +284,11 @@ function InboxList({
           ? suggestionIcon(review)
           : row.kind === 'card'
             ? cardIcon[row.card.type]
-            : row.kind === 'mention' || row.note
-              ? AtSignIcon
-              : ClockIcon
+            : row.kind === 'waiting' && row.item.returned
+              ? cardIcon.returned
+              : row.kind === 'mention' || row.note
+                ? AtSignIcon
+                : ClockIcon
         // A suggestion that needs care says so on its row, before it is opened.
         const care = rowCare(row, reviews)
         const group = groupOf(row)
@@ -391,7 +396,7 @@ function InboxList({
                             ? ''
                             : row.card.when
                           : row.kind === 'waiting'
-                            ? row.item.sent
+                            ? (row.item.returned?.when.replace(/^Today, /, '') ?? row.item.sent)
                             : ''}
                     </span>
                     {unread ? (
@@ -839,24 +844,42 @@ function WaitingDetail({
   nav: PaneNav
   next: () => void
 }) {
+  const returned = item.returned
   return (
     <InboxPanel
       label={item.title}
       nav={nav}
       foot={
-        note && (
-          <PaneFoot>
-            <MentionDone subject={note.subject} next={next} />
+        returned ? (
+          // Its words open in the editor; sending them again puts it back with the owners.
+          <PaneFoot follows="It waits on the owners again once you send it.">
+            <Button size="sm" onClick={() => navigate(`/context/${item.card}/edit`)}>
+              Edit and send again
+            </Button>
           </PaneFoot>
+        ) : (
+          note && (
+            <PaneFoot>
+              <MentionDone subject={note.subject} next={next} />
+            </PaneFoot>
+          )
         )
       }
     >
       <PaneHead
-        state={{ label: 'Waiting on others', icon: 'waiting', tone: 'neutral' }}
+        state={
+          returned
+            ? { label: 'Returned', icon: 'returned', tone: 'warn' }
+            : { label: 'Waiting on others', icon: 'waiting', tone: 'neutral' }
+        }
         domain={item.domain}
         title={item.title}
-        summary={`Waiting for ${item.waitingFor}. You'll see here when it is published or returned.`}
-        from={`Your suggestion, sent ${item.sent.toLowerCase() === 'today' ? 'today' : `on ${item.sent}`}`}
+        summary={
+          returned
+            ? `${returned.by} returned it with a note, in the comments below. Edit it and send it again.`
+            : `Waiting for ${item.waitingFor}. You'll see here when it is published or returned.`
+        }
+        from={`Your suggestion, ${returned ? `returned ${/^\d/.test(returned.when) ? `on ${returned.when}` : midSentence(returned.when)}` : `sent ${item.sent.toLowerCase() === 'today' ? 'today' : `on ${item.sent}`}`}`}
       />
       <div className="flex max-w-2xl flex-col gap-4 px-4 pb-6 text-sm @md:px-7">
         {note && <MentionBlock note={note} />}
