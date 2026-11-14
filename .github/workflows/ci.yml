@@ -75,9 +75,9 @@ jobs:
 
   migrations:
     # Before any database starts: a change whose new migration takes a number its base already has
-    # (another pull request merged one first), or shares one, fails here within seconds. It needs
-    # only git and node: no install.
-    name: Migration numbers
+    # (another pull request merged one first), or shares one, fails here within seconds. The held-out
+    # seal rides along, so the run holds one runner less. Both need only git and node: no install.
+    name: Migration numbers and held-out seal
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -91,6 +91,20 @@ jobs:
           node-version-file: .nvmrc
       - name: Every migration has its own number, after the base branch's (scripts/check-migration-numbers.ts)
         run: node scripts/check-migration-numbers.ts HEAD^1 HEAD
+      - name: The pull request keeps the held-out cases sealed
+        # FR-525: a pull request may not change the sealed held-out cases together with src/, nor
+        # open them outside the seal's own files (scripts/check-held-out-seal.ts). No cases are
+        # sealed at present; the rules on the sealed file hold again once fresh ones are. The base
+        # branch's copy of the guard judges the change, so a pull request cannot loosen it; only
+        # the pull request that adds the guard runs its own.
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        run: |
+          if git cat-file -e HEAD^1:scripts/check-held-out-seal.ts 2>/dev/null; then
+            git show HEAD^1:scripts/check-held-out-seal.ts > "$RUNNER_TEMP/check-held-out-seal.ts"
+          else
+            cp scripts/check-held-out-seal.ts "$RUNNER_TEMP/check-held-out-seal.ts"
+          fi
+          node "$RUNNER_TEMP/check-held-out-seal.ts" HEAD^1 HEAD
 
   # The checks run as two jobs side by side, so the slower half sets the wait, not their sum.
   check:
@@ -154,34 +168,6 @@ jobs:
           npm run lint
           npm test
           npm run build
-
-  seal:
-    # FR-525: a pull request may not change the sealed held-out cases together with src/, nor open
-    # them outside the seal's own files (scripts/check-held-out-seal.ts). It needs only git. No
-    # cases are sealed at present; the rules on the sealed file hold again once fresh ones are.
-    name: Held-out seal
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The commit under test and its first parent, the base branch (or the queue ahead): their
-          # difference is the change.
-          fetch-depth: 2
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-      - name: The pull request keeps the held-out cases sealed
-        # The base branch's copy of the guard judges the change, so a pull request cannot loosen
-        # it; only the pull request that adds the guard runs its own.
-        run: |
-          if git cat-file -e HEAD^1:scripts/check-held-out-seal.ts 2>/dev/null; then
-            git show HEAD^1:scripts/check-held-out-seal.ts > "$RUNNER_TEMP/check-held-out-seal.ts"
-          else
-            cp scripts/check-held-out-seal.ts "$RUNNER_TEMP/check-held-out-seal.ts"
-          fi
-          node "$RUNNER_TEMP/check-held-out-seal.ts" HEAD^1 HEAD
 
   service:
     # Split into parts by test file; each part has its own database.
@@ -487,7 +473,6 @@ jobs:
         migrations,
         check,
         unit,
-        seal,
         service,
         seed,
         own-data,
@@ -502,7 +487,6 @@ jobs:
       - name: Every job passed or was skipped on purpose
         env:
           RESULTS: ${{ toJSON(needs) }}
-          IS_CHANGE: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
           CHECK: ${{ needs.scope.outputs.check }}
           CODE: ${{ needs.scope.outputs.code }}
         run: |
@@ -516,7 +500,6 @@ jobs:
           expect scope true
           expect migrations true
           expect security true
-          expect seal "$IS_CHANGE"
           expect check "$CHECK"
           expect unit "$CHECK"
           expect service "$CODE"
