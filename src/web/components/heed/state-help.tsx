@@ -219,7 +219,7 @@ function BadgeCard({
         initialFocus={false}
         ref={card}
         aria-label={`What ${label} means`}
-        className="w-70 max-w-full gap-2 rounded-lg p-3.5"
+        className="w-70 max-w-full gap-2 rounded-md p-3.5"
       >
         <p className="text-sm font-semibold">{title}</p>
         <p className="text-sm text-pretty">{means}</p>

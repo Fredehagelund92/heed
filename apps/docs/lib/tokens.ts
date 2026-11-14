@@ -25,11 +25,10 @@ const themed = [
 ]
 const fixed = [
   'font-sans',
-  'text-reading',
-  'text-hero',
-  'leading-hero',
+  'text-base',
+  'text-3xl',
+  'text-3xl--line-height',
   'tracking-hero',
-  'radius',
   'radius-sm',
   'radius-md',
   'radius-frame',

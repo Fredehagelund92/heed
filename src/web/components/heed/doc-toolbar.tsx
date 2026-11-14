@@ -28,7 +28,7 @@ const SCROLL_SHADOWS = {
   ].join(', '),
 }
 
-const ACTIVE_ITEM = "rounded-md py-1 pl-2 text-dense [&_svg:not([class*='size-'])]:size-3.5"
+const ACTIVE_ITEM = "rounded-md py-1 pl-2 text-sm [&_svg:not([class*='size-'])]:size-3.5"
 
 const TEXT_STYLES = [
   { label: 'Paragraph', value: '0', className: '' },
@@ -47,7 +47,7 @@ function TextStyleMenu({ editor }: { editor: Editor | null }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" className="h-8 w-26 justify-between px-2 text-dense" />
+          <Button variant="ghost" size="sm" className="h-8 w-26 justify-between px-2 text-sm" />
         }
       >
         {TEXT_STYLES.find((s) => s.value === value)?.label}
@@ -81,7 +81,7 @@ function InsertMenu({ editor }: { editor: Editor | null }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-dense" />}
+        render={<Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-sm" />}
       >
         <PlusIcon className="size-4" />
         Insert
@@ -89,14 +89,14 @@ function InsertMenu({ editor }: { editor: Editor | null }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-36 p-1">
         <DropdownMenuItem
-          className="rounded-md py-1 text-dense [&_svg]:size-3.5!"
+          className="rounded-md py-1 text-sm [&_svg]:size-3.5!"
           onClick={() => editor?.chain().focus().toggleBlockquote().run()}
         >
           <QuoteIcon />
           Quote
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="rounded-md py-1 text-dense [&_svg]:size-3.5!"
+          className="rounded-md py-1 text-sm [&_svg]:size-3.5!"
           onClick={() => editor?.chain().focus().setHorizontalRule().run()}
         >
           <MinusIcon />

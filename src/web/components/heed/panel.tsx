@@ -47,7 +47,7 @@ export function Panel({
         <h2
           className={cn(
             'min-w-0 flex-1 truncate px-1 text-sm font-medium',
-            quietTitle && 'text-dense font-normal text-muted-foreground',
+            quietTitle && 'text-sm font-normal text-muted-foreground',
           )}
         >
           {title}

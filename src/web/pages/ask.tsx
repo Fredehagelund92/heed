@@ -631,7 +631,7 @@ function ThreadRow({
       data-leaving={leaving || undefined}
       className="group/row row-presence"
     >
-      <div className="relative min-h-0 overflow-hidden rounded-md bg-(--row) [--row:var(--background)] group-data-active/row:shadow-hairline group-data-active/row:[--row:var(--muted)] hover:[--row:var(--row-hover)]">
+      <div className="relative min-h-0 overflow-hidden rounded-md bg-(--row) [--row:var(--background)] group-data-active/row:shadow-hairline group-data-active/row:[--row:var(--muted)] hover:[--row:var(--muted)]">
         {renaming ? (
           <Input
             ref={nameInput}

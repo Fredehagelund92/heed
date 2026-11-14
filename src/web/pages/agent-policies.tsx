@@ -78,7 +78,7 @@ export function PolicyCard({
           {policySetLine(policy)}. {policyTodayLine(policy)}.
         </span>
         <span className="text-xs text-muted-foreground">Why: {policy.reason}</span>
-        {paused && <span className="text-xs text-caution-text">{paused}</span>}
+        {paused && <span className="text-xs text-caution">{paused}</span>}
       </div>
       {policy.canEnd && (
         <Button
