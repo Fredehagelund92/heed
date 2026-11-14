@@ -94,35 +94,6 @@ export const logSignIn = (
   level: 'info' | 'warn' = reason ? 'warn' : 'info',
 ) => log[level]({ event: 'ai_sign_in', result, reason, client: signedInClient }, 'Agent sign-in')
 
-/**
- * Connections revoked in this process, by id, for as long as their access tokens can live: the
- * MCP server refuses those tokens at once instead of when they expire. The list is filled from
- * the database at start, so a restart does not forget a recent disconnect. Until it has been
- * read, a token issued before this process started counts as revoked: it fails closed, and the
- * app gets a new token with its refresh token, which the database checks.
- */
-export function createRevocations(now: () => Date) {
-  const until = new Map<string, number>()
-  const span = (accessTokenSeconds + 60) * 1000
-  const startedSecond = Math.floor(now().getTime() / 1000)
-  let loaded = false
-  return {
-    add(connection: string) {
-      until.set(connection, now().getTime() + span)
-    },
-    /** The recent disconnects have been read from the database. */
-    loaded() {
-      loaded = true
-    },
-    has(connection: string, issuedAt?: number) {
-      if (!loaded && (issuedAt === undefined || issuedAt < startedSecond)) return true
-      const time = now().getTime()
-      for (const [id, end] of until) if (end <= time) until.delete(id)
-      return until.has(connection)
-    },
-  }
-}
-
 /** Refreshes per minute for one connection. */
 const refreshesPerMinute = 5
 
@@ -158,12 +129,9 @@ export interface LoginServer {
   readonly issuer: string
   readonly resource: string
   readonly keys: KeyRing
-  readonly revocations: ReturnType<typeof createRevocations>
   /** The MCP server's verifier for this issuer's tokens: it checks them itself (FR-402). */
   readonly verifier: ReturnType<typeof createPersonVerifier>
   metadata(): Record<string, unknown>
-  /** Refills the revocation list from the database. */
-  loadRevocations(database: Queryable): Promise<void>
   register(database: Database, body: unknown, log: SignInLog): Promise<TokenAnswer>
   authorize(
     database: Database,
@@ -314,7 +282,6 @@ export function createLoginServer(options: {
   const issuer = config.issuer
   const now = options.now ?? (() => new Date())
   const fetchDocument = options.fetchDocument ?? fetchMetadataDocument
-  const revocations = createRevocations(now)
   const limitRefresh = createLimiter(now)
   const verifier = createPersonVerifier({
     issuer,
@@ -322,7 +289,6 @@ export function createLoginServer(options: {
     keys: localKeys(keys),
     algorithms: ['EdDSA'],
     requireAccessTokenType: true,
-    isRevoked: (id, issuedAt) => revocations.has(id, issuedAt),
     now,
   })
   const seconds = () => Math.floor(now().getTime() / 1000)
@@ -388,7 +354,6 @@ export function createLoginServer(options: {
       [grantId, now(), reason],
     )
     await tx.query('delete from auth.oauth_refresh_tokens where grant_id=$1', [grantId])
-    revocations.add(grantId)
     if (!grant) return false
     await tx.query(
       `insert into audit_log(actor_id,actor_kind,action,subject_type,subject_id,details,reason)
@@ -479,7 +444,6 @@ export function createLoginServer(options: {
     issuer,
     resource,
     keys,
-    revocations,
     verifier,
 
     metadata() {
@@ -502,15 +466,6 @@ export function createLoginServer(options: {
         client_id_metadata_document_supported: true,
         authorization_response_iss_parameter_supported: true,
       }
-    },
-
-    async loadRevocations(database) {
-      const rows = await database.query<{ id: string }>(
-        'select id::text from auth.oauth_grants where revoked_at > $1',
-        [at(-(accessTokenSeconds + 60))],
-      )
-      for (const row of rows) revocations.add(row.id)
-      revocations.loaded()
     },
 
     async register(database, body, log) {

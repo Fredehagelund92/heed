@@ -105,8 +105,6 @@ export function createPersonVerifier(options: {
   algorithms: readonly string[]
   /** RFC 9068's `at+jwt`. The built-in login server always sets it. */
   requireAccessTokenType: boolean
-  /** Whether the connection was revoked; `issuedAt` is the token's `iat`, in seconds. */
-  isRevoked?: (connection: string, issuedAt: number) => boolean
   /** The clock of the login server that issues the tokens. */
   now?: () => Date
 }): TokenVerifier {
@@ -138,8 +136,6 @@ export function createPersonVerifier(options: {
           (sid !== undefined && typeof sid !== 'string')
         )
           throw new TokenError('bad_claims')
-        if (typeof sid === 'string' && options.isRevoked?.(sid, payload.iat!))
-          throw new TokenError('revoked')
         const scopes = personScopes.filter((known) => scope.split(' ').includes(known))
         if (!scopes.length) throw new TokenError('bad_claims')
         return {
@@ -158,22 +154,29 @@ export function createPersonVerifier(options: {
   }
 }
 
-/** Which agent a connection signs in as, and its tools on; null when Heed keeps no agent for it. */
-export type AgentCheck = (
-  connection: string,
-) => Promise<{ agentId: string; tools: readonly AgentToolName[] } | null>
+/**
+ * Whether a connection is open, and which agent it signs in as with its tools on (null when Heed
+ * keeps no agent for it). Null itself when Heed keeps no such connection.
+ */
+export type AgentCheck = (connection: string) => Promise<{
+  state: 'open' | 'revoked' | 'expired'
+  agent: { agentId: string; tools: readonly AgentToolName[] } | null
+} | null>
 
 /**
  * Names the agent behind a person's token (FR-420) with the tools an admin left on for it, asked
- * at every request so a switch acts at the next one. A token that names no connection passes as
- * it is.
+ * at every request so a switch, or a disconnect, acts at the next one in every instance. A token
+ * that names no connection passes as it is.
  */
 export function withAgents(tokens: TokenVerifier, check: AgentCheck): TokenVerifier {
   return {
     async verify(token) {
       const principal = await tokens.verify(token)
       if (!principal.connection) return principal
-      const agent = await check(principal.connection)
+      const connection = await check(principal.connection)
+      if (!connection) return principal
+      if (connection.state !== 'open') throw new TokenError('revoked', principal.client)
+      const { agent } = connection
       if (!agent) return principal
       return { ...principal, agent: { kind: 'app', id: agent.agentId, tools: agent.tools } }
     },
