@@ -352,13 +352,13 @@ describe('publishing from a Not found card (#201)', () => {
     expect(await gap(id)).toEqual({ status: 'wont_fix', covered: null })
   })
 
-  it('refuses a gap the person cannot see, and keeps nothing', async () => {
+  it('refuses a gap the person does not manage, and keeps nothing', async () => {
     const before = await client.query('select count(*)::int as n from proposals')
-    const r = await call('POST', '/items/publish', 'author', {
-      draft: draft(),
-      gapId: await openGap(),
-    })
-    expect(r.statusCode).toBe(404)
+    const id = await openGap()
+    for (const who of ['author', 'stranger'] as const) {
+      const r = await call('POST', '/items/publish', who, { draft: draft(), gapId: id })
+      expect(r.statusCode, who).toBe(404)
+    }
     expect((await client.query('select count(*)::int as n from proposals')).rows).toEqual(
       before.rows,
     )

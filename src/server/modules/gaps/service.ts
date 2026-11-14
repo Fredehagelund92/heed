@@ -239,9 +239,13 @@ export function createGapsService(tx: Queryable) {
         })
       return get(id)
     },
-    /** The gap a publish names, which the person must be able to see; it is refused otherwise. */
-    async visible(id: string): Promise<void> {
-      await row(id)
+    /**
+     * The gap a publish names: only a person who may manage it (an owner of its topic's domains or
+     * an admin, as its Not found card reaches) links context to it, so nobody closes another
+     * domain's gap. It is refused otherwise.
+     */
+    async linkable(id: string): Promise<void> {
+      await managed(id)
     },
     /**
      * Context written for a gap was published: an open gap is covered, whoever published it. One

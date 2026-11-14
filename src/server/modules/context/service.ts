@@ -777,7 +777,7 @@ export function createContextService(
     gapId?: string | undefined
     relations?: { itemId: string; relation: ClashRelation }[] | undefined
   }): Promise<PublishItemResult> {
-    if (input.gapId) await createGapsService(tx).visible(input.gapId)
+    if (input.gapId) await createGapsService(tx).linkable(input.gapId)
     const created = input.draftId
       ? await finish(input.draftId, input.draft, input.reason)
       : await proposals.create({

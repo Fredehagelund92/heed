@@ -206,8 +206,9 @@ export const publishItemInputSchema = z.strictObject({
   /** What is wrong with the current version, for a suggested change. */
   reason: z.optional(z.string().check(z.maxLength(500))),
   /**
-   * The gap it was written for, from a Not found card (FR-609): once it is published, by the
-   * person or by an owner after them, the gap is covered and its card leaves the Inbox.
+   * The gap it was written for, from a Not found card (FR-609), which the person must manage: once
+   * it is published, by the person or by an owner after them, the gap is covered and its card
+   * leaves the Inbox.
    */
   gapId: z.optional(z.string().check(z.uuid())),
   /**
