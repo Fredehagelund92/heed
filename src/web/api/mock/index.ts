@@ -413,6 +413,7 @@ export function createMockApi() {
         name: WORKSPACE_NAME,
         domains: workspace.domains(),
         people: workspace.people(),
+        invites: workspace.invites(),
         about: state.about,
         aboutTemplate: ABOUT_BUSINESS,
         setup: { done: state.setup },
@@ -446,23 +447,30 @@ export function createMockApi() {
           )
         workspace.removeDomain(id)
       }),
-    setOwner: ({ name, domain, own }) =>
+    setOwner: ({ id, domain, own }) =>
       now(() =>
-        workspace.setOwner(name, domain, own) === 'last'
+        workspace.setOwner(id, domain, own) === 'last'
           ? { done: false as const, last: true as const }
           : { done: true as const },
       ),
-    setAdmin: ({ name, admin }) => now(() => workspace.setAdmin(name, admin)),
-    invite: ({ emails, admin, owns }) => now(() => workspace.invite(emails, admin, owns, origin())),
-    resendInvite: ({ name }) =>
+    setAdmin: ({ id, admin }) => now(() => workspace.setAdmin(id, admin)),
+    invite: ({ emails, admin, owns }) =>
+      now(() => workspace.invite(emails, admin, owns, origin(), meAsPerson().id)),
+    resendInvite: ({ id }) =>
       now(() => {
-        const link = workspace.resendInvite(name, origin())
-        if (!link) throw new ApiError('not-found', `${name} has no open invite.`)
+        const link = workspace.resendInvite(id, origin())
+        if (!link) throw new ApiError('not-found', 'This invite is not open any more.')
         return { link }
       }),
-    removePerson: ({ name }) =>
+    revokeInvite: ({ id }) =>
       now(() => {
-        const result = workspace.removePerson(name)
+        const result = workspace.revokeInvite(id)
+        if (!result) throw new ApiError('not-found', 'This invite is not open any more.')
+        return remember(result.restore)
+      }),
+    removePerson: ({ id }) =>
+      now(() => {
+        const result = workspace.removePerson(id)
         return 'alone' in result
           ? { removed: false as const, alone: result.alone }
           : { removed: true as const, ...remember(result.restore) }

@@ -29,7 +29,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { DomainId } from '@/model/items'
-import { emailOf, listOf, soleOwnerOf, type Person } from '@/model/people'
+import { emailOf, listOf, partyActions, type Allowed, type Party } from '@/model/people'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { domainHue } from '@/lib/tones'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
@@ -39,7 +39,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Invited } from '@/api/client'
 import { toApiError } from '@/api/errors'
 import { activityQuery, useSession, useWrite } from '@/api/queries'
-import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
+import { useDomainList, useDomains, useInvites, usePeople } from '@/lib/workspace'
 import { useMe } from '@/lib/workspace'
 
 // Settings > People: everyone in the workspace, as v1 has them. Two roles (admin, member); owning a
@@ -52,10 +52,10 @@ function RoleChip({ admin }: { admin: boolean }) {
   return <TagChip tone={admin ? 'term' : 'neutral'}>{admin ? 'Admin' : 'Member'}</TagChip>
 }
 
-/** The domains someone owns, as domain chips. */
-function OwnedChips({ p }: { p: Person }) {
+/** The domains someone owns, or an invite will own, as domain chips. */
+function OwnedChips({ owns }: { owns: DomainId[] }) {
   const domains = useDomains()
-  const owned = p.owns.filter((d) => domains[d])
+  const owned = owns.filter((d) => domains[d])
   if (!owned.length) return <span className="text-sm text-muted-foreground">No domain</span>
   return (
     <span className="flex flex-wrap gap-1">
@@ -72,6 +72,12 @@ function OwnedChips({ p }: { p: Person }) {
     </span>
   )
 }
+
+/** Why a control is locked, or nothing when it can be used. */
+const lockOf = (a: Allowed) => (a === 'can' ? undefined : a.locked)
+
+/** The name someone goes by here: a member's name, an invite's address. */
+const nameOf = (p: Party) => (p.kind === 'member' ? p.name : p.email)
 
 /** A control someone may not use, kept visible, with why on hover or focus. */
 function Locked({ reason, children }: { reason?: string; children: React.ReactElement }) {
@@ -263,24 +269,29 @@ export function InviteDialog({
   )
 }
 
-/** One person, from a row: role, the domains they own (a switch each), what they did lately, and leaving. */
-function PersonSheet({
-  p,
-  onOpenChange,
-}: {
-  p: Person | null
-  onOpenChange: (o: boolean) => void
-}) {
+/**
+ * Someone from a row. A member: their role, the domains they own (a switch each), what they did
+ * lately, and removing them. An invite: the role and domains it was sent with, a new link, and
+ * taking it back. What may be done is the service's rule (partyActions).
+ */
+function PersonSheet({ p, onOpenChange }: { p: Party | null; onOpenChange: (o: boolean) => void }) {
   const me = useMe()
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
-  const people = usePeople()
   const write = useWrite()
   const mobile = useIsMobile()
   const [removing, setRemoving] = React.useState(false)
-  const recent = useQuery({ ...activityQuery(p?.name ?? ''), enabled: !!p }).data ?? []
+  const member = p?.kind === 'member' ? p : null
+  const recent = useQuery({ ...activityQuery(member?.name ?? ''), enabled: !!member }).data ?? []
   if (!p) return null
-  const alone = soleOwnerOf(p.name, domains, people)
+  const can = partyActions(p, me, domains)
+  const name = nameOf(p)
+  const email = p.kind === 'member' ? emailOf(p) : p.email
+  const invited = p.kind === 'invite'
+  const { owners } = can
+  const alone = typeof can.leave === 'object' && 'handOver' in can.leave ? can.leave.handOver : []
+  const leave =
+    typeof can.leave === 'object' && 'locked' in can.leave ? can.leave.locked : undefined
   return (
     <Sheet open={!!p} onOpenChange={onOpenChange}>
       <SheetContent
@@ -288,113 +299,127 @@ function PersonSheet({
         className="gap-0 data-[side=bottom]:max-h-bottom-sheet-tall data-[side=right]:max-w-md"
       >
         <SheetHeader className="flex-row items-center gap-3 border-b pr-12">
-          <PersonAvatar name={p.name} size={32} />
+          <PersonAvatar name={name} size={32} />
           <div className="min-w-0">
-            <SheetTitle className="truncate">{p.name}</SheetTitle>
-            <SheetDescription className="truncate">{emailOf(p)}</SheetDescription>
+            <SheetTitle className="truncate">{name}</SheetTitle>
+            <SheetDescription className="truncate">{email}</SheetDescription>
           </div>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {p.invited && (
+          {p.kind === 'invite' && can.resend !== 'absent' && (
             <section className="flex flex-wrap items-center gap-2 border-b p-4 text-sm">
               <MailIcon aria-hidden className="size-4 text-muted-foreground" />
               <span className="flex-1">Invited, not signed in yet.</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  void write('resendInvite', { name: p.name }).then(({ link }) =>
-                    toast('New invite link', {
-                      description: `${emailOf(p)}. The old link stops working; send them this one.`,
-                      action: { label: 'Copy link', onClick: () => void copy(link) },
-                    }),
-                  )
-                }
-              >
-                Make a new link
-              </Button>
+              <Locked reason={lockOf(can.resend)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={can.resend !== 'can'}
+                  onClick={() =>
+                    void write('resendInvite', { id: p.id }).then(({ link }) =>
+                      toast('New invite link', {
+                        description: `${p.email}. The old link stops working; send them this one.`,
+                        action: { label: 'Copy link', onClick: () => void copy(link) },
+                      }),
+                    )
+                  }
+                >
+                  Make a new link
+                </Button>
+              </Locked>
             </section>
           )}
           <section className="flex items-center justify-between gap-3 border-b p-4">
             <div>
               <p className="text-sm font-medium">Role</p>
               <p className="text-xs text-muted-foreground">
-                {p.admin
-                  ? 'Admins change Settings, invite and remove people.'
-                  : 'Members read, ask, flag and suggest.'}
+                {invited
+                  ? `Invited as ${p.admin ? 'an Admin' : 'a Member'}. An invite keeps the role it was sent with.`
+                  : p.admin
+                    ? 'Admins change Settings, invite and remove people.'
+                    : 'Members read, ask, flag and suggest.'}
               </p>
             </div>
-            <Locked
-              reason={
-                me.admin
-                  ? p.name === me.name
-                    ? "You can't change your own role"
-                    : undefined
-                  : 'Only an admin changes roles'
-              }
-            >
-              <div className="flex rounded-md border p-0.5" role="radiogroup" aria-label="Role">
-                {(['Member', 'Admin'] as const).map((r) => {
-                  const on = (r === 'Admin') === p.admin
+            {p.kind === 'member' && can.role !== 'absent' && (
+              <Locked reason={lockOf(can.role)}>
+                <div className="flex rounded-md border p-0.5" role="radiogroup" aria-label="Role">
+                  {(['Member', 'Admin'] as const).map((r) => {
+                    const on = (r === 'Admin') === p.admin
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        disabled={can.role !== 'can'}
+                        onClick={() =>
+                          void write('setAdmin', { id: p.id, admin: r === 'Admin' }).then(() =>
+                            toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`),
+                          )
+                        }
+                        className="h-7 rounded-sm px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
+                      >
+                        {r}
+                      </button>
+                    )
+                  })}
+                </div>
+              </Locked>
+            )}
+          </section>
+          {p.kind === 'member' && owners !== 'absent' ? (
+            <section className="border-b p-4">
+              <p className="text-sm font-medium">Owner of</p>
+              <p className="mb-2 text-xs text-muted-foreground">
+                An owner publishes and checks the context in their domain.
+              </p>
+              <ul className="flex flex-col">
+                {domainIds.map((d) => {
+                  const allowed = owners[d] ?? 'can'
+                  const id = `own-${d}`
                   return (
-                    <button
-                      key={r}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      disabled={!me.admin || p.name === me.name}
-                      onClick={() =>
-                        void write('setAdmin', { name: p.name, admin: r === 'Admin' }).then(() =>
-                          toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`),
-                        )
-                      }
-                      className="h-7 rounded-sm px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
-                    >
-                      {r}
-                    </button>
+                    <li key={d} className="flex min-h-10 items-center gap-2">
+                      <DomainDot id={d} />
+                      <label htmlFor={id} className="flex-1 text-sm">
+                        {domains[d]?.name}
+                      </label>
+                      <Locked reason={lockOf(allowed)}>
+                        <Switch
+                          id={id}
+                          checked={p.owns.includes(d)}
+                          disabled={allowed !== 'can'}
+                          onCheckedChange={(v) => {
+                            void write('setOwner', { id: p.id, domain: d, own: v }).then(
+                              (result) => {
+                                if (!result.done)
+                                  toast(`${domains[d]?.name} needs an owner`, {
+                                    description: 'Add another owner first, then take this one off.',
+                                  })
+                              },
+                            )
+                          }}
+                        />
+                      </Locked>
+                    </li>
                   )
                 })}
-              </div>
-            </Locked>
-          </section>
-          <section className="border-b p-4">
-            <p className="text-sm font-medium">Owner of</p>
-            <p className="mb-2 text-xs text-muted-foreground">
-              An owner publishes and checks the context in their domain.
-            </p>
-            <ul className="flex flex-col">
-              {domainIds.map((d) => {
-                const owns = !!domains[d]?.owners.includes(p.name)
-                const allowed = me.admin || me.owns.includes(d)
-                const id = `own-${d}`
-                return (
-                  <li key={d} className="flex min-h-10 items-center gap-2">
-                    <DomainDot id={d} />
-                    <label htmlFor={id} className="flex-1 text-sm">
-                      {domains[d]?.name}
-                    </label>
-                    <Locked reason={allowed ? undefined : 'Only its owners and admins add owners'}>
-                      <Switch
-                        id={id}
-                        checked={owns}
-                        disabled={!allowed}
-                        onCheckedChange={(v) => {
-                          void write('setOwner', { name: p.name, domain: d, own: v }).then(
-                            (result) => {
-                              if (!result.done)
-                                toast(`${domains[d]?.name} needs an owner`, {
-                                  description: 'Add another owner first, then take this one off.',
-                                })
-                            },
-                          )
-                        }}
-                      />
-                    </Locked>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
+              </ul>
+            </section>
+          ) : (
+            p.kind === 'invite' && (
+              <section className="border-b p-4">
+                <p id="person-will-own" className="text-sm font-medium">
+                  Owns once they sign in
+                </p>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  An invite keeps the domains it was sent with.
+                </p>
+                <div role="group" aria-labelledby="person-will-own">
+                  <OwnedChips owns={p.willOwn} />
+                </div>
+              </section>
+            )
+          )}
           <section className="p-4">
             <p id="person-lately" className="text-sm font-medium">
               Lately
@@ -413,7 +438,7 @@ function PersonSheet({
               </ul>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">
-                {p.invited
+                {p.kind === 'invite'
                   ? 'Nothing yet.'
                   : `Last active ${(p.lastActive ?? 'a while ago').toLowerCase()}.`}
               </p>
@@ -421,23 +446,15 @@ function PersonSheet({
           </section>
         </div>
         <div className="flex shrink-0 items-center justify-between gap-2 border-t p-4">
-          <Locked
-            reason={
-              me.admin
-                ? p.name === me.name
-                  ? "You can't remove yourself"
-                  : undefined
-                : 'Only an admin removes people'
-            }
-          >
+          <Locked reason={leave}>
             <Button
               variant="outline"
               size="sm"
               className="text-destructive"
-              disabled={!me.admin || p.name === me.name}
+              disabled={!!leave}
               onClick={() => setRemoving(true)}
             >
-              {p.invited ? 'Revoke the invite' : 'Remove from the workspace'}
+              {invited ? 'Revoke the invite' : 'Remove from the workspace'}
             </Button>
           </Locked>
         </div>
@@ -448,8 +465,8 @@ function PersonSheet({
                 <DialogHeader>
                   <DialogTitle>Hand over first</DialogTitle>
                   <DialogDescription>
-                    {p.name} is the only owner of {alone.map((d) => domains[d]?.name).join(' and ')}
-                    . Add another owner there, then remove them.
+                    {name} is the only owner of {alone.map((d) => domains[d]?.name).join(' and ')}.
+                    Add another owner there, then remove them.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -466,10 +483,10 @@ function PersonSheet({
               <>
                 <DialogHeader>
                   <DialogTitle>
-                    {p.invited ? `Revoke the invite to ${p.name}?` : `Remove ${p.name}?`}
+                    {invited ? `Revoke the invite to ${name}?` : `Remove ${name}?`}
                   </DialogTitle>
                   <DialogDescription>
-                    {p.invited
+                    {p.kind === 'invite'
                       ? 'Their invite link stops working.'
                       : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d]?.name).join(' and ')} carry on` : ''}.`}
                   </DialogDescription>
@@ -481,38 +498,39 @@ function PersonSheet({
                     onClick={() => {
                       setRemoving(false)
                       onOpenChange(false)
+                      const undo = (token: string) => ({
+                        label: 'Undo',
+                        onClick: () => void write('undo', { token }),
+                      })
                       // The row goes as it leaves the list, and comes back if they stay. What
                       // happened is said once the service has answered; Undo brings them back in.
-                      void leaveThen(p.name, () =>
-                        write('removePerson', { name: p.name }).then(
-                          (r) => {
-                            if (!r.removed) {
-                              const names = r.alone.map((d) => domains[d]?.name ?? d)
-                              toast('Hand over first', {
-                                description: `${p.name} is the only owner of ${listOf(names)}. Add another owner there, then remove them.`,
-                              })
-                              return
-                            }
-                            toast(p.invited ? 'Invite revoked' : 'Removed', {
-                              description: p.name,
-                              action: {
-                                label: 'Undo',
-                                onClick: () => void write('undo', { token: r.undo }),
-                              },
+                      void leaveThen(p.id, () =>
+                        (p.kind === 'invite'
+                          ? write('revokeInvite', { id: p.id }).then((r) =>
+                              toast('Invite revoked', { description: name, action: undo(r.undo) }),
+                            )
+                          : write('removePerson', { id: p.id }).then((r) => {
+                              if (!r.removed) {
+                                const names = r.alone.map((d) => domains[d]?.name ?? d)
+                                toast('Hand over first', {
+                                  description: `${name} is the only owner of ${listOf(names)}. Add another owner there, then remove them.`,
+                                })
+                                return
+                              }
+                              toast('Removed', { description: name, action: undo(r.undo) })
                             })
-                          },
-                          (e: unknown) =>
-                            toast(
-                              p.invited
-                                ? `Couldn't revoke the invite to ${p.name}`
-                                : `Couldn't remove ${p.name}`,
-                              { description: toApiError(e).message },
-                            ),
+                        ).catch((e: unknown) =>
+                          toast(
+                            invited
+                              ? `Couldn't revoke the invite to ${name}`
+                              : `Couldn't remove ${name}`,
+                            { description: toApiError(e).message },
+                          ),
                         ),
                       )
                     }}
                   >
-                    {p.invited ? 'Revoke' : 'Remove'}
+                    {invited ? 'Revoke' : 'Remove'}
                   </Button>
                 </DialogFooter>
               </>
@@ -527,57 +545,68 @@ function PersonSheet({
 export function People() {
   const me = useMe()
   const people = usePeople()
+  const invites = useInvites()
   const { fresh } = useSession()
   const [q, setQ] = React.useState('')
   const [inviting, setInviting] = React.useState(false)
-  // Search everywhere opens someone's sheet with ?person=.
+  const parties: Party[] = [
+    ...people.map((p) => ({ kind: 'member' as const, ...p })),
+    ...invites.map((i) => ({ kind: 'invite' as const, ...i })),
+  ]
+  // Search everywhere opens a member's sheet with ?person= and their name; the sheet open is
+  // anyone's, by id.
   const asked = useRoute().query.get('person')
-  const [open, setOpen] = React.useState<string | null>(asked)
+  const askedId = asked ? (people.find((p) => p.name === asked)?.id ?? null) : null
+  const [open, setOpen] = React.useState<string | null>(askedId)
   const [lastAsked, setLastAsked] = React.useState(asked)
   if (asked !== lastAsked) {
     setLastAsked(asked)
-    if (asked) setOpen(asked)
+    if (askedId) setOpen(askedId)
   }
   const close = () => {
     setOpen(null)
     if (asked) setQuery({ person: undefined })
   }
   // A new install has only the person who set it up.
-  const everyone = fresh ? people.filter((p) => p.name === me.name) : people
+  const everyone = fresh ? parties.filter((p) => p.kind === 'member' && p.id === me.id) : parties
   const shown = everyone.filter((p) =>
-    `${p.name} ${emailOf(p)}`.toLowerCase().includes(q.trim().toLowerCase()),
+    `${nameOf(p)} ${p.kind === 'member' ? emailOf(p) : ''}`
+      .toLowerCase()
+      .includes(q.trim().toLowerCase()),
   )
-  const invited = shown.filter((p) => p.invited)
-  const active = shown.filter((p) => !p.invited)
-  const current = people.find((p) => p.name === open) ?? null
+  const invited = shown.filter((p) => p.kind === 'invite')
+  const active = shown.filter((p) => p.kind === 'member')
+  const current = parties.find((p) => p.id === open) ?? null
   const leaving = useLeavingRows()
 
-  const row = (p: Person) => (
-    <li key={p.name} data-leaving={leaving.has(p.name) || undefined} className="row-presence">
+  const row = (p: Party) => (
+    <li key={p.id} data-leaving={leaving.has(p.id) || undefined} className="row-presence">
       <button
         type="button"
-        onClick={() => setOpen(p.name)}
+        onClick={() => setOpen(p.id)}
         className="grid w-full grid-cols-(--cols-around) items-center gap-x-3 gap-y-1.5 border-t px-4 py-3 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:px-5 @3xl/main:grid-cols-(--cols-people)"
       >
-        <PersonAvatar name={p.name} />
+        <PersonAvatar name={nameOf(p)} />
         <span className="min-w-0">
           <span className="block truncate text-sm font-medium">
-            {p.name}
-            {p.name === me.name && (
+            {nameOf(p)}
+            {p.kind === 'member' && p.id === me.id && (
               <span className="font-normal text-muted-foreground"> (you)</span>
             )}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">{emailOf(p)}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {p.kind === 'member' ? emailOf(p) : p.email}
+          </span>
         </span>
         <span className="justify-self-end @3xl/main:justify-self-start">
           <RoleChip admin={p.admin} />
         </span>
         {/* On a phone the row is a card: the domains and when on a line of their own. */}
         <span className="col-span-3 col-start-2 @3xl/main:col-span-1 @3xl/main:col-start-auto">
-          <OwnedChips p={p} />
+          <OwnedChips owns={p.kind === 'member' ? p.owns : p.willOwn} />
         </span>
         <span className="col-span-3 col-start-2 text-xs text-muted-foreground @3xl/main:col-span-1 @3xl/main:col-start-auto @3xl/main:text-right">
-          {p.invited ? <TagChip tone="warn">Invited</TagChip> : p.lastActive}
+          {p.kind === 'invite' ? <TagChip tone="warn">Invited</TagChip> : p.lastActive}
         </span>
       </button>
     </li>
