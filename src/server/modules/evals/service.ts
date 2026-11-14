@@ -5,6 +5,8 @@ import type { Agreement } from '../../../domain/golden-question.ts'
 import type { Queryable } from '../../db/database.ts'
 import { importQuestions } from './questions.ts'
 import {
+  commandKinds,
+  commandRunNotResumed,
   planArea,
   resumeRun,
   runColumns,
@@ -276,8 +278,9 @@ export function createEvalsService(
         return publicRun(await loadRun(id))
       },
       /**
-       * R6: an incomplete run is queued again; only its missing answers are made. A run approved
-       * with a cost ceiling at the command line ran with that command's models: it is resumed there.
+       * R6: an incomplete run is queued again; only its missing answers are made. A run only a
+       * command works is never queued for the worker. A run approved with a cost ceiling at the
+       * command line ran with that command's models: it is resumed there.
        */
       async resume(id: string) {
         const run = await loadRun(id, true)
@@ -292,6 +295,8 @@ export function createEvalsService(
           throw new ORPCError('CONFLICT', {
             message: 'Only a test run that stopped before it finished can be resumed.',
           })
+        if (commandKinds.includes(run.kind))
+          throw new ORPCError('CONFLICT', { message: commandRunNotResumed })
         if (run.cost_ceiling_micros !== null)
           throw new ORPCError('CONFLICT', {
             message: `This test run was approved at the command line with a spending limit. Resume it there: npm run eval -- --resume ${id}`,
