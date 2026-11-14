@@ -6,6 +6,7 @@ import {
   FlaskConicalIcon,
   ListChecksIcon,
   LockIcon,
+  MailIcon,
   NotebookTextIcon,
   PanelRightIcon,
   ShieldCheckIcon,
@@ -55,7 +56,7 @@ import { savedCounts } from '@/model/saved-questions'
 import { plainText } from '@/lib/mentions'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useSideChoice } from '@/lib/side-panel'
-import { useDomains, useFacts, useMe, usePeople } from '@/lib/workspace'
+import { useDomains, useFacts, useInvites, useMe, usePeople } from '@/lib/workspace'
 import { InviteDialog } from '@/pages/people'
 import { DomainPoliciesField } from '@/pages/agent-policies'
 
@@ -76,6 +77,7 @@ export function DomainPage({
 }) {
   const domains = useDomains()
   const people = usePeople()
+  const invited = useInvites().filter((i) => i.willOwn.includes(id))
   const write = useWrite()
   const me = useMe()
   const { query } = useRoute()
@@ -365,6 +367,17 @@ export function DomainPage({
                 }
               />
             </PropertyRow>
+            {invited.length > 0 && (
+              <PropertyRow id={fieldId('invited')} label="Invited" icon={<MailIcon />}>
+                {/* Not owners yet: each owns it once they sign in with their invite. */}
+                <StaticField>
+                  <span role="group" aria-labelledby={fieldId('invited')} className="min-w-0">
+                    {invited.map((i) => i.email).join(', ')},{' '}
+                    {invited.length === 1 ? 'owner' : 'owners'} once they sign in
+                  </span>
+                </StaticField>
+              </PropertyRow>
+            )}
             {!isNew && (
               <>
                 <PropertyRow id={fieldId('context')} label="Context" icon={<NotebookTextIcon />}>

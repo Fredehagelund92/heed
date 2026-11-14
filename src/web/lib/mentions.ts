@@ -112,14 +112,12 @@ function build({ facts, definitions, domains: list, people, markets }: World): M
       label: m,
       hint: 'Market',
     })),
-    ...people
-      .filter((p) => !p.invited)
-      .map((p) => ({
-        id: mentionId('person', p.name),
-        kind: 'person' as const,
-        label: p.name,
-        hint: p.role,
-      })),
+    ...people.map((p) => ({
+      id: mentionId('person', p.name),
+      kind: 'person' as const,
+      label: p.name,
+      hint: p.role,
+    })),
   ]
 }
 

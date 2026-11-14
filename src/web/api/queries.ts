@@ -535,6 +535,7 @@ export const invalidations: {
   setAdmin: () => workspace,
   invite: () => workspace,
   resendInvite: () => workspace,
+  revokeInvite: () => workspace,
   removePerson: () => workspace,
   // Set in place (`inPlace`): opening an item changes nothing else the library holds.
   markViewed: () => [],

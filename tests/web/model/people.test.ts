@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, toApiError } from '@/api/errors'
-import { homeDomain, listOf, soleOwnerOf, type Domain, type Domains } from '@/model/people'
+import {
+  homeDomain,
+  listOf,
+  partyActions,
+  soleOwnerOf,
+  type Domain,
+  type Domains,
+  type Party,
+  type Person,
+} from '@/model/people'
 
-// Where a person's new context starts, how a list of names reads in a sentence, and which domains
-// someone owns alone; a refusal
+// Where a person's new context starts, how a list of names reads in a sentence, which domains
+// someone owns alone and what may be done to a member or an invite on the People page; a refusal
 // that names the live items a publish has to say it relates to; and a request that got no reply.
 
 const domain = (id: string, owners: string[] = [], sandbox = false): Domain => ({
@@ -34,24 +43,100 @@ describe('where new context starts', () => {
 })
 
 describe('the only owner of a domain', () => {
-  // Omar is invited as an owner of Paid media: his address sits in its owners beside Priya's name.
-  const paidMedia = domain('paid_media', ['Priya Nair', 'omar@larchwood.example'])
-  const domains: Domains = { paid_media: paidMedia, sales }
-  const people = [
-    { name: 'Priya Nair' },
-    { name: 'Jon Abara' },
-    { name: 'omar@larchwood.example', invited: true },
-  ]
+  const domains: Domains = { paid_media: domain('paid_media', ['Priya Nair']), sales }
 
-  it('is still the one member who owns it, whoever is invited there too', () => {
-    expect(soleOwnerOf('Priya Nair', domains, people)).toEqual(['paid_media'])
-    expect(soleOwnerOf('Jon Abara', domains, people)).toEqual(['sales'])
+  it('is the one member who owns it', () => {
+    expect(soleOwnerOf('Priya Nair', domains)).toEqual(['paid_media'])
+    expect(soleOwnerOf('Jon Abara', domains)).toEqual(['sales'])
+    expect(soleOwnerOf('Ines Duarte', domains)).toEqual([])
+  })
+})
+
+describe('what may be done to a member or an invite', () => {
+  const member = (id: string, name: string, owns: string[], admin = false): Person => ({
+    id,
+    name,
+    role: '',
+    owns,
+    admin,
+  })
+  const jon = member('p_jon', 'Jon Abara', ['sales'], true)
+  const tomas = member('p_tomas', 'Tomas Eriksen', ['marketing'])
+  const priya = member('p_priya', 'Priya Nair', ['paid_media'])
+  const sofia = member('p_sofia', 'Sofia Brandt', ['sales'])
+  const domains: Domains = {
+    sales: domain('sales', ['Jon Abara', 'Sofia Brandt']),
+    marketing,
+    paid_media: domain('paid_media', ['Priya Nair']),
+  }
+  const as = (p: Person): Party => ({ kind: 'member', ...p })
+  // Tomas invited Omar to own Marketing; the command line's invite has no sender.
+  const omar: Party = {
+    kind: 'invite',
+    id: 'i_omar',
+    email: 'omar@larchwood.example',
+    admin: false,
+    willOwn: ['marketing'],
+    sentBy: 'p_tomas',
+  }
+  const cli: Party = { ...omar, id: 'i_cli', email: 'first@larchwood.example', sentBy: null }
+
+  it("lets an admin change another member's role and domains, and remove them", () => {
+    const a = partyActions(as(sofia), jon, domains)
+    expect(a.role).toBe('can')
+    expect(a.owners).toEqual({ sales: 'can', marketing: 'can', paid_media: 'can' })
+    expect(a.resend).toBe('absent')
+    expect(a.leave).toBe('can')
   })
 
-  it('is never an invite, so taking one back never waits on a hand-over', () => {
-    expect(soleOwnerOf('omar@larchwood.example', domains, people)).toEqual([])
-    const onlyInvited = { paid_media: domain('paid_media', ['omar@larchwood.example']) }
-    expect(soleOwnerOf('omar@larchwood.example', onlyInvited, people)).toEqual([])
+  it('asks for a hand-over exactly when the member is the only owner of a domain', () => {
+    expect(partyActions(as(priya), jon, domains).leave).toEqual({ handOver: ['paid_media'] })
+    // Sofia owns Sales with Jon: she leaves without one.
+    expect(partyActions(as(sofia), jon, domains).leave).toBe('can')
+  })
+
+  it('never lets someone change their own role or remove themselves', () => {
+    const a = partyActions(as(jon), jon, domains)
+    expect(a.role).toEqual({ locked: "You can't change your own role" })
+    expect(a.leave).toEqual({ locked: "You can't remove yourself" })
+  })
+
+  it('lets an owner who is not an admin change owners of their own domain only', () => {
+    const a = partyActions(as(sofia), tomas, domains)
+    expect(a.role).toEqual({ locked: 'Only an admin changes roles' })
+    expect(a.owners).toEqual({
+      sales: { locked: 'Only its owners and admins add owners' },
+      marketing: 'can',
+      paid_media: { locked: 'Only its owners and admins add owners' },
+    })
+    expect(a.leave).toEqual({ locked: 'Only an admin removes people' })
+  })
+
+  it('has no role or domains to change on an invite: it keeps those it was sent with', () => {
+    const a = partyActions(omar, jon, domains)
+    expect(a.role).toBe('absent')
+    expect(a.owners).toBe('absent')
+  })
+
+  it('lets an admin or its sender make a new link and take it back, never waiting on a hand-over', () => {
+    expect(partyActions(omar, jon, domains)).toMatchObject({ resend: 'can', leave: 'can' })
+    expect(partyActions(omar, tomas, domains)).toMatchObject({ resend: 'can', leave: 'can' })
+    expect(partyActions(omar, priya, domains)).toMatchObject({
+      resend: { locked: 'Only an admin or whoever sent it makes a new link' },
+      leave: { locked: 'Only an admin or whoever sent it takes it back' },
+    })
+    // An invite with no sender is an admin's alone.
+    expect(partyActions(cli, tomas, domains).leave).toEqual({
+      locked: 'Only an admin or whoever sent it takes it back',
+    })
+  })
+
+  it('lets a sender make a new link only while they still own its domains', () => {
+    const moved = { ...tomas, owns: [] }
+    expect(partyActions(omar, moved, domains)).toMatchObject({
+      resend: { locked: 'Only an admin or whoever sent it makes a new link' },
+      leave: 'can',
+    })
   })
 })
 
