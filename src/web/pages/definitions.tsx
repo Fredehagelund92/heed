@@ -391,8 +391,7 @@ export function DefinitionsPage() {
             // No context yet: the count becomes what to do about it.
             <Button
               variant="ghost"
-              size="sm"
-              className="-mr-2 h-7 px-2 text-sm font-medium text-primary hover:text-primary"
+              className="-mr-3 text-primary hover:text-primary"
               aria-label={`Write context about ${d.name}`}
               onClick={(e) => {
                 e.stopPropagation()
@@ -445,7 +444,11 @@ export function DefinitionsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <SiteHeader title="Definitions" icon={<BookAIcon />}>
-        <Button size="sm" onClick={() => navigate('/definitions/new')}>
+        {/* With a definition's quick view open, its own action (Write context) is the one solid blue button. */}
+        <Button
+          variant={dock?.kind === 'def' ? 'outline' : 'default'}
+          onClick={() => navigate('/definitions/new')}
+        >
           <PlusIcon data-icon="inline-start" />
           New term
         </Button>
@@ -465,7 +468,6 @@ export function DefinitionsPage() {
                 render={
                   <Button
                     variant="ghost"
-                    size="sm"
                     className={cn(barButton, 'text-foreground @md/main:hidden')}
                   />
                 }
@@ -508,7 +510,6 @@ export function DefinitionsPage() {
                 render={
                   <Button
                     variant="ghost"
-                    size="sm"
                     className={cn(barButton, filters > 0 && 'bg-muted text-foreground')}
                   />
                 }
@@ -574,9 +575,7 @@ export function DefinitionsPage() {
               className="w-56"
             />
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="sm" className={barButton} />}
-              >
+              <DropdownMenuTrigger render={<Button variant="ghost" className={barButton} />}>
                 <ListTreeIcon />
                 <span className={cn(group === 'none' ? 'sr-only' : '@max-5xl/main:sr-only')}>
                   {group === 'none' ? 'Group' : GROUPS[group]}
@@ -675,8 +674,7 @@ export function DefinitionsPage() {
               {!cues.includes('none') && (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-7"
+
                   onClick={() => setCues(['none'])}
                 >
                   Show only these
@@ -758,7 +756,7 @@ export function DefinitionsPage() {
                           .join(', ')}
                         .
                       </p>
-                      <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
+                      <Button variant="outline" className="mt-3" onClick={clearAll}>
                         Clear search and filters
                       </Button>
                     </td>

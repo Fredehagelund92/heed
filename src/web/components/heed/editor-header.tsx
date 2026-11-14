@@ -86,7 +86,7 @@ export function HeaderMore({ children }: { children?: ReactNode }) {
   const mobile = useIsMobile()
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="More" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More" />}>
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

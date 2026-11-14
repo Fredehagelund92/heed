@@ -195,12 +195,7 @@ export function DomainPage({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
-                    size="sm"
-                    data-primary
-                    aria-disabled={!name.trim()}
-                    onClick={() => void create()}
-                  />
+                  <Button data-primary aria-disabled={!name.trim()} onClick={() => void create()} />
                 }
               >
                 Add the domain

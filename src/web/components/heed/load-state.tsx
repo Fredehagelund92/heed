@@ -146,7 +146,7 @@ export function LoadError({
           Nothing is lost. Check the connection and try again.
         </p>
       </div>
-      <Button variant="outline" size="sm" onClick={onRetry}>
+      <Button variant="outline" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
         Retry
       </Button>

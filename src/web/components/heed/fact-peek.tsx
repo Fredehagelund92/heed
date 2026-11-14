@@ -142,7 +142,6 @@ export function FactPeek({ id }: { id: string }) {
           {owner && (
             <Button
               variant="outline"
-              size="sm"
               disabled={!checked}
               onClick={() => {
                 void write('completeCard', { card: flag.id, outcome: 'Not a problem' })
@@ -154,7 +153,7 @@ export function FactPeek({ id }: { id: string }) {
             </Button>
           )}
           {unchecked && (
-            <Button variant="outline" size="sm" onClick={retry}>
+            <Button variant="outline" onClick={retry}>
               Try again
             </Button>
           )}
@@ -170,7 +169,7 @@ export function FactPeek({ id }: { id: string }) {
     <PeekAttention
       icon={TriangleAlertIcon}
       action={
-        <Button variant="outline" size="sm" onClick={retry}>
+        <Button variant="outline" onClick={retry}>
           Try again
         </Button>
       }
@@ -185,7 +184,6 @@ export function FactPeek({ id }: { id: string }) {
         owner && (
           <Button
             variant="outline"
-            size="sm"
             disabled={!checked}
             onClick={() =>
               void write('editItem', {
@@ -223,12 +221,12 @@ export function FactPeek({ id }: { id: string }) {
       }
       footer={
         owner ? (
-          <Button size="sm" nativeButton={false} render={<a href={href(`${page}/edit`)} />}>
+          <Button nativeButton={false} render={<a href={href(`${page}/edit`)} />}>
             <PencilIcon data-icon="inline-start" />
             Edit
           </Button>
         ) : (
-          <Button size="sm" nativeButton={false} render={<a href={href(`${page}/suggest`)} />}>
+          <Button nativeButton={false} render={<a href={href(`${page}/suggest`)} />}>
             <PencilIcon data-icon="inline-start" />
             Suggest a change
           </Button>
@@ -299,17 +297,16 @@ export function FactPeek({ id }: { id: string }) {
           <PeekToolbar label="More about this context item">
             <PeekLink
               icon={FlaskConicalIcon}
-              className="h-8"
               onClick={() => openDock('ask', undefined, { q: question })}
             >
               Try it
             </PeekLink>
-            <PeekLink icon={ClockIcon} className="h-8" href={href(page)}>
+            <PeekLink icon={ClockIcon} href={href(page)}>
               {history.length
                 ? `History: ${history.length} ${history.length === 1 ? 'version' : 'versions'}`
                 : 'History'}
             </PeekLink>
-            <PeekLink icon={MessageSquareIcon} className="h-8" href={href(page)}>
+            <PeekLink icon={MessageSquareIcon} href={href(page)}>
               {nComments ? `Comments: ${nComments}` : 'Comments'}
             </PeekLink>
           </PeekToolbar>
@@ -352,13 +349,12 @@ function Disagreement({
       icon={ArrowLeftRightIcon}
       action={
         pair.state === 'failed' ? (
-          <Button variant="outline" size="sm" onClick={onRetry}>
+          <Button variant="outline" onClick={onRetry}>
             Try again
           </Button>
         ) : (
           <Button
             variant="outline"
-            size="sm"
             disabled={pair.state !== 'known'}
             aria-busy={pair.state === 'checking' || undefined}
             onClick={() => pair.state === 'known' && openDock('conflict', pair.key)}

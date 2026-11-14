@@ -25,15 +25,12 @@ const buttonVariants = cva(
           'bg-destructive/8 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 aria-disabled:hover:bg-destructive/8 dark:bg-destructive/8 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40 dark:aria-disabled:hover:bg-destructive/8',
         link: 'text-primary underline-offset-4 hover:underline aria-disabled:hover:no-underline',
       },
+      // Two heights, and one recipe for both (14 px at weight 500, corners 8, side padding 12): 28 for
+      // bars, toolbars, rows and dialogs, 36 for the one decision a pane or a page is for.
       size: {
-        default:
-          'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-md px-2.5 text-sm has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: 'h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        icon: 'size-8',
-        'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        'icon-sm': 'size-7 rounded-md',
+        default: 'h-7 gap-1.5 px-3',
+        lg: 'h-9 gap-1.5 px-3',
+        icon: 'size-7',
         'icon-lg': 'size-9',
       },
     },
@@ -106,6 +103,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
+      data-variant={variant}
       data-loading={loading || undefined}
       aria-busy={loading || undefined}
       className={cn(buttonVariants({ variant, size, className }), spin && 'relative')}

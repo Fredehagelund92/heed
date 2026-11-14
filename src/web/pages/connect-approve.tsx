@@ -159,7 +159,12 @@ function Consent({ requestId, person }: { requestId: string; person: string }) {
       <Notice
         title="We couldn't load this sign-in"
         action={
-          <Button variant="outline" className={phoneTarget} onClick={() => void request.refetch()}>
+          <Button
+            size="lg"
+            variant="outline"
+            className={phoneTarget}
+            onClick={() => void request.refetch()}
+          >
             Try again
           </Button>
         }
@@ -265,6 +270,7 @@ function Decide({
         )}
         <div className="flex flex-wrap gap-3">
           <Button
+            size="lg"
             className={phoneTarget}
             loading={answer.isPending && answer.variables?.allow === true}
             loadingLabel="Allowing…"
@@ -274,6 +280,7 @@ function Decide({
             Allow
           </Button>
           <Button
+            size="lg"
             variant="outline"
             className={phoneTarget}
             loading={answer.isPending && answer.variables?.allow === false}

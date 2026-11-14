@@ -72,7 +72,7 @@ function Alerts() {
           </>
         }
         action={
-          <Button variant="outline" size="sm" aria-disabled aria-describedby="add-rule-reason">
+          <Button variant="outline" aria-disabled aria-describedby="add-rule-reason">
             <PlusIcon data-icon="inline-start" />
             Add a rule
             <ComingSoon />

@@ -287,7 +287,6 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
               <TooltipTrigger
                 render={
                   <Button
-                    size="sm"
                     data-primary
                     aria-disabled={!!held}
                     loading={sendState === 'sending'}
@@ -366,12 +365,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
                   Couldn't {verb.toLowerCase()}
                   <span className="max-sm:hidden">. Your words are kept</span>.
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-foreground"
-                  onClick={() => send(commit)}
-                >
+                <Button variant="outline" className="text-foreground" onClick={() => send(commit)}>
                   <RefreshCwIcon data-icon="inline-start" />
                   Retry
                 </Button>

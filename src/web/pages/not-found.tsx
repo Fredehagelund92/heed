@@ -22,7 +22,7 @@ export function NotFoundPage() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <a href="/inbox" className={buttonVariants({ size: 'sm' })}>
+          <a href="/inbox" className={buttonVariants()}>
             Go to the Inbox
           </a>
         </EmptyContent>

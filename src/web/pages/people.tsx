@@ -313,7 +313,6 @@ function PersonSheet({ p, onOpenChange }: { p: Party | null; onOpenChange: (o: b
               <Locked reason={lockOf(can.resend)}>
                 <Button
                   variant="outline"
-                  size="sm"
                   disabled={can.resend !== 'can'}
                   onClick={() =>
                     void write('resendInvite', { id: p.id }).then(({ link }) =>
@@ -449,7 +448,6 @@ function PersonSheet({ p, onOpenChange }: { p: Party | null; onOpenChange: (o: b
           <Locked reason={leave}>
             <Button
               variant="outline"
-              size="sm"
               className="text-destructive"
               disabled={!!leave}
               onClick={() => setRemoving(true)}
@@ -619,7 +617,7 @@ export function People() {
         description="Everyone here can read, ask, flag and suggest. Owners publish and check their domain's context; admins change Settings."
         action={
           <Locked reason={me.admin ? undefined : 'Only an admin invites people'}>
-            <Button size="sm" disabled={!me.admin} onClick={() => setInviting(true)}>
+            <Button disabled={!me.admin} onClick={() => setInviting(true)}>
               <UserPlusIcon data-icon="inline-start" />
               Invite people
             </Button>
@@ -637,7 +635,7 @@ export function People() {
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search people"
               aria-label="Search people"
-              className="h-8 max-w-xs pl-8"
+              className="max-w-xs pl-8"
             />
           </div>
         )}

@@ -83,12 +83,7 @@ function AddNote({
 /** Under the line or field a finger tapped: one button to comment on it. */
 function TouchNote({ at, notes }: { at: SourcePlace; notes: SourceNotes }) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-muted-foreground"
-      onClick={() => notes.comment(at)}
-    >
+    <Button variant="ghost" className="text-muted-foreground" onClick={() => notes.comment(at)}>
       <MessageSquarePlusIcon data-icon="inline-start" />
       Comment on {placeLabel(at).toLowerCase()}
     </Button>

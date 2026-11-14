@@ -147,7 +147,7 @@ export function SignInPage() {
                   {refused}
                 </p>
               )}
-              <Button nativeButton={false} render={<a href={start} />} className="w-full">
+              <Button size="lg" nativeButton={false} render={<a href={start} />} className="w-full">
                 Sign in with {provider.name}
               </Button>
             </FieldGroup>
@@ -274,7 +274,7 @@ export function SignInChoices({ returnTo }: { returnTo: string }) {
   if (method.data?.kind !== 'oidc') return <PeoplePicker />
   const start = `${method.data.start}?returnTo=${encodeURIComponent(returnTo)}`
   return (
-    <Button nativeButton={false} render={<a href={start} />} className="w-full">
+    <Button size="lg" nativeButton={false} render={<a href={start} />} className="w-full">
       Sign in with {method.data.name}
     </Button>
   )

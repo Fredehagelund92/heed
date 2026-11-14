@@ -102,13 +102,13 @@ export function AnswerPanel({ id }: { id: string }) {
       actions={<DockStepper list="obs-topics" id={t.id} onGo={(next) => openDock('topic', next)} />}
       footer={
         <>
-          <a href={write} className={cn(buttonVariants({ size: 'sm' }))}>
+          <a href={write} className={cn(buttonVariants())}>
             <PencilLineIcon data-icon="inline-start" />
             Write context for this
           </a>
           <a
             href={href('/ask', { q: question })}
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            className={cn(buttonVariants({ variant: 'outline' }))}
           >
             <PlayIcon data-icon="inline-start" />
             Try it
@@ -452,7 +452,6 @@ function WarningsTab({
                 </span>
                 <Button
                   variant="outline"
-                  size="xs"
                   className="shrink-0"
                   onClick={() => openDock('conflict', pair.key)}
                 >
@@ -471,7 +470,7 @@ function WarningsTab({
                 </span>
                 <a
                   href={t.gap.href}
-                  className={cn(buttonVariants({ variant: 'outline', size: 'xs' }), 'shrink-0')}
+                  className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')}
                 >
                   <ArrowUpRightIcon />
                   Open
