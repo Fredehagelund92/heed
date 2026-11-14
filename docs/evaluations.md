@@ -119,7 +119,7 @@ keep the levels 4 and 5 they recorded.
   day) is `tool`: never a quality result. Such a
   run, or one stopped by a cap, its ceiling or Ctrl-C, ends `incomplete` with what is missing;
   resuming it (`POST /evals/runs/{id}/resume`, or
-  `npm run eval -- --resume <run id>`) makes only those answers. The command refuses, and leaves the run as it was, when the models it would use differ from the run's. The job resumes an incomplete run
+  `npm run eval -- --resume <run id>`) makes only those answers. The command refuses, and leaves the run as it was, when the models it would use differ from the run's. Neither resumes a held-out run or an assistant test run, which only their own command works: run that command again. The job resumes an incomplete run
   the service started a few times by itself, 15 minutes apart.
 - **Judge against code**: a run's result and scorecard name the questions where the judge passed
   what the code checks failed, and the other way round, with the count of tries. A judge that
@@ -130,7 +130,7 @@ keep the levels 4 and 5 they recorded.
   Mondays at 04:00 UTC while the service runs. A finished run moves the domain's baseline, lists
   regressions against the previous one, measures the held-out targets of requirements section
   1.7, and posts an `eval.scorecard` outbox event. A scheduled run that has not finished within a
-  day fails with an `eval_run_unfinished` alert; the watchdog alerts when eight days pass without one.
+  day, stopped or not, fails with an `eval_run_unfinished` alert; the watchdog alerts when eight days pass without one.
 - **Links runs** (FR-523): whether following links helps is measured with `get_related` off on
   one side and on on the other (it is on by default since the agent contract). A link-follow question sets `expected.reachable_via_link` (the
   items whose context the answer must reach through `read_context` or `get_related`, and cite) and

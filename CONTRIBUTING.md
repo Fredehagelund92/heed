@@ -349,7 +349,12 @@ it.
 The plain-words lint enforces this. `npm run lint:words` (also part of `npm run check`) reports a
 word the glossary bans on a screen, with the word to write instead. In the web app the count of
 old words is zero and stays there; in the service's sentences no file may gain any
-(`plain-words.baseline.json`). `npm run lint:words -- --list` shows where they are.
+(`plain-words.baseline.json`). The same check holds what people read outside the web app to the
+same glossary, and keeps the shape of the copy: no sentence glued together in code, none over 25
+words, one word for one thing, no error without a message, no fixed locale and no demo in code
+every install runs. Each rule counts against `copy-checks.baseline.json` and fails only on a rise.
+`npm run lint:words -- --list` shows where they are, and `npm run copy:report` gives the reading
+level of the files you changed ([copy](docs/design/copy.md), "The voice").
 
 ## Commits and pull requests
 

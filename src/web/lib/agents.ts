@@ -154,7 +154,7 @@ export const guidesFor = (address = ADDRESS): AgentGuide[] => [
         what: 'In ChatGPT on the web, open Settings, Apps and Connectors, Advanced settings, and turn on Developer mode.',
       },
       {
-        what: 'Press Create, name it, paste the address, choose OAuth, and approve the connection in the browser.',
+        what: 'Press Create, name it, paste the address, choose OAuth (sign in through the browser), and approve the connection in the browser.',
       },
       { what: 'On a Business or Enterprise plan an admin turns on connectors first.' },
     ],
@@ -187,33 +187,45 @@ export function logoFor(agent: string) {
 }
 
 /** The tools an agent can call, with what each does in plain words: Settings and the docs list the same. */
-export const AGENT_TOOLS: { name: string; what: string; takes: string; returns: string }[] = [
+export const AGENT_TOOLS: {
+  name: string
+  /** The plain name: shown first, with the exact tool name small beside it. */
+  title: string
+  what: string
+  takes: string
+  returns: string
+}[] = [
   {
     name: 'get_context',
+    title: 'Get the context for a question',
     what: 'The context that applies to a question, with one sentence to relay.',
     takes: 'The question, or a metric, markets and dates.',
     returns: 'The answer line, the context items that apply, and one sentence to relay.',
   },
   {
     name: 'find_context',
+    title: 'Search context by words',
     what: 'A word search over names, titles and summaries.',
     takes: 'A few words.',
     returns: 'Matching context items and definitions, titles only.',
   },
   {
     name: 'read_context',
+    title: 'Read one context item',
     what: 'One context item in full.',
     takes: 'A context item.',
     returns: "Its text, source, check date and don't conclude line.",
   },
   {
     name: 'report',
+    title: 'Tell an owner something is wrong',
     what: 'Tell the owner something is missing, wrong or unclear.',
     takes: 'What is wrong, after the person says yes.',
     returns: 'That it was sent, and to which owner.',
   },
   {
     name: 'suggest_context',
+    title: 'Suggest context to an owner',
     what: 'Send a suggestion to the owner, after the person says yes.',
     takes: 'The suggested text and what it applies to.',
     returns:
@@ -221,6 +233,7 @@ export const AGENT_TOOLS: { name: string; what: string; takes: string; returns: 
   },
   {
     name: 'get_related',
+    title: 'Follow a link',
     what: 'Follow a link between context items, definitions and domains, one step at a time.',
     takes: 'A context item, a definition or a domain.',
     returns: 'What it links to and is linked from, without changing what an answer includes.',

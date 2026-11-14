@@ -880,18 +880,55 @@ describe('weekly scorecard and baseline', () => {
     expect((await call('POST', `/evals/runs/${own.id}/cancel`, 'owner')).statusCode).toBe(200)
   })
 
-  it('fails and alerts a scheduled run that does not finish within a day', async () => {
+  it('fails and alerts a scheduled run that does not finish within a day, stopped or not', async () => {
+    // One never started; one stopped at a cap, which nothing resumes by itself.
     await client.query(
       `insert into eval_runs(kind,state,area_id,tool_schema_digest,model_id,client_label,test_set_digest,tries,
-         estimated_cost_micros,created_at)
-       values('scheduled','queued','marketing','x','mock/scripted-answer','eval','\\x00',3,0,now()-interval '25 hours')`,
+         estimated_cost_micros,created_at,finished_at,summary)
+       values('scheduled','queued','marketing','x','mock/scripted-answer','eval','\\x00',3,0,now()-interval '25 hours',null,'{}'),
+             ('scheduled','incomplete','finance','x','mock/scripted-answer','eval','\\x00',3,0,now()-interval '25 hours',
+              now()-interval '24 hours','{"stopped":{"reason":"cap"}}')`,
     )
     logs.length = 0
-    expect(await work()).toMatchObject({ expired: 1 })
-    expect(logs).toContainEqual(
-      expect.objectContaining({ alert: 'eval_run_unfinished', area: 'marketing' }),
-    )
+    expect(await work()).toMatchObject({ expired: 2 })
+    const alerts = logs.filter((line) => line.alert === 'eval_run_unfinished')
+    expect(alerts.map((line) => line.area).sort()).toEqual(['finance', 'marketing'])
+    // Once: the next pass finds nothing left to fail.
+    expect(await work()).toMatchObject({ expired: 0 })
   })
+
+  it('refuses to resume a run only its command works, rather than queue it for nobody', async () => {
+    const {
+      rows: [run],
+    } = await client.query<{ id: string }>(
+      `insert into eval_runs(kind,state,tool_schema_digest,model_id,client_label,test_set_digest,tries,
+         estimated_cost_micros,finished_at,summary)
+       values('held_out','incomplete','x','mock/scripted-answer','eval','\\x00',3,0,now(),
+         '{"edition":"E1","plan":{"questions":[],"setAside":[]},"stopped":{"reason":"stopped"}}')
+       returning id::text`,
+    )
+    const state = async () =>
+      (
+        await client.query<{ state: string }>('select state::text from eval_runs where id=$1', [
+          run!.id,
+        ])
+      ).rows[0]!.state
+    const refused = await call('POST', `/evals/runs/${run!.id}/resume`, 'admin')
+    expect(refused.statusCode).toBe(409)
+    expect(refused.body).toContain('npm run held-out -- eval')
+    expect(await state()).toBe('incomplete')
+    const command = await promisify(execFile)(
+      process.execPath,
+      ['src/server/run-evals.ts', '--resume', run!.id],
+      {
+        env: { ...process.env, DATABASE_URL: url, LOG_LEVEL: 'silent' },
+        timeout: 120_000,
+      },
+    ).catch((error: { code: number; stdout: string; stderr: string }) => error)
+    expect(command).toMatchObject({ code: 1 })
+    expect(command.stderr).toContain('npm run held-out -- eval')
+    expect(await state()).toBe('incomplete')
+  }, 180_000)
 })
 
 describe('refusals', () => {

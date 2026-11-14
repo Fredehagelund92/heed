@@ -114,10 +114,10 @@ function Usage() {
         />
         <Kpi
           icon={<TimerIcon />}
-          label="Median reply"
+          label="Typical reply (median)"
           value={median ?? '-'}
           unit={median === null ? undefined : 'ms'}
-          sub={p95 === null ? 'no replies timed' : `95 of 100 under ${p95} ms`}
+          sub={p95 === null ? 'no replies timed' : `95 of 100 under ${p95} ms (milliseconds)`}
         />
         <Kpi
           icon={<CircleAlertIcon />}
@@ -293,7 +293,10 @@ function Tools({ tools }: { tools: UsageData['tools'] }) {
         {tools.map((t) => (
           <tr key={t.name} className="border-t">
             <td className="px-4 py-2.5 md:pl-5">
-              <span className="block font-mono text-xs">{t.name}</span>
+              <span className="block text-sm">
+                {AGENT_TOOLS.find((a) => a.name === t.name)?.title ?? t.name}{' '}
+                <code className="font-mono text-xs text-muted-foreground">{t.name}</code>
+              </span>
               <span className="block text-dense text-muted-foreground">{what(t.name)}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground @2xl/main:hidden">
                 {[

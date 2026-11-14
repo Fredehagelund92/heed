@@ -812,9 +812,18 @@ export async function stopRun(
 }
 
 /**
+ * The kinds the worker never takes: the assistant's test cases and the held-out questions are
+ * worked by the command that runs them. Queued again, such a run would wait for nobody.
+ */
+export const commandKinds: readonly string[] = ['assistant_mock', 'assistant_real', 'held_out']
+export const commandRunNotResumed =
+  'This test run is worked only by the command that started it, so it is not resumed. Run that command again (for held-out cases, npm run held-out -- eval --area <domain id>).'
+
+/**
  * Queues an incomplete run again: the worker skips every finished answer and makes only the
  * missing ones. `costCeilingMicros` replaces the run's ceiling when given (the whole run's,
- * what it spent so far included). Returns false when the run is not incomplete.
+ * what it spent so far included). Returns false when the run is not incomplete, or is of a kind
+ * the worker never takes.
  */
 export async function resumeRun(
   tx: Queryable,
@@ -825,8 +834,8 @@ export async function resumeRun(
     `update eval_runs set state='queued',finished_at=null,failure=null,worker=null,lease_until=null,
        cost_ceiling_micros=case when $2::boolean then $3::bigint else cost_ceiling_micros end,
        summary=summary||jsonb_build_object('resumes',coalesce((summary->>'resumes')::int,0)+1)
-     where id=$1 and state='incomplete' returning id`,
-    [id, options.costCeilingMicros !== undefined, options.costCeilingMicros ?? null],
+     where id=$1 and state='incomplete' and kind <> all($4::eval_kind[]) returning id`,
+    [id, options.costCeilingMicros !== undefined, options.costCeilingMicros ?? null, commandKinds],
   )
   return rows.length > 0
 }
