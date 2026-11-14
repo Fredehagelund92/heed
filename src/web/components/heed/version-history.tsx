@@ -173,18 +173,13 @@ export function VersionHistory({
           ))}
           <div className="mt-1 flex items-center gap-2">
             {more > 0 && (
-              <Button variant="ghost" size="sm" className="-ml-2 h-7 text-xs" onClick={showMore}>
+              <Button variant="ghost" className="-ml-3" onClick={showMore}>
                 Show {next} earlier
                 <span className="text-muted-foreground tabular-nums">({more} more)</span>
               </Button>
             )}
             {showFewer && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-muted-foreground"
-                onClick={showFewer}
-              >
+              <Button variant="ghost" className="text-muted-foreground" onClick={showFewer}>
                 Show fewer
               </Button>
             )}
@@ -226,7 +221,6 @@ export function VersionHistory({
                   <div className="flex flex-col gap-1.5">
                     <Button
                       variant="outline"
-                      size="sm"
                       className="w-fit"
                       onClick={() => {
                         const token = viewing.policy!.undo!
@@ -256,7 +250,6 @@ export function VersionHistory({
                 {canRestore && viewing.v !== latest.v && restorable(viewing) && (
                   <Button
                     variant="outline"
-                    size="sm"
                     className="w-fit"
                     onClick={() => {
                       const restored = viewing

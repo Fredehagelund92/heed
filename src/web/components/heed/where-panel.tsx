@@ -202,7 +202,6 @@ function Chain({
       {many && (
         <Button
           variant="outline"
-          size="sm"
           className="w-fit"
           {...ahead(fact.id)}
           onClick={() => openDock('context', fact.id)}

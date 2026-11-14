@@ -40491,6 +40491,21 @@
                       ],
                       "type": "string"
                     },
+                    "check": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "date",
+                            "source_changed",
+                            "source_gone"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "chips": {
                       "type": "array",
                       "items": {
@@ -40648,6 +40663,7 @@
                     "item",
                     "lastChecked",
                     "trust",
+                    "check",
                     "chips",
                     "owners",
                     "history",
@@ -47435,6 +47451,21 @@
                             ],
                             "type": "string"
                           },
+                          "check": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "date",
+                                  "source_changed",
+                                  "source_gone"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "chips": {
                             "type": "array",
                             "items": {
@@ -47475,6 +47506,7 @@
                           "updatedAt",
                           "lastChecked",
                           "trust",
+                          "check",
                           "chips",
                           "owners",
                           "opened",

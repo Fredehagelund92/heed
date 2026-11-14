@@ -58,7 +58,7 @@ function AnchoredState({
       <span className="min-w-0">
         {whereItHangs(comment.anchor!, earlier)}. {state}
       </span>
-      <Button variant="outline" size="xs" className="ml-auto" onClick={() => onResolve(!resolved)}>
+      <Button variant="outline" className="ml-auto" onClick={() => onResolve(!resolved)}>
         {resolved ? 'Reopen' : 'Resolve'}
       </Button>
     </div>
@@ -147,7 +147,7 @@ export function CommentBox({
             />
             <ReactionPicker onPick={(e) => void commentActions.reactToSubject(subject, e)} />
             {!open && (
-              <Button variant="outline" size="sm" className="ml-1" onClick={() => setAdding(true)}>
+              <Button variant="outline" className="ml-1" onClick={() => setAdding(true)}>
                 <MessageSquarePlusIcon data-icon="inline-start" />
                 Add a comment
               </Button>

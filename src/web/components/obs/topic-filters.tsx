@@ -51,11 +51,7 @@ export function ViewSwitch({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(barButton, 'text-foreground @4xl/main:hidden')}
-            />
+            <Button variant="ghost" className={cn(barButton, 'text-foreground @4xl/main:hidden')} />
           }
         >
           <span className="sr-only">View: </span>
@@ -86,7 +82,7 @@ export function ViewSwitch({
       {onRemove && (
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon"
           aria-label={`Remove the view ${on.name}`}
           className="text-muted-foreground"
           onClick={onRemove}
@@ -110,7 +106,6 @@ export function GroupMenu({ value }: { value: Grouping }) {
         render={
           <Button
             variant="ghost"
-            size="sm"
             className={cn(barButton, value !== 'none' && 'bg-muted text-foreground')}
           />
         }
@@ -168,7 +163,6 @@ export function SaveView({
         render={
           <Button
             variant="ghost"
-            size="sm"
             className={barButton}
             aria-disabled={disabled || undefined}
             aria-description={
@@ -203,12 +197,10 @@ export function SaveView({
             It keeps these filters: {suggested}. It belongs to the workspace, so everyone sees it.
           </p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Save for everyone
-            </Button>
+            <Button type="submit">Save for everyone</Button>
           </div>
         </form>
       </PopoverContent>

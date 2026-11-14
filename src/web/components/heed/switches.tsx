@@ -34,7 +34,7 @@ export function ViewToggle({
         render={
           <Button
             variant="outline"
-            size={text ? 'sm' : 'icon-sm'}
+            size={text ? 'default' : 'icon'}
             aria-label={on}
             aria-pressed={pressed}
             onClick={() => onPressedChange(!pressed)}
@@ -217,12 +217,8 @@ export function ChoiceGroup<T extends string>({
             tabIndex={on || (value === undefined && i === 0) ? 0 : -1}
             data-value={o.value}
             variant="outline"
-            size="sm"
             onClick={() => onChange(o.value)}
-            className={cn(
-              'h-8 px-3',
-              on && 'border-foreground/60 bg-muted text-foreground hover:bg-muted',
-            )}
+            className={cn(on && 'border-foreground/60 bg-muted text-foreground hover:bg-muted')}
           >
             {o.label}
           </Button>

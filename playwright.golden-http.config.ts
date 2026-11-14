@@ -28,6 +28,8 @@ export default defineConfig({
     // Addresses, axe and the docs controls check the mock build's pages (playwright.config.ts).
     /\/addresses\.spec\.ts$/,
     /\/axe\.spec\.ts$/,
+    // Buttons and fields are measured on the mock build's pages too.
+    /\/buttons-fields\.spec\.ts$/,
     // The pane's screenshot baselines are of the mock's demo data.
     /\/visual-inbox-pane\.spec\.ts$/,
     // The definition answers' baselines are of the mock's demo data too.

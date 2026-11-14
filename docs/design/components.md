@@ -22,7 +22,7 @@ All in `components/ui`, built on Base UI. The ones marked * are not shadcn's own
 | Badge              | `badge.tsx`            | A count or a quiet label (the chip is separate)                            |
 | Breadcrumb         | `breadcrumb.tsx`       | Settings and Observability trails                                          |
 | Bubble *           | `bubble.tsx`           | A question in Ask (soft)                                                   |
-| Button             | `button.tsx`           | Buttons, with `loading`; sizes xs 24, sm 28, default 32, lg 36; icon sizes |
+| Button             | `button.tsx`           | Buttons, with `loading`; two sizes, default 28 and lg 36; icon sizes match |
 | Calendar           | `calendar.tsx`         | The date pickers                                                           |
 | Card               | `card.tsx`             | An Inbox card, a cell (square)                                             |
 | Checkbox           | `checkbox.tsx`         | Row picking                                                                |

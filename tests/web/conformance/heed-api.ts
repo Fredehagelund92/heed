@@ -787,11 +787,11 @@ export function describeHeedApi(
         'invite',
         'readInvite',
         'resendInvite',
-        'removePerson',
+        'revokeInvite',
         'undo',
       ),
     )(
-      'invites with a link, lists the invite as owning its domains, and takes it back',
+      'invites with a link, lists the invite apart with the domains it will own, and takes it back',
       async () => {
         const live = await signedIn()
         const before = await live.getWorkspace()
@@ -807,12 +807,11 @@ export function describeHeedApi(
           domains: [before.domains.find((d) => d.id === domain)!.name],
         })
         const after = await live.getWorkspace()
-        expect(after.people.find((p) => p.name === email)).toMatchObject({
-          invited: true,
-          admin: false,
-          owns: [domain],
-        })
-        expect(after.domains.find((d) => d.id === domain)!.owners).toContain(email)
+        const invite = after.invites.find((i) => i.email === email)!
+        expect(invite).toMatchObject({ admin: false, willOwn: [domain] })
+        // Nobody here yet: never among the members, nor a domain's owners.
+        expect(after.people.some((p) => p.email === email)).toBe(false)
+        expect(after.domains.find((d) => d.id === domain)!.owners).not.toContain(email)
         // Someone here already, and an open invite, are named, not invited again.
         const mine = emailOf(after.people.find((p) => p.name === person)!)
         const again = await live.invite({ emails: [email, mine], admin: false, owns: [] })
@@ -822,19 +821,16 @@ export function describeHeedApi(
           { email: mine, why: 'member' },
         ])
         // Sending it again gives a new link; the old one opens nothing.
-        const resent = await live.resendInvite({ name: email })
+        const resent = await live.resendInvite({ id: invite.id })
         expect(resent.link).not.toBe(made.links[0]!.link)
         expect(await live.readInvite({ token: token! })).toBeNull()
         // Taken back, it is gone; Undo invites them again.
-        const taken = await live.removePerson({ name: email })
-        expect(taken).toMatchObject({ removed: true })
-        expect((await live.getWorkspace()).people.some((p) => p.name === email)).toBe(false)
-        await live.undo({ token: (taken as { undo: string }).undo })
-        expect((await live.getWorkspace()).people.find((p) => p.name === email)).toMatchObject({
-          invited: true,
-          owns: [domain],
-        })
-        await live.removePerson({ name: email })
+        const taken = await live.revokeInvite({ id: invite.id })
+        expect((await live.getWorkspace()).invites.some((i) => i.email === email)).toBe(false)
+        await live.undo({ token: taken.undo })
+        const back = (await live.getWorkspace()).invites.find((i) => i.email === email)!
+        expect(back).toMatchObject({ willOwn: [domain] })
+        await live.revokeInvite({ id: back.id })
       },
     )
 
@@ -844,29 +840,28 @@ export function describeHeedApi(
         const live = await signedIn()
         const { domains, people } = await live.getWorkspace()
         const domain = people.find((p) => p.name === person)!.owns[0]!
+        const them = people.find((p) => p.name === colleague)!.id
         // A colleague becomes an owner, and stops being one.
-        expect(await live.setOwner({ name: colleague, domain, own: true })).toEqual({ done: true })
+        expect(await live.setOwner({ id: them, domain, own: true })).toEqual({ done: true })
         expect((await live.getWorkspace()).domains.find((d) => d.id === domain)!.owners).toContain(
           colleague,
         )
-        expect(await live.setOwner({ name: colleague, domain, own: false })).toEqual({ done: true })
+        expect(await live.setOwner({ id: them, domain, own: false })).toEqual({ done: true })
         // The only owner of a domain stays.
-        const sole = domains.find(
-          (d) => d.owners.length === 1 && people.some((p) => p.name === d.owners[0] && !p.invited),
-        )
-        if (sole)
-          expect(
-            await live.setOwner({ name: sole.owners[0]!, domain: sole.id, own: false }),
-          ).toEqual({
+        const sole = domains.find((d) => d.owners.length === 1)
+        if (sole) {
+          const id = people.find((p) => p.name === sole.owners[0])!.id
+          expect(await live.setOwner({ id, domain: sole.id, own: false })).toEqual({
             done: false,
             last: true,
           })
+        }
         // An admin makes a colleague an admin, and a member again.
-        await live.setAdmin({ name: colleague, admin: true })
+        await live.setAdmin({ id: them, admin: true })
         expect((await live.getWorkspace()).people.find((p) => p.name === colleague)!.admin).toBe(
           true,
         )
-        await live.setAdmin({ name: colleague, admin: false })
+        await live.setAdmin({ id: them, admin: false })
         expect((await live.getWorkspace()).people.find((p) => p.name === colleague)!.admin).toBe(
           false,
         )
@@ -874,18 +869,15 @@ export function describeHeedApi(
         const alone = people.find(
           (p) =>
             p.name !== person &&
-            !p.invited &&
             domains.some((d) => d.owners.length === 1 && d.owners[0] === p.name),
         )
         if (alone) {
-          const refused = await live.removePerson({ name: alone.name })
+          const refused = await live.removePerson({ id: alone.id })
           expect(refused).toMatchObject({ removed: false })
           expect((refused as { alone: string[] }).alone.length).toBeGreaterThan(0)
         }
-        const leaver = people.find(
-          (p) => p.name !== person && !p.invited && !p.owns.length && !p.admin,
-        )!
-        const removed = await live.removePerson({ name: leaver.name })
+        const leaver = people.find((p) => p.name !== person && !p.owns.length && !p.admin)!
+        const removed = await live.removePerson({ id: leaver.id })
         expect(removed).toMatchObject({ removed: true })
         expect((await live.getWorkspace()).people.some((p) => p.name === leaver.name)).toBe(false)
         await live.undo({ token: (removed as { undo: string }).undo })

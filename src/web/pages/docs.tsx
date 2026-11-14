@@ -187,7 +187,7 @@ function DocsHeader({ slug, onSearch }: { slug?: string; onSearch: () => void })
           </button>
           <a
             href={appHref('/inbox')}
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'max-sm:hidden')}
+            className={cn(buttonVariants({ variant: 'outline' }), 'max-sm:hidden')}
           >
             Open the app
             <ArrowUpRightIcon />
@@ -501,7 +501,7 @@ function Article({ page }: { page: DocPage }) {
             {page.open && (
               <a
                 href={appHref(page.open.href)}
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                className={cn(buttonVariants({ variant: 'outline' }))}
               >
                 <PlugIcon />
                 {page.open.label}
