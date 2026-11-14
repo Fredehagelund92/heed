@@ -39,6 +39,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Invited } from '@/api/client'
 import { toApiError } from '@/api/errors'
 import { activityQuery, useSession, useWrite } from '@/api/queries'
+import { useTakeBack } from '@/lib/undo'
 import { useDomainList, useDomains, useInvites, usePeople } from '@/lib/workspace'
 import { useMe } from '@/lib/workspace'
 
@@ -279,6 +280,7 @@ function PersonSheet({ p, onOpenChange }: { p: Party | null; onOpenChange: (o: b
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
   const write = useWrite()
+  const takeBack = useTakeBack()
   const mobile = useIsMobile()
   const [removing, setRemoving] = React.useState(false)
   const member = p?.kind === 'member' ? p : null
@@ -498,7 +500,7 @@ function PersonSheet({ p, onOpenChange }: { p: Party | null; onOpenChange: (o: b
                       onOpenChange(false)
                       const undo = (token: string) => ({
                         label: 'Undo',
-                        onClick: () => void write('undo', { token }),
+                        onClick: () => void takeBack(token),
                       })
                       // The row goes as it leaves the list, and comes back if they stay. What
                       // happened is said once the service has answered; Undo brings them back in.

@@ -51,9 +51,6 @@ const reported = {
 */
 export const writesStillToReport = [
   'src/web/components/heed/answer.tsx',
-  'src/web/components/heed/context-bulk.tsx',
-  'src/web/components/heed/definition.tsx',
-  'src/web/components/heed/definitions-bulk.tsx',
   'src/web/components/heed/fact-peek.tsx',
   'src/web/components/heed/loop-answer.tsx',
   'src/web/components/obs/save-question.tsx',
