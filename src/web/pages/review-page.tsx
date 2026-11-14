@@ -1802,18 +1802,26 @@ export function ReviewPage({ id }: { id: string }) {
     window.clearTimeout(hold.current.timer)
     hold.current.timer = 0
     // Exactly this decision goes back: its outcome and the context items it changed, nothing else.
-    if (finished) {
-      const { afterUndo } = finished
-      void takeBack(finished.undo).then((back) => back && afterUndo?.())
+    if (!finished) {
+      step({ type: 'finish' })
+      return
     }
-    step({ type: 'finish' })
+    const { afterUndo } = finished
+    void takeBack(finished.undo).then((back) => {
+      if (!back) return
+      step({ type: 'finish' })
+      afterUndo?.()
+    })
   }
   const undoLast = () => {
     if (!allDone) return
     const { afterUndo } = allDone
-    void takeBack(allDone.undo).then((back) => back && afterUndo?.())
-    setAllDone(null)
-    focusChange()
+    void takeBack(allDone.undo).then((back) => {
+      if (!back) return
+      setAllDone(null)
+      focusChange()
+      afterUndo?.()
+    })
   }
   const decision = {
     r,
