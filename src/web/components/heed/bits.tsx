@@ -63,9 +63,17 @@ export function PersonAvatar({
       )}
       title={name}
     >
+      {/* The ink is inline so a row that forces its own text colour (a focused menu item) cannot
+          take it: the initials keep their contrast on the tint in every row. */}
       <AvatarFallback
-        className="bg-(--avatar-tint) text-xs font-semibold text-(--avatar-ink)"
-        style={{ '--avatar-tint': tint, '--avatar-ink': ink } as CSSProperties}
+        className="bg-(--avatar-tint) text-xs font-semibold"
+        style={
+          {
+            '--avatar-tint': tint,
+            '--avatar-ink': ink,
+            color: 'var(--avatar-ink)',
+          } as CSSProperties
+        }
       >
         {lettered && initials(name)}
       </AvatarFallback>
