@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createMockApi } from '@/api/mock'
+import { instantSends } from '../mock/instant-sends'
 import {
   CHECK_MS,
   connectedLine,
@@ -81,6 +82,7 @@ describe('the connected agents', () => {
 })
 
 describe('access keys on Connected agents', () => {
+  instantSends()
   const base = {
     since: '23 Oct 2026',
     tools: toolRows('app', ['read', 'feedback']),

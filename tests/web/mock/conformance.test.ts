@@ -2,6 +2,7 @@ import { beforeEach } from 'vitest'
 import { heedApiMethods, type HeedApi } from '@/api/client'
 import { createMockApi } from '@/api/mock'
 import { describeHeedApi } from '../conformance/heed-api'
+import { instantSends } from './instant-sends'
 
 // The mock binding answers every method. The same suite runs against the http binding in
 // tests/web/integration/http-api.test.ts.
@@ -9,6 +10,7 @@ let api: HeedApi
 beforeEach(() => {
   api = createMockApi().api
 })
+instantSends()
 
 describeHeedApi('mock binding', () => api, {
   person: 'Jon Abara',

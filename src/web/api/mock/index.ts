@@ -1,3 +1,4 @@
+import { heedApiMethods, readMethods } from '../client'
 import type { HeedApi, HeedApiMethod, Inbox, ObsPageInput } from '../client'
 import { agentNameProblem } from '@domain/agents'
 import { asksNothing, nothingAskedSaid } from '@domain/ask-again'
@@ -523,7 +524,7 @@ export function createMockApi() {
         )
       }),
     settleConflict: (input) =>
-      scenario.send('settleConflict', () => {
+      now(() => {
         const pair = pairAt(input.holderId, input.otherId)
         if (!pair)
           throw new ApiError(
@@ -598,7 +599,7 @@ export function createMockApi() {
         return { undo: token, decision }
       }),
     suggestArchiving: ({ id }) =>
-      scenario.send('suggestArchiving', () => {
+      now(() => {
         const item = factsOf(state).find((f) => f.id === id)
         if (!item) throw new ApiError('not-found', "This context item isn't in Context any more.")
         const owners = workspace.domainMap()[item.domain]?.owners ?? []
@@ -645,7 +646,7 @@ export function createMockApi() {
     editItem: ({ id, patch }) => now(() => dispatch({ type: 'editFact', id, patch })),
     draftFromText: () => now(() => withScope(norwayDraft)),
     saveItem: ({ fact, isNew, relations = {}, gap, setup }) =>
-      scenario.send('saveItem', () => {
+      now(() => {
         // As the service: a live item agents would get in the same answer needs an answer first.
         const clashes = factsOf(state)
           .filter(
@@ -698,7 +699,7 @@ export function createMockApi() {
         return { done, failed, ...revertTo(before, { facts: done, entry: entry.id }) }
       }),
     sendSuggestion: ({ fact, sent }) =>
-      scenario.send('sendSuggestion', () => {
+      now(() => {
         scope.used(fact.scope)
         const id = `sent_${Date.now().toString(36)}`
         dispatch({ type: 'send', sent: { ...sent, id } })
@@ -748,12 +749,9 @@ export function createMockApi() {
         const d = definitions.list().find((x) => x.name.toLowerCase() === name.toLowerCase())
         return d ? historyOfDefinition(d, d.tool ?? demoTool(DEMO_DEFINITIONS)) : []
       }),
-    saveTerm: ({ previous, term }) =>
-      scenario.send('saveTerm', () => definitions.saveTerm(previous, term)),
-    addSynonym: ({ target, word }) =>
-      scenario.send('addSynonym', () => definitions.addSynonym(target, word, me())),
-    removeTerm: ({ name }) =>
-      scenario.send('removeTerm', () => remember(definitions.removeTerm(name))),
+    saveTerm: ({ previous, term }) => now(() => definitions.saveTerm(previous, term)),
+    addSynonym: ({ target, word }) => now(() => definitions.addSynonym(target, word, me())),
+    removeTerm: ({ name }) => now(() => remember(definitions.removeTerm(name))),
     deleteTerms: ({ names, entry }) =>
       now(() => {
         const restore = definitions.deleteTerms(names)
@@ -778,17 +776,13 @@ export function createMockApi() {
     markOpened: ({ ids }) => now(() => ids.forEach((card) => dispatch({ type: 'opened', card }))),
     markReviewed: ({ id }) => now(() => dispatch({ type: 'reviewed', card: id })),
     decideCard: ({ card, outcome, patch }) =>
-      scenario.send(
-        'decideCard',
-        () => {
-          const factId = cards.find((c) => c.id === card)?.factId
-          const before = state
-          if (patch && factId) dispatch({ type: 'editFact', id: factId, patch })
-          dispatch({ type: 'complete', card, outcome })
-          return revertTo(before, { cards: [card], facts: patch && factId ? [factId] : [] })
-        },
-        { key: card, flag: 'decide' },
-      ),
+      now(() => {
+        const factId = cards.find((c) => c.id === card)?.factId
+        const before = state
+        if (patch && factId) dispatch({ type: 'editFact', id: factId, patch })
+        dispatch({ type: 'complete', card, outcome })
+        return revertTo(before, { cards: [card], facts: patch && factId ? [factId] : [] })
+      }),
     completeCard: ({ card, outcome }) =>
       now(() => {
         const before = state
@@ -796,7 +790,7 @@ export function createMockApi() {
         return revertTo(before, { cards: [card] })
       }),
     publishReview: ({ id, relations = {}, saveQuestion }) =>
-      scenario.send('publishReview', () => {
+      now(() => {
         // As the service: every live item it overlaps needs its own answer first.
         const open = reviews
           .find((r) => r.id === id)
@@ -811,7 +805,7 @@ export function createMockApi() {
         }))
       }),
     publishReviews: ({ ids }) =>
-      scenario.send('publishReviews', () => {
+      now(() => {
         const before = state
         const also = ids.map((id) => {
           const undo = publishOne(id)
@@ -825,7 +819,7 @@ export function createMockApi() {
         })
       }),
     archiveReview: ({ id }) =>
-      scenario.send('archiveReview', () =>
+      now(() =>
         decideReview(id, 'Archived', () => {
           const r = reviews.find((x) => x.id === id)
           if (r?.retire)
@@ -833,7 +827,7 @@ export function createMockApi() {
         }),
       ),
     closeReview: ({ id }) =>
-      scenario.send('closeReview', () => {
+      now(() => {
         const r = reviews.find((x) => x.id === id)
         if (!r || !reviewNow(r).retire?.withdrawn || state.done[id])
           throw new ApiError(
@@ -843,7 +837,7 @@ export function createMockApi() {
         return decideReview(id, 'Closed', () => {})
       }),
     returnReview: ({ id, note }) =>
-      scenario.send('returnReview', () =>
+      now(() =>
         decideReview(id, 'Returned', () => {
           const subject: Subject = `review:${id}`
           const posted = comments.post(subject, me(), note, { returned: true })
@@ -1164,6 +1158,21 @@ export function createMockApi() {
       }),
     removeSavedQuestion: ({ id }) => now(() => saved.remove(id)),
     keepNewAnswer: ({ id }) => now(() => remember(saved.keepNew(id))),
+  }
+
+  // Every write is sent as the scenario plays a send: refused offline, as long as a send takes,
+  // and failing its first try under a fault flag. ?decide=fail names the card it fails on.
+  for (const method of heedApiMethods) {
+    if ((readMethods as readonly string[]).includes(method)) continue
+    const write = api[method] as (...args: unknown[]) => Promise<unknown>
+    api[method] = ((...args: unknown[]) =>
+      scenario.send(
+        method,
+        () => write(...args),
+        method === 'decideCard'
+          ? { key: (args[0] as Parameters<HeedApi['decideCard']>[0]).card, flag: 'decide' }
+          : {},
+      )) as never
   }
 
   const controls = {

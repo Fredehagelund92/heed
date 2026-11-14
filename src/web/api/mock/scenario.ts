@@ -8,7 +8,7 @@ import type { ObsState } from '@/model/observability'
 //
 // - ?state=loading keeps a page's own load waiting until the address changes.
 // - ?state=failed makes a page's load fail on its first try, so Retry brings it back, and each kind
-//   of send (Publish, Save, a decision) fail on its first try too.
+//   of write (Publish, Save, a decision, a toggle) fail on its first try too.
 // - ?state=offline takes the app offline: nothing is sent. The browser going offline counts too.
 // - ?slow=1, or the Slow network switch in Help, makes each page's first load wait 900ms and every
 //   send take 1.5s instead of 0.6s.
@@ -25,7 +25,7 @@ export type Fault = 'loading' | 'failed' | 'offline' | null
 export const SLOW_LOAD = 900
 /** A load tried again after it failed: the round trip the person sees. */
 export const RETRY_TIME = 700
-/** How long a send (Publish, Save, a decision) takes: a little longer with Slow network on. */
+/** How long a write (Publish, Save, a decision) takes: a little longer with Slow network on. */
 export const sendTime = (slow: boolean) => (slow ? 1500 : 600)
 
 export type Address = { path: string; query: Record<string, string | undefined> }
