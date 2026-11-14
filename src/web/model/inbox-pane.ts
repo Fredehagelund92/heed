@@ -22,7 +22,7 @@ export const ANSWER_SIDES = {
  */
 export type PaneState = {
   label: string
-  icon: CardType | 'conflict' | 'mention' | 'waiting'
+  icon: CardType | 'conflict' | 'mention' | 'waiting' | 'returned'
   tone: 'neutral' | 'warn'
 }
 
@@ -50,6 +50,10 @@ const questions = (n: number) => `${n} ${n === 1 ? 'question' : 'questions'}`
  */
 export function reviewFollows(r: Review): string {
   const claims = claimsToCheck(r)
+  if (r.stale)
+    return r.mode === 'retire'
+      ? 'The item changed since: close it, with a reason'
+      : 'The item changed since: return it to its sender'
   if (r.clash) return 'Publishing waits until you say how they relate'
   if (claims)
     return claims === 1

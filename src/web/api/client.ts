@@ -519,8 +519,11 @@ export interface HeedApi {
   publishReviews: (input: { ids: string[] }) => Promise<Undoable>
   /** Archives the item a retirement suggests archiving. */
   archiveReview: (input: { id: string }) => Promise<Undoable>
-  /** Closes a suggestion its sender withdrew: nothing changes. */
-  closeReview: (input: { id: string }) => Promise<Undoable>
+  /**
+   * Closes a suggestion to archive: nothing changes. One its sender withdrew needs no reason; any
+   * other is closed with the owner's reason.
+   */
+  closeReview: (input: { id: string; reason?: string }) => Promise<Undoable>
   /** Returns a suggestion with a note, which becomes the first comment. */
   returnReview: (input: { id: string; note: JSONContent }) => Promise<Undoable>
 

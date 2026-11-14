@@ -14,6 +14,7 @@ import { alertCardWords, alertRule, lookTitle } from '@domain/alerts'
 import { hrefOf } from './http-alerts'
 import { parseMentions } from '@domain/mentions'
 import { answerText, savedWhy } from '@domain/saved-check'
+import { staleWords } from '@domain/suggestion-standing'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
 import { mentionIdOf, textFromService, type Words } from './http-context'
@@ -315,6 +316,9 @@ function waitingOf(w: Feed['waiting'][number], me: string, domains: Domains, now
     domain,
     sent: w.sentAt ? whenWords(w.sentAt, now) : '',
     card: w.proposalId,
+    ...(w.returned
+      ? { returned: { by: w.returned.by ?? 'An owner', when: whenWords(w.returned.at, now) } }
+      : {}),
   }
 }
 
@@ -764,6 +768,7 @@ export function reviewOf(
       : {}),
     ...(sheet.note ? { note: sheet.note } : {}),
     mode: sheet.mode,
+    ...(sheet.standing === 'stale' ? { stale: true as const } : {}),
     ...(drafted
       ? {
           drafted: {
@@ -847,12 +852,21 @@ export function reviewOf(
       before: textOf(sheet.source.before, words),
       after: textOf(sheet.source.after, words),
     },
-    ready: {
-      ok: sheet.readiness.ok,
-      bulk: sheet.readiness.bulk,
-      title: sheet.readiness.title,
-      text: sheet.readiness.text,
-    },
+    // A stale suggestion says why it is not sent out, and what to do instead, before anything else.
+    ready:
+      sheet.standing === 'stale'
+        ? {
+            ok: false,
+            bulk: false,
+            title: 'Written against an earlier version',
+            text: staleWords[sheet.mode === 'retire' ? 'retire' : 'edit'],
+          }
+        : {
+            ok: sheet.readiness.ok,
+            bulk: sheet.readiness.bulk,
+            title: sheet.readiness.title,
+            text: sheet.readiness.text,
+          },
     readMs: sheet.readMs,
     saved: sheet.saved.map((x) => ({
       id: x.id,

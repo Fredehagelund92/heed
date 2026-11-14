@@ -22,6 +22,7 @@ const actionsFor = (patch: Partial<ReviewActionsInput>) =>
   reviewActions({
     mode: 'edit',
     withdrawn: false,
+    stale: false,
     clashes: 0,
     claimsToCheck: 0,
     drafted: false,
@@ -90,8 +91,27 @@ describe('the decision', () => {
     )
   })
 
+  it('closes a suggestion to archive its sender did not take back through its own step, with the reason', () => {
+    const asking = run(at, { type: 'ask', action: 'close', actions: retire })
+    expect(asking).toEqual({ kind: 'confirmingClose', id: 'a' })
+    const reason = 'We still sell it in Norway'
+    expect(run(asking, { type: 'press', action: 'close', actions: retire, reason })).toEqual({
+      ...sending('close'),
+      reason,
+    })
+    // Close is not offered on a change, so it has no step there.
+    expect(run(at, { type: 'ask', action: 'close', actions: edit })).toBe(at)
+  })
+
+  it('failed close: retry sends the reason as it is written now', () => {
+    expect(
+      run(failed('close'), { type: 'retry', actions: retire, reason: ' Still sold ' }),
+    ).toEqual({ ...sending('close'), reason: 'Still sold' })
+  })
+
   it('cancel goes back to idle from a step or a failure, and from nowhere else', () => {
     expect(run({ kind: 'confirmingArchive', id: 'a' }, { type: 'cancel' })).toEqual(at)
+    expect(run({ kind: 'confirmingClose', id: 'a' }, { type: 'cancel' })).toEqual(at)
     expect(run({ kind: 'writingReturn', id: 'a' }, { type: 'cancel' })).toEqual(at)
     expect(run(failed('return'), { type: 'cancel' })).toEqual(at)
     const busy = sending('return')

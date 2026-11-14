@@ -570,6 +570,7 @@ describe('what the review offers is what the service allows', () => {
     reviewActions({
       mode: s.mode,
       withdrawn: s.withdrawn !== null,
+      stale: s.standing === 'stale',
       clashes: s.clashes.filter((c) => c.relation === null).length,
       claimsToCheck: s.readiness.claimsToCheck,
       drafted: s.gapId !== null && s.writtenBy !== null,
@@ -583,7 +584,7 @@ describe('what the review offers is what the service allows', () => {
       }),
     )
     const s = await sheet(proposal.id)
-    expect(offered(s).can).toEqual(['archive'])
+    expect(offered(s).can).toEqual(['archive', 'close'])
     const refused = await call('POST', `/review/${proposal.id}/return`, 'owner', {
       revision: proposal.revision,
       note: 'Why now?',
@@ -736,11 +737,14 @@ describe('a suggestion to archive taken back in the comments (P9c)', () => {
 
   it('closes it as its owner: nothing changes, the Inbox says Closed, and Undo brings it back', async () => {
     const { itemId, proposal } = await retirement('cyprus')
-    // Not before its sender took it back.
+    // Before its sender took it back, only with the owner's reason.
     const early = await call('POST', `/review/${proposal.id}/close`, 'owner', {
       revision: (await sheet(proposal.id)).proposal.revision,
     })
-    expect(early.statusCode).toBe(409)
+    expect(early.statusCode).toBe(422)
+    expect(early.json<{ message: string }>().message).toBe(
+      'Write why you close it. The reason is kept with the decision.',
+    )
     const said = await comment(proposal.id, 'author', 'Please close it: the files are late again.')
     await ok(withdraw(said.id, 'author'))
     const s = await sheet(proposal.id)

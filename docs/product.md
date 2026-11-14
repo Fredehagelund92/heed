@@ -64,7 +64,7 @@ The sidebar has four places: **Inbox**, **Ask**, **Context**, **Definitions**. A
 | Setup checklist on a new install                        | `/inbox`, shown while setup is unfinished               |
 | Connect an agent as a dialog, search, shortcuts, report | `/inbox?open=connect`, `palette`, `shortcuts`, `report` |
 
-The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Names, Not found, Reported, Saved questions, Alerts, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
+The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Names, Not found, Reported, Saved questions, Alerts, Mentioned you, Returned to you (a suggestion of yours an owner returned with a note), Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
 
 ### Review
 

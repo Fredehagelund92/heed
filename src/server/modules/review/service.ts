@@ -4,6 +4,7 @@ import type { decideSchema, Edition, Gate, ReviewProposal } from '../../../contr
 import { canonicalJson } from '../../../domain/canonical.ts'
 import { addWorkingDays } from '../../../domain/review.ts'
 import { reviewQuestion } from '../../../domain/item.ts'
+import { standingOf } from '../../../domain/suggestion-standing.ts'
 import { shiftDate } from '../../../domain/validity.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -221,7 +222,7 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         throw new ORPCError('CONFLICT', {
           message: 'This fact is in the Bin again. You can accept it once an admin restores it.',
         })
-    } else if ((await baseVersionId(version.id)) !== live)
+    } else if (standingOf({ written: await baseVersionId(version.id), live }) === 'stale')
       throw new ORPCError('CONFLICT', {
         message: 'The accepted fact changed after this version was written. Ask for changes.',
       })
@@ -296,7 +297,8 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         message: 'A proposal to archive a fact can only be accepted or rejected.',
       })
     const capacity = await capacityFor(p.areaId!, input.capacity, p.proposerId)
-    if ((await liveVersionId(tx, p.itemId!)) !== p.itemVersionId)
+    const live = await liveVersionId(tx, p.itemId!)
+    if (standingOf({ written: p.itemVersionId, live }) === 'stale')
       throw new ORPCError('CONFLICT', {
         message:
           'This fact changed, or agents stopped getting it, after someone proposed to archive it.',
@@ -422,11 +424,13 @@ export function createReviewService(tx: Queryable, clock: Clock) {
     },
 
     /**
-     * Closes a suggestion to archive that its sender took back in the comments (migration 0028):
-     * the owners' decision not to archive, so nothing changes and the item stays live. An owner of
-     * its domain or an admin closes it, as they would decide it, and may undo it in the window.
+     * Closes a suggestion to archive: the owners' decision not to archive, so nothing changes and
+     * the item stays live, or stays archived. One its sender took back in the comments (migration
+     * 0028) closes as it is; any other with the owner's reason, kept with the decision, as when the
+     * item changed since it was suggested. An owner of its domain or an admin closes it, as they would
+     * decide it, and may undo it in the window.
      */
-    async close(input: { id: string; revision: number }) {
+    async close(input: { id: string; revision: number; reason?: string | undefined }) {
       const p = await loadProposal(tx, input.id, true)
       if (p.revision !== input.revision)
         throw new ORPCError('CONFLICT', {
@@ -440,15 +444,20 @@ export function createReviewService(tx: Queryable, clock: Clock) {
                          and c.deleted_at is null and c.author_id=$2::uuid) as yes`,
         [p.id, p.proposerId],
       )
-      if (p.subject !== 'item' || p.action !== 'retire' || !withdrawn?.yes)
+      if (p.subject !== 'item' || p.action !== 'retire')
         throw new ORPCError('CONFLICT', {
-          message:
-            'Only a suggestion to archive that its sender took back in the comments is closed. Decide this one instead.',
+          message: 'Only a suggestion to archive is closed. Decide this one instead.',
         })
+      const given = input.reason?.trim()
+      if (!withdrawn?.yes && !given)
+        throw new ORPCError('UNPROCESSABLE_CONTENT', {
+          message: 'Write why you close it. The reason is kept with the decision.',
+        })
+      if (given) plainReason(given)
       const capacity = await capacityFor(p.areaId!, undefined, p.proposerId)
       if (p.claimedBy && p.claimedBy !== (await me()))
         throw new ORPCError('CONFLICT', { message: 'Another owner is reviewing it.' })
-      const reason = 'Closed: its sender took it back in the comments.'
+      const reason = given || 'Closed: its sender took it back in the comments.'
       const id = await insertDecision(tx, {
         proposalId: p.id,
         itemVersionId: p.itemVersionId,
