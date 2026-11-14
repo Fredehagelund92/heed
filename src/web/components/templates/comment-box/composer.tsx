@@ -39,7 +39,12 @@ export function Composer({
   initialContent?: JSONContent
   autoFocus?: boolean
   avatar?: boolean
-  onPost: (content: JSONContent) => void
+  /**
+   * Post is pressed. Returning a promise keeps the words until it is answered: Post waits, the
+   * box clears once it resolves (unless `clearOnPost` is false), and a rejection leaves it as it
+   * was, for the caller to have said why.
+   */
+  onPost: (content: JSONContent) => void | Promise<unknown>
   /** Esc or Cancel; it gets what was written, so the caller can keep it as a draft. */
   onCancel?: (draft: JSONContent | null) => void
   /** Every change to what is written, so a caller can keep a draft however the composer closes. */
@@ -91,10 +96,23 @@ export function Composer({
   const empty = useEditorState({ editor, selector: ({ editor: e }) => !e || e.isEmpty }) ?? true
   const [focused, setFocused] = React.useState(autoFocus)
 
+  const [sending, setSending] = React.useState(false)
+  const out = React.useRef(false)
   const post = React.useCallback(() => {
-    if (!editor || editor.isDestroyed || editor.isEmpty || postDisabled) return
-    onPost(editor.getJSON())
-    if (clearOnPost) editor.commands.clearContent()
+    if (!editor || editor.isDestroyed || editor.isEmpty || postDisabled || out.current) return
+    const clear = () => {
+      if (clearOnPost && !editor.isDestroyed) editor.commands.clearContent()
+    }
+    const answer = onPost(editor.getJSON())
+    if (!answer) return clear()
+    out.current = true
+    setSending(true)
+    answer
+      .then(clear, () => undefined)
+      .finally(() => {
+        out.current = false
+        setSending(false)
+      })
   }, [editor, onPost, clearOnPost, postDisabled])
   const cancel = React.useMemo(
     () =>
@@ -145,7 +163,7 @@ export function Composer({
                   Cancel
                 </Button>
               )}
-              <Button size="sm" disabled={empty || postDisabled} onClick={post}>
+              <Button size="sm" disabled={empty || postDisabled || sending} onClick={post}>
                 {submitLabel}
               </Button>
             </div>
