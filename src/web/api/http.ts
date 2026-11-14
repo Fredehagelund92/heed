@@ -56,7 +56,7 @@ import {
   type Relation,
   type Session,
 } from './client'
-import { ApiError, toApiError } from './errors'
+import { answeredAs, ApiError, toApiError } from './errors'
 import {
   answerOf,
   askedWeekOf,
@@ -131,6 +131,8 @@ type CallContext = {
   headers?: Record<string, string>
   /** A read the service takes as a POST: not a change, so it leaves the shared reads alone. */
   posted?: boolean
+  /** Filled in as the service answers: the id it gave the request. */
+  answer?: { requestId?: string | null }
 }
 
 /** The methods this binding answers so far. */
@@ -430,8 +432,24 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   const link = new OpenAPILink<CallContext>(routes as unknown as AnyContractRouter, {
     url: baseUrl,
     headers: ({ context }) => context.headers ?? {},
-    fetch: (request, init, { context }) =>
-      context.posted ? direct(request, init) : shared(request, init),
+    // A failure the service answered carries the id it gave the request, so the app can name it.
+    interceptors: [
+      // oRPC's next is an arrow function, not a method: it needs no `this`.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      async ({ next, ...options }) => {
+        const answer: NonNullable<CallContext['answer']> = {}
+        try {
+          return await next({ ...options, context: { ...options.context, answer } })
+        } catch (error) {
+          throw answeredAs(error, answer.requestId)
+        }
+      },
+    ],
+    fetch: async (request, init, { context }) => {
+      const response = await (context.posted ? direct : shared)(request, init)
+      if (context.answer) context.answer.requestId = response.headers.get('x-request-id')
+      return response
+    },
   })
   const client: ContractRouterClient<Contract, CallContext> = createORPCClient(link)
 
