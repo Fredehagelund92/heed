@@ -175,6 +175,13 @@ beforeAll(async () => {
     ids.finance,
     doc('Orders in Norway are counted on the day', 'Orders in Norway are counted when paid.'),
   )
+  // A second shared folder, there from the start so no read finds it new; it is ticked later.
+  ids.sales = drive.folder('Sales')
+  ids.refunds = drive.document(
+    'Refunds in Norway are paid within 14 days',
+    ids.sales,
+    doc('Refunds in Norway are paid within 14 days', 'Refunds in Norway are paid within 14 days.'),
+  )
   drive.file('Order sheet', ids.finance, 'application/vnd.google-apps.spreadsheet')
 }, 120_000)
 afterAll(async () => {
@@ -201,8 +208,9 @@ describe('adding Google Drive (CON-601, CON-602)', () => {
       ['documents', 'ok'],
     ])
     expect(check.steps[0]!.detail).toContain('heed-reader@drive-fake.example.test')
-    expect(check.scopes).toEqual([
+    expect(check.scopes).toMatchObject([
       { id: ids.finance, title: 'Finance', suggestedDomain: 'finance' },
+      { id: ids.sales, title: 'Sales' },
     ])
     // A key Google refuses says so in its own step, and nothing is kept.
     const refused = await ok<SourceCheck>(
@@ -327,6 +335,32 @@ describe('a read of Google Drive (CON-603 to CON-611)', () => {
     expect(await lastRead(sourceId)).toMatchObject({ full_read: true })
     const forecast = (await suggestions(sourceId)).filter((s) => s.document === ids.forecast)
     expect(forecast.map((s) => s.state)).toEqual(['withdrawn'])
+  })
+
+  it('reads in full after its settings change: a folder just ticked is read, not skipped', async () => {
+    // The cursor from the last read is good for the folders it chose then, not for Sales.
+    expect((await read()).connectors[sourceId]).toMatchObject({ status: 'ok', documentsSeen: 0 })
+    expect(await lastRead(sourceId)).toMatchObject({ full_read: false })
+    const current = await ok<SourceSettings>(call('GET', `/sources/${sourceId}`, 'admin'))
+    await ok(
+      call('PUT', `/sources/${sourceId}`, 'admin', {
+        id: sourceId,
+        revision: current.revision,
+        name: current.name,
+        config: config(),
+        secrets: {},
+        scopes: [
+          { id: ids.finance, title: 'Finance', domain: 'finance' },
+          { id: ids.sales, title: 'Sales', domain: 'finance' },
+        ],
+        reason: 'Read the sales folder too',
+      }),
+    )
+    const result = await read()
+    expect(result.connectors[sourceId]).toMatchObject({ status: 'ok' })
+    expect(await lastRead(sourceId)).toMatchObject({ full_read: true })
+    const refunds = (await suggestions(sourceId)).filter((s) => s.document === ids.refunds)
+    expect(refunds.map((s) => s.state)).toEqual(['submitted'])
   })
 
   it('takes a key gone from the secret store as a failed read, which changes nothing', async () => {

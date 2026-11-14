@@ -167,15 +167,18 @@ export class ContentPipeline {
     const { manifest } = source
     const schedule = await scheduleOf(tx, source.id, manifest)
     const [last] = await tx.query<{ cursor: string | null; full: boolean }>(
-      `select cursor,
+      `select s.cursor,
               exists (select 1 from connector_snapshots f where f.connector_id=$1 and f.status='ok'
-                        and f.full_read and f.fetched_at > now() - make_interval(days => $2)) as full
-         from connector_snapshots where connector_id=$1 and status <> 'failed'
-        order by fetched_at desc limit 1`,
+                        and f.full_read and f.fetched_at > now() - make_interval(days => $2)
+                        and (c.changed_at is null or f.fetched_at > c.changed_at)) as full
+         from connector_snapshots s join connectors c on c.id = s.connector_id
+        where s.connector_id=$1 and s.status <> 'failed'
+        order by s.fetched_at desc limit 1`,
       [source.id, FULL_READ_EVERY_DAYS],
     )
     const { deletions } = manifest.capabilities
-    // A connector that reads changes lists everything again now and then: it is handed no cursor.
+    // A connector that reads changes lists everything again now and then, and after any change of
+    // its settings (a folder just ticked has no changes to read): it is handed no cursor.
     const cursor = deletions === 'both' && !last?.full ? null : (last?.cursor ?? null)
     // Whether what the read leaves out is gone: a full listing, or a read from no cursor.
     const fullRead = deletions === 'full-listing' || (deletions === 'both' && cursor === null)
