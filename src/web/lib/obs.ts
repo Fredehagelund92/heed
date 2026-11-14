@@ -20,6 +20,7 @@ import {
 } from '@/model/observability'
 import type { DomainId } from '@/model/items'
 import { chipOf, chipsFrom, readDomain } from '@/lib/obs-chips'
+import { readOf } from '@/lib/read'
 import { useRoute } from '@/lib/router'
 import { useDomains, useMe } from '@/lib/workspace'
 
@@ -153,9 +154,9 @@ export function useObsView(): ObsView {
   return { ...useObsAddress(), state: useObsData().state }
 }
 
-/** A topic run again (`now`, or before the last publish); undefined until it has run. */
+/** A topic run again (`now`, or before the last publish): loading, failed, missing or ready. */
 export const useReplay = (topic: string, when: 'now' | 'before') =>
-  useQuery(replayQuery(topic, when)).data ?? undefined
+  readOf(useQuery(replayQuery(topic, when)))
 
 /** Observability's reading of the page's data, for the view in the address. */
 export function useObservability(): Observability {

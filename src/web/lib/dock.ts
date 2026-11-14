@@ -6,6 +6,19 @@ export type DockKind =
   'review' | 'context' | 'def' | 'ask' | 'try' | 'topic' | 'share' | 'where' | 'conflict'
 export type DockState = { kind: DockKind; id?: string; width: number }
 
+/** Each dock's title, for its frame before its own content draws: while its code loads, or after it fails. */
+export const DOCK_TITLE: Record<DockKind, string> = {
+  review: 'Review',
+  context: 'Context',
+  def: 'Definition',
+  ask: 'Ask',
+  try: 'Try it',
+  topic: 'Answer',
+  share: 'Share this answer',
+  where: 'Where it says that',
+  conflict: 'Conflict',
+}
+
 export function useDock(): DockState | null {
   const { query } = useRoute()
   const raw = query.get('dock')
