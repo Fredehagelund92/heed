@@ -45,7 +45,7 @@ import { CONFLICT_KEYS, SIDE_BY_SIDE, type ConflictCommand } from '@/lib/conflic
 import { comparePair, type Compared } from '@/lib/differing-words'
 import { pageKey } from '@/lib/keys'
 import { navigate } from '@/lib/router'
-import { useOnline, useSend } from '@/lib/send'
+import { useOnline } from '@/lib/send'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/lib/workspace'
 import {
@@ -61,6 +61,7 @@ import {
   type Said,
   type SettleOutcome,
 } from '@/model/conflicts'
+import { decide, reading, type DecisionState, type Pending } from '@/model/conflict-decision'
 import { kindLabel } from '@/model/items'
 
 // The conflict view: one component, a pair of items, every place it shows (FR-220). It reads its
@@ -165,13 +166,6 @@ function Provenance({ s }: { s: ConflictSide }) {
 }
 
 /* ---------- the reason box ---------- */
-
-type Pending =
-  | { how: 'kept_one'; keep: ConflictSide; other: ConflictSide }
-  | { how: 'kept_both' }
-  | { how: 'not_conflict' }
-  /** Someone who may not archive an item suggests it to its owners instead (FR-112). */
-  | { how: 'suggest_archive'; goes: ConflictSide; stays: ConflictSide }
 
 const owns = (s: ConflictSide) => (s.owners.length > 1 ? 'own' : 'owns')
 const are = (s: ConflictSide) => (s.owners.length > 1 ? 'are' : 'is')
@@ -323,7 +317,9 @@ function SettleDialog({
               ' Your reason and the line are kept on both items.'}
           </p>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <DialogClose render={<Button variant="outline" disabled={sending} />}>
+              Cancel
+            </DialogClose>
             <Button onClick={onConfirm} disabled={!ready || sending} aria-keyshortcuts="Meta+Enter">
               <CheckIcon data-icon="inline-start" />
               {sending ? 'Saving…' : copy.confirm}
@@ -551,7 +547,6 @@ export function ConflictView({
   const me = useMe()
   const write = useWrite()
   const online = useOnline()
-  const sender = useSend()
   const isMobile = useIsMobile()
   const [measure, wide] = useWide<HTMLDivElement>(SIDE_BY_SIDE)
   const root = React.useRef<HTMLDivElement | null>(null)
@@ -559,25 +554,35 @@ export function ConflictView({
     measure(el)
     root.current = el
   }
-  const [picked, pick] = React.useState<Pending | null>(null)
-  const [left, setLeft] = React.useState(false)
-  const setPending = (p: Pending | null) => {
-    setLeft(true)
-    pick(p)
-  }
+  // The decision, from reading the pair to settled (src/web/model/conflict-decision.ts).
+  const [state, dispatch] = React.useReducer(
+    decide<Done>,
+    reading(pairKey, openAs ?? null) satisfies DecisionState<Done>,
+  )
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({})
   const [asking, setAsking] = React.useState<ConflictSide | null>(null)
   const [settling, setSettling] = React.useState(false)
-  const [done, setDone] = React.useState<Done | null>(null)
-  const [failed, setFailed] = React.useState<string | null>(null)
-  const [changed, setChanged] = React.useState(false)
   const [focusSide, setFocusSide] = React.useState<0 | 1>(0)
   const heading = React.useRef<HTMLHeadingElement>(null)
   const sides = [React.useRef<HTMLDivElement>(null), React.useRef<HTMLDivElement>(null)] as const
 
   const c = query.data ?? null
-  const pending: Pending | null =
-    picked ?? (openAs && !left && c?.rights.notConflict ? { how: 'not_conflict' } : null)
+  React.useEffect(() => dispatch({ type: 'pair', key: pairKey }), [pairKey])
+  // Each read of the pair: a newer version of either closes an open box.
+  React.useEffect(() => {
+    if (c)
+      dispatch({
+        type: 'read',
+        key: pairKey,
+        versions: { holder: c.holder.version, other: c.other.version },
+        notConflict: c.rights.notConflict,
+      })
+  }, [c, pairKey])
+  const pending = state.kind === 'confirming' || state.kind === 'sending' ? state.pending : null
+  const sending = state.kind === 'sending'
+  const failed = state.kind === 'confirming' ? state.failure : null
+  const changed = state.kind === 'stale'
+  const done = state.kind === 'settled' ? state.done : null
   const rows = list.data ?? []
   const at = rows.findIndex((r) => r.key === (done?.conflict.key ?? c?.key ?? pairKey))
   const next =
@@ -588,7 +593,7 @@ export function ConflictView({
   // Focus moves to the view's heading when it opens or the pair changes.
   React.useEffect(() => heading.current?.focus({ preventScroll: true }), [pairKey, c?.key])
 
-  const held = changed || !online || sender.state === 'sending'
+  const held = changed || !online || sending
   const draftKey = pending
     ? pending.how === 'kept_one'
       ? `keep.${pending.keep.id}`
@@ -599,9 +604,14 @@ export function ConflictView({
   const draft = drafts[draftKey] ?? { reason: '', quote: '' }
 
   const open = (p: Pending) => {
-    if (held) return
-    setFailed(null)
-    setPending(p)
+    if (!c || held) return
+    // The box carries the versions it shows: the decision sends these, whatever is read after.
+    dispatch({
+      type: 'open',
+      pending: p,
+      versions: { holder: c.holder.version, other: c.other.version },
+      online,
+    })
   }
   const keep = (i: 0 | 1) => {
     if (!c) return
@@ -617,39 +627,44 @@ export function ConflictView({
   }
 
   const confirm = () => {
-    if (!c || !pending || !draft.reason.trim()) return
-    if (pending.how === 'suggest_archive') {
-      const goes = pending.goes
-      sender.send(async () => {
-        try {
-          await write('suggestArchiving', { id: goes.id, reason: draft.reason.trim() })
-        } catch (error) {
-          setFailed(dialogCopy(pending, c).failure)
-          throw error
-        }
-        setDrafts((d) => ({ ...d, [draftKey]: { reason: '', quote: '' } }))
-        setPending(null)
-        toast(`Suggested archiving “${sideTitle(goes)}”`, {
-          description: `${ownerNames(goes)} get${goes.owners.length > 1 ? '' : 's'} it in their Inbox, with your reason.`,
-        })
-      })
+    if (!c || state.kind !== 'confirming' || !online || !draft.reason.trim()) return
+    const { key, pending: p, seen } = state
+    const failure = dialogCopy(p, c).failure
+    const reason = draft.reason.trim()
+    const quote = draft.quote.trim()
+    const cleared = draftKey
+    dispatch({ type: 'confirm', online })
+    if (p.how === 'suggest_archive') {
+      const goes = p.goes
+      void write('suggestArchiving', { id: goes.id, reason }).then(
+        () => {
+          setDrafts((d) => ({ ...d, [cleared]: { reason: '', quote: '' } }))
+          dispatch({ type: 'ok', key, done: null })
+          toast(`Suggested archiving “${sideTitle(goes)}”`, {
+            description: `${ownerNames(goes)} get${goes.owners.length > 1 ? '' : 's'} it in their Inbox, with your reason.`,
+          })
+        },
+        () => dispatch({ type: 'failed', key, failure }),
+      )
       return
     }
-    const outcome: SettleOutcome = pending.how
-    sender.send(async () => {
-      try {
-        const result = await write('settleConflict', {
-          holderId: c.holder.id,
-          otherId: c.other.id,
-          outcome,
-          ...(pending.how === 'kept_one' ? { keepId: pending.keep.id } : {}),
-          reason: draft.reason.trim(),
-          ...(draft.quote.trim() ? { quote: draft.quote.trim() } : {}),
-          versions: { holder: c.holder.version, other: c.other.version },
+    const outcome: SettleOutcome = p.how
+    void write('settleConflict', {
+      holderId: c.holder.id,
+      otherId: c.other.id,
+      outcome,
+      ...(p.how === 'kept_one' ? { keepId: p.keep.id } : {}),
+      reason,
+      ...(quote ? { quote } : {}),
+      versions: seen,
+    }).then(
+      (result) => {
+        setDrafts((d) => ({ ...d, [cleared]: { reason: '', quote: '' } }))
+        dispatch({
+          type: 'ok',
+          key,
+          done: { conflict: c, decision: result.decision, undo: result.undo },
         })
-        setDrafts((d) => ({ ...d, [draftKey]: { reason: '', quote: '' } }))
-        setPending(null)
-        setDone({ conflict: c, decision: result.decision, undo: result.undo })
         toast(
           outcome === 'kept_one'
             ? 'Kept one, archived the other'
@@ -658,28 +673,26 @@ export function ConflictView({
               : 'Not a conflict',
           { description: 'You can undo this for a few seconds.' },
         )
-      } catch (error) {
+      },
+      (error: unknown) =>
         // A newer version of either holds the decision, as Publish does: see what changed first.
-        if (error instanceof ApiError && error.kind === 'conflict') {
-          setPending(null)
-          setChanged(true)
-          return
-        }
-        setFailed(dialogCopy(pending, c).failure)
-        throw error
-      }
-    })
+        dispatch(
+          error instanceof ApiError && error.kind === 'conflict'
+            ? { type: 'refused', key }
+            : { type: 'failed', key, failure },
+        ),
+    )
   }
 
   const undoDone = async () => {
     if (!done) return
     await write('undo', { token: done.undo })
-    setDone(null)
+    dispatch({ type: 'finish' })
     toast('Undone', { description: 'Both items are as they were.' })
   }
   const goNext = React.useCallback(() => {
     if (!next) return
-    setDone(null)
+    dispatch({ type: 'finish' })
     onStep?.(next)
   }, [next, onStep])
 
@@ -768,7 +781,7 @@ export function ConflictView({
             online={online}
             changed={changed}
             onSeenChange={() => {
-              setChanged(false)
+              dispatch({ type: 'seenChange' })
               void query.refetch()
             }}
             mine={(s) => me.owns.includes(s.domain) || s.owners.includes(me.name)}
@@ -840,9 +853,9 @@ export function ConflictView({
             pending={pending}
             draft={draft}
             onDraft={(d) => setDrafts((all) => ({ ...all, [draftKey]: d }))}
-            onClose={() => setPending(null)}
+            onClose={() => dispatch({ type: 'cancel' })}
             onConfirm={confirm}
-            sending={sender.state === 'sending'}
+            sending={sending}
             failed={failed}
           />
           <AskOwnerDialog about={asking} onClose={() => setAsking(null)} />

@@ -657,13 +657,11 @@ function FiguresSection({ c, paused }: { c: Connector; paused: boolean }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {people
-                        .filter((p) => !p.invited)
-                        .map((p) => (
-                          <SelectItem key={p.name} value={p.name}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
+                      {people.map((p) => (
+                        <SelectItem key={p.name} value={p.name}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>

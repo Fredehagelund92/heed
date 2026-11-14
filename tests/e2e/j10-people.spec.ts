@@ -1,14 +1,27 @@
 import type { Page } from '@playwright/test'
 import { expect, go, mode, signInAs, signOut, test, userMenu } from './go.ts'
 
-// J10, people: an admin invites people as owners of a domain, and the domain sees them; the last
-// owner of a domain can't leave until someone takes over, an invited owner beside them or not, and
-// a removal says "Removed" only once the service has answered; an owner who isn't an admin can add
-// owners to their own domain and nothing else; ownership is the same on both pages. Picking a
-// person on the sign-in page opens their Inbox, and sign-in is no place for someone signed in.
-// A person's sheet says what they checked lately.
+// J10, people: an admin invites people as owners of a domain, and the domain lists them as invited,
+// not as its owners; an invite's sheet offers what an invite can do (a new link, Revoke) and reads
+// its role and domains as text; the last owner of a domain can't leave until someone takes over,
+// an invited owner beside them or not, and a removal says "Removed" only once the service has
+// answered; an owner who isn't an admin can add owners to their own domain and nothing else, and
+// takes back an invite they sent; ownership is the same on both pages. Picking a person on the
+// sign-in page opens their Inbox, and sign-in is no place for someone signed in. A person's sheet
+// says what they checked lately.
 
-test('invited people show as pending, and as owners on their domain', async ({ page }) => {
+/** Invites one address as an owner of one domain, from the dialog already open. */
+async function inviteIn(page: Page, email: string, domain: string) {
+  const dialog = page.getByRole('dialog', { name: 'Invite people' })
+  await dialog.getByLabel('Email addresses').fill(email)
+  // Opened from a domain's page, the dialog has that domain chosen already.
+  const choice = dialog.getByRole('button', { name: domain, exact: true })
+  if ((await choice.getAttribute('aria-pressed')) !== 'true') await choice.click()
+  await dialog.getByRole('button', { name: 'Invite', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+}
+
+test('invited people show as pending, and as invited on their domain', async ({ page }) => {
   await go(page, '/settings/people')
   await page.getByRole('button', { name: 'Invite people' }).click()
   const dialog = page.getByRole('dialog')
@@ -19,7 +32,49 @@ test('invited people show as pending, and as owners on their domain', async ({ p
     page.getByRole('list', { name: 'Invited' }).getByText('nina@larchwood.example').first(),
   ).toBeVisible()
   await go(page, '/settings/domains/marketing')
-  await expect(page.getByRole('button', { name: /Owners/ })).toContainText('nina@larchwood.example')
+  await expect(page.getByRole('button', { name: /Owners/ })).not.toContainText('nina@')
+  await expect(page.getByRole('group', { name: 'Invited' })).toContainText('nina@larchwood.example')
+})
+
+test("an invite's sheet offers a new link and Revoke, and reads its role and domains", async ({
+  page,
+}) => {
+  await go(page, '/settings/people')
+  await page.getByRole('button', { name: 'Invite people' }).click()
+  await inviteIn(page, 'nina@larchwood.example', 'Marketing')
+  await page
+    .getByRole('list', { name: 'Invited' })
+    .getByRole('button', { name: /nina@larchwood\.example/ })
+    .click()
+  const sheet = page.getByRole('dialog', { name: 'nina@larchwood.example' })
+  // The service never changes an invite's role or domains: no switch here pretends to.
+  await expect(sheet.getByRole('radiogroup', { name: 'Role' })).toHaveCount(0)
+  await expect(sheet.getByRole('switch')).toHaveCount(0)
+  await expect(sheet).toContainText('Invited as a Member')
+  await expect(sheet.getByRole('group', { name: 'Owns once they sign in' })).toHaveText('Marketing')
+  await expect(sheet.getByRole('button', { name: 'Make a new link' })).toBeEnabled()
+  await expect(sheet.getByRole('button', { name: 'Revoke the invite' })).toBeEnabled()
+})
+
+test('an invited owner is not an owner on the domain page, so its only owner stays', async ({
+  page,
+}) => {
+  await go(page, '/settings/people')
+  await page.getByRole('button', { name: 'Invite people' }).click()
+  await inviteIn(page, 'omar@larchwood.example', 'Paid media')
+  await go(page, '/settings/domains/paid_media')
+  const owners = page.getByRole('button', { name: /^Owners/ })
+  await expect(owners).toContainText('Priya Nair')
+  await expect(owners).not.toContainText('omar@')
+  await expect(page.getByRole('group', { name: 'Invited' })).toContainText('omar@larchwood.example')
+  // Taking Priya off would leave Paid media with no owner who has signed in: refused here.
+  await owners.click()
+  await page.getByRole('option', { name: /Priya Nair/ }).click()
+  await page.keyboard.press('Escape')
+  await expect(
+    page.getByRole('region', { name: /^Notifications/ }).getByText('A domain needs an owner'),
+  ).toBeVisible()
+  await expect(owners).toContainText('Priya Nair')
 })
 
 /** A day's label as a day to sort by: "3 Oct 2026" is 2026-10-03. */
@@ -137,6 +192,30 @@ test('a removal says "Removed" only once the service has answered', async ({ pag
   await remove()
   await expect(toasts.filter({ hasText: /^RemovedMaria Lindqvist/ })).toBeVisible()
   await expect(people.getByRole('button', { name: /Maria Lindqvist/ })).toHaveCount(0)
+})
+
+test('an owner who sent an invite makes it a new link, or takes it back', async ({ page }) => {
+  await signInAs(page, 'Tomas Eriksen')
+  await go(page, '/settings/domains/marketing')
+  await page.getByRole('button', { name: /^Owners/ }).click()
+  await page.getByRole('button', { name: 'Invite someone as an owner' }).click()
+  await inviteIn(page, 'lena@larchwood.example', 'Marketing')
+  await go(page, '/settings/people')
+  await page
+    .getByRole('list', { name: 'Invited' })
+    .getByRole('button', { name: /lena@larchwood\.example/ })
+    .click()
+  const sheet = page.getByRole('dialog', { name: 'lena@larchwood.example' })
+  await expect(sheet.getByRole('button', { name: 'Make a new link' })).toBeEnabled()
+  await sheet.getByRole('button', { name: 'Revoke the invite' }).click()
+  await page
+    .getByRole('dialog', { name: 'Revoke the invite to lena@larchwood.example?' })
+    .getByRole('button', { name: 'Revoke' })
+    .click()
+  await expect(
+    page.getByRole('region', { name: /^Notifications/ }).getByText('Invite revoked'),
+  ).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Invited' }).getByText('lena@')).toHaveCount(0)
 })
 
 test("an owner who isn't an admin adds owners to their own domain only", async ({ page }) => {

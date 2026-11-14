@@ -1,5 +1,5 @@
 import { withWhen, type DomainId, type Fact, type Metric, type StoredFact } from '@/model/items'
-import type { Person } from '@/model/people'
+import type { Invite, Person } from '@/model/people'
 import { DEMO_CONTEXT, demoTool } from './integrations'
 
 // Larchwood Outdoor, Heed's demo world (docs/design/demo-world.md in the Heed repository).
@@ -44,33 +44,101 @@ export const domainIds = Object.keys(domains)
 /* ---------- people ---------- */
 
 export const people: Person[] = [
-  { name: 'Jon Abara', role: 'Owner of Sales, admin', owns: ['sales', 'sandbox'], admin: true },
-  { name: 'Tomas Eriksen', role: 'Owner of Marketing', owns: ['marketing'], admin: false },
-  { name: 'Ines Duarte', role: 'Suggests context, owns no domain', owns: [], admin: false },
-  { name: 'Ravi Kapoor', role: 'Admin', owns: [], admin: true },
-  { name: 'Maria Lindqvist', role: 'Suggests context, owns no domain', owns: [], admin: false },
-  { name: 'Sofia Brandt', role: 'Owner of Sales', owns: ['sales'], admin: false },
-  { name: 'Noor Haddad', role: 'Owner of Customer value', owns: ['customer_value'], admin: false },
-  { name: 'Alex Moreau', role: 'Owner of Customer value', owns: ['customer_value'], admin: false },
-  { name: 'Priya Nair', role: 'Owner of Paid media', owns: ['paid_media'], admin: false },
-  { name: 'Lars Dahl', role: 'Suggests context, owns no domain', owns: [], admin: false },
-  { name: 'Kofi Mensah', role: 'Suggests context, owns no domain', owns: [], admin: false },
-  { name: 'Ella Voss', role: 'Suggests context, owns no domain', owns: [], admin: false },
   {
-    name: 'Aleksandra Konstantinopoulou-Whitfield',
-    role: 'Invited',
-    owns: [],
-    admin: false,
-    email: 'aleksandra.konstantinopoulou-whitfield@larchwood.example',
-    invited: true,
+    id: 'per_jon_abara',
+    name: 'Jon Abara',
+    role: 'Owner of Sales, admin',
+    owns: ['sales', 'sandbox'],
+    admin: true,
   },
   {
-    name: 'finance.lead@larchwood.example',
-    role: 'Invited',
+    id: 'per_tomas_eriksen',
+    name: 'Tomas Eriksen',
+    role: 'Owner of Marketing',
+    owns: ['marketing'],
+    admin: false,
+  },
+  {
+    id: 'per_ines_duarte',
+    name: 'Ines Duarte',
+    role: 'Suggests context, owns no domain',
     owns: [],
     admin: false,
+  },
+  { id: 'per_ravi_kapoor', name: 'Ravi Kapoor', role: 'Admin', owns: [], admin: true },
+  {
+    id: 'per_maria_lindqvist',
+    name: 'Maria Lindqvist',
+    role: 'Suggests context, owns no domain',
+    owns: [],
+    admin: false,
+  },
+  {
+    id: 'per_sofia_brandt',
+    name: 'Sofia Brandt',
+    role: 'Owner of Sales',
+    owns: ['sales'],
+    admin: false,
+  },
+  {
+    id: 'per_noor_haddad',
+    name: 'Noor Haddad',
+    role: 'Owner of Customer value',
+    owns: ['customer_value'],
+    admin: false,
+  },
+  {
+    id: 'per_alex_moreau',
+    name: 'Alex Moreau',
+    role: 'Owner of Customer value',
+    owns: ['customer_value'],
+    admin: false,
+  },
+  {
+    id: 'per_priya_nair',
+    name: 'Priya Nair',
+    role: 'Owner of Paid media',
+    owns: ['paid_media'],
+    admin: false,
+  },
+  {
+    id: 'per_lars_dahl',
+    name: 'Lars Dahl',
+    role: 'Suggests context, owns no domain',
+    owns: [],
+    admin: false,
+  },
+  {
+    id: 'per_kofi_mensah',
+    name: 'Kofi Mensah',
+    role: 'Suggests context, owns no domain',
+    owns: [],
+    admin: false,
+  },
+  {
+    id: 'per_ella_voss',
+    name: 'Ella Voss',
+    role: 'Suggests context, owns no domain',
+    owns: [],
+    admin: false,
+  },
+]
+
+/** The open invites: an admin sent them, and nobody has signed in with them yet. */
+export const invites: Invite[] = [
+  {
+    id: 'inv_aleksandra',
+    email: 'aleksandra.konstantinopoulou-whitfield@larchwood.example',
+    admin: false,
+    willOwn: [],
+    sentBy: 'per_jon_abara',
+  },
+  {
+    id: 'inv_finance_lead',
     email: 'finance.lead@larchwood.example',
-    invited: true,
+    admin: false,
+    willOwn: [],
+    sentBy: 'per_jon_abara',
   },
 ]
 
