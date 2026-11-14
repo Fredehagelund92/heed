@@ -11,7 +11,7 @@
 
 ## 0. One page summary
 
-**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, checked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
+**The look.** A quiet neutral app on shadcn's neutral theme. One accent, Heed blue, for the main button, focus, the selected place, ticked controls and links. Flat cells divided by hairlines. The sidebar sits on the page background. Colour carries meaning only, and always with an icon or a word.
 
 **The three radius rules.**
 
@@ -167,9 +167,9 @@ The chart tokens are the same in light and dark. One value differs from the mock
 **Colour rules.**
 
 - Colour is never the only sign. Every mark has an icon, a shape or a word as well (section 5 of [Accessibility](accessibility.md)).
-- The logo, the chrome's surfaces, counts and badges never take the accent.
+- The logo, the chrome's surfaces, counts and badges never take the accent. Nor does a state: a Checked answer is green in its chip, its bars and their legend, a card not opened yet has a dot in the ink, and a domain's dot keeps 35 degrees of hue away from Heed blue (`lib/tones.ts`).
 - Kinds have no hue. A kind shows as a neutral icon.
-- Charts: blue for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
+- Charts: green for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
 - Marked text uses one component (`components/heed/mark.tsx`) and four roles. The colour rides on the ink, the weight and an underline, never on a fill:
 
   | Role               | Used for                                  | Looks                                                   |

@@ -18,7 +18,7 @@ export const toneHue: Record<Exclude<Tone, 'neutral' | 'domain'>, number> = {
 }
 
 const hues: Record<DomainId, number | null> = {
-  sales: 255,
+  sales: 345,
   marketing: 35,
   customer_value: 300,
   paid_media: 165,
@@ -26,16 +26,23 @@ const hues: Record<DomainId, number | null> = {
 }
 
 /**
+ * Blue is for acting and for what is selected (design contract 2.1), so a domain's dot keeps this
+ * far from the hue of Heed blue (262 in oklch, in both themes).
+ */
+const accentHue = 262
+const accentClear = 35
+
+/**
  * A domain's hue: the demo world's own, by its id as the mock names it or as the service does
- * (`area_sales`), and for any other domain one picked from its id, the same every time. The sandbox
- * has none.
+ * (`area_sales`), and for any other domain one picked from its id, the same every time and never
+ * near the accent. The sandbox has none.
  */
 export function domainHue(id: DomainId): number | null {
   const plain = id.replace(/^area_/, '')
   if (plain in hues) return hues[plain]!
   let h = 0
-  for (const c of plain) h = (h * 31 + c.charCodeAt(0)) % 360
-  return h
+  for (const c of plain) h = (h * 31 + c.charCodeAt(0)) % (360 - 2 * accentClear)
+  return (accentHue + accentClear + h) % 360
 }
 
 /** What a plain "applies to" word is: a metric, a market, a domain, or a word of the author's own. */
