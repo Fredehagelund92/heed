@@ -458,10 +458,10 @@ async function openGaps(tx: Queryable): Promise<OpenGap[]> {
   return tx.query<OpenGap>(
     `select g.id::text, t.area_id as area, t.metric_keys as metrics, t.value_keys as values,
             t.dimension_keys as dimensions, t.month::text as month,
-            (select p.id::text from gap_proposals gp join proposals p on p.id=gp.proposal_id
-              where gp.gap_id=g.id and p.discarded_at is null order by p.created_at desc limit 1) as draft
+            (select p.id::text from proposals p
+              where p.source_gap_id=g.id and p.discarded_at is null order by p.created_at desc limit 1) as draft
        from gaps g join topics t on t.id=g.topic_id
-      where g.status in ('open','proposal_made') and cl_manages_topic(t.area_id, t.metric_keys)
+      where g.status='open' and cl_manages_topic(t.area_id, t.metric_keys)
       order by t.month desc, g.id`,
   )
 }

@@ -142,6 +142,12 @@ runs after the weekly counts, counts every week after the latest kept and again 
 The API role reads the table and runs those two functions; the serving and analytics roles reach
 neither.
 
+A gap is `open`, `resolved` (Covered) or `wont_fix` (Set aside), and moves only as
+`gap_transitions` lists (migration 0049, FR-609): a publish of a suggestion whose
+`proposals.source_gap_id` names it covers it, Not something we write down sets it aside, and
+the Undo of either opens it again. A trigger refuses any other change of status with
+`check_violation`. `gaps.resolved_edition_seq` is the live edition when it was covered, allowed
+only on a covered gap.
 Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
 updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores
 evidence from before its `status_since` hour, and newer evidence opens a new gap. The MCP tool
@@ -155,8 +161,7 @@ in `gap_weekly_counts.human_reports` (a part of `reports`), and never reads `cl.
 `gap_report_keys` keeps the digests of a report's retry key and request for a day, so a retry
 counts once without naming anyone. Retention also clears feedback notes after `retention.note_days`.
 
-Gap times, note expiry and verification times keep hour precision, like every other anonymous
-record. The analytics role reads `v_topic_counts_public` (a topic only in weeks it reaches
+Gap times and note expiry keep hour precision, like every other anonymous record. The analytics role reads `v_topic_counts_public` (a topic only in weeks it reaches
 `privacy.min_count`, with a no-item count hidden when it is from one to just under the minimum) and `v_gap_totals` (gap totals per area, type and status) instead of the raw
 topic and gap tables. The API hides every call count from one to just under the minimum, shows
 a gap to others only through topic weeks that reach it (full detail only to the area's owners and administrators), and reads review times through
@@ -179,32 +184,22 @@ definition sync publishes an `area_map_changed` edition when `cl_source_domains_
 live edition is behind the source (FR-215). An edition with no pinned source domains keeps its
 digest and replies (FR-327); the next sync pins them. Serving, gap topics and the catalogue read the pinned map.
 `cl_manages_topic` lets the owners of every domain of a topic manage its gap, in the service
-and in the row security of `gap_notes` and `gap_tests`, so a topic that spans domains reaches
+and in the row security of `gap_notes`, so a topic that spans domains reaches
 each of their owners. After a publish, `cl_topics_adopt_domains()` gives an area-less topic the
 one domain its metrics now have, with the key `topicFor` gives that scope, so later reports count
 against the same gap.
 
-## Gap tests
+## Attached tests
 
-Gaps are verified by test (FR-610), and tests can be attached to a draft (FR-524).
-`gaps.resolved_edition_seq` is the live edition when an owner resolved the gap; a constraint
-allows it only on a resolved gap, and `verified_at` only with it, so leaving `resolved` must clear
-both.
-`gap_tests` links a gap to the test questions that capture it and records each test's first pass
-at or after the resolving edition (run, edition, question revision, hour; all four or none);
-`proposal_tests` lists the tests attached to a proposal. Neither names a person, and both keep the
-hour only: the history log says who linked or attached.
+Tests can be attached to a draft (FR-524). `proposal_tests` lists the tests attached to a
+proposal. It names no person and keeps the hour only: the history log says who attached.
 
-A linked or attached question must be in the gap's or the proposal's area, and a held-out question
-is never attached (FR-503). A trigger checks both after row security, and a guard on
-`golden_questions` refuses holding a question out while an open proposal carries it, or moving it
-to another area while a gap or an open proposal uses it. Row security gives a gap's links to its
-managers (administrators and the area's owners). A transaction without a person
-reads no links and writes none; the scheduled run's verification will record passes through an
-owner-run function. The API role may update only the pass columns. Attached tests are read with
-their proposal, except a question held out since, which only its area's maintainers read; the
-draft's author attaches and detaches while it is a draft, the area's maintainers until a decision.
-The rules that decide when a gap is verified are pure functions in `src/domain/gaps.ts`.
+An attached question must be in the proposal's area, and a held-out question is never attached
+(FR-503). A trigger checks both after row security, and a guard on `golden_questions` refuses
+holding a question out while an open proposal carries it, or moving it to another area while one
+uses it. Attached tests are read with their proposal, except a question held out since, which
+only its area's maintainers read; the draft's author attaches and detaches while it is a draft,
+the area's maintainers until a decision.
 
 ## Agent drafts
 
@@ -222,12 +217,8 @@ tool's open questions in their agent (MCP elicitation), the draft is saved once 
 that question round, so a replayed request state cannot save a second draft. It sits on the
 proposal, so no other row names the person.
 
-`gaps.verified_edition_seq` is the edition a gap was verified on,
-recorded with `verified_at` (both or neither, never before the resolving edition), so the fact
-stays when a test is unlinked later. Two owner-run functions reach past that row security for the
-gap's record: `cl_gap_history` gives a gap's managers its rows of the history log (action, hour
-and details, never who), and `cl_gap_draft_tests` attaches a gap's linked, active development
-questions to a draft started from it, for the draft's author only.
+An owner-run function reaches past row security for a gap's record: `cl_gap_history` gives a
+gap's managers its rows of the history log (action, hour and details, never who).
 
 A proposal's attached tests stay in its area: when a draft's
 author or a reviewer moves a proposal to another area, a trigger detaches the tests of the area it
@@ -307,7 +298,7 @@ shared folder for the demo.
 After the demo's library and quality history, the demo's present (`loadStory`,
 `db/seed/story.ts`) is made through the service's own API and MCP server with the real clock, as
 the people and agents who do it would: Maria Lindqvist suggests "Online sales to Norway stopped on
-4 August 2026" and Jon Abara publishes it (which resolves the gap agents raised about it), Jon and
+4 August 2026" and Jon Abara publishes it (which covers the gap agents raised about it: she wrote it for that gap), Jon and
 Sofia Brandt publish two United Kingdom items that disagree, three suggestions wait for the owners
 of Sales, Jon saves two questions, and agents call the MCP server about 160 times a week over the
 eight weeks before this one. The seed moves each call's records to the hour it stands for, raises
@@ -375,8 +366,7 @@ edition. The runs and passes are the service's own (the evaluation worker throug
 and the retrieval pass), each on the edition live then with the clock set to that day: the seed
 points the live edition back for each Monday and restores it, and moves the service's time stamps
 to the days they stand for. The newest Commercial run fails the demo's regression on its caveat,
-and the open gap about net revenue in Spain is linked to that question with the failing run as
-evidence. The seed checks this story and rolls back if a run tells another. `seedDemo` also runs on
+which agents raised as the open gap about net revenue in Spain. The seed checks this story and rolls back if a run tells another. `seedDemo` also runs on
 its own right after the bulk seed, before the service has made any run, retrieval pass or gap.
 
 ### Golden set library

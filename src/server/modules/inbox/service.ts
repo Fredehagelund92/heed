@@ -213,10 +213,10 @@ export function createInboxFeedService(
               t.value_keys as values, t.dimension_keys as dimensions, t.month::text as month,
               coalesce((select w.reports - w.human_reports + w.no_item_calls from gap_weekly_counts w
                          where w.gap_id=g.id and w.week=date_trunc('week', now() at time zone 'UTC')::date),0)::int as calls,
-              (select p.id::text from gap_proposals gp join proposals p on p.id=gp.proposal_id
-                where gp.gap_id=g.id and p.discarded_at is null order by p.created_at desc limit 1) as draft
+              (select p.id::text from proposals p
+                where p.source_gap_id=g.id and p.discarded_at is null order by p.created_at desc limit 1) as draft
          from gaps g join topics t on t.id=g.topic_id
-        where g.status in ('open','proposal_made') and cl_manages_topic(t.area_id, t.metric_keys)
+        where g.status='open' and cl_manages_topic(t.area_id, t.metric_keys)
         order by g.status_since desc limit 100`,
     )
     return rows.map((row): Card => {
@@ -780,11 +780,7 @@ export function createInboxFeedService(
           message: "This card doesn't offer that decision.",
         })
       if (input.action === 'not_written') {
-        await deps.gaps.setStatus(
-          key.id,
-          'wont_fix',
-          input.reason ?? 'Not something we write down.',
-        )
+        await deps.gaps.move(key.id, 'set_aside', input.reason ?? 'Not something we write down.')
         return { edition: null, undo: `gap:${key.id}` }
       }
       if (input.action === 'not_a_problem') {
@@ -854,14 +850,8 @@ export function createInboxFeedService(
       }
       if (kind === 'gap') {
         // Opening a gap again is a decision every owner of its domain may make at any time, so its
-        // undo needs no window: only that it is still closed as not written down.
-        const [gap] = await tx.query<{ status: string }>(
-          'select status::text from gaps where id=$1',
-          [ref],
-        )
-        if (gap?.status !== 'wont_fix')
-          throw new ORPCError('CONFLICT', { message: 'Someone already opened this again.' })
-        await deps.gaps.setStatus(ref, 'open', 'Undone.')
+        // undo needs no window: only that it is still set aside.
+        await deps.gaps.move(ref, 'reopen', 'Undone.')
         return { edition: null }
       }
       throw new ORPCError('NOT_FOUND')

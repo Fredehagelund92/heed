@@ -24,16 +24,21 @@ export const gapOrigin = (openedByCase: number): GapOrigin => {
 export const gapNoteSources = ['report_gap', 'feedback', 'owner', 'person'] as const
 export type GapNoteSource = (typeof gapNoteSources)[number]
 
-/** What a gap's history shows from the history log (FR-610): its lifecycle, never who. */
-export const gapHistoryActions = [
-  'gap.status_changed',
-  'gap.note_added',
-  'gap.draft_started',
-  'gap.test_linked',
-  'gap.test_unlinked',
-  'gap.verified',
-  'gap.verification_cleared',
-] as const
+/** What a gap's history shows from the history log (FR-610): its moves, never who. */
+export const gapHistoryActions = ['gap.status_changed'] as const
+
+/**
+ * The only moves a gap makes, as `gap_transitions` lists them: a publish that names it covers it,
+ * Not something we write down sets it aside, and the Undo of either opens it again. A miss seen
+ * again after it was covered opens a new gap instead.
+ */
+export const gapMoves = {
+  cover: { from: 'open', to: 'resolved' },
+  uncover: { from: 'resolved', to: 'open' },
+  set_aside: { from: 'open', to: 'wont_fix' },
+  reopen: { from: 'wont_fix', to: 'open' },
+} as const satisfies Record<string, { from: GapStatus; to: GapStatus }>
+export type GapMove = keyof typeof gapMoves
 
 /**
  * FR-614: a count from one to just under the minimum could point at a few people, so it is
@@ -129,11 +134,3 @@ export type TopicScope = {
 
 /** A dimension value key `val:<dimension>/<value>` names its dimension. */
 export const dimensionOfValue = (valueKey: string) => `dim:${valueKey.slice(4).split('/')[0]}`
-
-/**
- * FR-610: moving a gap out of `resolved` (to open, proposal made or won't fix) clears its resolving
- * edition, its verification and every pass of its tests. Resolving it again starts afresh.
- */
-export function clearsVerification(from: GapStatus, to: GapStatus): boolean {
-  return from === 'resolved' && to !== 'resolved'
-}

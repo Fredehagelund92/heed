@@ -31,6 +31,7 @@ import type { Queryable } from '../../db/database.ts'
 import { liveServingBundle, type BundleCache } from '../answer/index.ts'
 import { conflictsOfItem } from '../conflicts/index.ts'
 import { enabledTools } from '../editions/index.ts'
+import { createGapsService } from '../gaps/index.ts'
 import type { LibraryService } from '../library/index.ts'
 import { draftVocabulary } from '../../mcp/draft-tool.ts'
 import { proposalEvent, readVersions, type ProposalsService } from '../proposals/index.ts'
@@ -773,8 +774,10 @@ export function createContextService(
     itemId?: string | undefined
     reason?: string | undefined
     draftId?: string | undefined
+    gapId?: string | undefined
     relations?: { itemId: string; relation: ClashRelation }[] | undefined
   }): Promise<PublishItemResult> {
+    if (input.gapId) await createGapsService(tx).visible(input.gapId)
     const created = input.draftId
       ? await finish(input.draftId, input.draft, input.reason)
       : await proposals.create({
@@ -782,9 +785,18 @@ export function createContextService(
           ...(input.itemId ? { itemId: input.itemId } : {}),
           ...(input.reason ? { reason: input.reason } : {}),
         })
+    // Written for a Not found card: its publish covers the gap (review's publishAccepted).
+    const revision = input.gapId
+      ? (
+          await tx.query<{ revision: number }>(
+            'update proposals set source_gap_id = $2 where id = $1 returning revision',
+            [created.id, input.gapId],
+          )
+        )[0]!.revision
+      : created.revision
     // A draft that was started from an item changes that item.
     const itemId = input.draftId ? (created.itemId ?? undefined) : input.itemId
-    const submitted = await proposals.submit(created.id, created.revision)
+    const submitted = await proposals.submit(created.id, revision)
     await review.checkSubmitted(submitted.id)
     const areaId = submitted.areaId!
     const mine = await me()

@@ -66,6 +66,8 @@ The sidebar has four places: **Inbox**, **Ask**, **Context**, **Definitions**. A
 
 The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Names, Not found, Reported, Saved questions, Alerts, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
 
+A Not found card shows a gap: a topic agents keep asking about with nothing written down for it. A gap is Open, Covered or Set aside. It is Open while agents keep asking. Publishing context written from its card, or a suggestion written for it, covers it, and the card leaves the Inbox. Not something we write down sets it aside. Undo of either opens it again. When agents ask about a covered topic again and still find nothing, a new gap opens.
+
 ### Review
 
 | Screen                           | Address                   |

@@ -361,15 +361,19 @@ async function connectState(page: Page, flag: string) {
   throw new Error(`?connect=${flag} has no http meaning yet`)
 }
 
+/** A tool call of a signed-in agent: what the tool answered, as its structured content. */
+export type AgentCall = (tool: string, args: Record<string, unknown>) => Promise<unknown>
+
 /**
  * The person's own agent signs in, as one does once its prompt is pasted (J12): it registers with
  * the service's login server, opens the sign-in, the person answers on the consent page (`allow`,
- * yes by default) and, on a yes, the agent collects its tokens. In mock mode the mock plays it.
+ * yes by default) and, on a yes, the agent collects its tokens, with which it calls tools. In mock
+ * mode the mock plays it.
  */
 export async function agentSignsIn(
   page: Page,
   { allow = true, agent = 'Claude Code' }: { allow?: boolean; agent?: string } = {},
-) {
+): Promise<AgentCall | undefined> {
   if (!http) return
   // The login server's address, the issuer: on the web app's host (http/harness.ts).
   const service = `http://localhost:${process.env.GOLDEN_API_PORT}`
@@ -421,7 +425,7 @@ export async function agentSignsIn(
     body: JSON.stringify({ id: new URL(consent).searchParams.get('request'), allow }),
   })
   if (!decided.ok) throw new Error(`The consent answer was refused: ${await decided.text()}`)
-  if (!allow) return
+  if (!allow) return undefined
   const back = new URL(((await decided.json()) as { redirectTo: string }).redirectTo)
   const token = await fetch(`${service}/oauth/token`, {
     method: 'POST',
@@ -436,6 +440,27 @@ export async function agentSignsIn(
     }).toString(),
   })
   if (!token.ok) throw new Error(`The agent got no tokens: ${await token.text()}`)
+  const { access_token: bearer } = (await token.json()) as { access_token: string }
+  return async (tool, args) => {
+    const answer = await fetch(`${service}/mcp`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${bearer}`,
+        accept: 'application/json, text/event-stream',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: tool, arguments: args },
+      }),
+    })
+    const body = await answer.text()
+    const json = body.startsWith('{') ? body : /^data: (.*)$/m.exec(body)![1]!
+    return (JSON.parse(json) as { result: { structuredContent: unknown } }).result
+      .structuredContent
+  }
 }
 
 /**

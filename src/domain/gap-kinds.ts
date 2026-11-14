@@ -18,8 +18,12 @@ export const gapTypes = [
 ] as const
 export type GapType = (typeof gapTypes)[number]
 
-/** FR-609. A `wont_fix` gap never reopens by itself. */
-export const gapStatuses = ['open', 'proposal_made', 'wont_fix', 'resolved'] as const
+/**
+ * FR-609: a gap's three states. Open: agents keep asking and nothing covers it yet. Covered
+ * (`resolved`): context was published for it. Set aside (`wont_fix`): its owners decided it is not
+ * something to write down; it never reopens by itself.
+ */
+export const gapStatuses = ['open', 'wont_fix', 'resolved'] as const
 export type GapStatus = (typeof gapStatuses)[number]
 
 /**

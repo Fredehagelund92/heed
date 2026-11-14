@@ -10,6 +10,7 @@ import type {
   RelatedContext,
 } from '../../src/contract/context.ts'
 import type { LibraryIndex } from '../../src/contract/index.ts'
+import type { Feed } from '../../src/contract/inbox.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { anyDate } from '../../src/domain/validity.ts'
@@ -272,6 +273,92 @@ describe('publishing in one step (FR-137)', () => {
       draft: draft({ summary: 'Ask jo@example.test before you read these orders.' }),
     })
     expect(r.statusCode).toBe(422)
+    expect((await client.query('select count(*)::int as n from proposals')).rows).toEqual(
+      before.rows,
+    )
+  })
+})
+
+describe('publishing from a Not found card (#201)', () => {
+  /** A gap agents raised about orders in Finance, as the Inbox's Not found card shows it. */
+  async function openGap() {
+    const [{ id }] = (
+      await client.query<{ id: string }>(
+        `with t as (insert into topics (key,area_id,metric_keys,value_keys,month)
+                    values ($1,'finance','{metric:orders}','{val:market/norway}','2026-10-01') returning id)
+         select cl_gap_touch((select id from t),'missing',2::smallint,now(),null,1) as id`,
+        [`test|${randomUUID()}`],
+      )
+    ).rows as [{ id: string }]
+    return id
+  }
+  const gap = async (id: string) =>
+    (
+      await client.query<{ status: string; covered: boolean }>(
+        `select status::text, resolved_edition_seq = (select seq from live_edition) as covered
+           from gaps where id=$1`,
+        [id],
+      )
+    ).rows[0]
+  const needs = async (who: Who) =>
+    (await ok<Feed>(call('GET', '/inbox/feed?tab=needs', who))).cards.map((c) => c.id)
+
+  it("covers the gap it names, and the card leaves the owner's Inbox", async () => {
+    const id = await openGap()
+    expect(await needs('owner')).toContain(`gap:${id}`)
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', { draft: draft(), gapId: id }),
+    )
+    expect(r).toMatchObject({ published: true })
+    expect(await gap(id)).toEqual({ status: 'resolved', covered: true })
+    expect(await needs('owner')).not.toContain(`gap:${id}`)
+  })
+
+  it('opens the gap again when that publish is undone, and the card comes back', async () => {
+    const id = await openGap()
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', { draft: draft(), gapId: id }),
+    )
+    if (!r.published) throw new Error('not published')
+    expect((await undo('owner', r.undo)).statusCode).toBe(200)
+    expect(await gap(id)).toEqual({ status: 'open', covered: null })
+    expect(await needs('owner')).toContain(`gap:${id}`)
+  })
+
+  it('covers it once the suggestion sent from it is published, not before', async () => {
+    const id = await openGap()
+    const sent = await ok<ProposalRecord>(call('POST', '/proposals', 'author', { draft: draft() }))
+    // An agent's draft for the card names its gap, as the drafting helper's does.
+    const [linked] = (
+      await client.query<{ revision: number }>(
+        'update proposals set source_gap_id=$1 where id=$2 returning revision',
+        [id, sent.id],
+      )
+    ).rows
+    const submitted = await ok<ProposalRecord>(
+      call('POST', `/proposals/${sent.id}/submit`, 'author', { revision: linked!.revision }),
+    )
+    expect(await gap(id)).toEqual({ status: 'open', covered: null })
+    await ok(call('POST', `/review/${sent.id}/publish`, 'owner', { revision: submitted.revision }))
+    expect(await gap(id)).toEqual({ status: 'resolved', covered: true })
+  })
+
+  it('leaves a gap that was set aside as it is', async () => {
+    const id = await openGap()
+    await ok(
+      call('POST', '/inbox/cards/decide', 'owner', { card: `gap:${id}`, action: 'not_written' }),
+    )
+    await ok(call('POST', '/items/publish', 'owner', { draft: draft(), gapId: id }))
+    expect(await gap(id)).toEqual({ status: 'wont_fix', covered: null })
+  })
+
+  it('refuses a gap the person cannot see, and keeps nothing', async () => {
+    const before = await client.query('select count(*)::int as n from proposals')
+    const r = await call('POST', '/items/publish', 'author', {
+      draft: draft(),
+      gapId: await openGap(),
+    })
+    expect(r.statusCode).toBe(404)
     expect((await client.query('select count(*)::int as n from proposals')).rows).toEqual(
       before.rows,
     )

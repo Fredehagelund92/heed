@@ -16,7 +16,7 @@ const { client, url } = testDatabase()
   present (db/seed/story.ts): what the README shows a new install.
 */
 it(
-  'adds weekly runs, retrieval passes, gaps and the linked regression to the bulk seed, then the present',
+  'adds weekly runs, retrieval passes, gaps and the regression to the bulk seed, then the present',
   {
     timeout: 600_000,
   },
@@ -58,13 +58,6 @@ it(
        from eval_runs where area_id='area_sales' order by finished_at desc limit 1`,
     )
     expect(newest).toEqual([{ day: '2026-10-05', regressions: [regression.question] }])
-    const { rows: links } = await client.query<{ question: string; evidence: boolean }>(
-      `select g.question_id as question,
-            g.evidence_run=(select id from eval_runs where area_id='area_sales'
-                             order by finished_at desc limit 1) as evidence
-       from gap_tests g join gaps x on x.id=g.gap_id where x.status='open'`,
-    )
-    expect(links).toEqual([{ question: regression.question, evidence: true }])
 
     await expect(seedDemo(client)).rejects.toThrow('never replaces them')
 

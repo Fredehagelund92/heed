@@ -290,7 +290,7 @@ import {
 import { operationsOverviewSchema, runJobInputSchema, runJobSchema } from './operations.ts'
 import { refusals } from './refusals.ts'
 export * from './schemas.ts'
-export type { Gap, GapDetail, GapHistoryEntry, GapTest, TopicCounts } from './gaps.ts'
+export type { Gap, GapDetail, GapHistoryEntry, TopicCounts } from './gaps.ts'
 export type {
   AddSourceInput,
   ConnectorListing,

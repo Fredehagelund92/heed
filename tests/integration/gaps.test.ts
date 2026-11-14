@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { GapDetail } from '../../src/contract/gaps.ts'
+import { gapMoves, gapStatuses } from '../../src/domain/gaps.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
@@ -127,21 +129,12 @@ const weekly = async (gapId: string) =>
     )
   ).rows
 const detect = () => gapDetectionJob.run({ database } as Parameters<typeof gapDetectionJob.run>[0])
-/** A gap's status changed as a person, as the Inbox's gap cards change it. */
-const changeStatus = (
-  name: keyof typeof people,
-  id: string,
-  status: 'open' | 'resolved' | 'wont_fix',
-  reason?: string,
-) => database.transaction(people[name], (tx) => createGapsService(tx).setStatus(id, status, reason))
-/** Links test questions to a gap, as the gap's tests were linked before the old Gaps page left. */
-const linkTests = async (id: string, ...questions: string[]) => {
-  for (const question of questions)
-    await client.query('insert into gap_tests (gap_id, question_id) values ($1, $2)', [
-      id,
-      question,
-    ])
-}
+/** A gap set aside or opened again as a person, as the Inbox's Not found card does. */
+const move = (name: keyof typeof people, id: string, to: 'set_aside' | 'reopen', reason?: string) =>
+  database.transaction(people[name], (tx) => createGapsService(tx).move(id, to, reason))
+/** A gap covered as a person, as publishing context written for it does. */
+const cover = (name: keyof typeof people, id: string) =>
+  database.transaction(people[name], (tx) => createGapsService(tx).cover(id, 'Orders in Norway'))
 async function setStatus(id: string, status: string) {
   await client.query(
     "update gaps set status=$2, status_since=date_trunc('hour', now(), 'UTC') where id=$1",
@@ -407,52 +400,48 @@ describe('gap detection (FR-606, FR-609)', () => {
   })
 })
 
-describe('verification by test (FR-610)', () => {
-  it('records a resolving edition only on a resolved gap, and verification only with it', async () => {
-    const created = await client.query<{ id: string }>(
-      "select cl_gap_touch($1,'missing',2::smallint,now()) as id",
-      [await topic()],
-    )
-    const id = created.rows[0]!.id
-    // A gap resolved before Heed recorded the edition keeps none: unknown stays unknown.
-    await setStatus(id, 'resolved')
-    expect(
-      (await client.query('select resolved_edition_seq, verified_at from gaps where id=$1', [id]))
-        .rows,
-    ).toEqual([{ resolved_edition_seq: null, verified_at: null }])
-    await expect(
-      client.query("update gaps set verified_at=date_trunc('hour', now(), 'UTC') where id=$1", [
-        id,
-      ]),
-    ).rejects.toMatchObject({ code: '23514' })
-    // The verification names its edition (0044): both or neither, never before the resolving one.
-    for (const [resolvedSeq, verifiedSeq] of [
-      [edition, null],
-      [edition, String(Number(edition) - 1)],
-    ])
-      await expect(
-        client.query(
-          "update gaps set resolved_edition_seq=$2, verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$3 where id=$1",
-          [id, resolvedSeq, verifiedSeq],
-        ),
-      ).rejects.toMatchObject({ code: '23514' })
-    await client.query(
-      "update gaps set resolved_edition_seq=$2, verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$2 where id=$1",
-      [id, edition],
-    )
-    // Leaving resolved must clear both, so the next resolution starts afresh.
-    for (const status of ['open', 'proposal_made', 'wont_fix'])
-      await expect(
-        client.query('update gaps set status=$2 where id=$1', [id, status]),
-        status,
-      ).rejects.toMatchObject({ code: '23514' })
-    await client.query(
-      "update gaps set status='open', resolved_edition_seq=null, verified_at=null, verified_edition_seq=null where id=$1",
-      [id],
-    )
+describe("a gap's three states (FR-609, #201)", () => {
+  it('allows only the moves the app makes, and refuses every other with check_violation', async () => {
+    const pairs = (
+      await client.query<{ from: string; to: string }>(
+        'select from_status::text as from, to_status::text as to from gap_transitions order by 1, 2',
+      )
+    ).rows
+    const moves = Object.values(gapMoves).map((m) => ({ from: m.from, to: m.to }))
+    const order = (x: { from: string; to: string }) => `${x.from}>${x.to}`
+    expect(pairs.map(order).sort()).toEqual(moves.map(order).sort())
+    for (const from of gapStatuses)
+      for (const to of gapStatuses) {
+        if (from === to) continue
+        const id = (
+          await client.query<{ id: string }>(
+            "select cl_gap_touch($1,'missing',2::smallint,now()) as id",
+            [await topic()],
+          )
+        ).rows[0]!.id
+        if (from !== 'open') await setStatus(id, from)
+        const change = client.query('update gaps set status=$2 where id=$1', [id, to])
+        if (moves.some((m) => m.from === from && m.to === to))
+          await expect(change, `${from} to ${to}`).resolves.toBeTruthy()
+        else await expect(change, `${from} to ${to}`).rejects.toMatchObject({ code: '23514' })
+      }
+  })
+
+  it('records a resolving edition only on a covered gap', async () => {
+    const id = (
+      await client.query<{ id: string }>(
+        "select cl_gap_touch($1,'missing',2::smallint,now()) as id",
+        [await topic()],
+      )
+    ).rows[0]!.id
     await expect(
       client.query('update gaps set resolved_edition_seq=$2 where id=$1', [id, edition]),
     ).rejects.toMatchObject({ code: '23514' })
+    // A gap covered before Heed recorded the edition keeps none: unknown stays unknown.
+    await setStatus(id, 'resolved')
+    expect(
+      (await client.query('select resolved_edition_seq from gaps where id=$1', [id])).rows,
+    ).toEqual([{ resolved_edition_seq: null }])
   })
 })
 
@@ -561,7 +550,7 @@ describe('gaps over the API', () => {
       noItemCalls: null,
       weeks: [{ reports: 5, noItemCalls: 0 }],
     })
-    await expect(changeStatus('stranger', id, 'wont_fix')).rejects.toMatchObject({
+    await expect(move('stranger', id, 'set_aside')).rejects.toMatchObject({
       code: 'FORBIDDEN',
     })
   })
@@ -612,12 +601,12 @@ describe('gaps over the API', () => {
     expect(owner.reports).toBe(16)
   })
 
-  it('lets an owner change the status with a checked reason, with history', async () => {
+  it('lets an owner set a gap aside with a checked reason, with history', async () => {
     const { id } = await smallGap()
-    await expect(
-      changeStatus('owner', id, 'wont_fix', 'Ask person@example.test'),
-    ).rejects.toMatchObject({ code: 'UNPROCESSABLE_CONTENT' })
-    const closed = await changeStatus('owner', id, 'wont_fix', 'Covered by the source tool.')
+    await expect(move('owner', id, 'set_aside', 'Ask person@example.test')).rejects.toMatchObject({
+      code: 'UNPROCESSABLE_CONTENT',
+    })
+    const closed = await move('owner', id, 'set_aside', 'Covered by the source tool.')
     expect(closed).toMatchObject({ status: 'wont_fix' })
     const audit = await client.query(
       "select action, details from audit_log where subject_type='gap' order by seq desc limit 1",
@@ -630,46 +619,24 @@ describe('gaps over the API', () => {
     ])
   })
 
-  it('refuses to reopen a gap while another for the same topic and type is open', async () => {
+  it('opens a set-aside gap again once, and never while another for its topic and type is open', async () => {
     const { topic: t, id } = await smallGap()
-    await setStatus(id, 'resolved')
-    await client.query(
-      "select cl_gap_touch($1,'missing',2::smallint,now() + interval '2 hours',null,1)",
-      [t],
-    )
-    await expect(changeStatus('owner', id, 'open')).rejects.toMatchObject({ code: 'CONFLICT' })
+    await move('owner', id, 'set_aside')
+    await client.query("insert into gaps (topic_id,type,opened_by_case) values ($1,'missing',2)", [
+      t,
+    ])
+    await expect(move('owner', id, 'reopen')).rejects.toMatchObject({ code: 'CONFLICT' })
+    await client.query("delete from gaps where topic_id=$1 and status='open'", [t])
+    expect(await move('owner', id, 'reopen')).toMatchObject({ status: 'open' })
+    await expect(move('owner', id, 'reopen')).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'Someone already opened this again.',
+    })
   })
 })
 
-describe('gap tests (FR-610, FR-524)', () => {
+describe('covering a gap (FR-609, FR-610)', () => {
   let label: string
-  let newest: string
-
-  /** A finished answer run of an area, with each question's verdict, as the runner stores it. */
-  async function answerRun(
-    area: string,
-    verdicts: Record<string, string>,
-    finishedAt: string,
-    kind = 'scheduled',
-  ) {
-    const result = await client.query<{ id: string }>(
-      `insert into eval_runs (kind,state,area_id,tool_schema_digest,model_id,client_label,test_set_digest,tries,
-                              estimated_cost_micros,started_at,finished_at,summary)
-       values ($1,'finished',$2,'x','mock/scripted-answer','eval','\\x00',3,0,$3,$3,$4) returning id::text`,
-      [
-        kind,
-        area,
-        finishedAt,
-        JSON.stringify({
-          edition: label,
-          result: {
-            questions: Object.entries(verdicts).map(([id, baseline]) => ({ id, baseline })),
-          },
-        }),
-      ],
-    )
-    return result.rows[0]!.id
-  }
   async function shownGap() {
     const t = await topic()
     await deliveries(t, 5)
@@ -680,132 +647,64 @@ describe('gap tests (FR-610, FR-524)', () => {
       )
     ).rows[0]!.id
   }
-  const gapAudit = async (id: string) =>
-    (
-      await client.query<{ action: string; actor: string; details: object }>(
-        `select a.action, a.actor_id::text as actor, a.details from audit_log a join gaps g on g.ref=a.subject_id
-          where a.subject_type='gap' and g.id=$1 order by a.seq`,
-        [id],
-      )
-    ).rows
   beforeAll(async () => {
     label = (
       await client.query<{ label: string }>(
         'select label from editions e join live_edition l on l.seq=e.seq',
       )
     ).rows[0]!.label
-    await client.query(`insert into golden_questions (id,area_id,wordings,scope,expected,source,split,status) values
-      ('gt-dev','finance','["a","b"]','{}','{}','test','development','active'),
-      ('gt-held','finance','["a","b"]','{}','{}','test','held_out','active')`)
-    newest = await answerRun('finance', { 'gt-dev': 'pass' }, '2026-10-06T06:00:00Z', 'full')
   })
 
-  it('records the live edition on resolving, and clears it and the verification on leaving resolved', async () => {
+  it('records the live edition and the move, and leaves a gap that is not open as it is', async () => {
     const id = await shownGap()
-    await linkTests(id, 'gt-dev')
-    const resolved = await changeStatus('owner', id, 'resolved')
-    expect(resolved).toMatchObject({
-      status: 'resolved',
-      resolvedEdition: label,
-      verifiedAt: null,
-    })
-    const [stored] = (
-      await client.query<{ seq: string }>(
-        'select resolved_edition_seq::text as seq from gaps where id=$1',
-        [id],
-      )
-    ).rows
-    expect(stored!.seq).toBe(edition)
-    // What slice V3 will record when a weekly run passes it.
-    await client.query(
-      `update gap_tests set passed_run=$2, passed_edition_seq=$3, passed_revision=1,
-              passed_hour=date_trunc('hour', now(), 'UTC') where gap_id=$1`,
-      [id, newest, edition],
-    )
-    await client.query(
-      "update gaps set verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$2 where id=$1",
-      [id, edition],
-    )
-    expect((await api('owner', 'GET', `/gaps/${id}`)).json()).toMatchObject({
-      verifiedAt: thisHour(),
-      verifiedEdition: label,
-      tests: [
-        {
-          question: 'gt-dev',
-          passed: { run: newest, edition: label, revision: 1, hour: thisHour() },
+    await cover('owner', id)
+    const covered = (await api('owner', 'GET', `/gaps/${id}`)).json<GapDetail>()
+    expect(covered).toMatchObject({ status: 'resolved', resolvedEdition: label })
+    expect(covered.history).toEqual([
+      {
+        action: 'gap.status_changed',
+        hour: thisHour(),
+        details: {
+          from: 'open',
+          to: 'resolved',
+          edition: label,
+          reason: 'Published "Orders in Norway".',
         },
-      ],
-    })
-
-    const reopened = await changeStatus('owner', id, 'open')
-    expect(reopened).toMatchObject({
-      status: 'open',
-      resolvedEdition: null,
-      verifiedAt: null,
-      verifiedEdition: null,
-      tests: [{ question: 'gt-dev', passed: null }],
-    })
+      },
+    ])
+    await cover('owner', id)
+    const aside = await shownGap()
+    await move('owner', aside, 'set_aside')
+    await cover('owner', aside)
+    expect((await client.query('select status from gaps where id=$1', [aside])).rows).toEqual([
+      { status: 'wont_fix' },
+    ])
     expect(
       (
         await client.query(
-          'select resolved_edition_seq, verified_at, verified_edition_seq from gaps where id=$1',
-          [id],
+          "select count(*)::int as n from audit_log a join gaps g on g.ref=a.subject_id where a.subject_type='gap' and g.id=any($1)",
+          [[id, aside]],
         )
       ).rows,
-    ).toEqual([{ resolved_edition_seq: null, verified_at: null, verified_edition_seq: null }])
-    expect((await gapAudit(id)).map((row) => [row.action, row.details])).toEqual([
-      ['gap.status_changed', { from: 'open', to: 'resolved', edition: label }],
-      ['gap.status_changed', { from: 'resolved', to: 'open' }],
-      ['gap.verification_cleared', {}],
-    ])
-    expect(reopened.history!.map((entry) => entry.action)).toEqual([
-      'gap.status_changed',
-      'gap.status_changed',
-      'gap.verification_cleared',
-    ])
-
-    // Won't fix keeps no edition, so nothing can verify it; resolving again starts afresh.
-    const closed = await changeStatus('owner', id, 'wont_fix')
-    expect(closed).toMatchObject({
-      status: 'wont_fix',
-      resolvedEdition: null,
-      verifiedAt: null,
-    })
-    await expect(
-      client.query(
-        "update gaps set verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$2 where id=$1",
-        [id, edition],
-      ),
-    ).rejects.toMatchObject({ code: '23514' })
+    ).toEqual([{ n: 2 }])
   })
 
-  it('shows every reader whether a gap is verified by test, and only its managers which tests', async () => {
+  it("shows every reader the covering edition, and only its managers the gap's history", async () => {
     const id = await shownGap()
-    await linkTests(id, 'gt-held')
-    await changeStatus('owner', id, 'resolved')
-    await client.query(
-      "update gaps set verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$2 where id=$1",
-      [id, edition],
-    )
+    await cover('owner', id)
     const reader = await api('stranger', 'GET', `/gaps/${id}`)
     expect(reader.statusCode, reader.body).toBe(200)
     expect(reader.json()).toMatchObject({
       canManage: false,
+      status: 'resolved',
       resolvedEdition: label,
-      verifiedAt: thisHour(),
-      verifiedEdition: label,
-      tests: null,
       history: null,
     })
-    expect(reader.body).not.toContain('gt-held')
     // The owner-run history read answers nothing to someone who does not manage the gap.
     await transaction(client, async () => {
       await client.query(`set local role ${identifier(localRoles.api)}`)
       await client.query("select set_config('cl.person_id', $1, true)", [people.stranger])
       expect((await client.query('select * from cl_gap_history($1)', [id])).rows).toEqual([])
-    })
-    expect((await api('admin', 'GET', `/gaps/${id}`)).json()).toMatchObject({
-      tests: [{ question: 'gt-held', split: 'held_out' }],
     })
   })
 })

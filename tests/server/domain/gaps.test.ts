@@ -1,9 +1,10 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
-  clearsVerification,
   dimensionOfValue,
+  gapMoves,
   gapOrigin,
+  gapStatuses,
   visibleCount,
 } from '../../../src/domain/gaps.ts'
 import { noteFindings } from '../../../src/domain/gap-reports.ts'
@@ -53,13 +54,14 @@ it('refuses a note with personal data, a secret or the question, and names why',
   expect(noteFindings('Orders in Norway', question)).toEqual([])
 })
 
-describe('a gap leaving resolved (FR-610)', () => {
-  it('clears verification whenever a gap leaves resolved, and only then', () => {
-    expect(clearsVerification('resolved', 'open')).toBe(true)
-    expect(clearsVerification('resolved', 'wont_fix')).toBe(true)
-    expect(clearsVerification('resolved', 'proposal_made')).toBe(true)
-    expect(clearsVerification('resolved', 'resolved')).toBe(false)
-    expect(clearsVerification('open', 'resolved')).toBe(false)
-    expect(clearsVerification('proposal_made', 'wont_fix')).toBe(false)
+describe("a gap's moves (FR-609)", () => {
+  it('reach every state, and each one that closes a gap has its Undo', () => {
+    const moves = Object.values(gapMoves)
+    expect(new Set(moves.flatMap((m) => [m.from, m.to]))).toEqual(new Set(gapStatuses))
+    for (const m of moves.filter((x) => x.from === 'open'))
+      expect(
+        moves.some((x) => x.from === m.to && x.to === 'open'),
+        m.to,
+      ).toBe(true)
   })
 })

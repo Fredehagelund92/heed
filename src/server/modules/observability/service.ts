@@ -289,17 +289,15 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
            select x.id from gaps x join topics xt on xt.id = x.topic_id
             where xt.area_id is not distinct from t.area_id and xt.metric_keys = t.metric_keys
               and xt.value_keys = t.value_keys and xt.dimension_keys = t.dimension_keys
-              and x.type = 'missing' and x.status in ('open', 'proposal_made')
+              and x.type = 'missing' and x.status = 'open'
             order by x.status_since desc, x.created_at desc limit 1) g on true
          left join lateral (
-           -- A draft written from the gap is its draft, as the Inbox's Not found card has it;
-           -- anything else linked to it is a suggestion that waits.
-           select case when pr.source_gap_id = g.id then 'draft' else 'suggestion' end as state,
-                  pr.id::text as proposal
-             from gap_proposals gp join proposals pr on pr.id = gp.proposal_id
-            where gp.gap_id = g.id and pr.discarded_at is null
+           -- A draft written for the gap is its draft, as the Inbox's Not found card has it.
+           select 'draft' as state, pr.id::text as proposal
+             from proposals pr
+            where pr.source_gap_id = g.id and pr.discarded_at is null
               and pr.state in ('draft', 'submitted', 'in_review', 'changes_requested')
-            order by pr.source_gap_id = g.id desc, pr.created_at desc limit 1) p on true
+            order by pr.created_at desc limit 1) p on true
         where t.id = any($1::uuid[])`,
       [topicIds],
     )
@@ -497,13 +495,12 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
                 coalesce(p.state, 'none') as state, p.proposal
            from gaps g join topics t on t.id = g.topic_id
            left join lateral (
-             select case when pr.source_gap_id = g.id then 'draft' else 'suggestion' end as state,
-                    pr.id::text as proposal
-               from gap_proposals gp join proposals pr on pr.id = gp.proposal_id
-              where gp.gap_id = g.id and pr.discarded_at is null
+             select 'draft' as state, pr.id::text as proposal
+               from proposals pr
+              where pr.source_gap_id = g.id and pr.discarded_at is null
                 and pr.state in ('draft', 'submitted', 'in_review', 'changes_requested')
-              order by pr.source_gap_id = g.id desc, pr.created_at desc limit 1) p on true
-          where g.type = 'missing' and g.status in ('open', 'proposal_made') and ${area}
+              order by pr.created_at desc limit 1) p on true
+          where g.type = 'missing' and g.status = 'open' and ${area}
           order by g.status_since desc, g.created_at desc`,
       [areas, admin, now.start, now.end],
     )

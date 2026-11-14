@@ -36,7 +36,7 @@ import { thresholdOfWords } from '@domain/alerts'
 import type { ChatTurn } from '@domain/ask-chat'
 import { canonicalJson } from '@domain/canonical'
 import { termWord } from '@domain/terms'
-import type { CardAction } from '@domain/inbox'
+import { parseCardKey, type CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import { recordsAnswer, replyAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
@@ -704,6 +704,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     fact: Fact,
     isNew: boolean,
     relations: Record<string, Relation> = {},
+    card?: string,
   ) {
     const [vocabulary, who] = await Promise.all([readWords(), signedIn()])
     const started = !isNew && isUuid(fact.id) ? await readDraft(fact.id) : null
@@ -716,10 +717,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       itemId: id,
       relation: relation === 'disagree' ? ('disagrees' as const) : relation,
     }))
+    // Written from a Not found card: the publish names its gap, which it then covers.
+    const gap = card ? parseCardKey(card) : null
     const input = {
       draft: draftOf(fact, vocabulary, calendar.today, before),
       ...(own ? { draftId: own.id } : itemId ? { itemId } : {}),
       ...(answered.length ? { relations: answered } : {}),
+      ...(gap?.kind === 'gap' ? { gapId: gap.id } : {}),
     }
     return write('items.publish', input, (o) => client.items.publish(input, o))
   }
@@ -1429,10 +1433,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const left = [...done.failed, ...done.skipped][0]
       if (left) throw new ApiError('conflict', left.message)
     },
-    // A Not found card closes when its own draft is decided, and the setup checklist reads its
-    // first item from what exists: neither needs saying here.
-    saveItem: async ({ fact, isNew, relations }) => {
-      const done = await publishFromEditor(fact, isNew, relations)
+    // A Not found card closes when the context written for it is published, and the setup
+    // checklist reads its first item from what exists: neither needs saying here.
+    saveItem: async ({ fact, isNew, relations, gap }) => {
+      const done = await publishFromEditor(fact, isNew, relations, gap)
       if (!done.published) return { id: isNew ? done.proposalId : fact.id }
       published[done.itemId] = 'just now'
       return { id: done.itemId }
@@ -1467,8 +1471,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       }
     },
     // Owners publish in one step; a suggestion waits for them, on the item and in the Inbox.
-    sendSuggestion: async ({ sent: suggestion, fact }) => {
-      const done = await publishFromEditor(fact, !suggestion.factId)
+    sendSuggestion: async ({ sent: suggestion, fact, gap }) => {
+      const done = await publishFromEditor(fact, !suggestion.factId, {}, gap)
       if (done.published) {
         published[done.itemId] = 'just now'
         return { id: done.itemId }

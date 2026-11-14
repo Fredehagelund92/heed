@@ -17,7 +17,6 @@ import { writeRecords } from '../../src/server/mcp/store.ts'
 import { readDevPeople } from '../../src/server/modules/auth/index.ts'
 import { raiseAlerts } from '../../src/server/modules/alerts/index.ts'
 import { createBundleCache, liveServingBundle } from '../../src/server/modules/answer/index.ts'
-import { createGapsService } from '../../src/server/modules/gaps/index.ts'
 import { loadServingPolicy } from '../../src/server/modules/editions/index.ts'
 import type { JobRunner } from '../../src/server/modules/jobs/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
@@ -244,6 +243,15 @@ async function tellStory(
     notToConclude: 'Fewer orders in Norway after 4 August do not mean fewer customers.',
   })
   const norwayProposal = await suggest(call, 'maria', norwayDraft)
+  // It answers the gap agents raised about orders in Norway in October (db/seed/fixtures/gaps.ts):
+  // Maria wrote it for that gap, so Jon's publish covers it, on the edition that carries it.
+  const gap = gapFixtures.find(
+    (g) => g.topic === 'area_sales|metric:orders|val:market/norway|2026-10',
+  )
+  if (!gap) throw new Error('The demo has no gap about orders in Norway')
+  await database.transaction(seedPersonId('per_maria'), (tx) =>
+    tx.query('update proposals set source_gap_id = $1 where id = $2', [gap.id, norwayProposal]),
+  )
   const published = await withRelations(async (relations) => {
     const p = await call('GET', `/proposals/${norwayProposal}`, 'jon')
     return call('POST', `/review/${norwayProposal}/publish`, 'jon', {
@@ -252,19 +260,6 @@ async function tellStory(
     })
   })
   const norway = (published.proposal as { itemId: string }).itemId
-  // It answers the gap agents raised about orders in Norway in October (db/seed/fixtures/gaps.ts),
-  // which Jon resolves on the edition that carries it.
-  const gap = gapFixtures.find(
-    (g) => g.topic === 'area_sales|metric:orders|val:market/norway|2026-10',
-  )
-  if (!gap) throw new Error('The demo has no gap about orders in Norway')
-  await database.transaction(seedPersonId('per_jon'), async (tx) => {
-    await tx.query('insert into gap_proposals (gap_id, proposal_id) values ($1, $2)', [
-      gap.id,
-      norwayProposal,
-    ])
-    await createGapsService(tx).setStatus(gap.id, 'resolved', `Published "${norwayStop.title}".`)
-  })
 
   // 2. Two Sales items that disagree, each published by an owner of Sales.
   const ukDraft = (title: string, summary: string, conflicts?: string[]) =>

@@ -515,10 +515,15 @@ function useActions(card: InboxCard) {
       case 'suggestion':
         return navigate(`/inbox/${card.id}/review`)
       case 'gap':
-        // A draft waits: the same review as any suggestion. With none yet, the editor opens on the scope.
+        // A draft waits: the same review as any suggestion. With none yet, the editor opens on the
+        // scope, for this card: publishing what is written there closes it.
         return card.gap?.draft
           ? navigate(`/inbox/${card.id}/review`)
-          : navigate('/context/new', { metric: card.gap?.scope[0], market: card.gap?.scope[1] })
+          : navigate('/context/new', {
+              gap: card.id,
+              metric: card.gap?.scope[0],
+              market: card.gap?.scope[1],
+            })
       case 'flag':
         // A report that names no context item has one thing to decide.
         return card.factId ? openDock('context', card.factId, { flag: card.id }) : notAProblem()

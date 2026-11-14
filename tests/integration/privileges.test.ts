@@ -1,7 +1,7 @@
 import pg from 'pg'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { localRoles, identifier } from '../../src/server/db/roles.ts'
-import { accept, foundation, openEdition, people, publish, version } from './fixtures.ts'
+import { accept, foundation, people, publish, version } from './fixtures.ts'
 import { testDatabase, transaction } from './support.ts'
 
 const { client, url } = testDatabase()
@@ -317,28 +317,11 @@ it('keeps the job queue to the API role, without DDL', async () => {
     ).rejects.toMatchObject({ code: '42501' })
 })
 
-describe('gap tests and attached tests (0043)', () => {
-  let gap: string
-  let otherGap: string
+describe('attached tests (0043)', () => {
   let draft: string
   let submitted: string
-  let run: string
-  let edition: string
   beforeAll(async () => {
     await transaction(client, async () => {
-      const gapIn = async (area: string) => {
-        const topic = await client.query<{ id: string }>(
-          "insert into topics (key,area_id,metric_keys,value_keys,month) values ($1,$2,'{}','{}','2026-10-01') returning id",
-          [`gap-tests|${area}`, area],
-        )
-        const row = await client.query<{ id: string }>(
-          "insert into gaps (topic_id,type,opened_by_case) values ($1,'missing',2) returning id",
-          [topic.rows[0]!.id],
-        )
-        return row.rows[0]!.id
-      }
-      gap = await gapIn('finance')
-      otherGap = await gapIn('marketing')
       await client.query(`insert into golden_questions (id,area_id,wordings,scope,expected,source,split) values
         ('finance-open','finance','["a","b"]','{}','{}','test','development'),
         ('finance-later','finance','["a","b"]','{}','{}','test','development'),
@@ -356,27 +339,8 @@ describe('gap tests and attached tests (0043)', () => {
         [v.id],
       )
       submitted = sent.rows[0]!.id
-      edition = await openEdition(client)
-      const evalRun = await client.query<{ id: string }>(
-        `insert into eval_runs (kind,state,area_id,tool_schema_digest,model_id,client_label,test_set_digest,tries,estimated_cost_micros)
-         values ('scheduled','finished','finance','x','mock/scripted-answer','eval','\\x00',3,0) returning id`,
-      )
-      run = evalRun.rows[0]!.id
     })
   })
-  const link = (person: string | null, gapId: string, question: string) =>
-    asRole(localRoles.api, person, () =>
-      client.query('insert into gap_tests (gap_id,question_id) values ($1,$2)', [gapId, question]),
-    )
-  const links = (person: string | null) =>
-    asRole(localRoles.api, person, async () =>
-      (
-        await client.query<{ question_id: string }>(
-          'select question_id from gap_tests where gap_id=$1 order by question_id',
-          [gap],
-        )
-      ).rows.map((row) => row.question_id),
-    )
   const attach = (person: string, proposal: string, question: string) =>
     asRole(localRoles.api, person, () =>
       client.query('insert into proposal_tests (proposal_id,question_id) values ($1,$2)', [
@@ -384,99 +348,6 @@ describe('gap tests and attached tests (0043)', () => {
         question,
       ]),
     )
-
-  it("lets only a gap's managers link and read its tests, held-out ones included", async () => {
-    await link(people.owner, gap, 'finance-open')
-    await link(people.admin, gap, 'finance-held')
-    for (const person of [people.author, people.stranger, people.approver])
-      await expect(link(person, gap, 'finance-later'), person).rejects.toMatchObject({
-        code: '42501',
-      })
-    // An owner of Finance manages none of Marketing's gaps.
-    await expect(link(people.owner, otherGap, 'marketing-open')).rejects.toMatchObject({
-      code: '42501',
-    })
-    expect(await links(people.owner)).toEqual(['finance-held', 'finance-open'])
-    expect(await links(people.admin)).toEqual(['finance-held', 'finance-open'])
-    for (const person of [people.author, people.stranger, people.approver])
-      expect(await links(person), person).toEqual([])
-  })
-
-  it("links a test only to a gap of the question's own area", async () => {
-    await expect(link(people.admin, gap, 'marketing-open')).rejects.toMatchObject({
-      code: '23514',
-    })
-  })
-
-  it('shows a transaction without a person no links, and lets it record or link nothing', async () => {
-    expect(await links(null)).toEqual([])
-    const recorded = await asRole(localRoles.api, null, () =>
-      client.query(
-        `update gap_tests set passed_run=$2,passed_edition_seq=$3,passed_revision=1,
-           passed_hour=date_trunc('hour',now(),'UTC') where gap_id=$1 and question_id='finance-open'`,
-        [gap, run, edition],
-      ),
-    )
-    expect(recorded.rowCount).toBe(0)
-    await expect(link(null, gap, 'finance-later')).rejects.toMatchObject({ code: '42501' })
-    const unlinked = await asRole(localRoles.api, null, () =>
-      client.query('delete from gap_tests where gap_id=$1', [gap]),
-    )
-    expect(unlinked.rowCount).toBe(0)
-  })
-
-  it('records a pass whole, at the hour', async () => {
-    const recorded = await asRole(localRoles.api, people.owner, () =>
-      client.query(
-        `update gap_tests set passed_run=$2,passed_edition_seq=$3,passed_revision=1,
-           passed_hour=date_trunc('hour',now(),'UTC') where gap_id=$1 and question_id='finance-open'`,
-        [gap, run, edition],
-      ),
-    )
-    expect(recorded.rowCount).toBe(1)
-    await expect(
-      asRole(localRoles.api, people.owner, () =>
-        client.query('update gap_tests set passed_run=null where gap_id=$1', [gap]),
-      ),
-    ).rejects.toMatchObject({ code: '23514' })
-    await expect(
-      asRole(localRoles.api, people.owner, () =>
-        client.query(
-          "update gap_tests set passed_hour=passed_hour+interval '1 minute' where gap_id=$1 and question_id='finance-open'",
-          [gap],
-        ),
-      ),
-    ).rejects.toMatchObject({ code: '23514' })
-  })
-
-  it('keeps a link itself unchangeable: only its pass is written', async () => {
-    for (const column of ['gap_id', 'question_id', 'evidence_run', 'linked_hour'])
-      await expect(
-        asRole(localRoles.api, people.admin, () =>
-          client.query(`update gap_tests set ${identifier(column)}=${identifier(column)}`),
-        ),
-        column,
-      ).rejects.toMatchObject({ code: '42501' })
-    const cleared = await asRole(localRoles.api, people.owner, () =>
-      client.query(
-        'update gap_tests set passed_run=null,passed_edition_seq=null,passed_revision=null,passed_hour=null where gap_id=$1',
-        [gap],
-      ),
-    )
-    expect(cleared.rowCount).toBe(2)
-  })
-
-  it('lets a manager unlink, and nobody else', async () => {
-    const stranger = await asRole(localRoles.api, people.stranger, () =>
-      client.query("delete from gap_tests where gap_id=$1 and question_id='finance-held'", [gap]),
-    )
-    expect(stranger.rowCount).toBe(0)
-    const owner = await asRole(localRoles.api, people.owner, () =>
-      client.query("delete from gap_tests where gap_id=$1 and question_id='finance-held'", [gap]),
-    )
-    expect(owner.rowCount).toBe(1)
-    expect(await links(people.admin)).toEqual(['finance-open'])
-  })
 
   it("attaches a development test of the draft's area, never a held-out one (FR-503)", async () => {
     await attach(people.author, draft, 'finance-open')
@@ -525,20 +396,19 @@ describe('gap tests and attached tests (0043)', () => {
     expect(own.rowCount).toBe(1)
   })
 
-  it('refuses holding out or moving a question that an open proposal or a gap still uses', async () => {
+  it('refuses holding out or moving a question that an open proposal still uses', async () => {
     await expect(
       client.query("update golden_questions set split='held_out' where id='finance-open'"),
     ).rejects.toMatchObject({ code: '23514' })
     await expect(
       client.query("update golden_questions set area_id='marketing' where id='finance-open'"),
     ).rejects.toMatchObject({ code: '23514' })
-    // Linked to a gap and not attached: it may be held out, but not moved.
-    await link(people.owner, gap, 'finance-later')
-    await expect(
-      client.query("update golden_questions set area_id='marketing' where id='finance-later'"),
-    ).rejects.toMatchObject({ code: '23514' })
+    // Attached to nothing open: it may be held out and moved.
     await expect(
       client.query("update golden_questions set split='held_out' where id='finance-later'"),
+    ).resolves.toMatchObject({ rowCount: 1 })
+    await expect(
+      client.query("update golden_questions set area_id='marketing' where id='finance-later'"),
     ).resolves.toMatchObject({ rowCount: 1 })
   })
 
