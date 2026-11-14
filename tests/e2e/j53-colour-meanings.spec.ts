@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, go, test } from './go.ts'
+import { expect, go, mode, test } from './go.ts'
 
 // J53, one colour per meaning (design contract 2.1): blue is for acting and for what is selected,
 // green for what is checked and in force. A Checked answer is green wherever it shows: its chip,
@@ -38,6 +38,8 @@ for (const theme of ['light', 'dark'] as const)
     test.use({ colorScheme: theme })
 
     test('a Checked answer is green: its chip, the bars and the legend', async ({ page }) => {
+      // Asked this week and the chart's counts are the mock's demo data; the service's week has none.
+      test.skip(mode === 'http', "reads the mock's Asked this week and Observability counts")
       await go(page, '/ask')
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/)
       else await expect(page.locator('html')).not.toHaveClass(/dark/)
