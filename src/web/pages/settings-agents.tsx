@@ -125,11 +125,13 @@ function KeyNameDialog({
   /** Saves the name: a new key's secret, or nothing for a rename. */
   onSave: (name: string) => Promise<string | undefined>
 }) {
+  const [sending, setSending] = React.useState(false)
   return (
-    <Dialog open={naming.open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={naming.open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <KeyNameForm
           key={naming.seq}
+          onSending={setSending}
           {...(naming.renaming ? { renaming: naming.renaming } : {})}
           onSave={onSave}
           onClose={onClose}
@@ -146,8 +148,10 @@ function KeyNameForm({
   renaming,
   onSave,
   onClose,
+  onSending,
 }: {
   renaming?: Connected
+  onSending: (sending: boolean) => void
   onSave: (name: string) => Promise<string | undefined>
   onClose: () => void
 }) {
@@ -161,6 +165,11 @@ function KeyNameForm({
       onClose()
     },
   })
+  const sending = saving.state === 'sending'
+  React.useEffect(() => {
+    onSending(sending)
+    return () => onSending(false)
+  }, [sending, onSending])
   const save = (event: React.FormEvent) => {
     event.preventDefault()
     const found = agentNameProblem(name)
@@ -208,8 +217,10 @@ function KeyNameForm({
         </p>
       )}
       <DialogFooter className="mt-6">
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-        <Button type="submit" disabled={saving.state === 'sending'}>
+        <DialogClose render={<Button type="button" variant="outline" disabled={sending} />}>
+          Cancel
+        </DialogClose>
+        <Button type="submit" disabled={sending}>
           {renaming ? 'Rename' : 'Create'}
         </Button>
       </DialogFooter>
