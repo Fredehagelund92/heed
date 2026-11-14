@@ -23,7 +23,7 @@ export type Autosave<T> = {
 }
 
 export type AutosaveEvent<T> =
-  { type: 'edit'; value: T } | { type: 'send' } | { type: 'answered' } | { type: 'failed' }
+  { type: 'edit'; value: T } | { type: 'discard' } | { type: 'send' } | { type: 'answered' } | { type: 'failed' }
 
 /** Changes made close together are saved together: by default the newest stands for them all. */
 export type Merge<T> = (older: T, newer: T) => T
@@ -49,6 +49,8 @@ export function autosaveStep<T>(
         waiting: s.waiting === null ? e.value : merge(s.waiting, e.value),
         failed: false,
       }
+    case 'discard':
+      return { ...s, waiting: null, failed: false }
     case 'send':
       if (s.sending !== null || s.waiting === null) return s
       return { ...s, sending: s.waiting, waiting: null, failed: false }
@@ -119,6 +121,11 @@ function autosaveMachine<T>() {
       options = next
     },
     send,
+    /** Drops what is waiting, and its timer: it is no longer what the page shows. */
+    discard: () => {
+      window.clearTimeout(timer)
+      step({ type: 'discard' })
+    },
     change: (value: T) => {
       step({ type: 'edit', value })
       window.clearTimeout(timer)
@@ -159,6 +166,7 @@ export function useAutosave<T>(options: Options<T>) {
   return {
     status: saveStateOf(state, online),
     change: machine.change,
+    discard: machine.discard,
     /** Try the failed save again now. */
     retry: () => machine.send(true),
     /** Sends what is waiting now; settles when all of it is stored, or fails with the save. */

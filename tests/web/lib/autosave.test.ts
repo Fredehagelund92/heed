@@ -17,6 +17,7 @@ const edit = <T>(value: T): AutosaveEvent<T> => ({ type: 'edit', value })
 const send = { type: 'send' } as const
 const answered = { type: 'answered' } as const
 const failed = { type: 'failed' } as const
+const discard = { type: 'discard' } as const
 
 describe('autosave', () => {
   it('opens clean, and an edit waits to be sent', () => {
@@ -54,6 +55,16 @@ describe('autosave', () => {
     // Try again, or the next edit, sends it all.
     expect(autosaveStep(s, send, merge).sending).toEqual({ name: 'Sales', text: 'House rules' })
     expect(saveStateOf(autosaveStep(s, edit({ text: 'More' }), merge), true)).toBe('dirty')
+  })
+
+  it('drops what waits when the page no longer shows it, so an older text is never sent', () => {
+    const s = run([edit('Alpha'), discard])
+    expect(s.waiting).toBeNull()
+    expect(autosaveStep(s, send)).toBe(s)
+    expect(saveStateOf(s, true)).toBe('clean')
+    const failedThenDropped = run([edit('Alpha'), send, failed, discard])
+    expect(failedThenDropped.waiting).toBeNull()
+    expect(failedThenDropped.failed).toBe(false)
   })
 
   it('says Offline when words wait and the app cannot reach the service', () => {

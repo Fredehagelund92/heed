@@ -51,6 +51,7 @@ export function AboutPage({
     setLength(text.length)
     // Too long is never sent; shortening it saves it.
     if (text.length <= LIMIT) autosave.change(text)
+    else autosave.discard()
   }
 
   const editor = useEditor({

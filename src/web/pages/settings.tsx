@@ -613,6 +613,7 @@ export function SettingsPage({
     return (
       <React.Suspense fallback={<Page title="Domain">{null}</Page>}>
         <DomainPage
+          key={sub}
           id={sub}
           crumbs={(name) => (
             <SettingsCrumbs
