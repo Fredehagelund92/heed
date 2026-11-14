@@ -5,6 +5,7 @@ import {
   runWithheld,
   type EvalDeps,
   type WithheldOptions,
+  type WithheldRun,
 } from '../../src/server/modules/evals/index.ts'
 import type { Database } from '../../src/server/db/database.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
@@ -86,7 +87,7 @@ export async function heldOutArea(
   HeldOutRun & {
     costMicros: number
     runId: string | null
-    state: 'finished' | 'incomplete' | null
+    state: WithheldRun['state'] | null
     stopped: string | null
     judging: { judged: number; errors: number }
   }
@@ -94,7 +95,7 @@ export async function heldOutArea(
   let outcome = {
     costMicros: 0,
     runId: null as string | null,
-    state: null as 'finished' | 'incomplete' | null,
+    state: null as WithheldRun['state'] | null,
     stopped: null as string | null,
     judging: { judged: 0, errors: 0 },
   }

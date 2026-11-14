@@ -735,7 +735,7 @@ async function recordLevels(
 export async function failRun(tx: Queryable, run: RunRow, reason: string): Promise<void> {
   await tx.query(
     `update eval_runs set state='failed',failure=$2,finished_at=now(),worker=null,lease_until=null
-      where id=$1 and state in ('queued','running','awaiting_approval','estimated','incomplete')`,
+      where id=$1 and state='running'`,
     [run.id, reason.slice(0, 500)],
   )
   if (run.item_version_id) {
@@ -805,7 +805,7 @@ export async function stopRun(
   await tx.query(
     `update eval_runs set state='incomplete',finished_at=now(),worker=null,lease_until=null,failure=$2,
        summary=summary||jsonb_build_object('stopped',$3::jsonb)
-     where id=$1 and state in ('queued','running')`,
+     where id=$1 and state='running'`,
     [run.id, `${detail ? `${detail} ` : ''}${stopWords(stop)}`.slice(0, 500), JSON.stringify(stop)],
   )
   return stop
@@ -816,26 +816,49 @@ export async function stopRun(
  * worked by the command that runs them. Queued again, such a run would wait for nobody.
  */
 export const commandKinds: readonly string[] = ['assistant_mock', 'assistant_real', 'held_out']
-export const commandRunNotResumed =
+const commandRunNotResumed =
   'This test run is worked only by the command that started it, so it is not resumed. Run that command again (for held-out cases, npm run held-out -- eval --area <domain id>).'
+
+/**
+ * Whether a run may be queued again, and why not (#194): only a run that stopped before it
+ * finished, of a kind the worker takes. The transition table allows `incomplete -> queued` for
+ * every kind; this is the part that depends on the kind. The service, the command line and the
+ * job's housekeeping all resume through `resumeRun`, which asks it.
+ */
+export function canResume(run: {
+  kind: string
+  state: string
+}): { resume: true } | { resume: false; why: string } {
+  if (run.state !== 'incomplete')
+    return {
+      resume: false,
+      why: 'Only a test run that stopped before it finished can be resumed.',
+    }
+  if (commandKinds.includes(run.kind)) return { resume: false, why: commandRunNotResumed }
+  return { resume: true }
+}
 
 /**
  * Queues an incomplete run again: the worker skips every finished answer and makes only the
  * missing ones. `costCeilingMicros` replaces the run's ceiling when given (the whole run's,
- * what it spent so far included). Returns false when the run is not incomplete, or is of a kind
- * the worker never takes.
+ * what it spent so far included). Returns false when `canResume` refuses the run.
  */
 export async function resumeRun(
   tx: Queryable,
   id: string,
   options: { costCeilingMicros?: number | null } = {},
 ): Promise<boolean> {
-  const rows = await tx.query(
+  const [run] = await tx.query<{ kind: string; state: string }>(
+    'select kind::text,state::text from eval_runs where id=$1 for update',
+    [id],
+  )
+  if (!run || !canResume(run).resume) return false
+  await tx.query(
     `update eval_runs set state='queued',finished_at=null,failure=null,worker=null,lease_until=null,
        cost_ceiling_micros=case when $2::boolean then $3::bigint else cost_ceiling_micros end,
        summary=summary||jsonb_build_object('resumes',coalesce((summary->>'resumes')::int,0)+1)
-     where id=$1 and state='incomplete' and kind <> all($4::eval_kind[]) returning id`,
-    [id, options.costCeilingMicros !== undefined, options.costCeilingMicros ?? null, commandKinds],
+     where id=$1`,
+    [id, options.costCeilingMicros !== undefined, options.costCeilingMicros ?? null],
   )
-  return rows.length > 0
+  return true
 }

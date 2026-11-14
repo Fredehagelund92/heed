@@ -120,7 +120,10 @@ keep the levels 4 and 5 they recorded.
   run, or one stopped by a cap, its ceiling or Ctrl-C, ends `incomplete` with what is missing;
   resuming it (`POST /evals/runs/{id}/resume`, or
   `npm run eval -- --resume <run id>`) makes only those answers. The command refuses, and leaves the run as it was, when the models it would use differ from the run's. Neither resumes a held-out run or an assistant test run, which only their own command works: run that command again. The job resumes an incomplete run
-  the service started a few times by itself, 15 minutes apart.
+  the service started a few times by itself, 15 minutes apart. A held-out run holds a lease while
+  its command works it: a cancel stops it before its next answer, and the job ends one whose
+  command died, its lease run out, `incomplete`. A run moves only as the `eval_run_transitions`
+  table allows; the database refuses any other move.
 - **Judge against code**: a run's result and scorecard name the questions where the judge passed
   what the code checks failed, and the other way round, with the count of tries. A judge that
   passes what code fails is more lenient than the record of what reached the agent.

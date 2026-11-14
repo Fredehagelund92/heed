@@ -6,8 +6,7 @@ import { ConfigError, loadConfig } from './config/env.ts'
 import { createDatabase, type Queryable } from './db/database.ts'
 import {
   CEILING_MARGIN,
-  commandKinds,
-  commandRunNotResumed,
+  canResume,
   createEvalsService,
   modelsFor,
   queueAreaRun,
@@ -126,12 +125,9 @@ async function main() {
         console.error(`There is no evaluation run ${id}.`)
         return 1
       }
-      if (run.state !== 'incomplete') {
-        console.error(`Run ${id} is ${run.state}; only an incomplete run is resumed.`)
-        return 1
-      }
-      if (commandKinds.includes(run.kind)) {
-        console.error(`Run ${id}: ${commandRunNotResumed} It is left as it was.`)
+      const resumable = canResume(run)
+      if (!resumable.resume) {
+        console.error(`Run ${id} is ${run.state}. ${resumable.why} It is left as it was.`)
         return 1
       }
       const now = modelsFor(deps.port, await readEvalSettings(database))
@@ -299,7 +295,8 @@ async function main() {
 /** Queues the run under this command's lease, so no other worker takes it. */
 async function hold(tx: Queryable, id: string, worker: string) {
   await tx.query(
-    `update eval_runs set state='queued',worker=$2,lease_until=now()+interval '5 minutes' where id=$1`,
+    `update eval_runs set state='queued',worker=$2,lease_until=now()+interval '5 minutes'
+      where id=$1 and state in ('awaiting_approval','queued')`,
     [id, worker],
   )
 }

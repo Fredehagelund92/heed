@@ -302,8 +302,9 @@ async function evalArea(options: {
     }
     for (const line of (await credits?.finish(run.runId ? [run.runId] : [])) ?? [])
       console.log(line)
-    // 0: every case ran and passed; 2: the run stopped before every answer was made; 1: otherwise.
-    if (run.state === 'incomplete') return 2
+    // 0: every case ran and passed; 2: the run stopped, or was cancelled, before it finished;
+    // 1: otherwise.
+    if (run.state === 'incomplete' || run.state === 'cancelled') return 2
     return run.ran && run.counts.failed === 0 && run.counts.skipped === 0 ? 0 : 1
   } finally {
     process.off('SIGINT', interrupt)
